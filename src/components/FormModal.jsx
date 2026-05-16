@@ -67,6 +67,7 @@ function PJForm({ item }) {
     notas: item?.notas ?? '',
   })
   const [newPlayerPwd, setNewPlayerPwd] = useState('')
+  const [showPlayerPwd, setShowPlayerPwd] = useState(false)
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
 
   function handleSave() {
@@ -125,12 +126,23 @@ function PJForm({ item }) {
             <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Estado:</span>
             {accessStatus}
           </div>
-          <input
-            type="password"
-            placeholder="Nueva contraseña inicial…"
-            value={newPlayerPwd}
-            onChange={e => setNewPlayerPwd(e.target.value)}
-          />
+          <div className="pwd-field">
+            <input
+              type={showPlayerPwd ? 'text' : 'password'}
+              placeholder="Nueva contraseña inicial…"
+              value={newPlayerPwd}
+              onChange={e => setNewPlayerPwd(e.target.value)}
+            />
+            <button
+              type="button"
+              className="pwd-toggle"
+              onClick={() => setShowPlayerPwd(v => !v)}
+              tabIndex={-1}
+              title={showPlayerPwd ? 'Ocultar' : 'Mostrar'}
+            >
+              {showPlayerPwd ? '🙈' : '👁'}
+            </button>
+          </div>
           <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
             {item.player_password && (
               <button className="btn btn-secondary" onClick={handleResetAccess} type="button">

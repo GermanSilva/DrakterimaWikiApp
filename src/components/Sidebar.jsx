@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import { useApp } from '../AppContext'
+import DragonIcon from '../svgs/dragonIcon'
 
 const NAV = [
   { section: 'Principal', items: [
@@ -20,6 +21,14 @@ const NAV = [
   ]},
 ]
 
+function EyeToggle({ show, onToggle }) {
+  return (
+    <button type="button" className="pwd-toggle" onClick={onToggle} tabIndex={-1} title={show ? 'Ocultar' : 'Mostrar'}>
+      {show ? '🙈' : '👁'}
+    </button>
+  )
+}
+
 function AccessModal({ onClose, onAccess, onChangePassword }) {
   const [step, setStep] = useState('password')
   const [pwd, setPwd] = useState('')
@@ -27,6 +36,7 @@ function AccessModal({ onClose, onAccess, onChangePassword }) {
   const [confirmPwd, setConfirmPwd] = useState('')
   const [error, setError] = useState('')
   const [pendingPj, setPendingPj] = useState(null)
+  const [showPwd, setShowPwd] = useState(false)
   const inputRef = useRef(null)
 
   useEffect(() => {
@@ -67,24 +77,29 @@ function AccessModal({ onClose, onAccess, onChangePassword }) {
           <div className="dm-modal-icon">🔑</div>
           <div className="dm-modal-title">Bienvenido/a, {pendingPj.nombre}</div>
           <div className="dm-modal-subtitle">Este es tu primer acceso. Elegí una contraseña nueva para continuar.</div>
-          <input
-            className="dm-modal-input"
-            type="password"
-            placeholder="Nueva contraseña"
-            value={newPwd}
-            onChange={e => { setNewPwd(e.target.value); setError('') }}
-            onKeyDown={e => e.key === 'Enter' && confirmPwd && handleChangePassword()}
-            autoFocus
-          />
-          <input
-            className="dm-modal-input"
-            type="password"
-            placeholder="Confirmar contraseña"
-            value={confirmPwd}
-            onChange={e => { setConfirmPwd(e.target.value); setError('') }}
-            onKeyDown={e => e.key === 'Enter' && handleChangePassword()}
-            style={{ marginTop: 8 }}
-          />
+          <div className="pwd-field">
+            <input
+              className="dm-modal-input"
+              type={showPwd ? 'text' : 'password'}
+              placeholder="Nueva contraseña"
+              value={newPwd}
+              onChange={e => { setNewPwd(e.target.value); setError('') }}
+              onKeyDown={e => e.key === 'Enter' && confirmPwd && handleChangePassword()}
+              autoFocus
+            />
+            <EyeToggle show={showPwd} onToggle={() => setShowPwd(v => !v)} />
+          </div>
+          <div className="pwd-field" style={{ marginTop: 8 }}>
+            <input
+              className="dm-modal-input"
+              type={showPwd ? 'text' : 'password'}
+              placeholder="Confirmar contraseña"
+              value={confirmPwd}
+              onChange={e => { setConfirmPwd(e.target.value); setError('') }}
+              onKeyDown={e => e.key === 'Enter' && handleChangePassword()}
+            />
+            <EyeToggle show={showPwd} onToggle={() => setShowPwd(v => !v)} />
+          </div>
           {error && <div className="dm-modal-error">{error}</div>}
           <div className="dm-modal-actions">
             <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
@@ -98,18 +113,23 @@ function AccessModal({ onClose, onAccess, onChangePassword }) {
   return (
     <div className="dm-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="dm-modal">
-        <div className="dm-modal-icon">🐉</div>
+        <div className="dm-modal-icon">
+          <DragonIcon width={150} height={150} fill="var(--accent)" />
+        </div>
         <div className="dm-modal-title">Drakterima</div>
         <div className="dm-modal-subtitle">Ingresá tu contraseña para acceder</div>
-        <input
-          ref={inputRef}
-          className="dm-modal-input"
-          type="password"
-          placeholder="Contraseña"
-          value={pwd}
-          onChange={e => { setPwd(e.target.value); setError('') }}
-          onKeyDown={e => e.key === 'Enter' && handleAccess()}
-        />
+        <div className="pwd-field">
+          <input
+            ref={inputRef}
+            className="dm-modal-input"
+            type={showPwd ? 'text' : 'password'}
+            placeholder="Contraseña"
+            value={pwd}
+            onChange={e => { setPwd(e.target.value); setError('') }}
+            onKeyDown={e => e.key === 'Enter' && handleAccess()}
+          />
+          <EyeToggle show={showPwd} onToggle={() => setShowPwd(v => !v)} />
+        </div>
         {error && <div className="dm-modal-error">{error}</div>}
         <div className="dm-modal-actions">
           <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
