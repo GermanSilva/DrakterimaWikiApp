@@ -2,7 +2,7 @@ import { useApp } from '../AppContext'
 import { RelacionTag } from '../components/Shared'
 
 export default function Dashboard() {
-  const { db, navigate, goToDetail } = useApp()
+  const { db, navigate, goToDetail, isDM } = useApp()
   const lastSesion = db.sesiones.length ? db.sesiones[db.sesiones.length - 1] : null
   const nextSesion = db.sesiones.find(s => !s.logros?.trim()) ?? null
   const recentPNJs = db.pnjs.slice(-3).reverse()
@@ -41,7 +41,7 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {nextSesion && (
+      {isDM && nextSesion && (
         <>
           <div className="divider">Próxima Sesión</div>
           <div

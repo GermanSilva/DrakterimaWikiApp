@@ -816,6 +816,26 @@ body::before {
 }
 .sidebar-action-btn:hover { color: var(--text-primary); background: var(--bg-hover); }
 .sidebar-action-btn span { font-size: 14px; opacity: 0.7; }
+.sidebar-dm-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 7px 16px;
+  text-align: left;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+  margin-top: 6px;
+  letter-spacing: 0.04em;
+}
+.sidebar-dm-btn:hover { color: var(--accent); background: var(--bg-hover); }
+.sidebar-dm-btn--active { color: var(--accent-bright); }
+.sidebar-dm-btn--active:hover { color: var(--accent); }
 
 /* ══ HAMBURGER ══ */
 .hamburger-btn {

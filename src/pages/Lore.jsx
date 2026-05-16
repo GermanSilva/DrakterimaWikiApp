@@ -7,12 +7,12 @@ const DM_STYLE = { borderTopColor: 'var(--accent)' }
 const DM_TITLE_STYLE = { color: 'var(--accent-bright)' }
 
 function LoreDetailInline({ entrada, onBack }) {
-  const { openForm } = useApp()
+  const { openForm, isDM } = useApp()
   return (
     <div>
       <div className="sesion-detail-nav">
         <button className="btn btn-secondary" onClick={onBack}>← Volver</button>
-        <button className="btn btn-secondary" onClick={() => openForm('lore', entrada.id)}>Editar</button>
+        {isDM && <button className="btn btn-secondary" onClick={() => openForm('lore', entrada.id)}>Editar</button>}
       </div>
 
       <div className="sesion-detail-header">
@@ -29,7 +29,7 @@ function LoreDetailInline({ entrada, onBack }) {
           <div className="detail-text" dangerouslySetInnerHTML={nl2br(entrada.descripcion)} />
         </div>
       )}
-      {entrada.notas && (
+      {isDM && entrada.notas && (
         <div className="detail-section" style={DM_STYLE}>
           <div className="detail-section-title" style={DM_TITLE_STYLE}>🔒 Secretos DM</div>
           <div className="detail-text" dangerouslySetInnerHTML={nl2br(entrada.notas)} />
@@ -40,7 +40,7 @@ function LoreDetailInline({ entrada, onBack }) {
 }
 
 export default function Lore() {
-  const { db, openForm } = useApp()
+  const { db, openForm, isDM } = useApp()
   const [filtro, setFiltro] = useState('todos')
   const [selectedId, setSelectedId] = useState(null)
 
@@ -59,7 +59,7 @@ export default function Lore() {
   return (
     <div>
       <PageHeader eyebrow="Historia y Conocimiento" title="Lore del Mundo">
-        <button className="btn btn-primary" onClick={() => openForm('lore')}>+ Nueva Entrada</button>
+        {isDM && <button className="btn btn-primary" onClick={() => openForm('lore')}>+ Nueva Entrada</button>}
       </PageHeader>
 
       <FilterPills options={filtros} value={filtro} onChange={setFiltro} />

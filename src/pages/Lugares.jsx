@@ -19,12 +19,12 @@ const FILTROS = [
 ]
 
 function LugarDetailInline({ lugar, onBack }) {
-  const { openForm } = useApp()
+  const { openForm, isDM } = useApp()
   return (
     <div>
       <div className="sesion-detail-nav">
         <button className="btn btn-secondary" onClick={onBack}>← Volver</button>
-        <button className="btn btn-secondary" onClick={() => openForm('lugares', lugar.id)}>Editar</button>
+        {isDM && <button className="btn btn-secondary" onClick={() => openForm('lugares', lugar.id)}>Editar</button>}
       </div>
 
       <div className="sesion-detail-header">
@@ -49,7 +49,7 @@ function LugarDetailInline({ lugar, onBack }) {
           <div className="detail-text" dangerouslySetInnerHTML={nl2br(lugar.descripcion)} />
         </div>
       )}
-      {lugar.notas && (
+      {isDM && lugar.notas && (
         <div className="detail-section" style={DM_STYLE}>
           <div className="detail-section-title" style={DM_TITLE_STYLE}>🔒 Notas DM</div>
           <div className="detail-text" dangerouslySetInnerHTML={nl2br(lugar.notas)} />
@@ -60,7 +60,7 @@ function LugarDetailInline({ lugar, onBack }) {
 }
 
 export default function Lugares() {
-  const { db, openForm } = useApp()
+  const { db, openForm, isDM } = useApp()
   const [filtro, setFiltro] = useState('todos')
   const [selectedId, setSelectedId] = useState(null)
 
@@ -74,7 +74,7 @@ export default function Lugares() {
   return (
     <div>
       <PageHeader eyebrow="Geografía" title="Lugares">
-        <button className="btn btn-primary" onClick={() => openForm('lugares')}>+ Nuevo Lugar</button>
+        {isDM && <button className="btn btn-primary" onClick={() => openForm('lugares')}>+ Nuevo Lugar</button>}
       </PageHeader>
 
       <FilterPills options={FILTROS} value={filtro} onChange={setFiltro} />

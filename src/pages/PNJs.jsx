@@ -21,12 +21,12 @@ const FILTROS = [
 ]
 
 function PNJDetailInline({ pnj, onBack }) {
-  const { openForm } = useApp()
+  const { openForm, isDM } = useApp()
   return (
     <div>
       <div className="sesion-detail-nav">
         <button className="btn btn-secondary" onClick={onBack}>← Volver</button>
-        <button className="btn btn-secondary" onClick={() => openForm('pnjs', pnj.id)}>Editar</button>
+        {isDM && <button className="btn btn-secondary" onClick={() => openForm('pnjs', pnj.id)}>Editar</button>}
       </div>
 
       <div className="sesion-detail-header">
@@ -57,13 +57,13 @@ function PNJDetailInline({ pnj, onBack }) {
           )}
         </div>
         <div>
-          {pnj.secreto && (
+          {isDM && pnj.secreto && (
             <div className="detail-section" style={DM_STYLE}>
               <div className="detail-section-title" style={DM_TITLE_STYLE}>🔒 Motivaciones secretas</div>
               <div className="detail-text" dangerouslySetInnerHTML={nl2br(pnj.secreto)} />
             </div>
           )}
-          {pnj.notas && (
+          {isDM && pnj.notas && (
             <div className="detail-section" style={DM_STYLE}>
               <div className="detail-section-title" style={DM_TITLE_STYLE}>🔒 Notas DM</div>
               <div className="detail-text" dangerouslySetInnerHTML={nl2br(pnj.notas)} />
@@ -76,7 +76,7 @@ function PNJDetailInline({ pnj, onBack }) {
 }
 
 export default function PNJs() {
-  const { db, openForm, pendingDetail, consumePendingDetail } = useApp()
+  const { db, openForm, pendingDetail, consumePendingDetail, isDM } = useApp()
   const [filtro, setFiltro] = useState('todos')
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState(() => pendingDetail?.id ?? null)
@@ -101,7 +101,7 @@ export default function PNJs() {
   return (
     <div>
       <PageHeader eyebrow="Personajes No Jugadores" title="PNJs">
-        <button className="btn btn-primary" onClick={() => openForm('pnjs')}>+ Nuevo PNJ</button>
+        {isDM && <button className="btn btn-primary" onClick={() => openForm('pnjs')}>+ Nuevo PNJ</button>}
       </PageHeader>
 
       <FilterPills options={FILTROS} value={filtro} onChange={setFiltro} />
@@ -127,7 +127,7 @@ export default function PNJs() {
               <div className="card-header">
                 <div className="card-title">{p.nombre}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {p.secreto && <span style={{ fontSize: 10, opacity: 0.45 }} title="Tiene secreto DM">🔒</span>}
+                  {isDM && p.secreto && <span style={{ fontSize: 10, opacity: 0.45 }} title="Tiene secreto DM">🔒</span>}
                   <span className="card-icon">🎭</span>
                 </div>
               </div>

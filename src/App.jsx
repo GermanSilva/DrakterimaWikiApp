@@ -56,6 +56,7 @@ export default function App() {
   const [toastMsg, setToastMsg] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [pendingDetail, setPendingDetail] = useState(null)
+  const [isDM, setIsDM] = useState(() => sessionStorage.getItem('drakterima_dm') === '1')
 
   useEffect(() => {
     function onKey(e) {
@@ -75,6 +76,24 @@ export default function App() {
   function showToast(msg) {
     setToastMsg(msg)
     setTimeout(() => setToastMsg(''), 2500)
+  }
+
+  function unlockDM(password) {
+    const dmPass = import.meta.env.VITE_DM_PASSWORD
+    if (!dmPass) { alert('No hay contraseña DM configurada.'); return false }
+    if (password === dmPass) {
+      sessionStorage.setItem('drakterima_dm', '1')
+      setIsDM(true)
+      showToast('Modo DM activado')
+      return true
+    }
+    return false
+  }
+
+  function lockDM() {
+    sessionStorage.removeItem('drakterima_dm')
+    setIsDM(false)
+    showToast('Modo jugador activado')
   }
 
   function exportData() {
@@ -154,7 +173,10 @@ export default function App() {
     consumePendingDetail: () => setPendingDetail(null),
     openDetail: (type, id) => setDetail({ type, id }),
     closeDetail: () => setDetail(null),
-    openForm: (type, id = null) => setForm({ type, id }),
+    isDM,
+    unlockDM,
+    lockDM,
+    openForm: (type, id = null) => { if (isDM) setForm({ type, id }) },
     closeForm: () => setForm(null),
     showToast,
     sidebarOpen,

@@ -14,12 +14,12 @@ const DM_STYLE = { borderTopColor: 'var(--accent)' }
 const DM_TITLE_STYLE = { color: 'var(--accent-bright)' }
 
 function FaccionDetailInline({ faccion, onBack }) {
-  const { openForm } = useApp()
+  const { openForm, isDM } = useApp()
   return (
     <div>
       <div className="sesion-detail-nav">
         <button className="btn btn-secondary" onClick={onBack}>← Volver</button>
-        <button className="btn btn-secondary" onClick={() => openForm('facciones', faccion.id)}>Editar</button>
+        {isDM && <button className="btn btn-secondary" onClick={() => openForm('facciones', faccion.id)}>Editar</button>}
       </div>
 
       <div className="sesion-detail-header">
@@ -44,13 +44,13 @@ function FaccionDetailInline({ faccion, onBack }) {
           )}
         </div>
         <div>
-          {faccion.secreto && (
+          {isDM && faccion.secreto && (
             <div className="detail-section" style={DM_STYLE}>
               <div className="detail-section-title" style={DM_TITLE_STYLE}>🔒 Objetivos secretos</div>
               <div className="detail-text" dangerouslySetInnerHTML={nl2br(faccion.secreto)} />
             </div>
           )}
-          {faccion.notas && (
+          {isDM && faccion.notas && (
             <div className="detail-section" style={DM_STYLE}>
               <div className="detail-section-title" style={DM_TITLE_STYLE}>🔒 Notas DM</div>
               <div className="detail-text" dangerouslySetInnerHTML={nl2br(faccion.notas)} />
@@ -63,7 +63,7 @@ function FaccionDetailInline({ faccion, onBack }) {
 }
 
 export default function Facciones() {
-  const { db, openForm } = useApp()
+  const { db, openForm, isDM } = useApp()
   const [selectedId, setSelectedId] = useState(null)
 
   if (selectedId !== null) {
@@ -74,7 +74,7 @@ export default function Facciones() {
   return (
     <div>
       <PageHeader eyebrow="Política y Poder" title="Facciones">
-        <button className="btn btn-primary" onClick={() => openForm('facciones')}>+ Nueva Facción</button>
+        {isDM && <button className="btn btn-primary" onClick={() => openForm('facciones')}>+ Nueva Facción</button>}
       </PageHeader>
 
       {db.facciones.length === 0 ? (

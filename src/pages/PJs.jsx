@@ -14,12 +14,12 @@ const DM_STYLE = { borderTopColor: 'var(--accent)' }
 const DM_TITLE_STYLE = { color: 'var(--accent-bright)' }
 
 function PJDetailInline({ pj, onBack }) {
-  const { openForm } = useApp()
+  const { openForm, isDM } = useApp()
   return (
     <div>
       <div className="sesion-detail-nav">
         <button className="btn btn-secondary" onClick={onBack}>← Volver</button>
-        <button className="btn btn-secondary" onClick={() => openForm('pjs', pj.id)}>Editar</button>
+        {isDM && <button className="btn btn-secondary" onClick={() => openForm('pjs', pj.id)}>Editar</button>}
       </div>
 
       <div className="sesion-detail-header">
@@ -61,7 +61,7 @@ function PJDetailInline({ pj, onBack }) {
               <div className="detail-text">{pj.magralita}</div>
             </div>
           )}
-          {pj.notas && (
+          {isDM && pj.notas && (
             <div className="detail-section" style={DM_STYLE}>
               <div className="detail-section-title" style={DM_TITLE_STYLE}>🔒 Notas DM</div>
               <div className="detail-text" dangerouslySetInnerHTML={nl2br(pj.notas)} />
@@ -74,7 +74,7 @@ function PJDetailInline({ pj, onBack }) {
 }
 
 export default function PJs() {
-  const { db, openForm } = useApp()
+  const { db, openForm, isDM } = useApp()
   const [selectedId, setSelectedId] = useState(null)
   const [query, setQuery] = useState('')
 
@@ -94,7 +94,7 @@ export default function PJs() {
   return (
     <div>
       <PageHeader eyebrow="Personajes Jugadores" title="El Grupo">
-        <button className="btn btn-primary" onClick={() => openForm('pjs')}>+ Nuevo PJ</button>
+        {isDM && <button className="btn btn-primary" onClick={() => openForm('pjs')}>+ Nuevo PJ</button>}
       </PageHeader>
 
       <div className="search-bar">
@@ -118,7 +118,7 @@ export default function PJs() {
               <div className="card-header">
                 <div className="card-title">{p.nombre}</div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  {p.notas && <span style={{ fontSize: 10, opacity: 0.45 }} title="Tiene notas DM">🔒</span>}
+                  {isDM && p.notas && <span style={{ fontSize: 10, opacity: 0.45 }} title="Tiene notas DM">🔒</span>}
                   <span className="card-icon">🛡️</span>
                 </div>
               </div>

@@ -14,14 +14,14 @@ function renderResumen(text) {
 }
 
 function SesionDetailInline({ sesion, onBack }) {
-  const { openForm } = useApp()
+  const { openForm, isDM } = useApp()
   const isPlanned = !sesion.logros?.trim()
 
   return (
     <div>
       <div className="sesion-detail-nav">
         <button className="btn btn-secondary" onClick={onBack}>← Volver</button>
-        <button className="btn btn-secondary" onClick={() => openForm('sesiones', sesion.id)}>Editar</button>
+        {isDM && <button className="btn btn-secondary" onClick={() => openForm('sesiones', sesion.id)}>Editar</button>}
       </div>
 
       <div className="sesion-detail-header">
@@ -47,7 +47,7 @@ function SesionDetailInline({ sesion, onBack }) {
             <div className="detail-text" dangerouslySetInnerHTML={nl2br(sesion.logros)} />
           </div>
         )}
-        {sesion.ganchos && (
+        {isDM && sesion.ganchos && (
           <div className="sesion-section">
             <div className="sesion-section-title">Ganchos pendientes</div>
             <div className="detail-text" dangerouslySetInnerHTML={nl2br(sesion.ganchos)} />
@@ -59,7 +59,7 @@ function SesionDetailInline({ sesion, onBack }) {
 }
 
 export default function Sesiones() {
-  const { db, openForm, pendingDetail, consumePendingDetail } = useApp()
+  const { db, openForm, pendingDetail, consumePendingDetail, isDM } = useApp()
   const [selectedId, setSelectedId] = useState(() => pendingDetail?.id ?? null)
 
   useEffect(() => {
@@ -76,7 +76,7 @@ export default function Sesiones() {
   return (
     <div>
       <PageHeader eyebrow="Crónica" title="Sesiones">
-        <button className="btn btn-primary" onClick={() => openForm('sesiones')}>+ Nueva Sesión</button>
+        {isDM && <button className="btn btn-primary" onClick={() => openForm('sesiones')}>+ Nueva Sesión</button>}
       </PageHeader>
 
       {db.sesiones.length === 0 ? (

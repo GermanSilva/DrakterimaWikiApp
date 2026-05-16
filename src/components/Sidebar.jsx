@@ -21,7 +21,7 @@ const NAV = [
 ]
 
 export default function Sidebar({ currentPage, counts }) {
-  const { navigate, sidebarOpen, toggleSidebar, exportData, importData } = useApp()
+  const { navigate, sidebarOpen, toggleSidebar, exportData, importData, isDM, unlockDM, lockDM } = useApp()
   const fileInputRef = useRef(null)
 
   function handleImportFile(e) {
@@ -50,20 +50,36 @@ export default function Sidebar({ currentPage, counts }) {
       ))}
 
       <div className="sidebar-footer">
-        <div className="nav-section-label">Datos</div>
-        <button className="sidebar-action-btn" onClick={exportData}>
-          <span>↑</span> Exportar JSON
-        </button>
-        <button className="sidebar-action-btn" onClick={() => fileInputRef.current.click()}>
-          <span>↓</span> Importar JSON
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".json,application/json"
-          style={{ display: 'none' }}
-          onChange={handleImportFile}
-        />
+        {isDM && (
+          <>
+            <div className="nav-section-label">Datos</div>
+            <button className="sidebar-action-btn" onClick={exportData}>
+              <span>↑</span> Exportar JSON
+            </button>
+            <button className="sidebar-action-btn" onClick={() => fileInputRef.current.click()}>
+              <span>↓</span> Importar JSON
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              style={{ display: 'none' }}
+              onChange={handleImportFile}
+            />
+          </>
+        )}
+        {isDM ? (
+          <button className="sidebar-dm-btn sidebar-dm-btn--active" onClick={lockDM}>
+            🔓 Salir modo DM
+          </button>
+        ) : (
+          <button className="sidebar-dm-btn" onClick={() => {
+            const pwd = prompt('Contraseña DM:')
+            if (pwd !== null && !unlockDM(pwd)) alert('Contraseña incorrecta.')
+          }}>
+            🔒 Modo DM
+          </button>
+        )}
       </div>
     </nav>
   )
