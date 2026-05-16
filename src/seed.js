@@ -47,4 +47,5 @@ export const defaultData = {
   facciones: defaultFacciones,
   lore: defaultLore,
   items: [],
+  player_notes: [],
 }

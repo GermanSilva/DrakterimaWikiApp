@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useApp } from '../AppContext'
 import { Tag, PageHeader, FilterPills, EmptyState } from '../components/Shared'
 import { nl2br } from '../helpers'
+import PlayerNotes from '../components/PlayerNotes'
 
 const DM_STYLE = { borderTopColor: 'var(--accent)' }
 const DM_TITLE_STYLE = { color: 'var(--accent-bright)' }
@@ -35,6 +36,7 @@ function LoreDetailInline({ entrada, onBack }) {
           <div className="detail-text" dangerouslySetInnerHTML={nl2br(entrada.notas)} />
         </div>
       )}
+      <PlayerNotes entityType="lore" entityId={entrada.id} />
     </div>
   )
 }

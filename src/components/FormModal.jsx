@@ -66,7 +66,30 @@ function PJForm({ item }) {
     magralita: item?.magralita ?? '',
     notas: item?.notas ?? '',
   })
+  const [newPlayerPwd, setNewPlayerPwd] = useState('')
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
+
+  function handleSave() {
+    const data = { ...f, id: item?.id, nivel: parseInt(f.nivel) || 1 }
+    if (newPlayerPwd.trim()) {
+      data.player_password = newPlayerPwd.trim()
+      data.player_must_change = true
+    } else {
+      data.player_password = item?.player_password ?? ''
+      data.player_must_change = item?.player_must_change ?? false
+    }
+    save('pjs', data)
+  }
+
+  function handleResetAccess() {
+    save('pjs', { ...f, id: item?.id, nivel: parseInt(f.nivel) || 1, player_password: '', player_must_change: false })
+  }
+
+  const accessStatus = !item?.player_password
+    ? <span className="player-access-status-none">Sin acceso</span>
+    : item.player_must_change
+      ? <span className="player-access-status-pending">Debe cambiar contraseña</span>
+      : <span className="player-access-status-active">Activo</span>
 
   return (
     <div>
@@ -95,10 +118,35 @@ function PJForm({ item }) {
       <div className="form-group"><label>Motivación para unirse al Gremio</label><textarea rows={2} value={f.motivo} onChange={set('motivo')} /></div>
       <div className="form-group"><label>Relación con la Magralita</label><textarea rows={2} value={f.magralita} onChange={set('magralita')} /></div>
       <div className="form-group"><label>Notas del DM (privadas)</label><textarea rows={3} value={f.notas} onChange={set('notas')} /></div>
+      {item && (
+        <div className="form-group player-access-section">
+          <label>Acceso del jugador</label>
+          <div className="player-access-row">
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Estado:</span>
+            {accessStatus}
+          </div>
+          <input
+            type="password"
+            placeholder="Nueva contraseña inicial…"
+            value={newPlayerPwd}
+            onChange={e => setNewPlayerPwd(e.target.value)}
+          />
+          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+            {item.player_password && (
+              <button className="btn btn-secondary" onClick={handleResetAccess} type="button">
+                Quitar acceso
+              </button>
+            )}
+          </div>
+          <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, marginBottom: 0 }}>
+            Al setear una contraseña nueva el jugador deberá cambiarla en su primer acceso.
+          </p>
+        </div>
+      )}
       <div className="form-actions">
         {item && <button className="btn btn-danger" onClick={() => remove('pjs', item.id)}>Eliminar</button>}
         <button className="btn btn-secondary" onClick={closeForm}>Cancelar</button>
-        <button className="btn btn-primary" onClick={() => save('pjs', { ...f, id: item?.id, nivel: parseInt(f.nivel) || 1 })}>Guardar</button>
+        <button className="btn btn-primary" onClick={handleSave}>Guardar</button>
       </div>
     </div>
   )

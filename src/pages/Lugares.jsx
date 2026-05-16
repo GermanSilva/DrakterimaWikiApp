@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useApp } from '../AppContext'
 import { Tag, RegionTag, PageHeader, FilterPills, EmptyState } from '../components/Shared'
 import { nl2br, regionLabel, regionOptions } from '../helpers'
+import PlayerNotes from '../components/PlayerNotes'
 
 const REGION_COLOR = {
   magral:  '#7aad82',
@@ -55,6 +56,7 @@ function LugarDetailInline({ lugar, onBack }) {
           <div className="detail-text" dangerouslySetInnerHTML={nl2br(lugar.notas)} />
         </div>
       )}
+      <PlayerNotes entityType="lugares" entityId={lugar.id} />
     </div>
   )
 }

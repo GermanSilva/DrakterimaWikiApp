@@ -1,9 +1,10 @@
 import { useApp } from '../AppContext'
 import { Tag } from './Shared'
 import { nl2br } from '../helpers'
+import PlayerNotes from './PlayerNotes'
 
 function ItemDetail({ item }) {
-  const { openForm, closeDetail } = useApp()
+  const { openForm, closeDetail, isDM } = useApp()
   return (
     <>
       <div className="detail-eyebrow">{item.tipo || 'Ítem'} · {item.rareza || ''}</div>
@@ -31,8 +32,9 @@ function ItemDetail({ item }) {
           <div className="detail-text" dangerouslySetInnerHTML={nl2br(item.lore)} />
         </div>
       )}
+      <PlayerNotes entityType="items" entityId={item.id} />
       <div className="form-actions" style={{ marginTop: 24 }}>
-        <button className="btn btn-secondary" onClick={() => { closeDetail(); openForm('items', item.id) }}>Editar</button>
+        {isDM && <button className="btn btn-secondary" onClick={() => { closeDetail(); openForm('items', item.id) }}>Editar</button>}
       </div>
     </>
   )

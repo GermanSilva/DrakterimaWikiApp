@@ -57,6 +57,12 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [pendingDetail, setPendingDetail] = useState(null)
   const [isDM, setIsDM] = useState(() => sessionStorage.getItem('drakterima_dm') === '1')
+  const [currentPlayer, setCurrentPlayer] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem('drakterima_player')
+      return raw ? JSON.parse(raw) : null
+    } catch { return null }
+  })
 
   useEffect(() => {
     function onKey(e) {
@@ -82,6 +88,8 @@ export default function App() {
     const dmPass = import.meta.env.VITE_DM_PASSWORD
     if (!dmPass) { alert('No hay contraseña DM configurada.'); return false }
     if (password === dmPass) {
+      sessionStorage.removeItem('drakterima_player')
+      setCurrentPlayer(null)
       sessionStorage.setItem('drakterima_dm', '1')
       setIsDM(true)
       showToast('Modo DM activado')
@@ -94,6 +102,59 @@ export default function App() {
     sessionStorage.removeItem('drakterima_dm')
     setIsDM(false)
     showToast('Modo jugador activado')
+  }
+
+  function loginPlayer(password) {
+    const pj = (db.pjs || []).find(p => p.player_password && p.player_password === password)
+    if (!pj) return { success: false }
+    if (pj.player_must_change) return { success: true, mustChange: true, pj }
+    sessionStorage.removeItem('drakterima_dm')
+    setIsDM(false)
+    const player = { id: pj.id, nombre: pj.nombre }
+    sessionStorage.setItem('drakterima_player', JSON.stringify(player))
+    setCurrentPlayer(player)
+    showToast(`Bienvenido/a, ${pj.nombre}`)
+    return { success: true, mustChange: false }
+  }
+
+  function logoutPlayer() {
+    sessionStorage.removeItem('drakterima_player')
+    setCurrentPlayer(null)
+    showToast('Sesión cerrada')
+  }
+
+  function changePlayerPassword(pj_id, newPassword) {
+    const arr = [...(db.pjs || [])]
+    const i = arr.findIndex(p => p.id === pj_id)
+    if (i < 0) return
+    arr[i] = { ...arr[i], player_password: newPassword, player_must_change: false }
+    persistDb({ ...db, pjs: arr })
+    const player = { id: arr[i].id, nombre: arr[i].nombre }
+    sessionStorage.setItem('drakterima_player', JSON.stringify(player))
+    setCurrentPlayer(player)
+    showToast('Contraseña actualizada')
+  }
+
+  function savePlayerNote(pj_id, type, entity_id, text) {
+    const notes = [...(db.player_notes || [])]
+    const i = notes.findIndex(n => n.pj_id === pj_id && n.type === type && n.entity_id === entity_id)
+    if (i >= 0) { notes[i] = { ...notes[i], text } }
+    else { notes.push({ id: nextId(notes), pj_id, type, entity_id, text }) }
+    persistDb({ ...db, player_notes: notes })
+    showToast('Nota guardada')
+  }
+
+  function tryAccess(password) {
+    const dmPass = import.meta.env.VITE_DM_PASSWORD
+    if (dmPass && password === dmPass) {
+      sessionStorage.removeItem('drakterima_player')
+      setCurrentPlayer(null)
+      sessionStorage.setItem('drakterima_dm', '1')
+      setIsDM(true)
+      showToast('Modo DM activado')
+      return { success: true, role: 'dm' }
+    }
+    return loginPlayer(password)
   }
 
   function exportData() {
@@ -176,6 +237,12 @@ export default function App() {
     isDM,
     unlockDM,
     lockDM,
+    currentPlayer,
+    loginPlayer,
+    logoutPlayer,
+    changePlayerPassword,
+    savePlayerNote,
+    tryAccess,
     openForm: (type, id = null) => { if (isDM) setForm({ type, id }) },
     closeForm: () => setForm(null),
     showToast,

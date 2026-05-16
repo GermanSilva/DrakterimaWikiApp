@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useApp } from '../AppContext'
 import { Tag, RegionTag, PageHeader, EmptyState } from '../components/Shared'
 import { nl2br } from '../helpers'
+import PlayerNotes from '../components/PlayerNotes'
 
 const REGION_COLOR = {
   magral:  '#7aad82',
@@ -69,6 +70,7 @@ function PJDetailInline({ pj, onBack }) {
           )}
         </div>
       </div>
+      <PlayerNotes entityType="pjs" entityId={pj.id} />
     </div>
   )
 }

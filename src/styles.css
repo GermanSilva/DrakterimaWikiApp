@@ -850,6 +850,15 @@ body::before {
   background: rgba(220, 38, 38, 0.12);
 }
 .sidebar-dm-btn-icon { font-size: 14px; }
+.sidebar-player-session { margin-top: 8px; }
+.sidebar-player-name {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: 'Exo 2', sans-serif;
+  font-weight: 600;
+  padding: 6px 16px 2px;
+  letter-spacing: 0.04em;
+}
 
 /* ══ DM MODAL ══ */
 .dm-modal-overlay {
@@ -920,6 +929,63 @@ body::before {
   margin-top: 8px;
 }
 .dm-modal-actions .btn { flex: 1; justify-content: center; }
+
+/* ══ PLAYER NOTES ══ */
+.player-notes-mine,
+.player-notes-dm {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.player-notes-mine-title,
+.player-notes-dm-title {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-family: 'Exo 2', sans-serif;
+  margin-bottom: 12px;
+}
+.player-note-editor { margin-bottom: 14px; }
+.player-note-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 600;
+  margin-bottom: 5px;
+}
+.player-note-textarea {
+  width: 100%;
+  background: var(--bg-mid);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-family: inherit;
+  padding: 10px 12px;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.15s;
+  box-sizing: border-box;
+}
+.player-note-textarea:focus { border-color: var(--accent-dim); }
+.player-note-save { margin-top: 6px; font-size: 12px; padding: 6px 14px; }
+
+/* ══ PJForm — player access ══ */
+.player-access-section {
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+  margin-top: 4px;
+}
+.player-access-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+.player-access-status-none { color: var(--text-muted); }
+.player-access-status-pending { color: var(--accent-bright); }
+.player-access-status-active { color: #7aad82; }
 
 /* ══ HAMBURGER ══ */
 .hamburger-btn {

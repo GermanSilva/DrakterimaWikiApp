@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useApp } from '../AppContext'
 import { Tag, RegionTag, RelacionTag, PageHeader, EmptyState, FilterPills } from '../components/Shared'
 import { nl2br } from '../helpers'
+import PlayerNotes from '../components/PlayerNotes'
 
 const REGION_COLOR = {
   magral:  '#7aad82',
@@ -71,6 +72,7 @@ function PNJDetailInline({ pnj, onBack }) {
           )}
         </div>
       </div>
+      <PlayerNotes entityType="pnjs" entityId={pnj.id} />
     </div>
   )
 }

@@ -20,9 +20,13 @@ const NAV = [
   ]},
 ]
 
-function DMModal({ onClose, onUnlock }) {
+function AccessModal({ onClose, onAccess, onChangePassword }) {
+  const [step, setStep] = useState('password')
   const [pwd, setPwd] = useState('')
+  const [newPwd, setNewPwd] = useState('')
+  const [confirmPwd, setConfirmPwd] = useState('')
   const [error, setError] = useState('')
+  const [pendingPj, setPendingPj] = useState(null)
   const inputRef = useRef(null)
 
   useEffect(() => {
@@ -32,20 +36,71 @@ function DMModal({ onClose, onUnlock }) {
     return () => document.removeEventListener('keydown', onKey)
   }, [])
 
-  function handleSubmit() {
-    if (!onUnlock(pwd)) {
+  function handleAccess() {
+    const result = onAccess(pwd)
+    if (!result.success) {
       setError('Contraseña incorrecta.')
       setPwd('')
       inputRef.current?.focus()
+      return
     }
+    if (result.mustChange) {
+      setPendingPj(result.pj)
+      setStep('change')
+      setError('')
+      return
+    }
+    onClose()
+  }
+
+  function handleChangePassword() {
+    if (!newPwd.trim()) { setError('Ingresá una nueva contraseña.'); return }
+    if (newPwd !== confirmPwd) { setError('Las contraseñas no coinciden.'); return }
+    onChangePassword(pendingPj.id, newPwd)
+    onClose()
+  }
+
+  if (step === 'change') {
+    return (
+      <div className="dm-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
+        <div className="dm-modal">
+          <div className="dm-modal-icon">🔑</div>
+          <div className="dm-modal-title">Bienvenido/a, {pendingPj.nombre}</div>
+          <div className="dm-modal-subtitle">Este es tu primer acceso. Elegí una contraseña nueva para continuar.</div>
+          <input
+            className="dm-modal-input"
+            type="password"
+            placeholder="Nueva contraseña"
+            value={newPwd}
+            onChange={e => { setNewPwd(e.target.value); setError('') }}
+            onKeyDown={e => e.key === 'Enter' && confirmPwd && handleChangePassword()}
+            autoFocus
+          />
+          <input
+            className="dm-modal-input"
+            type="password"
+            placeholder="Confirmar contraseña"
+            value={confirmPwd}
+            onChange={e => { setConfirmPwd(e.target.value); setError('') }}
+            onKeyDown={e => e.key === 'Enter' && handleChangePassword()}
+            style={{ marginTop: 8 }}
+          />
+          {error && <div className="dm-modal-error">{error}</div>}
+          <div className="dm-modal-actions">
+            <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
+            <button className="btn btn-primary" onClick={handleChangePassword}>Confirmar</button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="dm-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="dm-modal">
-        <div className="dm-modal-icon">🔒</div>
-        <div className="dm-modal-title">Modo DM</div>
-        <div className="dm-modal-subtitle">Ingresá la contraseña para acceder a la vista completa</div>
+        <div className="dm-modal-icon">🐉</div>
+        <div className="dm-modal-title">Drakterima</div>
+        <div className="dm-modal-subtitle">Ingresá tu contraseña para acceder</div>
         <input
           ref={inputRef}
           className="dm-modal-input"
@@ -53,12 +108,12 @@ function DMModal({ onClose, onUnlock }) {
           placeholder="Contraseña"
           value={pwd}
           onChange={e => { setPwd(e.target.value); setError('') }}
-          onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+          onKeyDown={e => e.key === 'Enter' && handleAccess()}
         />
         {error && <div className="dm-modal-error">{error}</div>}
         <div className="dm-modal-actions">
           <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-primary" onClick={handleSubmit}>Entrar</button>
+          <button className="btn btn-primary" onClick={handleAccess}>Entrar</button>
         </div>
       </div>
     </div>
@@ -66,7 +121,13 @@ function DMModal({ onClose, onUnlock }) {
 }
 
 export default function Sidebar({ currentPage, counts }) {
-  const { navigate, sidebarOpen, toggleSidebar, exportData, importData, isDM, unlockDM, lockDM } = useApp()
+  const {
+    navigate, sidebarOpen, toggleSidebar,
+    exportData, importData,
+    isDM, lockDM,
+    currentPlayer, logoutPlayer,
+    tryAccess, changePlayerPassword,
+  } = useApp()
   const fileInputRef = useRef(null)
   const [showModal, setShowModal] = useState(false)
 
@@ -76,11 +137,7 @@ export default function Sidebar({ currentPage, counts }) {
     e.target.value = ''
   }
 
-  function handleUnlock(pwd) {
-    const ok = unlockDM(pwd)
-    if (ok) setShowModal(false)
-    return ok
-  }
+  const isAuthenticated = isDM || currentPlayer
 
   return (
     <>
@@ -121,21 +178,35 @@ export default function Sidebar({ currentPage, counts }) {
               />
             </>
           )}
-          {isDM ? (
+
+          {!isAuthenticated && (
+            <button className="sidebar-dm-btn" onClick={() => setShowModal(true)}>
+              <span className="sidebar-dm-btn-icon">🔑</span>
+              <span>Acceder</span>
+            </button>
+          )}
+          {isDM && (
             <button className="sidebar-dm-btn sidebar-dm-btn--active" onClick={lockDM}>
               <span className="sidebar-dm-btn-icon">🔓</span>
               <span>Salir modo DM</span>
             </button>
-          ) : (
-            <button className="sidebar-dm-btn" onClick={() => setShowModal(true)}>
-              <span className="sidebar-dm-btn-icon">🔒</span>
-              <span>Modo DM</span>
-            </button>
+          )}
+          {currentPlayer && (
+            <div className="sidebar-player-session">
+              <div className="sidebar-player-name">👤 {currentPlayer.nombre}</div>
+              <button className="sidebar-action-btn" onClick={logoutPlayer}>Cerrar sesión</button>
+            </div>
           )}
         </div>
       </nav>
 
-      {showModal && <DMModal onClose={() => setShowModal(false)} onUnlock={handleUnlock} />}
+      {showModal && (
+        <AccessModal
+          onClose={() => setShowModal(false)}
+          onAccess={tryAccess}
+          onChangePassword={changePlayerPassword}
+        />
+      )}
     </>
   )
 }

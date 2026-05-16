@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useApp } from '../AppContext'
 import { PageHeader, EmptyState } from '../components/Shared'
 import { nl2br } from '../helpers'
+import PlayerNotes from '../components/PlayerNotes'
 
 function renderResumen(text) {
   if (!text) return null
@@ -54,6 +55,7 @@ function SesionDetailInline({ sesion, onBack }) {
           </div>
         )}
       </div>
+      <PlayerNotes entityType="sesiones" entityId={sesion.id} />
     </div>
   )
 }
