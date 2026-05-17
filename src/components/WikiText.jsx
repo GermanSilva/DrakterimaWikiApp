@@ -1,45 +1,48 @@
 import { useApp } from '../AppContext'
+import WikiLink from './WikiLink'
+import { LETTER_COLLECTION } from './wikiHelpers'
 
-const COLLECTIONS = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items']
-
-function findEntity(db, id) {
-  for (const coll of COLLECTIONS) {
-    const entity = (db[coll] || []).find(e => e.id === id)
-    if (entity) return { entity, page: coll }
-  }
-  return null
-}
+// Re-export so consumers (pages, Dashboard) can still import from WikiText
+export { COLLECTION_LETTER, LETTER_COLLECTION, findEntity } from './wikiHelpers'
 
 /**
  * Renderiza texto con soporte de wiki-links.
- * Sintaxis: [[{id}Texto del enlace]]
+ * Sintaxis válida:  [[{3P}Texto del enlace]]  (número + letra mayúscula)
+ * Sintaxis inválida: [[{3}Texto]]              → muestra "[[ID incorrecto]]"
  */
 export default function WikiText({ text }) {
   const { db, goToDetail } = useApp()
   if (!text) return null
 
-  const segments = text.split(/(\[\[\{\d+\}[^\]]*\]\])/g)
+  // Captura formato válido {NL} e inválido {N} (sin letra)
+  const segments = text.split(/(\[\[\{\d+[A-Z]?\}[^\]]*\]\])/g)
 
   return (
     <>
       {segments.map((seg, i) => {
-        const m = seg.match(/^\[\[\{(\d+)\}([^\]]*)\]\]$/)
-        if (m) {
-          const id = parseInt(m[1], 10)
-          const displayText = m[2]
-          const found = findEntity(db, id)
-          if (found) {
+        // Formato válido: [[{3P}Texto]]
+        const valid = seg.match(/^\[\[\{(\d+)([A-Z])\}([^\]]*)\]\]$/)
+        if (valid) {
+          const id = parseInt(valid[1], 10)
+          const letter = valid[2]
+          const displayText = valid[3]
+          const coll = LETTER_COLLECTION[letter]
+          const entity = coll ? (db[coll] || []).find(e => e.id === id) : null
+
+          if (entity) {
             return (
-              <span
+              <WikiLink
                 key={i}
-                className="text-accent-bright cursor-pointer border-b border-dashed border-accent-dim hover:text-accent hover:border-b-solid transition-colors"
-                onClick={e => { e.stopPropagation(); goToDetail(found.page, id) }}
-                title={`Ir a: ${found.entity.nombre || found.entity.titulo || `#${id}`}`}
-              >
-                {displayText}
-              </span>
+                id={id}
+                letter={letter}
+                displayText={displayText}
+                entity={entity}
+                page={coll}
+                goToDetail={goToDetail}
+              />
             )
           }
+          // ID no encontrado en la colección indicada
           return (
             <span
               key={i}
@@ -50,6 +53,22 @@ export default function WikiText({ text }) {
             </span>
           )
         }
+
+        // Formato inválido: [[{3}Texto]] sin letra
+        const invalid = seg.match(/^\[\[\{(\d+)\}([^\]]*)\]\]$/)
+        if (invalid) {
+          return (
+            <span
+              key={i}
+              className="font-mono text-[11px] text-txt-muted opacity-40 cursor-default"
+              title="Formato de wiki-link inválido: falta la letra de sección"
+            >
+              [[ID incorrecto]]
+            </span>
+          )
+        }
+
+        // Texto plano con saltos de línea
         return seg.split('\n').map((line, j, arr) => (
           <span key={`${i}-${j}`}>{line}{j < arr.length - 1 ? <br /> : null}</span>
         ))
