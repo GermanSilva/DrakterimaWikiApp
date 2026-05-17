@@ -1,14 +1,5 @@
 import Tooltip from './Tooltip'
-
-const SECTION_LABEL = {
-  S: 'Sesión',
-  P: 'Personaje Jugador',
-  N: 'PNJ',
-  G: 'Lugar',
-  F: 'Facción',
-  L: 'Lore',
-  I: 'Item',
-}
+import { LETTER_COLLECTION, COLLECTION_DISPLAY } from './wikiHelpers'
 
 /**
  * Enlace individual de wiki-link con tooltip al hover.
@@ -22,7 +13,7 @@ const SECTION_LABEL = {
  */
 export default function WikiLink({ id, letter, displayText, entity, page, goToDetail }) {
   const title = entity.nombre || entity.titulo || `#${id}`
-  const section = SECTION_LABEL[letter] || letter
+  const section = COLLECTION_DISPLAY[LETTER_COLLECTION[letter]] || letter
 
   return (
     <span className="group relative inline-block">

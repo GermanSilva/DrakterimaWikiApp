@@ -20,3 +20,13 @@ export function findEntity(db, id) {
   }
   return null
 }
+
+export const COLLECTION_DISPLAY = {
+  sesiones:  'Sesión',
+  pjs:       'Personaje Jugador',
+  pnjs:      'PNJ',
+  lugares:   'Lugar',
+  facciones: 'Facción',
+  lore:      'Lore',
+  items:     'Item',
+}

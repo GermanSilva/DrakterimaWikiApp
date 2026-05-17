@@ -17,8 +17,6 @@ const MIGRATION_FIELDS = {
   items:     ['descripcion', 'notas'],
 }
 
-const OLD_LINK_PATTERN = /\[\[\{(\d+)\}([^\]]*)\]\]/g
-
 async function migrateWikiLinks(db, showToast) {
   let migrated = 0
   let unresolved = 0
@@ -32,7 +30,7 @@ async function migrateWikiLinks(db, showToast) {
 
       for (const field of fields) {
         if (!updated[field]) continue
-        updated[field] = updated[field].replace(OLD_LINK_PATTERN, (match, idStr, text) => {
+        updated[field] = updated[field].replace(/\[\[\{(\d+)\}([^\]]*)\]\]/g, (match, idStr, text) => {
           const id = parseInt(idStr, 10)
           const found = findEntity(db, id)
           if (found) {
