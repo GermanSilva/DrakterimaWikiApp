@@ -29,13 +29,9 @@ function EyeToggle({ show, onToggle }) {
   )
 }
 
-function AccessModal({ onClose, onAccess, onChangePassword }) {
-  const [step, setStep] = useState('password')
+function AccessModal({ onClose, onAccess }) {
   const [pwd, setPwd] = useState('')
-  const [newPwd, setNewPwd] = useState('')
-  const [confirmPwd, setConfirmPwd] = useState('')
   const [error, setError] = useState('')
-  const [pendingPj, setPendingPj] = useState(null)
   const [showPwd, setShowPwd] = useState(false)
   const inputRef = useRef(null)
 
@@ -54,60 +50,7 @@ function AccessModal({ onClose, onAccess, onChangePassword }) {
       inputRef.current?.focus()
       return
     }
-    if (result.mustChange) {
-      setPendingPj(result.pj)
-      setStep('change')
-      setError('')
-      return
-    }
     onClose()
-  }
-
-  function handleChangePassword() {
-    if (!newPwd.trim()) { setError('Ingresá una nueva contraseña.'); return }
-    if (newPwd !== confirmPwd) { setError('Las contraseñas no coinciden.'); return }
-    onChangePassword(pendingPj.id, newPwd)
-    onClose()
-  }
-
-  if (step === 'change') {
-    return (
-      <div className="dm-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-        <div className="dm-modal">
-          <div className="dm-modal-icon">🔑</div>
-          <div className="dm-modal-title">Bienvenido/a, {pendingPj.nombre}</div>
-          <div className="dm-modal-subtitle">Este es tu primer acceso. Elegí una contraseña nueva para continuar.</div>
-          <div className="pwd-field">
-            <input
-              className="dm-modal-input"
-              type={showPwd ? 'text' : 'password'}
-              placeholder="Nueva contraseña"
-              value={newPwd}
-              onChange={e => { setNewPwd(e.target.value); setError('') }}
-              onKeyDown={e => e.key === 'Enter' && confirmPwd && handleChangePassword()}
-              autoFocus
-            />
-            <EyeToggle show={showPwd} onToggle={() => setShowPwd(v => !v)} />
-          </div>
-          <div className="pwd-field" style={{ marginTop: 8 }}>
-            <input
-              className="dm-modal-input"
-              type={showPwd ? 'text' : 'password'}
-              placeholder="Confirmar contraseña"
-              value={confirmPwd}
-              onChange={e => { setConfirmPwd(e.target.value); setError('') }}
-              onKeyDown={e => e.key === 'Enter' && handleChangePassword()}
-            />
-            <EyeToggle show={showPwd} onToggle={() => setShowPwd(v => !v)} />
-          </div>
-          {error && <div className="dm-modal-error">{error}</div>}
-          <div className="dm-modal-actions">
-            <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-            <button className="btn btn-primary" onClick={handleChangePassword}>Confirmar</button>
-          </div>
-        </div>
-      </div>
-    )
   }
 
   return (
@@ -146,7 +89,7 @@ export default function Sidebar({ currentPage, counts }) {
     exportData, importData,
     isDM, lockDM,
     currentPlayer, logoutPlayer,
-    tryAccess, changePlayerPassword,
+    tryAccess,
   } = useApp()
   const fileInputRef = useRef(null)
   const [showModal, setShowModal] = useState(false)
@@ -224,7 +167,6 @@ export default function Sidebar({ currentPage, counts }) {
         <AccessModal
           onClose={() => setShowModal(false)}
           onAccess={tryAccess}
-          onChangePassword={changePlayerPassword}
         />
       )}
     </>

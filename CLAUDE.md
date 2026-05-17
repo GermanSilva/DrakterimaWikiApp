@@ -17,17 +17,31 @@ El deploy se dispara automáticamente al pushear a `main` vía `.github/workflow
 
 ## Arquitectura
 
-**dragones-wiki** es una SPA (Single Page Application) para gestionar la campaña de D&D "Leyendas de Drakterima". Stack: React 18 + Vite 5, sin backend — todos los datos persisten en `localStorage` bajo la clave `drakterima_wiki_v1`.
+**dragones-wiki** es una SPA (Single Page Application) para gestionar la campaña de D&D "Leyendas de Drakterima". Stack: React 18 + Vite 5, sin backend propio.
+
+### Fuente de verdad y sincronización
+
+Los datos viven en `data/db.json` en el repositorio, que actúa como backend compartido. Al cargar, la app hace fetch a `raw.githubusercontent.com` para obtener la versión más reciente. Al guardar, escribe en GitHub vía la Contents API (commit automático).
+
+- **`localStorage`** (`drakterima_wiki_v1`): caché local. Se renderiza inmediatamente al abrir la app mientras el fetch remoto se completa en background.
+- **`data/db.json`**: fuente de verdad. Se actualiza con cada `persistDb()` vía GitHub API.
+- **`VITE_GITHUB_TOKEN`**: fine-grained PAT con solo `Contents: Read+Write` en este repo, bakeado en el bundle por Vite en build time.
+- Tanto el DM como los jugadores pushean a GitHub (necesario para que las notas de jugadores sean visibles para el DM).
+- Sin token (dev local): solo localStorage, idéntico al comportamiento anterior.
 
 ### Flujo de datos
 
-`App.jsx` es dueño de todo el estado: `db` (datos), `page` (vista activa), `detail` (panel de detalle), `form` (modal de formulario), `toastMsg`, `sidebarOpen`, y `pendingDetail`. Todas las mutaciones pasan por `save(type, data)` y `remove(type, id)`, que escriben en estado React y `localStorage` atómicamente vía `persistDb()`.
+`App.jsx` es dueño de todo el estado: `db` (datos), `page` (vista activa), `detail` (panel de detalle), `form` (modal de formulario), `toastMsg`, `sidebarOpen`, `pendingDetail`, `loading` y `syncStatus`. Todas las mutaciones pasan por `save(type, data)` y `remove(type, id)`, que llaman a `persistDb()`.
 
-`AppContext.jsx` expone el contexto; todos los componentes hijos lo consumen con `useApp()`. No se usa ninguna librería de estado externa.
+`persistDb(newDb)`:
+1. Actualiza React state y localStorage atómicamente.
+2. Si hay `VITE_GITHUB_TOKEN`: llama a `pushToGitHub(newDb)` (async, no bloqueante). Un `pushQueue` serializa llamadas rápidas sucesivas para evitar conflictos de SHA en la API de GitHub.
+
+`AppContext.jsx` expone el contexto (incluye `syncStatus` y `loading`); todos los componentes hijos lo consumen con `useApp()`. No se usa ninguna librería de estado externa.
 
 ### Esquema de datos (`seed.js`)
 
-El objeto `db` tiene siete colecciones: `sesiones`, `pjs`, `pnjs`, `lugares`, `facciones`, `lore`, `items`. Cada ítem tiene un `id` numérico asignado por `nextId()` (máximo id existente + 1).
+El objeto `db` tiene ocho colecciones: `sesiones`, `pjs`, `pnjs`, `lugares`, `facciones`, `lore`, `items`, `player_notes`. Cada ítem tiene un `id` numérico asignado por `nextId()` (máximo id existente + 1).
 
 - `defaultData` tiene `lugares`, `facciones` y `lore` pre-cargados.
 - `seedPJs`, `seedPNJs`, `seedSesiones` se inyectan en el primer load si esas colecciones están vacías.
@@ -56,11 +70,18 @@ Los formularios abren en `FormModal` (modal centrado). El título y las acciones
 ### Importar / Exportar datos
 
 `exportData()` descarga el `db` completo como `drakterima-YYYY-MM-DD.json`.
-`importData(file)` lee un JSON, valida que tenga al menos una colección esperada, pide confirmación, y reemplaza el `db` completo. Ambas acciones están en el footer del Sidebar bajo la sección "Datos".
+`importData(file)` lee un JSON, valida que tenga al menos una colección esperada, pide confirmación, reemplaza el `db` completo y hace push a GitHub vía `persistDb`. Ambas acciones están en el footer del Sidebar bajo la sección "Datos" (solo DM).
+
+### Autenticación
+
+- **DM**: contraseña en `VITE_DM_PASSWORD` (GitHub Secret, bakeada en el bundle). Sesión en `sessionStorage` como `drakterima_dm = '1'`.
+- **Jugadores**: contraseñas en `VITE_PLAYER_1_PASSWORD` … `VITE_PLAYER_6_PASSWORD` (GitHub Secrets). Mapeadas por id de PJ en `PLAYER_PASSWORDS` en `App.jsx`. Sesión en `sessionStorage` como `drakterima_player` (JSON `{ id, nombre }`).
+- `tryAccess(password)` en el contexto: prueba primero DM, luego jugadores.
+- El modal de acceso está en `Sidebar.jsx` (`AccessModal`). Se abre con el botón "Acceder" cuando no hay sesión activa.
 
 ### Campos privados DM
 
-Varios tipos tienen campos privados (`notas`, `secreto`) visualmente diferenciados con `var(--accent)` / `var(--accent-bright)` y un ícono de candado. Es puramente cosmético — no hay capa de autenticación.
+Varios tipos tienen campos privados (`notas`, `secreto`) visualmente diferenciados con `var(--accent)` / `var(--accent-bright)` y un ícono de candado. Solo visibles cuando `isDM === true`.
 
 ### Helpers (`helpers.js`)
 
@@ -85,4 +106,4 @@ Todos los estilos están en `src/styles.css`. Usa CSS custom properties (`--acce
 3. Si necesita panel de detalle lateral, agregar en `DETAIL_VIEWS` en `DetailPanel.jsx`.
 4. Agregar entrada en `NAV` en `Sidebar.jsx`.
 5. Agregar entrada en `PAGES` en `App.jsx`.
-6. Agregar la clave al objeto `db` en `seed.js` y `defaultData`.
+6. Agregar la clave al objeto `db` en `seed.js`, `defaultData`, y en el objeto raíz de `data/db.json`.

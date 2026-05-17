@@ -2,7 +2,7 @@ import { useApp } from '../AppContext'
 import DragonIcon from '../svgs/dragonIcon'
 
 export default function Header() {
-  const { toggleSidebar } = useApp()
+  const { toggleSidebar, syncStatus, loading } = useApp()
   return (
     <header id="app-header">
       <button className="hamburger-btn" onClick={toggleSidebar} aria-label="Menú">☰</button>
@@ -14,6 +14,10 @@ export default function Header() {
         <span className="header-title">Dragones Revelados</span>
       </div>
       <div className="header-right">
+        {loading && <span className="sync-badge sync-badge--saving">Sincronizando…</span>}
+        {!loading && syncStatus === 'saving' && <span className="sync-badge sync-badge--saving">Guardando…</span>}
+        {!loading && syncStatus === 'saved'  && <span className="sync-badge sync-badge--saved">✓ Guardado</span>}
+        {!loading && syncStatus === 'error'  && <span className="sync-badge sync-badge--error">! Sin sync</span>}
         <span className="header-badge">Wiki del DM · D&D 5E</span>
       </div>
     </header>

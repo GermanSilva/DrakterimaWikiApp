@@ -37,6 +37,53 @@ function initDb() {
   return data
 }
 
+const PLAYER_PASSWORDS = {
+  1: import.meta.env.VITE_PLAYER_1_PASSWORD,
+  2: import.meta.env.VITE_PLAYER_2_PASSWORD,
+  3: import.meta.env.VITE_PLAYER_3_PASSWORD,
+  4: import.meta.env.VITE_PLAYER_4_PASSWORD,
+  5: import.meta.env.VITE_PLAYER_5_PASSWORD,
+  6: import.meta.env.VITE_PLAYER_6_PASSWORD,
+}
+
+const GITHUB_OWNER = 'GermanSilva'
+const GITHUB_REPO  = 'DrakterimaWikiApp'
+const GITHUB_FILE  = 'data/db.json'
+const GITHUB_BRANCH = 'main'
+const RAW_URL = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${GITHUB_FILE}`
+const API_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_FILE}`
+const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN
+
+let pushQueue = Promise.resolve()
+
+async function pushToGitHub(data) {
+  if (!GITHUB_TOKEN) return
+  pushQueue = pushQueue.then(async () => {
+    const headers = {
+      Authorization: `Bearer ${GITHUB_TOKEN}`,
+      'Content-Type': 'application/json',
+      'X-GitHub-Api-Version': '2022-11-28',
+    }
+    const getResp = await fetch(API_URL, { headers })
+    if (!getResp.ok) throw new Error(`GitHub GET ${getResp.status}`)
+    const { sha } = await getResp.json()
+    const encoded = new TextEncoder().encode(JSON.stringify(data, null, 2))
+    const content = btoa(String.fromCharCode(...encoded))
+    const putResp = await fetch(API_URL, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({
+        message: `wiki: auto-save ${new Date().toISOString()}`,
+        content,
+        sha,
+        branch: GITHUB_BRANCH,
+      }),
+    })
+    if (!putResp.ok) throw new Error(`GitHub PUT ${putResp.status}`)
+  }).catch(err => { throw err })
+  return pushQueue
+}
+
 const PAGES = {
   dashboard: Dashboard,
   sesiones: Sesiones,
@@ -50,6 +97,8 @@ const PAGES = {
 
 export default function App() {
   const [db, setDb] = useState(initDb)
+  const [loading, setLoading] = useState(true)
+  const [syncStatus, setSyncStatus] = useState(null)
   const [page, setPage] = useState('dashboard')
   const [detail, setDetail] = useState(null)
   const [form, setForm] = useState(null)
@@ -65,6 +114,24 @@ export default function App() {
   })
 
   useEffect(() => {
+    async function syncFromRemote() {
+      try {
+        const resp = await fetch(`${RAW_URL}?t=${Date.now()}`, { cache: 'no-store' })
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
+        const remote = await resp.json()
+        const merged = Object.assign(JSON.parse(JSON.stringify(defaultData)), remote)
+        setDb(merged)
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged))
+      } catch (err) {
+        console.warn('Remote sync failed, using localStorage:', err.message)
+      } finally {
+        setLoading(false)
+      }
+    }
+    syncFromRemote()
+  }, [])
+
+  useEffect(() => {
     function onKey(e) {
       if (e.key !== 'Escape') return
       if (form) { setForm(null); return }
@@ -77,6 +144,14 @@ export default function App() {
   function persistDb(newDb) {
     setDb(newDb)
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newDb))
+    if (!GITHUB_TOKEN) return
+    setSyncStatus('saving')
+    pushToGitHub(newDb)
+      .then(() => { setSyncStatus('saved'); setTimeout(() => setSyncStatus(null), 2000) })
+      .catch(() => {
+        setSyncStatus('error')
+        showToast('Error al sincronizar con GitHub. Cambios guardados localmente.')
+      })
   }
 
   function showToast(msg) {
@@ -105,34 +180,22 @@ export default function App() {
   }
 
   function loginPlayer(password) {
-    const pj = (db.pjs || []).find(p => p.player_password && p.player_password === password)
+    if (!password) return { success: false }
+    const pj = (db.pjs || []).find(p => PLAYER_PASSWORDS[p.id] && PLAYER_PASSWORDS[p.id] === password)
     if (!pj) return { success: false }
-    if (pj.player_must_change) return { success: true, mustChange: true, pj }
     sessionStorage.removeItem('drakterima_dm')
     setIsDM(false)
     const player = { id: pj.id, nombre: pj.nombre }
     sessionStorage.setItem('drakterima_player', JSON.stringify(player))
     setCurrentPlayer(player)
     showToast(`Bienvenido/a, ${pj.nombre}`)
-    return { success: true, mustChange: false }
+    return { success: true }
   }
 
   function logoutPlayer() {
     sessionStorage.removeItem('drakterima_player')
     setCurrentPlayer(null)
     showToast('Sesión cerrada')
-  }
-
-  function changePlayerPassword(pj_id, newPassword) {
-    const arr = [...(db.pjs || [])]
-    const i = arr.findIndex(p => p.id === pj_id)
-    if (i < 0) return
-    arr[i] = { ...arr[i], player_password: newPassword, player_must_change: false }
-    persistDb({ ...db, pjs: arr })
-    const player = { id: arr[i].id, nombre: arr[i].nombre }
-    sessionStorage.setItem('drakterima_player', JSON.stringify(player))
-    setCurrentPlayer(player)
-    showToast('Contraseña actualizada')
   }
 
   function savePlayerNote(pj_id, type, entity_id, text) {
@@ -152,7 +215,7 @@ export default function App() {
       sessionStorage.setItem('drakterima_dm', '1')
       setIsDM(true)
       showToast('Modo DM activado')
-      return { success: true, role: 'dm' }
+      return { success: true }
     }
     return loginPlayer(password)
   }
@@ -240,12 +303,13 @@ export default function App() {
     currentPlayer,
     loginPlayer,
     logoutPlayer,
-    changePlayerPassword,
     savePlayerNote,
     tryAccess,
     openForm: (type, id = null) => { if (isDM) setForm({ type, id }) },
     closeForm: () => setForm(null),
     showToast,
+    syncStatus,
+    loading,
     sidebarOpen,
     toggleSidebar: () => setSidebarOpen(v => !v),
     exportData,

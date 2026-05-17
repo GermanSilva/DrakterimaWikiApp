@@ -27,6 +27,13 @@ jobs:
       - run: npm run build
         env:
           VITE_DM_PASSWORD: ${{ secrets.VITE_DM_PASSWORD }}
+          VITE_GITHUB_TOKEN: ${{ secrets.VITE_GITHUB_TOKEN }}
+          VITE_PLAYER_1_PASSWORD: ${{ secrets.VITE_PLAYER_1_PASSWORD }}
+          VITE_PLAYER_2_PASSWORD: ${{ secrets.VITE_PLAYER_2_PASSWORD }}
+          VITE_PLAYER_3_PASSWORD: ${{ secrets.VITE_PLAYER_3_PASSWORD }}
+          VITE_PLAYER_4_PASSWORD: ${{ secrets.VITE_PLAYER_4_PASSWORD }}
+          VITE_PLAYER_5_PASSWORD: ${{ secrets.VITE_PLAYER_5_PASSWORD }}
+          VITE_PLAYER_6_PASSWORD: ${{ secrets.VITE_PLAYER_6_PASSWORD }}
       - uses: actions/upload-pages-artifact@v3
         with:
           path: dist

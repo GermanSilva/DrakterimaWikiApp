@@ -82,6 +82,18 @@ body::before {
   font-weight: 500;
 }
 
+/* ══ SYNC BADGE ══ */
+.sync-badge {
+  font-size: 0.7rem;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+}
+.sync-badge--saving { background: var(--accent); color: #fff; }
+.sync-badge--saved  { background: #22c55e; color: #000; }
+.sync-badge--error  { background: #ef4444; color: #fff; }
+
 /* ══ LAYOUT ══ */
 #layout {
   display: flex;
