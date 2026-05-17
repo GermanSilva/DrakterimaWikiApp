@@ -11,34 +11,220 @@
     }
   ],
   "pjs": [
-    { "id": 1, "nombre": "Maisie Moonwhisper", "jugador": "", "clase": "Druida", "raza": "Por definir", "nivel": 1, "region": "magral", "trasfondo": "Conectada con la naturaleza. Percibe la Magralita como algo arrancado del ciclo natural antes de tiempo.", "motivo": "Comprender el conflicto entre el mundo arcano y el natural.", "magralita": "Al tocar cajas de Magralita siente incomodidad orgánica: como tierra forzada.", "notas": "Micro-momento: La Magralita se siente como tierra arrancada antes de tiempo." },
-    { "id": 2, "nombre": "Eldric Vaelis", "jugador": "", "clase": "Paladín", "raza": "Por definir", "nivel": 1, "region": "magral", "trasfondo": "Código moral estricto. La ambigüedad institucional lo incomoda profundamente.", "motivo": "Encontrar dónde trazar la línea entre ley y justicia.", "magralita": "Sin conexión directa, pero percibe la tensión moral en quienes la custodian.", "notas": "Micro-momento: Esto huele a orden... pero no a justicia. Varnek representa autoridad ambigua." },
-    { "id": 3, "nombre": "Kaylinx Echoryn", "jugador": "", "clase": "Hechicero", "raza": "Changeling", "nivel": 1, "region": "nezor", "trasfondo": "Su origen changeling y posible vínculo con Nezor le generan paranoia constante de ser descubierto.", "motivo": "Construir una identidad propia más allá de lo que otros proyectan sobre él/ella.", "magralita": "La mención de Nezor en registros oficiales activa su temor a ser expuesto.", "notas": "Micro-momento: Por un momento sientes que alguien te observa. Pero no hay nadie. Siente miradas prolongadas en la ciudad." },
-    { "id": 4, "nombre": "Alyssara Velaris", "jugador": "", "clase": "Warlock", "raza": "Por definir", "nivel": 1, "region": "magral", "trasfondo": "Pacto con un Archfey. Su conexión feérica es sensible a la Magralita.", "motivo": "Entender qué quiere realmente su patrona de este mundo.", "magralita": "Cerca de la Magralita siente una breve interferencia en su vínculo feérico. Algo del otro lado observa el mineral.", "notas": "Micro-momento: Algo te reconoce. Como si una puerta muy lejana se entreabriera. Su patrona disfruta la situación." },
-    { "id": 5, "nombre": "Kaelen Baris", "jugador": "", "clase": "Warlock", "raza": "Por definir", "nivel": 1, "region": "magral", "trasfondo": "Su pacto tiene un vínculo desconocido con la Magralita misma como entidad o fuerza.", "motivo": "Descubrir qué es en realidad la Magralita y por qué lo llama.", "magralita": "Percibe un zumbido bajo al acercarse al cargamento. Instinto de reconocimiento al tocar la caja marcada.", "notas": "SECRETO DM: Esto no es solo un mineral. (Silencio. No explicar más.) El PJ más conectado al arco de la Magralita." },
-    { "id": 6, "nombre": "Varana", "jugador": "", "clase": "Monje", "raza": "Por definir", "nivel": 1, "region": "magral", "trasfondo": "Por definir con el jugador. Altamente perceptivo a nivel físico y emocional.", "motivo": "Por definir.", "magralita": "Sin conexión mágica directa. Detecta micro-tensiones corporales en quienes interactúan con Magralita.", "notas": "Micro-momento: Tu instinto: aquí pasó algo... y no hace mucho. Detecta cambio respiratorio de Varnek (Percepción CD 13)." }
+    {
+      "id": 1,
+      "nombre": "Maisie Moonwhisper",
+      "jugador": "",
+      "clase": "Druida",
+      "raza": "Por definir",
+      "nivel": 1,
+      "region": "magral",
+      "trasfondo": "Conectada con la naturaleza. Percibe la Magralita como algo arrancado del ciclo natural antes de tiempo.",
+      "motivo": "Comprender el conflicto entre el mundo arcano y el natural.",
+      "magralita": "Al tocar cajas de Magralita siente incomodidad orgánica: como tierra forzada.",
+      "notas": "Micro-momento: La Magralita se siente como tierra arrancada antes de tiempo."
+    },
+    {
+      "id": 2,
+      "nombre": "Eldric Vaelis",
+      "jugador": "",
+      "clase": "Paladín",
+      "raza": "Por definir",
+      "nivel": 1,
+      "region": "magral",
+      "trasfondo": "Código moral estricto. La ambigüedad institucional lo incomoda profundamente.",
+      "motivo": "Encontrar dónde trazar la línea entre ley y justicia.",
+      "magralita": "Sin conexión directa, pero percibe la tensión moral en quienes la custodian.",
+      "notas": "Micro-momento: Esto huele a orden... pero no a justicia. Varnek representa autoridad ambigua."
+    },
+    {
+      "nombre": "Kaylinx Echoryn",
+      "jugador": "Suni",
+      "clase": "Hechicero",
+      "raza": "SemiElfo",
+      "nivel": 1,
+      "region": "nezor",
+      "trasfondo": "",
+      "motivo": "Construir una identidad propia más allá de lo que otros proyectan sobre él/ella.",
+      "magralita": "La mención de Nezor en registros oficiales activa su temor a ser expuesto.",
+      "notas": "Micro-momento: Por un momento sientes que alguien te observa. Pero no hay nadie. Siente miradas prolongadas en la ciudad.\n\nSu origen changeling y posible vínculo con Nezor le generan paranoia constante de ser descubierto.",
+      "id": 3,
+      "player_password": "",
+      "player_must_change": false
+    },
+    {
+      "id": 4,
+      "nombre": "Alyssara Velaris",
+      "jugador": "",
+      "clase": "Warlock",
+      "raza": "Por definir",
+      "nivel": 1,
+      "region": "magral",
+      "trasfondo": "Pacto con un Archfey. Su conexión feérica es sensible a la Magralita.",
+      "motivo": "Entender qué quiere realmente su patrona de este mundo.",
+      "magralita": "Cerca de la Magralita siente una breve interferencia en su vínculo feérico. Algo del otro lado observa el mineral.",
+      "notas": "Micro-momento: Algo te reconoce. Como si una puerta muy lejana se entreabriera. Su patrona disfruta la situación."
+    },
+    {
+      "id": 5,
+      "nombre": "Kaelen Baris",
+      "jugador": "",
+      "clase": "Warlock",
+      "raza": "Por definir",
+      "nivel": 1,
+      "region": "magral",
+      "trasfondo": "Su pacto tiene un vínculo desconocido con la Magralita misma como entidad o fuerza.",
+      "motivo": "Descubrir qué es en realidad la Magralita y por qué lo llama.",
+      "magralita": "Percibe un zumbido bajo al acercarse al cargamento. Instinto de reconocimiento al tocar la caja marcada.",
+      "notas": "SECRETO DM: Esto no es solo un mineral. (Silencio. No explicar más.) El PJ más conectado al arco de la Magralita."
+    },
+    {
+      "id": 6,
+      "nombre": "Varana",
+      "jugador": "",
+      "clase": "Monje",
+      "raza": "Por definir",
+      "nivel": 1,
+      "region": "magral",
+      "trasfondo": "Por definir con el jugador. Altamente perceptivo a nivel físico y emocional.",
+      "motivo": "Por definir.",
+      "magralita": "Sin conexión mágica directa. Detecta micro-tensiones corporales en quienes interactúan con Magralita.",
+      "notas": "Micro-momento: Tu instinto: aquí pasó algo... y no hace mucho. Detecta cambio respiratorio de Varnek (Percepción CD 13)."
+    }
   ],
   "pnjs": [
-    { "id": 1, "nombre": "Maelis Dornavar", "rol": "Coordinadora de Escuadrones del Gremio", "region": "magral", "relacion": "aliado", "faccion": "Gremio de Aventureros", "descripcion": "Analítica, precisa y profundamente política. Cabello oscuro recogido, capa marrón oscuro, ojos grises penetrantes. Porta una daga corta. Su postura es la de alguien que ha tomado decisiones difíciles durante mucho tiempo.", "historia": "Coordinadora veterana del Gremio en Kardevir. Gestiona escuadrones, evalúa riesgos políticos y actúa como intermediaria entre el Gremio y las instituciones de Magral. Sabe más de lo que dice.", "secreto": "Conoce la existencia de decretos reales de reserva estratégica de Magralita. Sospecha que el sistema se usa para algo más que simple reserva. Por eso usa al grupo: auditores externos que no pueden vincularse directamente al Gremio.", "notas": "Frases clave: \"Representan la credibilidad del gremio.\" / \"Si encuentran algo incómodo... me lo traen a mí.\" / \"Algunas puertas no están cerradas. Están vigiladas.\" NO resuelve nada: valida, baja intensidad, planta paranoia leve." },
-    { "id": 2, "nombre": "Sargento Varnek", "rol": "Sargento de la Legión - Oficina de Comercio de Kardevir", "region": "magral", "relacion": "neutral", "faccion": "La Legión Magral", "descripcion": "Profesional, seguro, levemente condescendiente al inicio. Evoluciona a impaciente, incómodo y defensivo si el grupo presiona. Nunca agresivo de entrada. Hombre de mediana edad, uniforme de la Legión impecable.", "historia": "Sargento a cargo del almacén de la Oficina de Comercio durante la auditoría. No es un villano caricaturesco: ejecuta órdenes dentro de un sistema que le conviene no cuestionar.", "secreto": "Sabe que una caja fue desviada antes de la auditoría. Plan: apurar al grupo, hacerlos interactuar con las cajas para implicarlos, validar el manifiesto modificado (11 en lugar de 12) y usarlos como responsables si hay investigación. Obedece órdenes de una cadena que no conoce completamente.", "notas": "Motor narrativo de la sesión. Varana detecta cambio respiratorio durante acusación (CD 13). Si lo acusan directamente: \"Cuidado con lo que están insinuando.\" Escala presión social, NO combate." }
+    {
+      "id": 1,
+      "nombre": "Maelis Dornavar",
+      "rol": "Coordinadora de Escuadrones del Gremio",
+      "region": "magral",
+      "relacion": "aliado",
+      "faccion": "Gremio de Aventureros",
+      "descripcion": "Analítica, precisa y profundamente política. Cabello oscuro recogido, capa marrón oscuro, ojos grises penetrantes. Porta una daga corta. Su postura es la de alguien que ha tomado decisiones difíciles durante mucho tiempo.",
+      "historia": "Coordinadora veterana del Gremio en Kardevir. Gestiona escuadrones, evalúa riesgos políticos y actúa como intermediaria entre el Gremio y las instituciones de Magral. Sabe más de lo que dice.",
+      "secreto": "Conoce la existencia de decretos reales de reserva estratégica de Magralita. Sospecha que el sistema se usa para algo más que simple reserva. Por eso usa al grupo: auditores externos que no pueden vincularse directamente al Gremio.",
+      "notas": "Frases clave: \"Representan la credibilidad del gremio.\" / \"Si encuentran algo incómodo... me lo traen a mí.\" / \"Algunas puertas no están cerradas. Están vigiladas.\" NO resuelve nada: valida, baja intensidad, planta paranoia leve."
+    },
+    {
+      "id": 2,
+      "nombre": "Sargento Varnek",
+      "rol": "Sargento de la Legión - Oficina de Comercio de Kardevir",
+      "region": "magral",
+      "relacion": "neutral",
+      "faccion": "La Legión Magral",
+      "descripcion": "Profesional, seguro, levemente condescendiente al inicio. Evoluciona a impaciente, incómodo y defensivo si el grupo presiona. Nunca agresivo de entrada. Hombre de mediana edad, uniforme de la Legión impecable.",
+      "historia": "Sargento a cargo del almacén de la Oficina de Comercio durante la auditoría. No es un villano caricaturesco: ejecuta órdenes dentro de un sistema que le conviene no cuestionar.",
+      "secreto": "Sabe que una caja fue desviada antes de la auditoría. Plan: apurar al grupo, hacerlos interactuar con las cajas para implicarlos, validar el manifiesto modificado (11 en lugar de 12) y usarlos como responsables si hay investigación. Obedece órdenes de una cadena que no conoce completamente.",
+      "notas": "Motor narrativo de la sesión. Varana detecta cambio respiratorio durante acusación (CD 13). Si lo acusan directamente: \"Cuidado con lo que están insinuando.\" Escala presión social, NO combate."
+    }
   ],
   "lugares": [
-    { "id": 1, "nombre": "Kardevir", "subtitulo": "Ciudad del Paso", "region": "magral", "tipo": "ciudad", "descripcion": "Ubicada junto al Lago Melior y resguardada por montañas y rutas naturales. Sede principal del Gremio de Aventureros. Centro geográfico del continente, punto de conexión entre Magral, Nezor y las Tierras Heladas. Fuerte espíritu independiente.", "notas": "Base de operaciones de los aventureros. Al noroeste: Paso del Goliath." },
-    { "id": 2, "nombre": "Genesia", "subtitulo": "Capital de Magral", "region": "magral", "tipo": "ciudad", "descripcion": "Capital política y cultural de Magral, a orillas del Lago Argalés. Sede de la Orden de Argan y residencia del monarca electo. Academias arcanas, bibliotecas históricas y grandes edificios monumentales.", "notas": "Centro de poder de la Orden." },
-    { "id": 3, "nombre": "Jakal", "subtitulo": "Oasis Mayor de Nezor", "region": "nezor", "tipo": "ciudad", "descripcion": "Principal centro urbano de Nezor. Levantada en torno a un extenso oasis. Mercados vibrantes y diversos. Influencia económica clave en las alianzas entre caudillos. Cosmopolita para el contexto nezoriano.", "notas": "" },
-    { "id": 4, "nombre": "Biram", "subtitulo": "Ciudad Frontera", "region": "nezor", "tipo": "ciudad", "descripcion": "Ubicada en el límite noreste entre Magral y Nezor. Dividida geográfica y culturalmente: Biram del Norte (tierras fértiles) y Biram del Sur (territorio árido nezoriano). Bastión de uno de los caudillos más influyentes.", "notas": "Punto de fricción constante. Espías, comerciantes y soldados." }
+    {
+      "id": 1,
+      "nombre": "Kardevir",
+      "subtitulo": "Ciudad del Paso",
+      "region": "magral",
+      "tipo": "ciudad",
+      "descripcion": "Ubicada junto al Lago Melior y resguardada por montañas y rutas naturales. Sede principal del Gremio de Aventureros. Centro geográfico del continente, punto de conexión entre Magral, Nezor y las Tierras Heladas. Fuerte espíritu independiente.",
+      "notas": "Base de operaciones de los aventureros. Al noroeste: Paso del Goliath."
+    },
+    {
+      "id": 2,
+      "nombre": "Genesia",
+      "subtitulo": "Capital de Magral",
+      "region": "magral",
+      "tipo": "ciudad",
+      "descripcion": "Capital política y cultural de Magral, a orillas del Lago Argalés. Sede de la Orden de Argan y residencia del monarca electo. Academias arcanas, bibliotecas históricas y grandes edificios monumentales.",
+      "notas": "Centro de poder de la Orden."
+    },
+    {
+      "id": 3,
+      "nombre": "Jakal",
+      "subtitulo": "Oasis Mayor de Nezor",
+      "region": "nezor",
+      "tipo": "ciudad",
+      "descripcion": "Principal centro urbano de Nezor. Levantada en torno a un extenso oasis. Mercados vibrantes y diversos. Influencia económica clave en las alianzas entre caudillos. Cosmopolita para el contexto nezoriano.",
+      "notas": ""
+    },
+    {
+      "id": 4,
+      "nombre": "Biram",
+      "subtitulo": "Ciudad Frontera",
+      "region": "nezor",
+      "tipo": "ciudad",
+      "descripcion": "Ubicada en el límite noreste entre Magral y Nezor. Dividida geográfica y culturalmente: Biram del Norte (tierras fértiles) y Biram del Sur (territorio árido nezoriano). Bastión de uno de los caudillos más influyentes.",
+      "notas": "Punto de fricción constante. Espías, comerciantes y soldados."
+    }
   ],
   "facciones": [
-    { "id": 1, "nombre": "La Orden de Argan", "tipo": "institución", "region": "magral", "relacion": "neutral", "descripcion": "Institución parlamentaria en Magral. Compuesta por nobles, magistrados, eruditos y representantes regionales. Custodia las tradiciones y lidera la región bajo un monarca electo por mérito. Influenciada por el dragón Argan: honor, disciplina, previsión.", "notas": "" },
-    { "id": 2, "nombre": "La Legión Magral", "tipo": "militar", "region": "magral", "relacion": "neutral", "descripcion": "Brazo militar de Magral. Defiende territorios y protege rutas comerciales. Ha desarrollado identidad propia, con comandantes provinciales autónomos. Internamente, un movimiento reformista desafía el predominio de la Orden.", "notas": "Tensión interna entre facción tradicional y reformistas." },
-    { "id": 3, "nombre": "El Culto de Ragon", "tipo": "facción", "region": "nezor", "relacion": "neutral", "descripcion": "Red de alianzas entre caudillos nezorianos que gobiernan en torno a oasis, fortalezas y rutas. El liderazgo se gana por fuerza y carisma. Influenciado por el dragón Ragon: poder, conquista, territorialismo.", "notas": "" },
-    { "id": 4, "nombre": "Gremio de Aventureros", "tipo": "gremio", "region": "magral", "relacion": "aliado", "descripcion": "Organización independiente creada para actuar donde la burocracia falla. Sede en Kardevir. Los aventureros prestan juramento de servicio al pueblo de Drakterima. Aún joven, su reputación está en construcción.", "notas": "Organización de los PJs." },
-    { "id": 5, "nombre": "Las Islas Pétreas", "tipo": "facción", "region": "islas", "relacion": "neutral", "descripcion": "Archipiélago suroeste gobernado por consejos mercantiles. Oficialmente neutral. Produce metales, embarcaciones y herramientas de alta calidad. Su posición comercial les otorga influencia invisible sobre el continente.", "notas": "" }
+    {
+      "id": 1,
+      "nombre": "La Orden de Argan",
+      "tipo": "institución",
+      "region": "magral",
+      "relacion": "neutral",
+      "descripcion": "Institución parlamentaria en Magral. Compuesta por nobles, magistrados, eruditos y representantes regionales. Custodia las tradiciones y lidera la región bajo un monarca electo por mérito. Influenciada por el dragón Argan: honor, disciplina, previsión.",
+      "notas": ""
+    },
+    {
+      "id": 2,
+      "nombre": "La Legión Magral",
+      "tipo": "militar",
+      "region": "magral",
+      "relacion": "neutral",
+      "descripcion": "Brazo militar de Magral. Defiende territorios y protege rutas comerciales. Ha desarrollado identidad propia, con comandantes provinciales autónomos. Internamente, un movimiento reformista desafía el predominio de la Orden.",
+      "notas": "Tensión interna entre facción tradicional y reformistas."
+    },
+    {
+      "id": 3,
+      "nombre": "El Culto de Ragon",
+      "tipo": "facción",
+      "region": "nezor",
+      "relacion": "neutral",
+      "descripcion": "Red de alianzas entre caudillos nezorianos que gobiernan en torno a oasis, fortalezas y rutas. El liderazgo se gana por fuerza y carisma. Influenciado por el dragón Ragon: poder, conquista, territorialismo.",
+      "notas": ""
+    },
+    {
+      "id": 4,
+      "nombre": "Gremio de Aventureros",
+      "tipo": "gremio",
+      "region": "magral",
+      "relacion": "aliado",
+      "descripcion": "Organización independiente creada para actuar donde la burocracia falla. Sede en Kardevir. Los aventureros prestan juramento de servicio al pueblo de Drakterima. Aún joven, su reputación está en construcción.",
+      "notas": "Organización de los PJs."
+    },
+    {
+      "id": 5,
+      "nombre": "Las Islas Pétreas",
+      "tipo": "facción",
+      "region": "islas",
+      "relacion": "neutral",
+      "descripcion": "Archipiélago suroeste gobernado por consejos mercantiles. Oficialmente neutral. Produce metales, embarcaciones y herramientas de alta calidad. Su posición comercial les otorga influencia invisible sobre el continente.",
+      "notas": ""
+    }
   ],
   "lore": [
-    { "id": 1, "titulo": "La Guerra de los Dragones", "categoria": "historia", "descripcion": "Los dragones Argan y Ragon llevan milenios en conflicto por Drakterima (\"Tierra disputada por dragones\" en lenguaje orco). Al comprender que el combate físico no los llevaría a la victoria, optaron por una guerra de influencia sobre las civilizaciones del continente.", "notas": "Conflicto central de la campaña." },
-    { "id": 2, "titulo": "La Magralita", "categoria": "recurso", "descripcion": "Mineral de propiedades mágicas extraordinarias. Conocido en textos arcanos como \"Azhkhar\" y entre los nezorianos como \"Sangre del Mundo\". Permite potenciar objetos mágicos, estabilizar conjuros complejos y alimentar artefactos arcanos. Su manipulación indebida genera inestabilidad peligrosa.", "notas": "Recurso estratégico. Controlar sus yacimientos = poder político, económico y militar." },
-    { "id": 3, "titulo": "Drakterima: El Continente", "categoria": "geografía", "descripcion": "Continente que se extiende más a lo ancho que a lo largo. Grandes cordilleras diagonales lo dividen en regiones naturales. Cuatro grandes zonas: Magral (corazón fértil sur), Nezor (desierto este), Tierras Heladas (norte), Islas Pétreas (suroeste). Todos los caminos parecen conducir al equilibrio entre poder, supervivencia e influencia.", "notas": "" }
+    {
+      "id": 1,
+      "titulo": "La Guerra de los Dragones",
+      "categoria": "historia",
+      "descripcion": "Los dragones Argan y Ragon llevan milenios en conflicto por Drakterima (\"Tierra disputada por dragones\" en lenguaje orco). Al comprender que el combate físico no los llevaría a la victoria, optaron por una guerra de influencia sobre las civilizaciones del continente.",
+      "notas": "Conflicto central de la campaña."
+    },
+    {
+      "id": 2,
+      "titulo": "La Magralita",
+      "categoria": "recurso",
+      "descripcion": "Mineral de propiedades mágicas extraordinarias. Conocido en textos arcanos como \"Azhkhar\" y entre los nezorianos como \"Sangre del Mundo\". Permite potenciar objetos mágicos, estabilizar conjuros complejos y alimentar artefactos arcanos. Su manipulación indebida genera inestabilidad peligrosa.",
+      "notas": "Recurso estratégico. Controlar sus yacimientos = poder político, económico y militar."
+    },
+    {
+      "id": 3,
+      "titulo": "Drakterima: El Continente",
+      "categoria": "geografía",
+      "descripcion": "Continente que se extiende más a lo ancho que a lo largo. Grandes cordilleras diagonales lo dividen en regiones naturales. Cuatro grandes zonas: Magral (corazón fértil sur), Nezor (desierto este), Tierras Heladas (norte), Islas Pétreas (suroeste). Todos los caminos parecen conducir al equilibrio entre poder, supervivencia e influencia.",
+      "notas": ""
+    }
   ],
   "items": [],
   "player_notes": []
