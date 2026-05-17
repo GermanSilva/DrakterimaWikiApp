@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useApp } from '../AppContext'
 import { Tag, RegionTag, RelacionTag, PageHeader, EmptyState } from '../components/Shared'
-import { nl2br } from '../helpers'
+import { isVisible } from '../helpers'
 import PlayerNotes from '../components/PlayerNotes'
+import WikiText from '../components/WikiText'
 
 const REGION_COLOR = {
   magral:  '#7aad82',
@@ -32,6 +33,8 @@ function FaccionDetailInline({ faccion, onBack }) {
           {faccion.region && <RegionTag region={faccion.region} />}
           {faccion.relacion && <RelacionTag relacion={faccion.relacion} />}
           {faccion.tipo && <Tag cls="neutral" text={faccion.tipo} />}
+          {faccion.estado === 'borrador' && <Tag cls="borrador" text="Borrador" />}
+          {faccion.estado === 'secreto' && <Tag cls="secreto" text="Secreto" />}
         </div>
       </div>
 
@@ -46,7 +49,7 @@ function FaccionDetailInline({ faccion, onBack }) {
           {faccion.descripcion && (
             <div className="detail-section">
               <div className="detail-section-title">Descripción</div>
-              <div className="detail-text" dangerouslySetInnerHTML={nl2br(faccion.descripcion)} />
+              <div className="detail-text"><WikiText text={faccion.descripcion} /></div>
             </div>
           )}
         </div>
@@ -54,13 +57,13 @@ function FaccionDetailInline({ faccion, onBack }) {
           {isDM && faccion.secreto && (
             <div className="detail-section" style={DM_STYLE}>
               <div className="detail-section-title" style={DM_TITLE_STYLE}>🔒 Objetivos secretos</div>
-              <div className="detail-text" dangerouslySetInnerHTML={nl2br(faccion.secreto)} />
+              <div className="detail-text"><WikiText text={faccion.secreto} /></div>
             </div>
           )}
           {isDM && faccion.notas && (
             <div className="detail-section" style={DM_STYLE}>
               <div className="detail-section-title" style={DM_TITLE_STYLE}>🔒 Notas DM</div>
-              <div className="detail-text" dangerouslySetInnerHTML={nl2br(faccion.notas)} />
+              <div className="detail-text"><WikiText text={faccion.notas} /></div>
             </div>
           )}
         </div>
@@ -71,7 +74,7 @@ function FaccionDetailInline({ faccion, onBack }) {
 }
 
 export default function Facciones() {
-  const { db, openForm, isDM } = useApp()
+  const { db, openForm, isDM, currentPlayer } = useApp()
   const [selectedId, setSelectedId] = useState(null)
 
   if (selectedId !== null) {
@@ -79,17 +82,19 @@ export default function Facciones() {
     if (faccion) return <FaccionDetailInline faccion={faccion} onBack={() => setSelectedId(null)} />
   }
 
+  const lista = db.facciones.filter(f => isVisible(f, isDM, currentPlayer))
+
   return (
     <div>
       <PageHeader eyebrow="Política y Poder" title="Facciones">
         {isDM && <button className="btn btn-primary" onClick={() => openForm('facciones')}>+ Nueva Facción</button>}
       </PageHeader>
 
-      {db.facciones.length === 0 ? (
+      {lista.length === 0 ? (
         <EmptyState icon="⚜️" title="Sin facciones" text="Agregá facciones para definir el poder en Drakterima." />
       ) : (
         <div className="cards-grid">
-          {db.facciones.map(f => (
+          {lista.map(f => (
             <div key={f.id} className="card" onClick={() => setSelectedId(f.id)}>
               <div className="card-header">
                 <div className="card-title">{f.nombre}</div>
@@ -99,6 +104,8 @@ export default function Facciones() {
                 {f.tipo && <Tag cls="neutral" text={f.tipo} />}
                 {f.region && <RegionTag region={f.region} />}
                 {f.relacion && <RelacionTag relacion={f.relacion} />}
+                {f.estado === 'borrador' && <Tag cls="borrador" text="Borrador" />}
+                {f.estado === 'secreto' && <Tag cls="secreto" text="Secreto" />}
               </div>
               <div className="card-desc">{f.descripcion || ''}</div>
             </div>

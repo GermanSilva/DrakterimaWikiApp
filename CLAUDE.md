@@ -101,12 +101,27 @@ Todas las entidades que muestran imagen usan un campo `imagen_url` (texto con UR
 
 Varios tipos tienen campos privados (`notas`, `secreto`) visualmente diferenciados con `var(--accent)` / `var(--accent-bright)` y un ícono de candado. Solo visibles cuando `isDM === true`.
 
+### Wiki-links entre artículos
+
+Los campos de texto largo en vistas de detalle soportan wiki-links internos. Sintaxis:
+
+```
+[[{id}Texto del enlace]]
+```
+
+Ejemplo: `[[{3}Magrales del este]]` se renderiza como un enlace clickeable con el texto "Magrales del este" que navega al artículo con `id=3` en cualquier colección.
+
+- El componente `WikiText` (`src/components/WikiText.jsx`) parsea el texto, busca el `id` en todas las colecciones (`COLLECTIONS`), y llama a `goToDetail(page, id)` al hacer click.
+- Si el artículo no existe o no es visible, el texto se muestra con estilo `wiki-link-broken` (atenuado, sin acción).
+- `WikiText` reemplaza `dangerouslySetInnerHTML={nl2br(...)}` en todos los detalles de entidad. Usar `<WikiText text={campo} />` dentro de `<div className="detail-text">`.
+- Los campos cortos (nombre, título, fecha) no necesitan WikiText.
+
 ### Helpers (`helpers.js`)
 
 - `regionLabel` / `regionOptions`: valores canónicos de región (`magral`, `nezor`, `heladas`, `islas`, `otro`).
 - `relacionLabel`: valores canónicos de relación (`aliado`, `neutral`, `enemigo`, `desconocido`).
 - `nextId(arr)`: incrementa el máximo id.
-- `nl2br(text)`: convierte `\n` a `<br>` para `dangerouslySetInnerHTML`.
+- `nl2br(text)`: utilidad legada, ya no se usa en componentes (reemplazada por `WikiText`).
 - `isVisible(entity, isDM, currentPlayer)`: determina si una entidad es visible para el usuario actual.
 
 ### Activos
@@ -137,9 +152,10 @@ Para desarrollo local: crear `.env.local` con los mismos valores.
 
 1. Crear `src/pages/MiEntidad.jsx` con patrón de detalle inline (`selectedId` state).
 2. Agregar la entrada en `FORM_COMPONENTS` en `FormModal.jsx` (incluir `EstadoField`).
-3. Si necesita panel de detalle lateral, agregar en `DETAIL_VIEWS` en `DetailPanel.jsx`.
-4. Agregar entrada en `NAV` en `Sidebar.jsx`.
-5. Agregar entrada en `PAGES` en `App.jsx`.
-6. Agregar la clave al objeto `db` en `seed.js` y en `defaultData`.
-7. Inicializar la colección en Firestore con `seedCollectionIfEmpty` en `App.jsx`.
-8. Filtrar el listado con `isVisible(entity, isDM, currentPlayer)`.
+3. Agregar entrada en `NAV` en `Sidebar.jsx`.
+4. Agregar entrada en `PAGES` en `App.jsx`.
+5. Agregar la clave al objeto `db` en `seed.js` y en `defaultData`.
+6. Inicializar la colección en Firestore con `seedCollectionIfEmpty` en `App.jsx`.
+7. Filtrar el listado con `isVisible(entity, isDM, currentPlayer)`.
+8. Usar `<WikiText text={campo} />` en campos de texto largo del detalle.
+9. Agregar la colección al array `COLLECTIONS` en `WikiText.jsx` para que sea enlazable.

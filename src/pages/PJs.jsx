@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useApp } from '../AppContext'
 import { Tag, RegionTag, PageHeader, EmptyState } from '../components/Shared'
-import { nl2br } from '../helpers'
+import { isVisible } from '../helpers'
 import PlayerNotes from '../components/PlayerNotes'
+import WikiText from '../components/WikiText'
 
 const REGION_COLOR = {
   magral:  '#7aad82',
@@ -32,6 +33,8 @@ function PJDetailInline({ pj, onBack }) {
           <Tag cls="pj" text={pj.clase || '?'} />
           {pj.raza && <Tag cls="neutral" text={pj.raza} />}
           {pj.region && <RegionTag region={pj.region} />}
+          {pj.estado === 'borrador' && <Tag cls="borrador" text="Borrador" />}
+          {pj.estado === 'secreto' && <Tag cls="secreto" text="Secreto" />}
         </div>
       </div>
 
@@ -51,7 +54,7 @@ function PJDetailInline({ pj, onBack }) {
           {pj.trasfondo && (
             <div className="detail-section">
               <div className="detail-section-title">Trasfondo</div>
-              <div className="detail-text" dangerouslySetInnerHTML={nl2br(pj.trasfondo)} />
+              <div className="detail-text"><WikiText text={pj.trasfondo} /></div>
             </div>
           )}
           {pj.motivo && (
@@ -71,7 +74,7 @@ function PJDetailInline({ pj, onBack }) {
           {isDM && pj.notas && (
             <div className="detail-section" style={DM_STYLE}>
               <div className="detail-section-title" style={DM_TITLE_STYLE}>🔒 Notas DM</div>
-              <div className="detail-text" dangerouslySetInnerHTML={nl2br(pj.notas)} />
+              <div className="detail-text"><WikiText text={pj.notas} /></div>
             </div>
           )}
         </div>
@@ -82,7 +85,7 @@ function PJDetailInline({ pj, onBack }) {
 }
 
 export default function PJs() {
-  const { db, openForm, isDM } = useApp()
+  const { db, openForm, isDM, currentPlayer } = useApp()
   const [selectedId, setSelectedId] = useState(null)
   const [query, setQuery] = useState('')
 
@@ -91,13 +94,14 @@ export default function PJs() {
     if (pj) return <PJDetailInline pj={pj} onBack={() => setSelectedId(null)} />
   }
 
+  const visible = db.pjs.filter(p => isVisible(p, isDM, currentPlayer))
   const lista = query.trim()
-    ? db.pjs.filter(p =>
+    ? visible.filter(p =>
         [p.nombre, p.clase, p.raza, p.jugador].some(v =>
           (v || '').toLowerCase().includes(query.toLowerCase())
         )
       )
-    : db.pjs
+    : visible
 
   return (
     <div>
@@ -134,6 +138,8 @@ export default function PJs() {
                 <Tag cls="pj" text={p.clase || 'Clase'} />
                 {p.raza && <Tag cls="neutral" text={p.raza} />}
                 {p.region && <RegionTag region={p.region} />}
+                {p.estado === 'borrador' && <Tag cls="borrador" text="Borrador" />}
+                {p.estado === 'secreto' && <Tag cls="secreto" text="Secreto" />}
               </div>
               <div className="card-desc">{p.trasfondo || 'Sin trasfondo registrado.'}</div>
               <div className="card-footer">

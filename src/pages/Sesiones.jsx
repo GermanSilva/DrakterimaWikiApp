@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useApp } from '../AppContext'
-import { PageHeader, EmptyState } from '../components/Shared'
-import { nl2br } from '../helpers'
+import { Tag, PageHeader, EmptyState } from '../components/Shared'
+import { isVisible } from '../helpers'
 import PlayerNotes from '../components/PlayerNotes'
+import WikiText from '../components/WikiText'
 
 function renderResumen(text) {
   if (!text) return null
@@ -30,6 +31,8 @@ function SesionDetailInline({ sesion, onBack }) {
           Sesión {sesion.numero}
           {sesion.fecha && <> · {sesion.fecha}</>}
           {isPlanned && <span className="sesion-planned-badge">Planificada</span>}
+          {sesion.estado === 'borrador' && <Tag cls="borrador" text="Borrador" />}
+          {sesion.estado === 'secreto' && <Tag cls="secreto" text="Secreto" />}
         </div>
         <div className="page-title">{sesion.titulo || 'Sin título'}</div>
       </div>
@@ -45,13 +48,13 @@ function SesionDetailInline({ sesion, onBack }) {
         {sesion.logros && (
           <div className="sesion-section">
             <div className="sesion-section-title">Momentos importantes</div>
-            <div className="detail-text" dangerouslySetInnerHTML={nl2br(sesion.logros)} />
+            <div className="detail-text"><WikiText text={sesion.logros} /></div>
           </div>
         )}
         {isDM && sesion.ganchos && (
           <div className="sesion-section">
             <div className="sesion-section-title">Ganchos pendientes</div>
-            <div className="detail-text" dangerouslySetInnerHTML={nl2br(sesion.ganchos)} />
+            <div className="detail-text"><WikiText text={sesion.ganchos} /></div>
           </div>
         )}
       </div>
@@ -61,7 +64,7 @@ function SesionDetailInline({ sesion, onBack }) {
 }
 
 export default function Sesiones() {
-  const { db, openForm, pendingDetail, consumePendingDetail, isDM } = useApp()
+  const { db, openForm, pendingDetail, consumePendingDetail, isDM, currentPlayer } = useApp()
   const [selectedId, setSelectedId] = useState(() => pendingDetail?.id ?? null)
 
   useEffect(() => {
@@ -85,14 +88,18 @@ export default function Sesiones() {
         <EmptyState icon="📜" title="Sin sesiones registradas" text="Registrá tu primera sesión para comenzar la crónica de Drakterima." />
       ) : (
         <div className="timeline">
-          {[...db.sesiones].reverse().map(s => (
+          {[...db.sesiones].filter(s => isVisible(s, isDM, currentPlayer)).reverse().map(s => (
             <div
               key={s.id}
               className={`timeline-item${!s.logros?.trim() ? ' planned' : ''}`}
               onClick={() => setSelectedId(s.id)}
             >
               <div className="timeline-dot" />
-              <div className="timeline-date">Sesión {s.numero} · {s.fecha || 'Sin fecha'}</div>
+              <div className="timeline-date">
+                Sesión {s.numero} · {s.fecha || 'Sin fecha'}
+                {s.estado === 'borrador' && <Tag cls="borrador" text="Borrador" />}
+                {s.estado === 'secreto' && <Tag cls="secreto" text="Secreto" />}
+              </div>
               <div className="timeline-title">{s.titulo || 'Sin título'}</div>
               <div className="timeline-text">
                 {(s.resumen || '').substring(0, 180)}{(s.resumen || '').length > 180 ? '...' : ''}

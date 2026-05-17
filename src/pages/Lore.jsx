@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useApp } from '../AppContext'
 import { Tag, PageHeader, FilterPills, EmptyState } from '../components/Shared'
-import { nl2br } from '../helpers'
+import { isVisible } from '../helpers'
 import PlayerNotes from '../components/PlayerNotes'
+import WikiText from '../components/WikiText'
 
 const DM_STYLE = { borderTopColor: 'var(--accent)' }
 const DM_TITLE_STYLE = { color: 'var(--accent-bright)' }
@@ -21,19 +22,21 @@ function LoreDetailInline({ entrada, onBack }) {
         <div className="page-title">{entrada.titulo}</div>
         <div className="detail-tags" style={{ marginTop: 10 }}>
           {entrada.categoria && <Tag cls="neutral" text={entrada.categoria} />}
+          {entrada.estado === 'borrador' && <Tag cls="borrador" text="Borrador" />}
+          {entrada.estado === 'secreto' && <Tag cls="secreto" text="Secreto" />}
         </div>
       </div>
 
       {entrada.descripcion && (
         <div className="detail-section">
           <div className="detail-section-title">Descripción</div>
-          <div className="detail-text" dangerouslySetInnerHTML={nl2br(entrada.descripcion)} />
+          <div className="detail-text"><WikiText text={entrada.descripcion} /></div>
         </div>
       )}
       {isDM && entrada.notas && (
         <div className="detail-section" style={DM_STYLE}>
           <div className="detail-section-title" style={DM_TITLE_STYLE}>🔒 Secretos DM</div>
-          <div className="detail-text" dangerouslySetInnerHTML={nl2br(entrada.notas)} />
+          <div className="detail-text"><WikiText text={entrada.notas} /></div>
         </div>
       )}
       <PlayerNotes entityType="lore" entityId={entrada.id} />
@@ -42,7 +45,7 @@ function LoreDetailInline({ entrada, onBack }) {
 }
 
 export default function Lore() {
-  const { db, openForm, isDM } = useApp()
+  const { db, openForm, isDM, currentPlayer } = useApp()
   const [filtro, setFiltro] = useState('todos')
   const [selectedId, setSelectedId] = useState(null)
 
@@ -51,12 +54,13 @@ export default function Lore() {
     if (entrada) return <LoreDetailInline entrada={entrada} onBack={() => setSelectedId(null)} />
   }
 
-  const cats = [...new Set(db.lore.map(l => l.categoria).filter(Boolean))]
+  const visibles = db.lore.filter(l => isVisible(l, isDM, currentPlayer))
+  const cats = [...new Set(visibles.map(l => l.categoria).filter(Boolean))]
   const filtros = [
     { value: 'todos', label: 'Todos' },
     ...cats.map(c => ({ value: c, label: c.charAt(0).toUpperCase() + c.slice(1) })),
   ]
-  const lista = filtro === 'todos' ? db.lore : db.lore.filter(l => l.categoria === filtro)
+  const lista = filtro === 'todos' ? visibles : visibles.filter(l => l.categoria === filtro)
 
   return (
     <div>
@@ -78,6 +82,8 @@ export default function Lore() {
               </div>
               <div className="card-tags">
                 {l.categoria && <Tag cls="neutral" text={l.categoria} />}
+                {l.estado === 'borrador' && <Tag cls="borrador" text="Borrador" />}
+                {l.estado === 'secreto' && <Tag cls="secreto" text="Secreto" />}
               </div>
               <div className="card-desc">{l.descripcion || ''}</div>
             </div>

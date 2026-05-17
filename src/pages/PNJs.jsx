@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
 import { useApp } from '../AppContext'
 import { Tag, RegionTag, RelacionTag, PageHeader, EmptyState, FilterPills } from '../components/Shared'
-import { nl2br } from '../helpers'
+import { isVisible } from '../helpers'
 import PlayerNotes from '../components/PlayerNotes'
+import WikiText from '../components/WikiText'
 
 const REGION_COLOR = {
   magral:  '#7aad82',
@@ -39,6 +40,8 @@ function PNJDetailInline({ pnj, onBack }) {
           {pnj.region && <RegionTag region={pnj.region} />}
           {pnj.relacion && <RelacionTag relacion={pnj.relacion} />}
           {pnj.faccion && <Tag cls="orden" text={pnj.faccion} />}
+          {pnj.estado === 'borrador' && <Tag cls="borrador" text="Borrador" />}
+          {pnj.estado === 'secreto' && <Tag cls="secreto" text="Secreto" />}
         </div>
       </div>
 
@@ -53,13 +56,13 @@ function PNJDetailInline({ pnj, onBack }) {
           {pnj.descripcion && (
             <div className="detail-section">
               <div className="detail-section-title">Descripción</div>
-              <div className="detail-text" dangerouslySetInnerHTML={nl2br(pnj.descripcion)} />
+              <div className="detail-text"><WikiText text={pnj.descripcion} /></div>
             </div>
           )}
           {pnj.historia && (
             <div className="detail-section">
               <div className="detail-section-title">Historia</div>
-              <div className="detail-text" dangerouslySetInnerHTML={nl2br(pnj.historia)} />
+              <div className="detail-text"><WikiText text={pnj.historia} /></div>
             </div>
           )}
         </div>
@@ -67,13 +70,13 @@ function PNJDetailInline({ pnj, onBack }) {
           {isDM && pnj.secreto && (
             <div className="detail-section" style={DM_STYLE}>
               <div className="detail-section-title" style={DM_TITLE_STYLE}>🔒 Motivaciones secretas</div>
-              <div className="detail-text" dangerouslySetInnerHTML={nl2br(pnj.secreto)} />
+              <div className="detail-text"><WikiText text={pnj.secreto} /></div>
             </div>
           )}
           {isDM && pnj.notas && (
             <div className="detail-section" style={DM_STYLE}>
               <div className="detail-section-title" style={DM_TITLE_STYLE}>🔒 Notas DM</div>
-              <div className="detail-text" dangerouslySetInnerHTML={nl2br(pnj.notas)} />
+              <div className="detail-text"><WikiText text={pnj.notas} /></div>
             </div>
           )}
         </div>
@@ -84,7 +87,7 @@ function PNJDetailInline({ pnj, onBack }) {
 }
 
 export default function PNJs() {
-  const { db, openForm, pendingDetail, consumePendingDetail, isDM } = useApp()
+  const { db, openForm, pendingDetail, consumePendingDetail, isDM, currentPlayer } = useApp()
   const [filtro, setFiltro] = useState('todos')
   const [query, setQuery] = useState('')
   const [selectedId, setSelectedId] = useState(() => pendingDetail?.id ?? null)
@@ -99,6 +102,7 @@ export default function PNJs() {
   }
 
   const lista = db.pnjs
+    .filter(p => isVisible(p, isDM, currentPlayer))
     .filter(p => filtro === 'todos' || p.relacion === filtro)
     .filter(p => {
       if (!query.trim()) return true
@@ -144,6 +148,8 @@ export default function PNJs() {
                 {p.region && <RegionTag region={p.region} />}
                 {p.relacion && <RelacionTag relacion={p.relacion} />}
                 {p.faccion && <Tag cls="orden" text={p.faccion} />}
+                {p.estado === 'borrador' && <Tag cls="borrador" text="Borrador" />}
+                {p.estado === 'secreto' && <Tag cls="secreto" text="Secreto" />}
               </div>
               <div className="card-desc">{p.descripcion || 'Sin descripción.'}</div>
             </div>

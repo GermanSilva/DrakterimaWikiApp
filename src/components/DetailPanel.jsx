@@ -1,53 +1,8 @@
 import { useApp } from '../AppContext'
-import { Tag } from './Shared'
-import { nl2br } from '../helpers'
-import PlayerNotes from './PlayerNotes'
 
-function ItemDetail({ item }) {
-  const { openForm, closeDetail, isDM } = useApp()
-  return (
-    <>
-      <div className="detail-eyebrow">{item.tipo || 'Ítem'} · {item.rareza || ''}</div>
-      <div className="detail-title">{item.nombre}</div>
-      <div className="detail-tags">
-        {item.rareza && <Tag cls="neutral" text={item.rareza} />}
-        {item.tipo && <Tag cls="orden" text={item.tipo} />}
-        {item.requiere_sintonia && <Tag cls="culto" text="Sintonía" />}
-      </div>
-      {item.imagen_url && (
-        <div style={{ margin: '16px 0', textAlign: 'center' }}>
-          <img src={item.imagen_url} alt={item.nombre} style={{ maxWidth: '100%', maxHeight: 280, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--border)' }} onError={e => e.target.style.display = 'none'} />
-        </div>
-      )}
-      {item.poseedor && (
-        <div className="detail-field" style={{ marginTop: 12 }}>
-          <label>Poseedor actual</label>
-          <value>{item.poseedor}</value>
-        </div>
-      )}
-      {item.descripcion && (
-        <div className="detail-section">
-          <div className="detail-section-title">Propiedades</div>
-          <div className="detail-text" dangerouslySetInnerHTML={nl2br(item.descripcion)} />
-        </div>
-      )}
-      {item.lore && (
-        <div className="detail-section">
-          <div className="detail-section-title">Historia</div>
-          <div className="detail-text" dangerouslySetInnerHTML={nl2br(item.lore)} />
-        </div>
-      )}
-      <PlayerNotes entityType="items" entityId={item.id} />
-      <div className="form-actions" style={{ marginTop: 24 }}>
-        {isDM && <button className="btn btn-secondary" onClick={() => { closeDetail(); openForm('items', item.id) }}>Editar</button>}
-      </div>
-    </>
-  )
-}
-
-const DETAIL_VIEWS = {
-  items: ItemDetail,
-}
+// DetailPanel está reservado para tipos futuros que requieran panel lateral.
+// Los ítems migraron a detalle inline en Items.jsx.
+const DETAIL_VIEWS = {}
 
 export default function DetailPanel({ detail }) {
   const { db, closeDetail } = useApp()
