@@ -2,6 +2,41 @@ import { useState } from 'react'
 import { useApp } from '../AppContext'
 import { regionLabel, regionOptions } from '../helpers'
 
+function EstadoField({ estado, visibilidad, setF }) {
+  const { db } = useApp()
+  return (
+    <div className="form-group">
+      <label>Visibilidad</label>
+      <select value={estado} onChange={e => setF(p => ({ ...p, estado: e.target.value }))}>
+        <option value="publicado">Publicado</option>
+        <option value="secreto">Secreto (jugadores seleccionados)</option>
+        <option value="borrador">Borrador (solo DM)</option>
+      </select>
+      {estado === 'secreto' && db.pjs.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 6 }}>Visible para:</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {db.pjs.map(pj => (
+              <label key={pj.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, cursor: 'pointer', color: 'var(--text)' }}>
+                <input
+                  type="checkbox"
+                  checked={(visibilidad ?? []).includes(pj.id)}
+                  onChange={e => {
+                    const cur = visibilidad ?? []
+                    const next = e.target.checked ? [...cur, pj.id] : cur.filter(id => id !== pj.id)
+                    setF(p => ({ ...p, visibilidad: next }))
+                  }}
+                />
+                {pj.nombre}{pj.jugador ? ` (${pj.jugador})` : ''}
+              </label>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function SesionForm({ item }) {
   const { db, save, remove, closeForm } = useApp()
   const [f, setF] = useState({
@@ -11,6 +46,8 @@ function SesionForm({ item }) {
     resumen: item?.resumen ?? '',
     logros: item?.logros ?? '',
     ganchos: item?.ganchos ?? '',
+    estado: item?.estado ?? 'publicado',
+    visibilidad: item?.visibilidad ?? [],
   })
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
 
@@ -43,6 +80,7 @@ function SesionForm({ item }) {
         <label>Ganchos pendientes (próxima sesión)</label>
         <textarea rows={3} value={f.ganchos} onChange={set('ganchos')} placeholder="¿Qué quedó sin resolver?" />
       </div>
+      <EstadoField estado={f.estado} visibilidad={f.visibilidad} setF={setF} />
       <div className="form-actions">
         {item && <button className="btn btn-danger" onClick={() => remove('sesiones', item.id)}>Eliminar</button>}
         <button className="btn btn-secondary" onClick={closeForm}>Cancelar</button>
@@ -66,6 +104,8 @@ function PJForm({ item }) {
     magralita: item?.magralita ?? '',
     notas: item?.notas ?? '',
     imagen_url: item?.imagen_url ?? '',
+    estado: item?.estado ?? 'publicado',
+    visibilidad: item?.visibilidad ?? [],
   })
   const [newPlayerPwd, setNewPlayerPwd] = useState('')
   const [showPlayerPwd, setShowPlayerPwd] = useState(false)
@@ -163,6 +203,7 @@ function PJForm({ item }) {
           </p>
         </div>
       )}
+      <EstadoField estado={f.estado} visibilidad={f.visibilidad} setF={setF} />
       <div className="form-actions">
         {item && <button className="btn btn-danger" onClick={() => remove('pjs', item.id)}>Eliminar</button>}
         <button className="btn btn-secondary" onClick={closeForm}>Cancelar</button>
@@ -185,6 +226,8 @@ function PNJForm({ item }) {
     secreto: item?.secreto ?? '',
     notas: item?.notas ?? '',
     imagen_url: item?.imagen_url ?? '',
+    estado: item?.estado ?? 'publicado',
+    visibilidad: item?.visibilidad ?? [],
   })
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
 
@@ -221,6 +264,7 @@ function PNJForm({ item }) {
           <img src={f.imagen_url} alt="preview" style={{ marginTop: 8, maxWidth: '100%', maxHeight: 140, borderRadius: 6, objectFit: 'cover' }} onError={e => e.target.style.display = 'none'} />
         )}
       </div>
+      <EstadoField estado={f.estado} visibilidad={f.visibilidad} setF={setF} />
       <div className="form-actions">
         {item && <button className="btn btn-danger" onClick={() => remove('pnjs', item.id)}>Eliminar</button>}
         <button className="btn btn-secondary" onClick={closeForm}>Cancelar</button>
@@ -241,6 +285,8 @@ function LugarForm({ item }) {
     descripcion: item?.descripcion ?? '',
     notas: item?.notas ?? '',
     imagen_url: item?.imagen_url ?? '',
+    estado: item?.estado ?? 'publicado',
+    visibilidad: item?.visibilidad ?? [],
   })
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
 
@@ -274,6 +320,7 @@ function LugarForm({ item }) {
           <img src={f.imagen_url} alt="preview" style={{ marginTop: 8, maxWidth: '100%', maxHeight: 140, borderRadius: 6, objectFit: 'cover' }} onError={e => e.target.style.display = 'none'} />
         )}
       </div>
+      <EstadoField estado={f.estado} visibilidad={f.visibilidad} setF={setF} />
       <div className="form-actions">
         {item && <button className="btn btn-danger" onClick={() => remove('lugares', item.id)}>Eliminar</button>}
         <button className="btn btn-secondary" onClick={closeForm}>Cancelar</button>
@@ -295,6 +342,8 @@ function FaccionForm({ item }) {
     secreto: item?.secreto ?? '',
     notas: item?.notas ?? '',
     imagen_url: item?.imagen_url ?? '',
+    estado: item?.estado ?? 'publicado',
+    visibilidad: item?.visibilidad ?? [],
   })
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
 
@@ -334,6 +383,7 @@ function FaccionForm({ item }) {
           <img src={f.imagen_url} alt="preview" style={{ marginTop: 8, maxWidth: '100%', maxHeight: 140, borderRadius: 6, objectFit: 'cover' }} onError={e => e.target.style.display = 'none'} />
         )}
       </div>
+      <EstadoField estado={f.estado} visibilidad={f.visibilidad} setF={setF} />
       <div className="form-actions">
         {item && <button className="btn btn-danger" onClick={() => remove('facciones', item.id)}>Eliminar</button>}
         <button className="btn btn-secondary" onClick={closeForm}>Cancelar</button>
@@ -350,6 +400,8 @@ function LoreForm({ item }) {
     categoria: item?.categoria ?? '',
     descripcion: item?.descripcion ?? '',
     notas: item?.notas ?? '',
+    estado: item?.estado ?? 'publicado',
+    visibilidad: item?.visibilidad ?? [],
   })
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
 
@@ -363,6 +415,7 @@ function LoreForm({ item }) {
       </div>
       <div className="form-group"><label>Descripción (pública / conocida)</label><textarea rows={5} value={f.descripcion} onChange={set('descripcion')} /></div>
       <div className="form-group"><label>Información secreta (solo DM)</label><textarea rows={3} value={f.notas} onChange={set('notas')} /></div>
+      <EstadoField estado={f.estado} visibilidad={f.visibilidad} setF={setF} />
       <div className="form-actions">
         {item && <button className="btn btn-danger" onClick={() => remove('lore', item.id)}>Eliminar</button>}
         <button className="btn btn-secondary" onClick={closeForm}>Cancelar</button>
@@ -385,6 +438,8 @@ function ItemForm({ item }) {
     lore: item?.lore ?? '',
     poseedor: item?.poseedor ?? '',
     imagen_url: item?.imagen_url ?? '',
+    estado: item?.estado ?? 'publicado',
+    visibilidad: item?.visibilidad ?? [],
   })
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
 
@@ -425,6 +480,7 @@ function ItemForm({ item }) {
           <img src={f.imagen_url} alt="preview" style={{ marginTop: 8, maxWidth: '100%', maxHeight: 140, borderRadius: 6, objectFit: 'cover' }} onError={e => e.target.style.display = 'none'} />
         )}
       </div>
+      <EstadoField estado={f.estado} visibilidad={f.visibilidad} setF={setF} />
       <div className="form-actions">
         {item && <button className="btn btn-danger" onClick={() => remove('items', item.id)}>Eliminar</button>}
         <button className="btn btn-secondary" onClick={closeForm}>Cancelar</button>
