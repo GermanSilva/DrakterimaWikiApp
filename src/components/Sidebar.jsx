@@ -2,12 +2,13 @@ import { useRef } from 'react'
 import { useApp } from '../AppContext'
 import {
   LayoutDashboard, Scroll, Shield, Users, Map,
-  Landmark, BookOpen, Gem, Upload, Download,
+  Landmark, BookOpen, Gem, Upload, Download, NotebookPen,
 } from 'lucide-react'
 
 const NAV = [
   { section: 'Principal', items: [
     { id: 'dashboard', icon: LayoutDashboard, label: 'Panel' },
+    { id: 'notas', icon: NotebookPen, label: 'Notas', count: true },
     { id: 'sesiones', icon: Scroll, label: 'Sesiones', count: true },
   ]},
   { section: 'Personajes', items: [
@@ -116,7 +117,7 @@ export default function Sidebar({ currentPage, counts }) {
             />
           </>
         )}
-        <div className="font-exo text-[10px] tracking-[0.12em] text-txt-muted uppercase font-medium px-4 pt-2.5 opacity-60">
+        <div className="font-exo text-[10px] text-center tracking-[0.12em] text-txt-muted uppercase font-medium px-4 pt-2.5 opacity-60">
           Wiki del DM · D&D 5E
         </div>
       </div>

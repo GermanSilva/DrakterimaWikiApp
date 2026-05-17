@@ -13,6 +13,7 @@ import DetailPanel from './components/DetailPanel'
 import FormModal from './components/FormModal'
 import Toast from './components/Toast'
 import Dashboard from './pages/Dashboard'
+import Notas from './pages/Notas'
 import Sesiones from './pages/Sesiones'
 import PJs from './pages/PJs'
 import PNJs from './pages/PNJs'
@@ -44,6 +45,7 @@ async function seedCollectionIfEmpty(collName, seedData) {
 
 const PAGES = {
   dashboard: Dashboard,
+  notas: Notas,
   sesiones: Sesiones,
   pjs: PJs,
   pnjs: PNJs,
@@ -256,10 +258,17 @@ export default function App() {
     importData,
   }
 
-  const counts = Object.fromEntries(
-    ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items']
-      .map(k => [k, (db[k] || []).filter(e => isVisible(e, isDM, currentPlayer)).length])
-  )
+  const counts = {
+    ...Object.fromEntries(
+      ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items']
+        .map(k => [k, (db[k] || []).filter(e => isVisible(e, isDM, currentPlayer)).length])
+    ),
+    notas: isDM
+      ? (db.player_notes || []).filter(n => n.text?.trim()).length
+      : currentPlayer
+        ? (db.player_notes || []).filter(n => n.pj_id === currentPlayer.id && n.text?.trim()).length
+        : 0,
+  }
 
   const PageComponent = PAGES[page] || Dashboard
 
