@@ -1,7 +1,67 @@
+import { useState } from 'react'
 import { useApp } from '../AppContext'
 import { RelacionTag } from '../components/Shared'
 import { isVisible } from '../helpers'
 import { Scroll, Shield, Users, Map, Landmark, BookOpen } from 'lucide-react'
+import { firestore } from '../firebase'
+import { writeBatch, doc } from 'firebase/firestore'
+import { COLLECTION_LETTER, findEntity } from '../components/WikiText'
+
+const MIGRATION_FIELDS = {
+  sesiones:  ['resumen', 'secreto'],
+  pjs:       ['trasfondo', 'notas'],
+  pnjs:      ['descripcion', 'notas'],
+  lugares:   ['descripcion', 'notas'],
+  facciones: ['descripcion', 'notas'],
+  lore:      ['contenido', 'notas'],
+  items:     ['descripcion', 'notas'],
+}
+
+const OLD_LINK_PATTERN = /\[\[\{(\d+)\}([^\]]*)\]\]/g
+
+async function migrateWikiLinks(db, showToast) {
+  let migrated = 0
+  let unresolved = 0
+  const batch = writeBatch(firestore)
+  let batchHasChanges = false
+
+  for (const [coll, fields] of Object.entries(MIGRATION_FIELDS)) {
+    for (const entity of db[coll] || []) {
+      let changed = false
+      const updated = { ...entity }
+
+      for (const field of fields) {
+        if (!updated[field]) continue
+        updated[field] = updated[field].replace(OLD_LINK_PATTERN, (match, idStr, text) => {
+          const id = parseInt(idStr, 10)
+          const found = findEntity(db, id)
+          if (found) {
+            migrated++
+            changed = true
+            return `[[{${id}${COLLECTION_LETTER[found.page]}}${text}]]`
+          }
+          console.warn(`Wiki-link migration: ID ${id} no encontrado en ninguna colección`)
+          unresolved++
+          return match
+        })
+      }
+
+      if (changed) {
+        batch.set(doc(firestore, coll, String(entity.id)), updated)
+        batchHasChanges = true
+      }
+    }
+  }
+
+  if (batchHasChanges) await batch.commit()
+
+  const msg = unresolved > 0
+    ? `${migrated} enlaces migrados. ${unresolved} sin resolver (ver consola).`
+    : migrated > 0
+      ? `${migrated} enlaces migrados correctamente.`
+      : 'No se encontraron enlaces para migrar.'
+  showToast(msg)
+}
 
 const STAT_ITEMS = [
   { key: 'sesiones', Icon: Scroll,    label: 'Sesiones' },
@@ -13,7 +73,8 @@ const STAT_ITEMS = [
 ]
 
 export default function Dashboard() {
-  const { db, navigate, goToDetail, isDM, currentPlayer } = useApp()
+  const { db, navigate, goToDetail, isDM, currentPlayer, showToast } = useApp()
+  const [migrating, setMigrating] = useState(false)
   const visibleSesiones = db.sesiones.filter(s => isVisible(s, isDM, currentPlayer))
   const lastSesion = visibleSesiones.length ? visibleSesiones[visibleSesiones.length - 1] : null
   const nextSesion = visibleSesiones.find(s => !s.logros?.trim()) ?? null
@@ -82,6 +143,28 @@ export default function Dashboard() {
             )}
           </div>
         </>
+      )}
+
+      {isDM && (
+        <div className="mb-6 flex justify-end">
+          <button
+            className="inline-flex items-center gap-1.5 font-exo text-[11px] font-semibold tracking-[0.1em] uppercase px-4 py-2 cursor-pointer transition-all bg-transparent text-txt-muted border border-border-light hover:border-accent-dim hover:text-txt-primary disabled:opacity-40 disabled:cursor-not-allowed"
+            disabled={migrating}
+            onClick={async () => {
+              setMigrating(true)
+              try {
+                await migrateWikiLinks(db, showToast)
+              } catch (e) {
+                console.error('Error en la migración:', e)
+                showToast('Error en la migración. Ver consola.')
+              } finally {
+                setMigrating(false)
+              }
+            }}
+          >
+            {migrating ? 'Migrando…' : 'Migrar wiki-links'}
+          </button>
+        </div>
       )}
 
       {recentPNJs.length > 0 && (
