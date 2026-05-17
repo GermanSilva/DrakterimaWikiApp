@@ -44,7 +44,7 @@ export default function Sidebar({ currentPage, counts }) {
         'fixed left-0 top-[60px] w-[240px] h-[calc(100vh-60px)]',
         'bg-bg-mid border-r border-border-base py-5 z-[200] overflow-y-auto flex flex-col',
         'transition-transform duration-[250ms] ease-in-out',
-        'max-md:' + (sidebarOpen ? 'translate-x-0' : '-translate-x-full'),
+        sidebarOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full',
         'md:translate-x-0',
       ].join(' ')}
     >

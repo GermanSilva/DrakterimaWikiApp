@@ -16,7 +16,7 @@ function HeaderSession() {
           onClick={() => setShowModal(true)}
         >
           <Key size={13} />
-          Acceder
+          <span className="max-md:hidden">Acceder</span>
         </button>
         {showModal && (
           <AccessModal onClose={() => setShowModal(false)} onAccess={tryAccess} />
@@ -28,7 +28,7 @@ function HeaderSession() {
   if (isDM) {
     return (
       <div className="flex items-center gap-2.5">
-        <span className="font-exo text-[11px] font-semibold tracking-[0.05em] text-txt-secondary flex items-center gap-1.5 whitespace-nowrap">
+        <span className="max-md:hidden font-exo text-[11px] font-semibold tracking-[0.05em] text-txt-secondary flex items-center gap-1.5 whitespace-nowrap">
           <LockOpen size={13} />
           Modo DM
         </span>
@@ -37,7 +37,7 @@ function HeaderSession() {
           onClick={lockDM}
         >
           <LogOut size={13} />
-          Salir
+          <span className="max-md:hidden">Salir</span>
         </button>
       </div>
     )
@@ -58,7 +58,7 @@ function HeaderSession() {
           onError={e => e.target.style.display = 'none'}
         />
       )}
-      <span className="font-exo text-[11px] font-semibold tracking-[0.05em] text-txt-secondary whitespace-nowrap">
+      <span className="max-md:hidden font-exo text-[11px] font-semibold tracking-[0.05em] text-txt-secondary whitespace-nowrap">
         {displayName}
       </span>
       <button
@@ -66,7 +66,7 @@ function HeaderSession() {
         onClick={logoutPlayer}
       >
         <LogOut size={13} />
-        Salir
+        <span className="max-md:hidden">Salir</span>
       </button>
     </div>
   )
@@ -83,16 +83,16 @@ export default function Header() {
       >
         <Menu size={20} />
       </button>
-      <div className="flex items-center leading-none">
+      <div className="max-md:absolute max-md:left-1/2 max-md:-translate-x-1/2 flex items-center gap-2.5 leading-none">
         <DragonIcon width={28} height={28} fill="#dc2626" />
-      </div>
-      <div className="flex flex-col">
-        <span className="font-exo text-[9px] tracking-[0.3em] text-txt-muted uppercase font-medium">
-          Leyendas de Drakterima
-        </span>
-        <span className="font-exo text-[17px] font-bold text-accent-bright tracking-[0.08em] uppercase">
-          Dragones Revelados
-        </span>
+        <div className="flex flex-col">
+          <span className="font-exo text-[9px] tracking-[0.3em] text-txt-muted uppercase font-medium">
+            Leyendas de Drakterima
+          </span>
+          <span className="font-exo text-[17px] font-bold text-accent-bright tracking-[0.08em] uppercase">
+            Dragones Revelados
+          </span>
+        </div>
       </div>
       <div className="ml-auto flex items-center gap-2.5">
         <HeaderSession />
