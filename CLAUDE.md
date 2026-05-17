@@ -15,6 +15,12 @@ No hay test runner configurado.
 El proyecto está deployado en GitHub Pages: `https://germansilva.github.io/DrakterimaWikiApp/`
 El deploy se dispara automáticamente al pushear a `main` vía `.github/workflows/deploy.yml`.
 
+## Principios de diseño
+
+- **Clean architecture**: cada componente o módulo tiene una única responsabilidad. Preferir componentes pequeños y bien delimitados sobre componentes grandes que hacen múltiples cosas. Las fronteras entre capas deben ser claras: parseo, presentación, estado y datos no deben mezclarse en un mismo componente.
+- **YAGNI**: no agregar abstracciones ni features especulativos. Solo construir lo que el requerimiento actual necesita.
+- **Sin efectos colaterales ocultos**: las mutaciones de datos pasan exclusivamente por `save`, `remove` y `savePlayerNote` en `App.jsx`.
+
 ## Arquitectura
 
 **dragones-wiki** es una SPA (Single Page Application) para gestionar la campaña de D&D "Leyendas de Drakterima". Stack: React 18 + Vite 5, sin backend propio.
