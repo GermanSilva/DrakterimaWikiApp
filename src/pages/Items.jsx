@@ -3,7 +3,7 @@ import { useApp } from '../AppContext'
 import { Tag, PageHeader, EmptyState } from '../components/Shared'
 import { isVisible } from '../helpers'
 import PlayerNotes from '../components/PlayerNotes'
-import WikiText from '../components/WikiText'
+import WikiText, { COLLECTION_LETTER } from '../components/WikiText'
 import { Gem } from 'lucide-react'
 
 const sectionTitleCls = 'font-exo text-[9px] font-semibold tracking-[0.25em] text-accent-dim uppercase mb-2'
@@ -17,7 +17,12 @@ function ItemDetailInline({ item, onBack }) {
     <div>
       <div className="flex justify-between mb-7">
         <button className={btnSecondary} onClick={onBack}>← Volver</button>
-        {isDM && <button className={btnSecondary} onClick={() => openForm('items', item.id)}>Editar</button>}
+        {isDM && (
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[11px] text-txt-muted select-all cursor-text opacity-50" title="ID para wiki-link">{`{${item.id}${COLLECTION_LETTER['items']}}`}</span>
+            <button className={btnSecondary} onClick={() => openForm('items', item.id)}>Editar</button>
+          </div>
+        )}
       </div>
 
       <div className="mb-8 pb-5 border-b border-border-base">

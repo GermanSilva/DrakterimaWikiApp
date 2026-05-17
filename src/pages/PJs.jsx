@@ -3,7 +3,7 @@ import { useApp } from '../AppContext'
 import { Tag, RegionTag, PageHeader, EmptyState } from '../components/Shared'
 import { isVisible } from '../helpers'
 import PlayerNotes from '../components/PlayerNotes'
-import WikiText from '../components/WikiText'
+import WikiText, { COLLECTION_LETTER } from '../components/WikiText'
 import { Shield, Lock } from 'lucide-react'
 
 const REGION_COLOR = {
@@ -49,10 +49,10 @@ function ModStatBox({ label, base }) {
 function AbilityBox({ label, base }) {
   const mod = abilityMod(base)
   return (
-    <div className="flex flex-col items-center bg-bg-mid border border-border-base px-3 py-2 min-w-[52px]">
+    <div className="flex flex-col gap-2 items-center bg-bg-mid border border-border-base px-3 py-2 min-w-[52px]">
+      <span className="font-exo text-[14px] tracking-[0.1em] text-txt-muted uppercase leading-none">{label}</span>
       <span className="font-exo text-[16px] font-bold text-txt-primary leading-none mb-0.5">{mod}</span>
       <span className="font-exo text-[10px] text-txt-secondary leading-none mb-1">{base}</span>
-      <span className="font-exo text-[8px] tracking-[0.1em] text-txt-muted uppercase leading-none">{label}</span>
     </div>
   )
 }
@@ -61,8 +61,8 @@ function AbilityBox({ label, base }) {
 function StatBadge({ label, value }) {
   return (
     <div className="flex flex-col items-center bg-bg-mid border border-border-base px-4 py-2 min-w-[56px]">
-      <span className="font-exo text-[18px] font-bold text-txt-primary leading-none mb-0.5">{value}</span>
-      <span className="font-exo text-[8px] tracking-[0.1em] text-txt-muted uppercase leading-none">{label}</span>
+      <span className="font-exo text-[14px] tracking-[0.1em] text-txt-muted uppercase leading-none">{label}</span>
+      <span className="font-exo text-[24px] font-bold text-txt-primary leading-none mt-0.5">{value}</span>
     </div>
   )
 }
@@ -80,18 +80,26 @@ function PJDetailInline({ pj, onBack }) {
     <div>
       <div className="flex justify-between mb-7">
         <button className={btnSecondary} onClick={onBack}>← Volver</button>
-        {isDM && <button className={btnSecondary} onClick={() => openForm('pjs', pj.id)}>Editar</button>}
+        {isDM && (
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[11px] text-txt-muted select-all cursor-text opacity-50" title="ID para wiki-link">{`{${pj.id}${COLLECTION_LETTER['pjs']}}`}</span>
+            <button className={btnSecondary} onClick={() => openForm('pjs', pj.id)}>Editar</button>
+          </div>
+        )}
       </div>
 
-      <div className="mb-8 pb-5 border-b border-border-base">
+      <div className="pb-5 border-b border-border-base">
         <div className="font-exo text-[10px] tracking-[0.3em] uppercase mb-1 font-medium" style={{ color: REGION_COLOR[pj.region] || '#6e6e6e' }}>
-          Personaje Jugador · Nv. {pj.nivel || 1}
+          Personaje Jugador
         </div>
-        <div className="font-exo text-[26px] font-bold text-txt-primary tracking-[0.04em] uppercase">
+        <div className="font-exo text-[26px] font-bold text-txt-primary uppercase">
           {pj.nombre}
         </div>
+        <div className="font-exo text-[16px] font-semibold uppercase text-txt-muted -mt-1">
+          {pj.jugador}
+        </div>
         <div className="flex flex-wrap gap-1.5 mt-2.5">
-          <Tag cls="pj" text={pj.clase || '?'} />
+          <Tag cls="pj" text={`${pj.clase || '?'} - Nv. ${pj.nivel || 1}`} />
           {pj.raza && <Tag cls="neutral" text={pj.raza} />}
           {pj.region && <RegionTag region={pj.region} />}
           {pj.estado === 'borrador' && <Tag cls="borrador" text="Borrador" />}
@@ -105,19 +113,8 @@ function PJDetailInline({ pj, onBack }) {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-3 mb-6 max-md:grid-cols-1">
-        <div className="mb-3">
-          <label className="block font-exo text-[9px] font-medium tracking-[0.2em] text-txt-muted uppercase mb-0.5">Jugador</label>
-          <span className="text-sm text-txt-primary">{pj.jugador || '—'}</span>
-        </div>
-        <div className="mb-3">
-          <label className="block font-exo text-[9px] font-medium tracking-[0.2em] text-txt-muted uppercase mb-0.5">Nivel</label>
-          <span className="text-sm text-txt-primary">{pj.nivel || 1}</span>
-        </div>
-      </div>
-
       {(pj.stat_hp || pj.stat_ac || pj.stat_str || pj.stat_dex || pj.stat_con || pj.stat_int || pj.stat_wis || pj.stat_cha) && (
-        <div className={detailSectionCls}>
+        <div className="pt-4">
           <div className={sectionTitleCls}>Stats</div>
           <div className="flex flex-wrap gap-2 mb-4">
             {pj.stat_hp > 0 && <StatBadge label="HP Máx." value={pj.stat_hp} />}

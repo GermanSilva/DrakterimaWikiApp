@@ -3,7 +3,7 @@ import { useApp } from '../AppContext'
 import { Tag, RegionTag, PageHeader, FilterPills, EmptyState } from '../components/Shared'
 import { regionLabel, regionOptions, isVisible } from '../helpers'
 import PlayerNotes from '../components/PlayerNotes'
-import WikiText from '../components/WikiText'
+import WikiText, { COLLECTION_LETTER } from '../components/WikiText'
 import { Map, Lock } from 'lucide-react'
 
 const REGION_COLOR = {
@@ -31,7 +31,12 @@ function LugarDetailInline({ lugar, onBack }) {
     <div>
       <div className="flex justify-between mb-7">
         <button className={btnSecondary} onClick={onBack}>← Volver</button>
-        {isDM && <button className={btnSecondary} onClick={() => openForm('lugares', lugar.id)}>Editar</button>}
+        {isDM && (
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[11px] text-txt-muted select-all cursor-text opacity-50" title="ID para wiki-link">{`{${lugar.id}${COLLECTION_LETTER['lugares']}}`}</span>
+            <button className={btnSecondary} onClick={() => openForm('lugares', lugar.id)}>Editar</button>
+          </div>
+        )}
       </div>
 
       <div className="mb-8 pb-5 border-b border-border-base">
