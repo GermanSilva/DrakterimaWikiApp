@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { AppContext } from './AppContext'
 import { defaultData, seedPJs, seedPNJs, seedSesiones } from './seed'
-import { nextId } from './helpers'
+import { nextId, isVisible } from './helpers'
 import { firestore } from './firebase'
 import {
   collection, doc, setDoc, deleteDoc,
@@ -69,7 +69,6 @@ export default function App() {
     } catch { return null }
   })
 
-  // Seed empty collections and attach real-time listeners
   useEffect(() => {
     async function maybeSeed() {
       await seedCollectionIfEmpty('pjs',       seedPJs)
@@ -259,7 +258,7 @@ export default function App() {
 
   const counts = Object.fromEntries(
     ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items']
-      .map(k => [k, (db[k] || []).length])
+      .map(k => [k, (db[k] || []).filter(e => isVisible(e, isDM, currentPlayer)).length])
   )
 
   const PageComponent = PAGES[page] || Dashboard
@@ -267,9 +266,16 @@ export default function App() {
   return (
     <AppContext.Provider value={ctx}>
       <Header />
-      <div id="layout" className={sidebarOpen ? 'sidebar-open' : ''}>
+      <div className="flex min-h-screen pt-[60px]">
         <Sidebar currentPage={page} counts={counts} />
-        <main id="main">
+        {/* Overlay to close sidebar on mobile */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-[150] bg-black/50 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        <main className="ml-[240px] max-md:ml-0 flex-1 py-8 px-10 max-md:p-5 max-w-[1100px]">
           <PageComponent />
         </main>
       </div>

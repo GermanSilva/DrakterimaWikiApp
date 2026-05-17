@@ -13,13 +13,11 @@ function findEntity(db, id) {
 /**
  * Renderiza texto con soporte de wiki-links.
  * Sintaxis: [[{id}Texto del enlace]]
- * Ejemplo:  [[{3}Magrales del este]] → enlace clickeable al artículo con id=3
  */
 export default function WikiText({ text }) {
   const { db, goToDetail } = useApp()
   if (!text) return null
 
-  // Divide el texto en segmentos: texto plano y wiki-links [[{id}texto]]
   const segments = text.split(/(\[\[\{\d+\}[^\]]*\]\])/g)
 
   return (
@@ -34,7 +32,7 @@ export default function WikiText({ text }) {
             return (
               <span
                 key={i}
-                className="wiki-link"
+                className="text-accent-bright cursor-pointer border-b border-dashed border-accent-dim hover:text-accent hover:border-b-solid transition-colors"
                 onClick={e => { e.stopPropagation(); goToDetail(found.page, id) }}
                 title={`Ir a: ${found.entity.nombre || found.entity.titulo || `#${id}`}`}
               >
@@ -42,14 +40,16 @@ export default function WikiText({ text }) {
               </span>
             )
           }
-          // Artículo no encontrado o no visible
           return (
-            <span key={i} className="wiki-link-broken" title={`Artículo #${id} no encontrado`}>
+            <span
+              key={i}
+              className="text-txt-muted border-b border-dashed border-txt-muted opacity-55 cursor-default"
+              title={`Artículo #${id} no encontrado`}
+            >
               {displayText}
             </span>
           )
         }
-        // Texto plano — preservar saltos de línea como <br>
         return seg.split('\n').map((line, j, arr) => (
           <span key={`${i}-${j}`}>{line}{j < arr.length - 1 ? <br /> : null}</span>
         ))
