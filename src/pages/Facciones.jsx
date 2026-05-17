@@ -35,6 +35,12 @@ function FaccionDetailInline({ faccion, onBack }) {
         </div>
       </div>
 
+      {faccion.imagen_url && (
+        <div style={{ margin: '16px 0', textAlign: 'center' }}>
+          <img src={faccion.imagen_url} alt={faccion.nombre} style={{ maxWidth: '100%', maxHeight: 280, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--border)' }} onError={e => e.target.style.display = 'none'} />
+        </div>
+      )}
+
       <div className="char-detail-grid">
         <div>
           {faccion.descripcion && (

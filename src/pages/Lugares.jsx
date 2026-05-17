@@ -44,6 +44,12 @@ function LugarDetailInline({ lugar, onBack }) {
         </div>
       </div>
 
+      {lugar.imagen_url && (
+        <div style={{ margin: '16px 0', textAlign: 'center' }}>
+          <img src={lugar.imagen_url} alt={lugar.nombre} style={{ maxWidth: '100%', maxHeight: 280, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--border)' }} onError={e => e.target.style.display = 'none'} />
+        </div>
+      )}
+
       {lugar.descripcion && (
         <div className="detail-section">
           <div className="detail-section-title">Descripción</div>

@@ -14,6 +14,11 @@ function ItemDetail({ item }) {
         {item.tipo && <Tag cls="orden" text={item.tipo} />}
         {item.requiere_sintonia && <Tag cls="culto" text="Sintonía" />}
       </div>
+      {item.imagen_url && (
+        <div style={{ margin: '16px 0', textAlign: 'center' }}>
+          <img src={item.imagen_url} alt={item.nombre} style={{ maxWidth: '100%', maxHeight: 280, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--border)' }} onError={e => e.target.style.display = 'none'} />
+        </div>
+      )}
       {item.poseedor && (
         <div className="detail-field" style={{ marginTop: 12 }}>
           <label>Poseedor actual</label>

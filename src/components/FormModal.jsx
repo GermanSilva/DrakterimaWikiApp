@@ -65,6 +65,7 @@ function PJForm({ item }) {
     motivo: item?.motivo ?? '',
     magralita: item?.magralita ?? '',
     notas: item?.notas ?? '',
+    imagen_url: item?.imagen_url ?? '',
   })
   const [newPlayerPwd, setNewPlayerPwd] = useState('')
   const [showPlayerPwd, setShowPlayerPwd] = useState(false)
@@ -119,6 +120,13 @@ function PJForm({ item }) {
       <div className="form-group"><label>Motivación para unirse al Gremio</label><textarea rows={2} value={f.motivo} onChange={set('motivo')} /></div>
       <div className="form-group"><label>Relación con la Magralita</label><textarea rows={2} value={f.magralita} onChange={set('magralita')} /></div>
       <div className="form-group"><label>Notas del DM (privadas)</label><textarea rows={3} value={f.notas} onChange={set('notas')} /></div>
+      <div className="form-group">
+        <label>Imagen (URL externa)</label>
+        <input type="url" placeholder="https://i.imgur.com/..." value={f.imagen_url} onChange={set('imagen_url')} />
+        {f.imagen_url && (
+          <img src={f.imagen_url} alt="preview" style={{ marginTop: 8, maxWidth: '100%', maxHeight: 140, borderRadius: 6, objectFit: 'cover' }} onError={e => e.target.style.display = 'none'} />
+        )}
+      </div>
       {item && (
         <div className="form-group player-access-section">
           <label>Acceso del jugador</label>
@@ -176,6 +184,7 @@ function PNJForm({ item }) {
     historia: item?.historia ?? '',
     secreto: item?.secreto ?? '',
     notas: item?.notas ?? '',
+    imagen_url: item?.imagen_url ?? '',
   })
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
 
@@ -205,6 +214,13 @@ function PNJForm({ item }) {
       <div className="form-group"><label>Historia / Contexto</label><textarea rows={3} value={f.historia} onChange={set('historia')} /></div>
       <div className="form-group"><label>Motivaciones secretas</label><textarea rows={2} value={f.secreto} onChange={set('secreto')} /></div>
       <div className="form-group"><label>Notas del DM</label><textarea rows={2} value={f.notas} onChange={set('notas')} /></div>
+      <div className="form-group">
+        <label>Imagen (URL externa)</label>
+        <input type="url" placeholder="https://i.imgur.com/..." value={f.imagen_url} onChange={set('imagen_url')} />
+        {f.imagen_url && (
+          <img src={f.imagen_url} alt="preview" style={{ marginTop: 8, maxWidth: '100%', maxHeight: 140, borderRadius: 6, objectFit: 'cover' }} onError={e => e.target.style.display = 'none'} />
+        )}
+      </div>
       <div className="form-actions">
         {item && <button className="btn btn-danger" onClick={() => remove('pnjs', item.id)}>Eliminar</button>}
         <button className="btn btn-secondary" onClick={closeForm}>Cancelar</button>
@@ -224,6 +240,7 @@ function LugarForm({ item }) {
     tipo: item?.tipo ?? 'ciudad',
     descripcion: item?.descripcion ?? '',
     notas: item?.notas ?? '',
+    imagen_url: item?.imagen_url ?? '',
   })
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
 
@@ -250,6 +267,13 @@ function LugarForm({ item }) {
       </div>
       <div className="form-group"><label>Descripción</label><textarea rows={5} value={f.descripcion} onChange={set('descripcion')} /></div>
       <div className="form-group"><label>Notas del DM</label><textarea rows={3} value={f.notas} onChange={set('notas')} /></div>
+      <div className="form-group">
+        <label>Imagen (URL externa)</label>
+        <input type="url" placeholder="https://i.imgur.com/..." value={f.imagen_url} onChange={set('imagen_url')} />
+        {f.imagen_url && (
+          <img src={f.imagen_url} alt="preview" style={{ marginTop: 8, maxWidth: '100%', maxHeight: 140, borderRadius: 6, objectFit: 'cover' }} onError={e => e.target.style.display = 'none'} />
+        )}
+      </div>
       <div className="form-actions">
         {item && <button className="btn btn-danger" onClick={() => remove('lugares', item.id)}>Eliminar</button>}
         <button className="btn btn-secondary" onClick={closeForm}>Cancelar</button>
@@ -270,6 +294,7 @@ function FaccionForm({ item }) {
     descripcion: item?.descripcion ?? '',
     secreto: item?.secreto ?? '',
     notas: item?.notas ?? '',
+    imagen_url: item?.imagen_url ?? '',
   })
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
 
@@ -302,6 +327,13 @@ function FaccionForm({ item }) {
       <div className="form-group"><label>Descripción</label><textarea rows={4} value={f.descripcion} onChange={set('descripcion')} /></div>
       <div className="form-group"><label>Objetivos secretos</label><textarea rows={3} value={f.secreto} onChange={set('secreto')} /></div>
       <div className="form-group"><label>Notas DM</label><textarea rows={2} value={f.notas} onChange={set('notas')} /></div>
+      <div className="form-group">
+        <label>Imagen (URL externa)</label>
+        <input type="url" placeholder="https://i.imgur.com/..." value={f.imagen_url} onChange={set('imagen_url')} />
+        {f.imagen_url && (
+          <img src={f.imagen_url} alt="preview" style={{ marginTop: 8, maxWidth: '100%', maxHeight: 140, borderRadius: 6, objectFit: 'cover' }} onError={e => e.target.style.display = 'none'} />
+        )}
+      </div>
       <div className="form-actions">
         {item && <button className="btn btn-danger" onClick={() => remove('facciones', item.id)}>Eliminar</button>}
         <button className="btn btn-secondary" onClick={closeForm}>Cancelar</button>
@@ -352,6 +384,7 @@ function ItemForm({ item }) {
     descripcion: item?.descripcion ?? '',
     lore: item?.lore ?? '',
     poseedor: item?.poseedor ?? '',
+    imagen_url: item?.imagen_url ?? '',
   })
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
 
@@ -385,6 +418,13 @@ function ItemForm({ item }) {
       <div className="form-group"><label>Descripción y propiedades</label><textarea rows={5} value={f.descripcion} onChange={set('descripcion')} /></div>
       <div className="form-group"><label>Historia / Lore del objeto</label><textarea rows={3} value={f.lore} onChange={set('lore')} /></div>
       <div className="form-group"><label>Poseedor actual</label><input value={f.poseedor} onChange={set('poseedor')} placeholder="Nombre del PJ o PNJ" /></div>
+      <div className="form-group">
+        <label>Imagen (URL externa)</label>
+        <input type="url" placeholder="https://i.imgur.com/..." value={f.imagen_url} onChange={set('imagen_url')} />
+        {f.imagen_url && (
+          <img src={f.imagen_url} alt="preview" style={{ marginTop: 8, maxWidth: '100%', maxHeight: 140, borderRadius: 6, objectFit: 'cover' }} onError={e => e.target.style.display = 'none'} />
+        )}
+      </div>
       <div className="form-actions">
         {item && <button className="btn btn-danger" onClick={() => remove('items', item.id)}>Eliminar</button>}
         <button className="btn btn-secondary" onClick={closeForm}>Cancelar</button>

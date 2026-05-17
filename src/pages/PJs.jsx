@@ -35,6 +35,12 @@ function PJDetailInline({ pj, onBack }) {
         </div>
       </div>
 
+      {pj.imagen_url && (
+        <div style={{ margin: '16px 0', textAlign: 'center' }}>
+          <img src={pj.imagen_url} alt={pj.nombre} style={{ maxWidth: '100%', maxHeight: 280, borderRadius: 8, objectFit: 'cover', border: '1px solid var(--border)' }} onError={e => e.target.style.display = 'none'} />
+        </div>
+      )}
+
       <div className="detail-fields-grid" style={{ marginBottom: 24 }}>
         <div className="detail-field"><label>Jugador</label><value>{pj.jugador || '—'}</value></div>
         <div className="detail-field"><label>Nivel</label><value>{pj.nivel || 1}</value></div>

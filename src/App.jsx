@@ -1,7 +1,12 @@
 import { useState, useEffect } from 'react'
 import { AppContext } from './AppContext'
-import { defaultData, seedPJs, seedPNJs, seedSesiones, STORAGE_KEY } from './seed'
+import { defaultData, seedPJs, seedPNJs, seedSesiones } from './seed'
 import { nextId } from './helpers'
+import { firestore } from './firebase'
+import {
+  collection, doc, setDoc, deleteDoc,
+  onSnapshot, getDocs, writeBatch,
+} from 'firebase/firestore'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import DetailPanel from './components/DetailPanel'
@@ -16,27 +21,6 @@ import Facciones from './pages/Facciones'
 import Lore from './pages/Lore'
 import Items from './pages/Items'
 
-function loadData() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    const base = JSON.parse(JSON.stringify(defaultData))
-    if (!raw) return base
-    return Object.assign(base, JSON.parse(raw))
-  } catch {
-    return JSON.parse(JSON.stringify(defaultData))
-  }
-}
-
-function initDb() {
-  const data = loadData()
-  let changed = false
-  if (!data.pjs.length) { data.pjs = JSON.parse(JSON.stringify(seedPJs)); changed = true }
-  if (!data.pnjs.length) { data.pnjs = JSON.parse(JSON.stringify(seedPNJs)); changed = true }
-  if (!data.sesiones.length) { data.sesiones = JSON.parse(JSON.stringify(seedSesiones)); changed = true }
-  if (changed) localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-  return data
-}
-
 const PLAYER_PASSWORDS = {
   1: import.meta.env.VITE_PLAYER_1_PASSWORD,
   2: import.meta.env.VITE_PLAYER_2_PASSWORD,
@@ -46,42 +30,16 @@ const PLAYER_PASSWORDS = {
   6: import.meta.env.VITE_PLAYER_6_PASSWORD,
 }
 
-const GITHUB_OWNER = 'GermanSilva'
-const GITHUB_REPO  = 'DrakterimaWikiApp'
-const GITHUB_FILE  = 'data/db.json'
-const GITHUB_BRANCH = 'main'
-const RAW_URL = `https://raw.githubusercontent.com/${GITHUB_OWNER}/${GITHUB_REPO}/${GITHUB_BRANCH}/${GITHUB_FILE}`
-const API_URL = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/contents/${GITHUB_FILE}`
-const GITHUB_TOKEN = import.meta.env.VITE_GITHUB_TOKEN
+const COLLECTIONS = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items', 'player_notes']
 
-let pushQueue = Promise.resolve()
-
-async function pushToGitHub(data) {
-  if (!GITHUB_TOKEN) return
-  pushQueue = pushQueue.then(async () => {
-    const headers = {
-      Authorization: `Bearer ${GITHUB_TOKEN}`,
-      'Content-Type': 'application/json',
-      'X-GitHub-Api-Version': '2022-11-28',
-    }
-    const getResp = await fetch(API_URL, { headers })
-    if (!getResp.ok) throw new Error(`GitHub GET ${getResp.status}`)
-    const { sha } = await getResp.json()
-    const encoded = new TextEncoder().encode(JSON.stringify(data, null, 2))
-    const content = btoa(String.fromCharCode(...encoded))
-    const putResp = await fetch(API_URL, {
-      method: 'PUT',
-      headers,
-      body: JSON.stringify({
-        message: `wiki: auto-save ${new Date().toISOString()}`,
-        content,
-        sha,
-        branch: GITHUB_BRANCH,
-      }),
-    })
-    if (!putResp.ok) throw new Error(`GitHub PUT ${putResp.status}`)
-  }).catch(err => { throw err })
-  return pushQueue
+async function seedCollectionIfEmpty(collName, seedData) {
+  const snap = await getDocs(collection(firestore, collName))
+  if (!snap.empty) return
+  const batch = writeBatch(firestore)
+  for (const item of seedData) {
+    batch.set(doc(firestore, collName, String(item.id)), item)
+  }
+  await batch.commit()
 }
 
 const PAGES = {
@@ -96,9 +54,7 @@ const PAGES = {
 }
 
 export default function App() {
-  const [db, setDb] = useState(initDb)
-  const [loading, setLoading] = useState(true)
-  const [syncStatus, setSyncStatus] = useState(null)
+  const [db, setDb] = useState(() => JSON.parse(JSON.stringify(defaultData)))
   const [page, setPage] = useState('dashboard')
   const [detail, setDetail] = useState(null)
   const [form, setForm] = useState(null)
@@ -113,22 +69,26 @@ export default function App() {
     } catch { return null }
   })
 
+  // Seed empty collections and attach real-time listeners
   useEffect(() => {
-    async function syncFromRemote() {
-      try {
-        const resp = await fetch(`${RAW_URL}?t=${Date.now()}`, { cache: 'no-store' })
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`)
-        const remote = await resp.json()
-        const merged = Object.assign(JSON.parse(JSON.stringify(defaultData)), remote)
-        setDb(merged)
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(merged))
-      } catch (err) {
-        console.warn('Remote sync failed, using localStorage:', err.message)
-      } finally {
-        setLoading(false)
-      }
+    async function maybeSeed() {
+      await seedCollectionIfEmpty('pjs',       seedPJs)
+      await seedCollectionIfEmpty('pnjs',      seedPNJs)
+      await seedCollectionIfEmpty('sesiones',  seedSesiones)
+      await seedCollectionIfEmpty('lugares',   defaultData.lugares)
+      await seedCollectionIfEmpty('facciones', defaultData.facciones)
+      await seedCollectionIfEmpty('lore',      defaultData.lore)
     }
-    syncFromRemote()
+    maybeSeed()
+
+    const unsubs = COLLECTIONS.map(collName =>
+      onSnapshot(collection(firestore, collName), snap => {
+        const docs = snap.docs.map(d => d.data())
+        if (collName === 'sesiones') docs.sort((a, b) => a.numero - b.numero)
+        setDb(prev => ({ ...prev, [collName]: docs }))
+      })
+    )
+    return () => unsubs.forEach(u => u())
   }, [])
 
   useEffect(() => {
@@ -140,19 +100,6 @@ export default function App() {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [form, detail])
-
-  function persistDb(newDb) {
-    setDb(newDb)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newDb))
-    if (!GITHUB_TOKEN) return
-    setSyncStatus('saving')
-    pushToGitHub(newDb)
-      .then(() => { setSyncStatus('saved'); setTimeout(() => setSyncStatus(null), 2000) })
-      .catch(() => {
-        setSyncStatus('error')
-        showToast('Error al sincronizar con GitHub. Cambios guardados localmente.')
-      })
-  }
 
   function showToast(msg) {
     setToastMsg(msg)
@@ -198,12 +145,9 @@ export default function App() {
     showToast('Sesión cerrada')
   }
 
-  function savePlayerNote(pj_id, type, entity_id, text) {
-    const notes = [...(db.player_notes || [])]
-    const i = notes.findIndex(n => n.pj_id === pj_id && n.type === type && n.entity_id === entity_id)
-    if (i >= 0) { notes[i] = { ...notes[i], text } }
-    else { notes.push({ id: nextId(notes), pj_id, type, entity_id, text }) }
-    persistDb({ ...db, player_notes: notes })
+  async function savePlayerNote(pj_id, type, entity_id, text) {
+    const docId = `${pj_id}_${type}_${entity_id}`
+    await setDoc(doc(firestore, 'player_notes', docId), { id: docId, pj_id, type, entity_id, text })
     showToast('Nota guardada')
   }
 
@@ -234,7 +178,7 @@ export default function App() {
 
   function importData(file) {
     const reader = new FileReader()
-    reader.onload = e => {
+    reader.onload = async e => {
       try {
         const parsed = JSON.parse(e.target.result)
         const keys = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items']
@@ -243,8 +187,14 @@ export default function App() {
           return
         }
         if (!confirm('¿Reemplazar todos los datos actuales con los del archivo importado? Esta acción no se puede deshacer.')) return
-        const base = JSON.parse(JSON.stringify(defaultData))
-        persistDb(Object.assign(base, parsed))
+        const batch = writeBatch(firestore)
+        for (const key of keys) {
+          if (!Array.isArray(parsed[key])) continue
+          for (const item of parsed[key]) {
+            batch.set(doc(firestore, key, String(item.id)), item)
+          }
+        }
+        await batch.commit()
         showToast('Datos importados')
       } catch {
         alert('Error al leer el archivo JSON.')
@@ -253,23 +203,16 @@ export default function App() {
     reader.readAsText(file)
   }
 
-  function save(type, data) {
-    const arr = [...(db[type] || [])]
-    if (data.id) {
-      const i = arr.findIndex(x => x.id === data.id)
-      if (i >= 0) arr[i] = data; else arr.push(data)
-    } else {
-      arr.push({ ...data, id: nextId(arr) })
-    }
-    if (type === 'sesiones') arr.sort((a, b) => a.numero - b.numero)
-    persistDb({ ...db, [type]: arr })
+  async function save(type, data) {
+    const id = data.id ?? nextId(db[type] || [])
+    await setDoc(doc(firestore, type, String(id)), { ...data, id })
     setForm(null)
     showToast('Guardado')
   }
 
-  function remove(type, id) {
+  async function remove(type, id) {
     if (!confirm('¿Eliminar este registro?')) return
-    persistDb({ ...db, [type]: (db[type] || []).filter(x => x.id !== id) })
+    await deleteDoc(doc(firestore, type, String(id)))
     setForm(null)
     setDetail(null)
     showToast('Eliminado')
@@ -308,8 +251,6 @@ export default function App() {
     openForm: (type, id = null) => { if (isDM) setForm({ type, id }) },
     closeForm: () => setForm(null),
     showToast,
-    syncStatus,
-    loading,
     sidebarOpen,
     toggleSidebar: () => setSidebarOpen(v => !v),
     exportData,
