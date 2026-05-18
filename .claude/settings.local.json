@@ -1,0 +1,10 @@
+{
+  "enabledPlugins": {
+    "hookify@claude-code-plugins": false
+  },
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)"
+    ]
+  }
+}

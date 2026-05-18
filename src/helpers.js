@@ -15,6 +15,16 @@ export const relacionLabel = {
   desconocido: 'Desconocido',
 }
 
+export function isVisible(entity, isDM, currentPlayer) {
+  if (isDM) return true
+  const estado = entity.estado ?? 'publicado'
+  if (estado === 'borrador') return false
+  if (estado === 'publicado') return true
+  // secreto
+  if (!currentPlayer) return false
+  return (entity.visibilidad ?? []).includes(currentPlayer.id)
+}
+
 export function nextId(arr) {
   return arr.length > 0 ? Math.max(...arr.map(x => x.id)) + 1 : 1
 }

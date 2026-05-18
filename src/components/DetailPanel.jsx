@@ -1,48 +1,7 @@
 import { useApp } from '../AppContext'
-import { Tag } from './Shared'
-import { nl2br } from '../helpers'
-import PlayerNotes from './PlayerNotes'
+import { X } from 'lucide-react'
 
-function ItemDetail({ item }) {
-  const { openForm, closeDetail, isDM } = useApp()
-  return (
-    <>
-      <div className="detail-eyebrow">{item.tipo || 'Ítem'} · {item.rareza || ''}</div>
-      <div className="detail-title">{item.nombre}</div>
-      <div className="detail-tags">
-        {item.rareza && <Tag cls="neutral" text={item.rareza} />}
-        {item.tipo && <Tag cls="orden" text={item.tipo} />}
-        {item.requiere_sintonia && <Tag cls="culto" text="Sintonía" />}
-      </div>
-      {item.poseedor && (
-        <div className="detail-field" style={{ marginTop: 12 }}>
-          <label>Poseedor actual</label>
-          <value>{item.poseedor}</value>
-        </div>
-      )}
-      {item.descripcion && (
-        <div className="detail-section">
-          <div className="detail-section-title">Propiedades</div>
-          <div className="detail-text" dangerouslySetInnerHTML={nl2br(item.descripcion)} />
-        </div>
-      )}
-      {item.lore && (
-        <div className="detail-section">
-          <div className="detail-section-title">Historia</div>
-          <div className="detail-text" dangerouslySetInnerHTML={nl2br(item.lore)} />
-        </div>
-      )}
-      <PlayerNotes entityType="items" entityId={item.id} />
-      <div className="form-actions" style={{ marginTop: 24 }}>
-        {isDM && <button className="btn btn-secondary" onClick={() => { closeDetail(); openForm('items', item.id) }}>Editar</button>}
-      </div>
-    </>
-  )
-}
-
-const DETAIL_VIEWS = {
-  items: ItemDetail,
-}
+const DETAIL_VIEWS = {}
 
 export default function DetailPanel({ detail }) {
   const { db, closeDetail } = useApp()
@@ -50,10 +9,22 @@ export default function DetailPanel({ detail }) {
   const DetailView = DETAIL_VIEWS[detail.type]
 
   return (
-    <div id="detail-overlay" onClick={e => e.target.id === 'detail-overlay' && closeDetail()}>
-      <div id="detail-panel">
-        <span className="detail-close" onClick={closeDetail}>✕</span>
-        {item && DetailView ? <DetailView item={item} /> : <p style={{ color: 'var(--text-muted)' }}>No encontrado.</p>}
+    <div
+      className="fixed inset-0 bg-black/[.78] z-[200] backdrop-blur-[3px] flex items-start justify-end"
+      onClick={e => e.target.id === 'detail-overlay' && closeDetail()}
+      id="detail-overlay"
+    >
+      <div className="w-[min(600px,90vw)] h-screen bg-bg-card border-l border-border-light overflow-y-auto p-8 animate-slide-in">
+        <button
+          className="float-right cursor-pointer text-txt-muted hover:text-accent-bright transition-colors bg-transparent border-none p-0"
+          onClick={closeDetail}
+        >
+          <X size={20} />
+        </button>
+        {item && DetailView
+          ? <DetailView item={item} />
+          : <p className="text-txt-muted">No encontrado.</p>
+        }
       </div>
     </div>
   )

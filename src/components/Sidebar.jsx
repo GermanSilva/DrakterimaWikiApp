@@ -1,155 +1,37 @@
-import { useRef, useState, useEffect } from 'react'
+import { useRef } from 'react'
 import { useApp } from '../AppContext'
-import DragonIcon from '../svgs/dragonIcon'
+import {
+  LayoutDashboard, Scroll, Shield, Users, Map,
+  Landmark, BookOpen, Gem, Upload, Download, NotebookPen,
+} from 'lucide-react'
 
 const NAV = [
   { section: 'Principal', items: [
-    { id: 'dashboard', icon: '⚔️', label: 'Panel' },
-    { id: 'sesiones', icon: '📜', label: 'Sesiones', count: true },
+    { id: 'dashboard', icon: LayoutDashboard, label: 'Panel' },
+    { id: 'notas', icon: NotebookPen, label: 'Notas', count: true },
+    { id: 'sesiones', icon: Scroll, label: 'Sesiones', count: true },
   ]},
   { section: 'Personajes', items: [
-    { id: 'pjs', icon: '🛡️', label: 'Jugadores (PJ)', count: true },
-    { id: 'pnjs', icon: '🎭', label: 'PNJs', count: true },
+    { id: 'pjs', icon: Shield, label: 'Jugadores (PJ)', count: true },
+    { id: 'pnjs', icon: Users, label: 'PNJs', count: true },
   ]},
   { section: 'Mundo', items: [
-    { id: 'lugares', icon: '🗺️', label: 'Lugares', count: true },
-    { id: 'facciones', icon: '⚜️', label: 'Facciones', count: true },
-    { id: 'lore', icon: '📖', label: 'Lore', count: true },
+    { id: 'lugares', icon: Map, label: 'Lugares', count: true },
+    { id: 'facciones', icon: Landmark, label: 'Facciones', count: true },
+    { id: 'lore', icon: BookOpen, label: 'Lore', count: true },
   ]},
   { section: 'Homebrew', items: [
-    { id: 'items', icon: '💎', label: 'Ítems', count: true },
+    { id: 'items', icon: Gem, label: 'Ítems', count: true },
   ]},
 ]
-
-function EyeToggle({ show, onToggle }) {
-  return (
-    <button type="button" className="pwd-toggle" onClick={onToggle} tabIndex={-1} title={show ? 'Ocultar' : 'Mostrar'}>
-      {show ? '🙈' : '👁'}
-    </button>
-  )
-}
-
-function AccessModal({ onClose, onAccess, onChangePassword }) {
-  const [step, setStep] = useState('password')
-  const [pwd, setPwd] = useState('')
-  const [newPwd, setNewPwd] = useState('')
-  const [confirmPwd, setConfirmPwd] = useState('')
-  const [error, setError] = useState('')
-  const [pendingPj, setPendingPj] = useState(null)
-  const [showPwd, setShowPwd] = useState(false)
-  const inputRef = useRef(null)
-
-  useEffect(() => {
-    inputRef.current?.focus()
-    function onKey(e) { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [])
-
-  function handleAccess() {
-    const result = onAccess(pwd)
-    if (!result.success) {
-      setError('Contraseña incorrecta.')
-      setPwd('')
-      inputRef.current?.focus()
-      return
-    }
-    if (result.mustChange) {
-      setPendingPj(result.pj)
-      setStep('change')
-      setError('')
-      return
-    }
-    onClose()
-  }
-
-  function handleChangePassword() {
-    if (!newPwd.trim()) { setError('Ingresá una nueva contraseña.'); return }
-    if (newPwd !== confirmPwd) { setError('Las contraseñas no coinciden.'); return }
-    onChangePassword(pendingPj.id, newPwd)
-    onClose()
-  }
-
-  if (step === 'change') {
-    return (
-      <div className="dm-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-        <div className="dm-modal">
-          <div className="dm-modal-icon">🔑</div>
-          <div className="dm-modal-title">Bienvenido/a, {pendingPj.nombre}</div>
-          <div className="dm-modal-subtitle">Este es tu primer acceso. Elegí una contraseña nueva para continuar.</div>
-          <div className="pwd-field">
-            <input
-              className="dm-modal-input"
-              type={showPwd ? 'text' : 'password'}
-              placeholder="Nueva contraseña"
-              value={newPwd}
-              onChange={e => { setNewPwd(e.target.value); setError('') }}
-              onKeyDown={e => e.key === 'Enter' && confirmPwd && handleChangePassword()}
-              autoFocus
-            />
-            <EyeToggle show={showPwd} onToggle={() => setShowPwd(v => !v)} />
-          </div>
-          <div className="pwd-field" style={{ marginTop: 8 }}>
-            <input
-              className="dm-modal-input"
-              type={showPwd ? 'text' : 'password'}
-              placeholder="Confirmar contraseña"
-              value={confirmPwd}
-              onChange={e => { setConfirmPwd(e.target.value); setError('') }}
-              onKeyDown={e => e.key === 'Enter' && handleChangePassword()}
-            />
-            <EyeToggle show={showPwd} onToggle={() => setShowPwd(v => !v)} />
-          </div>
-          {error && <div className="dm-modal-error">{error}</div>}
-          <div className="dm-modal-actions">
-            <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-            <button className="btn btn-primary" onClick={handleChangePassword}>Confirmar</button>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="dm-modal-overlay" onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="dm-modal">
-        <div className="dm-modal-icon">
-          <DragonIcon width={150} height={150} fill="var(--accent)" />
-        </div>
-        <div className="dm-modal-title">Drakterima</div>
-        <div className="dm-modal-subtitle">Ingresá tu contraseña para acceder</div>
-        <div className="pwd-field">
-          <input
-            ref={inputRef}
-            className="dm-modal-input"
-            type={showPwd ? 'text' : 'password'}
-            placeholder="Contraseña"
-            value={pwd}
-            onChange={e => { setPwd(e.target.value); setError('') }}
-            onKeyDown={e => e.key === 'Enter' && handleAccess()}
-          />
-          <EyeToggle show={showPwd} onToggle={() => setShowPwd(v => !v)} />
-        </div>
-        {error && <div className="dm-modal-error">{error}</div>}
-        <div className="dm-modal-actions">
-          <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-          <button className="btn btn-primary" onClick={handleAccess}>Entrar</button>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 export default function Sidebar({ currentPage, counts }) {
   const {
     navigate, sidebarOpen, toggleSidebar,
     exportData, importData,
-    isDM, lockDM,
-    currentPlayer, logoutPlayer,
-    tryAccess, changePlayerPassword,
+    isDM,
   } = useApp()
   const fileInputRef = useRef(null)
-  const [showModal, setShowModal] = useState(false)
 
   function handleImportFile(e) {
     const file = e.target.files[0]
@@ -157,76 +39,88 @@ export default function Sidebar({ currentPage, counts }) {
     e.target.value = ''
   }
 
-  const isAuthenticated = isDM || currentPlayer
-
   return (
-    <>
-      <nav id="sidebar">
-        {NAV.map(({ section, items }) => (
-          <div key={section}>
-            <div className="nav-section-label">{section}</div>
-            {items.map(item => (
+    <nav
+      className={[
+        'fixed left-0 top-[60px] w-[240px] h-[calc(100vh-60px)]',
+        'bg-bg-mid border-r border-border-base py-5 z-[200] overflow-y-auto flex flex-col',
+        'transition-transform duration-[250ms] ease-in-out',
+        sidebarOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full',
+        'md:translate-x-0',
+      ].join(' ')}
+    >
+      {NAV.map(({ section, items }) => (
+        <div key={section}>
+          <div className="font-exo text-[9px] tracking-[0.3em] text-txt-muted uppercase px-[18px] pb-2 mt-5 first:mt-0 font-semibold">
+            {section}
+          </div>
+          {items.map(item => {
+            const Icon = item.icon
+            const active = currentPage === item.id
+            return (
               <div
                 key={item.id}
-                className={`nav-item ${currentPage === item.id ? 'active' : ''}`}
+                className={[
+                  'flex items-center gap-2.5 px-[18px] py-[9px] cursor-pointer transition-all border-l-2 text-[13px]',
+                  active
+                    ? 'bg-accent/[.1] text-accent-bright border-l-accent'
+                    : 'border-l-transparent text-txt-secondary hover:bg-accent/[.06] hover:text-txt-primary hover:border-l-accent-dim',
+                ].join(' ')}
                 onClick={() => { navigate(item.id); if (sidebarOpen) toggleSidebar() }}
               >
-                <span className="nav-icon">{item.icon}</span>
-                <span className="nav-label">{item.label}</span>
-                {item.count && <span className="nav-count">{counts[item.id] || 0}</span>}
+                <Icon size={15} className="w-5 text-center flex-shrink-0" />
+                <span className="font-exo text-[11px] tracking-[0.06em] font-medium uppercase">
+                  {item.label}
+                </span>
+                {item.count && (
+                  <span className={[
+                    'ml-auto text-[10px] font-exo px-1.5 py-0 rounded-sm min-w-[20px] text-center font-semibold',
+                    active
+                      ? 'bg-accent-subtle text-accent-bright'
+                      : 'bg-border-light text-txt-muted',
+                  ].join(' ')}>
+                    {counts[item.id] || 0}
+                  </span>
+                )}
               </div>
-            ))}
-          </div>
-        ))}
-
-        <div className="sidebar-footer">
-          {isDM && (
-            <>
-              <div className="nav-section-label">Datos</div>
-              <button className="sidebar-action-btn" onClick={exportData}>
-                <span>↑</span> Exportar JSON
-              </button>
-              <button className="sidebar-action-btn" onClick={() => fileInputRef.current.click()}>
-                <span>↓</span> Importar JSON
-              </button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".json,application/json"
-                style={{ display: 'none' }}
-                onChange={handleImportFile}
-              />
-            </>
-          )}
-
-          {!isAuthenticated && (
-            <button className="sidebar-dm-btn" onClick={() => setShowModal(true)}>
-              <span className="sidebar-dm-btn-icon">🔑</span>
-              <span>Acceder</span>
-            </button>
-          )}
-          {isDM && (
-            <button className="sidebar-dm-btn sidebar-dm-btn--active" onClick={lockDM}>
-              <span className="sidebar-dm-btn-icon">🔓</span>
-              <span>Salir modo DM</span>
-            </button>
-          )}
-          {currentPlayer && (
-            <div className="sidebar-player-session">
-              <div className="sidebar-player-name">👤 {currentPlayer.nombre}</div>
-              <button className="sidebar-action-btn" onClick={logoutPlayer}>Cerrar sesión</button>
-            </div>
-          )}
+            )
+          })}
         </div>
-      </nav>
+      ))}
 
-      {showModal && (
-        <AccessModal
-          onClose={() => setShowModal(false)}
-          onAccess={tryAccess}
-          onChangePassword={changePlayerPassword}
-        />
-      )}
-    </>
+      <div className="mt-auto pt-3 pb-2 border-t border-border-base">
+        {isDM && (
+          <>
+            <div className="font-exo text-[9px] tracking-[0.3em] text-txt-muted uppercase px-[18px] pb-2 mt-5 font-semibold">
+              Datos
+            </div>
+            <button
+              className="flex items-center gap-2 w-full bg-transparent border-none text-txt-secondary text-[12px] font-exo tracking-[0.04em] cursor-pointer px-4 py-[7px] text-left rounded-md transition-colors hover:text-txt-primary hover:bg-white/[.04]"
+              onClick={exportData}
+            >
+              <Upload size={14} className="opacity-70" />
+              Exportar JSON
+            </button>
+            <button
+              className="flex items-center gap-2 w-full bg-transparent border-none text-txt-secondary text-[12px] font-exo tracking-[0.04em] cursor-pointer px-4 py-[7px] text-left rounded-md transition-colors hover:text-txt-primary hover:bg-white/[.04]"
+              onClick={() => fileInputRef.current.click()}
+            >
+              <Download size={14} className="opacity-70" />
+              Importar JSON
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={handleImportFile}
+            />
+          </>
+        )}
+        <div className="font-exo text-[10px] text-center tracking-[0.12em] text-txt-muted uppercase font-medium px-4 pt-2.5 opacity-60">
+          Wiki del DM · D&D 5E
+        </div>
+      </div>
+    </nav>
   )
 }

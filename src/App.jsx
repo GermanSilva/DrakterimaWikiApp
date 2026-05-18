@@ -1,13 +1,19 @@
 import { useState, useEffect } from 'react'
 import { AppContext } from './AppContext'
-import { defaultData, seedPJs, seedPNJs, seedSesiones, STORAGE_KEY } from './seed'
-import { nextId } from './helpers'
+import { defaultData, seedPJs, seedPNJs, seedSesiones } from './seed'
+import { nextId, isVisible } from './helpers'
+import { firestore } from './firebase'
+import {
+  collection, doc, setDoc, deleteDoc,
+  onSnapshot, getDocs, writeBatch,
+} from 'firebase/firestore'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
 import DetailPanel from './components/DetailPanel'
 import FormModal from './components/FormModal'
 import Toast from './components/Toast'
 import Dashboard from './pages/Dashboard'
+import Notas from './pages/Notas'
 import Sesiones from './pages/Sesiones'
 import PJs from './pages/PJs'
 import PNJs from './pages/PNJs'
@@ -16,29 +22,30 @@ import Facciones from './pages/Facciones'
 import Lore from './pages/Lore'
 import Items from './pages/Items'
 
-function loadData() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    const base = JSON.parse(JSON.stringify(defaultData))
-    if (!raw) return base
-    return Object.assign(base, JSON.parse(raw))
-  } catch {
-    return JSON.parse(JSON.stringify(defaultData))
-  }
+const PLAYER_PASSWORDS = {
+  1: import.meta.env.VITE_PLAYER_1_PASSWORD,
+  2: import.meta.env.VITE_PLAYER_2_PASSWORD,
+  3: import.meta.env.VITE_PLAYER_3_PASSWORD,
+  4: import.meta.env.VITE_PLAYER_4_PASSWORD,
+  5: import.meta.env.VITE_PLAYER_5_PASSWORD,
+  6: import.meta.env.VITE_PLAYER_6_PASSWORD,
 }
 
-function initDb() {
-  const data = loadData()
-  let changed = false
-  if (!data.pjs.length) { data.pjs = JSON.parse(JSON.stringify(seedPJs)); changed = true }
-  if (!data.pnjs.length) { data.pnjs = JSON.parse(JSON.stringify(seedPNJs)); changed = true }
-  if (!data.sesiones.length) { data.sesiones = JSON.parse(JSON.stringify(seedSesiones)); changed = true }
-  if (changed) localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
-  return data
+const COLLECTIONS = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items', 'player_notes']
+
+async function seedCollectionIfEmpty(collName, seedData) {
+  const snap = await getDocs(collection(firestore, collName))
+  if (!snap.empty) return
+  const batch = writeBatch(firestore)
+  for (const item of seedData) {
+    batch.set(doc(firestore, collName, String(item.id)), item)
+  }
+  await batch.commit()
 }
 
 const PAGES = {
   dashboard: Dashboard,
+  notas: Notas,
   sesiones: Sesiones,
   pjs: PJs,
   pnjs: PNJs,
@@ -49,7 +56,7 @@ const PAGES = {
 }
 
 export default function App() {
-  const [db, setDb] = useState(initDb)
+  const [db, setDb] = useState(() => JSON.parse(JSON.stringify(defaultData)))
   const [page, setPage] = useState('dashboard')
   const [detail, setDetail] = useState(null)
   const [form, setForm] = useState(null)
@@ -65,6 +72,27 @@ export default function App() {
   })
 
   useEffect(() => {
+    async function maybeSeed() {
+      await seedCollectionIfEmpty('pjs',       seedPJs)
+      await seedCollectionIfEmpty('pnjs',      seedPNJs)
+      await seedCollectionIfEmpty('sesiones',  seedSesiones)
+      await seedCollectionIfEmpty('lugares',   defaultData.lugares)
+      await seedCollectionIfEmpty('facciones', defaultData.facciones)
+      await seedCollectionIfEmpty('lore',      defaultData.lore)
+    }
+    maybeSeed()
+
+    const unsubs = COLLECTIONS.map(collName =>
+      onSnapshot(collection(firestore, collName), snap => {
+        const docs = snap.docs.map(d => d.data())
+        if (collName === 'sesiones') docs.sort((a, b) => a.numero - b.numero)
+        setDb(prev => ({ ...prev, [collName]: docs }))
+      })
+    )
+    return () => unsubs.forEach(u => u())
+  }, [])
+
+  useEffect(() => {
     function onKey(e) {
       if (e.key !== 'Escape') return
       if (form) { setForm(null); return }
@@ -73,11 +101,6 @@ export default function App() {
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [form, detail])
-
-  function persistDb(newDb) {
-    setDb(newDb)
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(newDb))
-  }
 
   function showToast(msg) {
     setToastMsg(msg)
@@ -105,16 +128,16 @@ export default function App() {
   }
 
   function loginPlayer(password) {
-    const pj = (db.pjs || []).find(p => p.player_password && p.player_password === password)
+    if (!password) return { success: false }
+    const pj = (db.pjs || []).find(p => PLAYER_PASSWORDS[p.id] && PLAYER_PASSWORDS[p.id] === password)
     if (!pj) return { success: false }
-    if (pj.player_must_change) return { success: true, mustChange: true, pj }
     sessionStorage.removeItem('drakterima_dm')
     setIsDM(false)
     const player = { id: pj.id, nombre: pj.nombre }
     sessionStorage.setItem('drakterima_player', JSON.stringify(player))
     setCurrentPlayer(player)
     showToast(`Bienvenido/a, ${pj.nombre}`)
-    return { success: true, mustChange: false }
+    return { success: true }
   }
 
   function logoutPlayer() {
@@ -123,24 +146,9 @@ export default function App() {
     showToast('Sesión cerrada')
   }
 
-  function changePlayerPassword(pj_id, newPassword) {
-    const arr = [...(db.pjs || [])]
-    const i = arr.findIndex(p => p.id === pj_id)
-    if (i < 0) return
-    arr[i] = { ...arr[i], player_password: newPassword, player_must_change: false }
-    persistDb({ ...db, pjs: arr })
-    const player = { id: arr[i].id, nombre: arr[i].nombre }
-    sessionStorage.setItem('drakterima_player', JSON.stringify(player))
-    setCurrentPlayer(player)
-    showToast('Contraseña actualizada')
-  }
-
-  function savePlayerNote(pj_id, type, entity_id, text) {
-    const notes = [...(db.player_notes || [])]
-    const i = notes.findIndex(n => n.pj_id === pj_id && n.type === type && n.entity_id === entity_id)
-    if (i >= 0) { notes[i] = { ...notes[i], text } }
-    else { notes.push({ id: nextId(notes), pj_id, type, entity_id, text }) }
-    persistDb({ ...db, player_notes: notes })
+  async function savePlayerNote(pj_id, type, entity_id, text) {
+    const docId = `${pj_id}_${type}_${entity_id}`
+    await setDoc(doc(firestore, 'player_notes', docId), { id: docId, pj_id, type, entity_id, text })
     showToast('Nota guardada')
   }
 
@@ -152,7 +160,7 @@ export default function App() {
       sessionStorage.setItem('drakterima_dm', '1')
       setIsDM(true)
       showToast('Modo DM activado')
-      return { success: true, role: 'dm' }
+      return { success: true }
     }
     return loginPlayer(password)
   }
@@ -171,7 +179,7 @@ export default function App() {
 
   function importData(file) {
     const reader = new FileReader()
-    reader.onload = e => {
+    reader.onload = async e => {
       try {
         const parsed = JSON.parse(e.target.result)
         const keys = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items']
@@ -180,8 +188,14 @@ export default function App() {
           return
         }
         if (!confirm('¿Reemplazar todos los datos actuales con los del archivo importado? Esta acción no se puede deshacer.')) return
-        const base = JSON.parse(JSON.stringify(defaultData))
-        persistDb(Object.assign(base, parsed))
+        const batch = writeBatch(firestore)
+        for (const key of keys) {
+          if (!Array.isArray(parsed[key])) continue
+          for (const item of parsed[key]) {
+            batch.set(doc(firestore, key, String(item.id)), item)
+          }
+        }
+        await batch.commit()
         showToast('Datos importados')
       } catch {
         alert('Error al leer el archivo JSON.')
@@ -190,23 +204,16 @@ export default function App() {
     reader.readAsText(file)
   }
 
-  function save(type, data) {
-    const arr = [...(db[type] || [])]
-    if (data.id) {
-      const i = arr.findIndex(x => x.id === data.id)
-      if (i >= 0) arr[i] = data; else arr.push(data)
-    } else {
-      arr.push({ ...data, id: nextId(arr) })
-    }
-    if (type === 'sesiones') arr.sort((a, b) => a.numero - b.numero)
-    persistDb({ ...db, [type]: arr })
+  async function save(type, data) {
+    const id = data.id ?? nextId(db[type] || [])
+    await setDoc(doc(firestore, type, String(id)), { ...data, id })
     setForm(null)
     showToast('Guardado')
   }
 
-  function remove(type, id) {
+  async function remove(type, id) {
     if (!confirm('¿Eliminar este registro?')) return
-    persistDb({ ...db, [type]: (db[type] || []).filter(x => x.id !== id) })
+    await deleteDoc(doc(firestore, type, String(id)))
     setForm(null)
     setDetail(null)
     showToast('Eliminado')
@@ -240,7 +247,6 @@ export default function App() {
     currentPlayer,
     loginPlayer,
     logoutPlayer,
-    changePlayerPassword,
     savePlayerNote,
     tryAccess,
     openForm: (type, id = null) => { if (isDM) setForm({ type, id }) },
@@ -252,19 +258,33 @@ export default function App() {
     importData,
   }
 
-  const counts = Object.fromEntries(
-    ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items']
-      .map(k => [k, (db[k] || []).length])
-  )
+  const counts = {
+    ...Object.fromEntries(
+      ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items']
+        .map(k => [k, (db[k] || []).filter(e => isVisible(e, isDM, currentPlayer)).length])
+    ),
+    notas: isDM
+      ? (db.player_notes || []).filter(n => n.text?.trim()).length
+      : currentPlayer
+        ? (db.player_notes || []).filter(n => n.pj_id === currentPlayer.id && n.text?.trim()).length
+        : 0,
+  }
 
   const PageComponent = PAGES[page] || Dashboard
 
   return (
     <AppContext.Provider value={ctx}>
       <Header />
-      <div id="layout" className={sidebarOpen ? 'sidebar-open' : ''}>
+      <div className="flex min-h-screen pt-[60px]">
         <Sidebar currentPage={page} counts={counts} />
-        <main id="main">
+        {/* Overlay to close sidebar on mobile */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-[150] bg-black/50 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        <main className="ml-[240px] max-md:ml-0 flex-1 py-8 px-10 max-md:p-5 max-w-[1100px]">
           <PageComponent />
         </main>
       </div>
