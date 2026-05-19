@@ -1,0 +1,124 @@
+import { FormGroup, FormRow, EstadoField, labelCls, inputCls } from '../../../components/FormModal'
+import { regionOptions, regionLabel } from '../../../helpers'
+import { Eye, EyeOff } from 'lucide-react'
+
+const btnSecondary = 'inline-flex items-center gap-1.5 font-exo text-[11px] font-semibold tracking-[0.1em] uppercase px-4 py-2 cursor-pointer transition-all bg-transparent text-txt-secondary border border-border-light hover:border-accent-dim hover:text-txt-primary'
+
+function Separator({ label }) {
+  return (
+    <div className="px-8 mt-5 mb-3">
+      <div className="font-exo text-[9px] font-semibold tracking-[0.25em] uppercase text-txt-muted border-t border-border-base pt-3">{label}</div>
+    </div>
+  )
+}
+
+export default function PJIdentityTab({ f, setF, isDM, item, newPlayerPwd, setNewPlayerPwd, showPlayerPwd, setShowPlayerPwd, accessStatus, handleResetAccess }) {
+  const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
+
+  return (
+    <div>
+      <FormRow>
+        <div><label className={labelCls}>Nombre</label><input className={inputCls} value={f.nombre} onChange={set('nombre')} /></div>
+        <div><label className={labelCls}>Jugador</label><input className={inputCls} value={f.jugador} onChange={set('jugador')} /></div>
+      </FormRow>
+      <FormRow>
+        <div><label className={labelCls}>Clase</label><input className={inputCls} value={f.clase} onChange={set('clase')} placeholder="Ej: Paladín, Pícaro..." /></div>
+        <div><label className={labelCls}>Raza / Especie</label><input className={inputCls} value={f.raza} onChange={set('raza')} placeholder="Ej: Humano, Dracónido..." /></div>
+      </FormRow>
+      <FormRow>
+        <div><label className={labelCls}>Trasfondo D&D</label><input className={inputCls} value={f.trasfondo_dnd} onChange={set('trasfondo_dnd')} placeholder="Ej: Soldado, Sabio, Criminal..." /></div>
+        <div><label className={labelCls}>Alineamiento</label><input className={inputCls} value={f.alineamiento} onChange={set('alineamiento')} placeholder="Ej: Leal Bueno" /></div>
+      </FormRow>
+      <FormRow>
+        <div>
+          <label className={labelCls}>Nivel</label>
+          <input className={inputCls} type="number" value={f.nivel} onChange={set('nivel')} min="1" max="20" />
+        </div>
+        <div>
+          <label className={labelCls}>Región de Origen</label>
+          <select className={inputCls} value={f.region} onChange={set('region')}>
+            {regionOptions.map(r => <option key={r} value={r}>{regionLabel[r]}</option>)}
+          </select>
+        </div>
+      </FormRow>
+      <FormRow>
+        <div><label className={labelCls}>Experiencia (XP)</label><input className={inputCls} type="number" value={f.experiencia} onChange={set('experiencia')} min="0" /></div>
+        <div className="flex items-end">
+          <div className="w-full">
+            <label className={labelCls}>Imagen (URL externa)</label>
+            <input className={inputCls} type="url" placeholder="https://i.imgur.com/..." value={f.imagen_url} onChange={set('imagen_url')} />
+          </div>
+        </div>
+      </FormRow>
+      {f.imagen_url && (
+        <FormGroup>
+          <img src={f.imagen_url} alt="preview" className="max-w-full max-h-[140px] rounded-md object-cover" onError={e => e.target.style.display = 'none'} />
+        </FormGroup>
+      )}
+
+      <Separator label="Apariencia Física" />
+      <FormRow>
+        <div><label className={labelCls}>Edad</label><input className={inputCls} value={f.edad} onChange={set('edad')} /></div>
+        <div><label className={labelCls}>Altura</label><input className={inputCls} value={f.altura} onChange={set('altura')} placeholder="Ej: 1.75m" /></div>
+      </FormRow>
+      <FormRow>
+        <div><label className={labelCls}>Peso</label><input className={inputCls} value={f.peso} onChange={set('peso')} /></div>
+        <div><label className={labelCls}>Ojos</label><input className={inputCls} value={f.ojos} onChange={set('ojos')} /></div>
+      </FormRow>
+      <FormRow>
+        <div><label className={labelCls}>Piel</label><input className={inputCls} value={f.piel} onChange={set('piel')} /></div>
+        <div><label className={labelCls}>Pelo</label><input className={inputCls} value={f.pelo} onChange={set('pelo')} /></div>
+      </FormRow>
+      <FormGroup>
+        <label className={labelCls}>Notas de Apariencia</label>
+        <textarea className={`${inputCls} resize-y min-h-[70px]`} rows={3} value={f.apariencia} onChange={set('apariencia')} />
+      </FormGroup>
+
+      <Separator label="Personalidad" />
+      <FormRow>
+        <div><label className={labelCls}>Rasgos de Personalidad</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={3} value={f.personalidad} onChange={set('personalidad')} /></div>
+        <div><label className={labelCls}>Ideales</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={3} value={f.ideales} onChange={set('ideales')} /></div>
+      </FormRow>
+      <FormRow>
+        <div><label className={labelCls}>Vínculos</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={3} value={f.vinculos} onChange={set('vinculos')} /></div>
+        <div><label className={labelCls}>Defectos</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={3} value={f.defectos} onChange={set('defectos')} /></div>
+      </FormRow>
+
+      <Separator label="Trasfondo & Campaña" />
+      <FormGroup><label className={labelCls}>Trasfondo / Historia</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={4} value={f.trasfondo} onChange={set('trasfondo')} /></FormGroup>
+      <FormGroup><label className={labelCls}>Motivación para unirse al Gremio</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={2} value={f.motivo} onChange={set('motivo')} /></FormGroup>
+      <FormGroup><label className={labelCls}>Relación con la Magralita</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={2} value={f.magralita} onChange={set('magralita')} /></FormGroup>
+      {isDM && <FormGroup><label className={labelCls}>Notas del DM (privadas 🔒)</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={3} value={f.notas} onChange={set('notas')} /></FormGroup>}
+
+      {isDM && item && (
+        <FormGroup className="border-t border-border-base pt-[18px] !mb-0">
+          <label className={labelCls}>Acceso del jugador</label>
+          <div className="flex items-center gap-2 mb-2.5 text-[12px]">
+            <span className="text-txt-muted">Estado:</span>
+            {accessStatus}
+          </div>
+          <div className="relative">
+            <input
+              className={`${inputCls} pr-10`}
+              type={showPlayerPwd ? 'text' : 'password'}
+              placeholder="Nueva contraseña inicial…"
+              value={newPlayerPwd}
+              onChange={e => setNewPlayerPwd(e.target.value)}
+            />
+            <button type="button" className="absolute right-2.5 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer text-txt-muted hover:text-txt-primary" onClick={() => setShowPlayerPwd(v => !v)} tabIndex={-1}>
+              {showPlayerPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+            </button>
+          </div>
+          {item.player_password && (
+            <div className="flex gap-2 mt-2">
+              <button className={btnSecondary} onClick={handleResetAccess} type="button">Quitar acceso</button>
+            </div>
+          )}
+          <p className="text-[11px] text-txt-muted mt-1.5 mb-0">Al setear una contraseña nueva el jugador deberá cambiarla en su primer acceso.</p>
+        </FormGroup>
+      )}
+
+      <EstadoField estado={f.estado} visibilidad={f.visibilidad} setF={setF} />
+    </div>
+  )
+}
