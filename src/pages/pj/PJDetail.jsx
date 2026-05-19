@@ -27,7 +27,7 @@ function hasSkills(pj) {
 }
 
 function hasSpells(pj) {
-  return !!((pj.hechizos?.length > 0) || pj.spell_dc > 0 || pj.spell_attack_bonus)
+  return !!(pj.hechizos?.length > 0 || Object.keys(pj.spell_slots ?? {}).length > 0)
 }
 
 function hasEquipment(pj) {
@@ -48,18 +48,18 @@ function hasAppearance(pj) {
 }
 
 const ANCHORS = [
-  { id: 'stats',       label: 'Stats',       show: hasStats },
-  { id: 'habilidades', label: 'Habilidades', show: hasSkills },
+  { id: 'stats',       label: 'Stats',       show: () => true },
+  { id: 'habilidades', label: 'Habilidades', show: () => true },
   { id: 'ataques',     label: 'Ataques',     show: p => p.ataques?.length > 0 },
   { id: 'hechizos',    label: 'Hechizos',    show: hasSpells },
   { id: 'equipo',      label: 'Equipo',      show: hasEquipment },
   { id: 'rasgos',      label: 'Rasgos',      show: hasTraits },
-  { id: 'narrativa',   label: 'Narrativa',   show: hasNarrative },
+  { id: 'narrativa',   label: 'Narrativa',   show: () => true },
   { id: 'apariencia',  label: 'Apariencia',  show: hasAppearance },
 ]
 
-export default function PJDetail({ pj, onBack }) {
-  const { openForm, isDM } = useApp()
+export default function PJDetail({ pj, onEdit, onDelete, onBack }) {
+  const { isDM } = useApp()
   const visibleAnchors = ANCHORS.filter(a => a.show(pj))
   const hasDMNotes = isDM && !!pj.notas
 
@@ -76,7 +76,8 @@ export default function PJDetail({ pj, onBack }) {
             <span className="font-mono text-[11px] text-txt-muted select-all cursor-text opacity-50" title="ID para wiki-link">
               {`{${pj.id}${COLLECTION_LETTER['pjs']}}`}
             </span>
-            <button className={btnSecondary} onClick={() => openForm('pjs', pj.id)}>Editar</button>
+            <button className={btnSecondary} onClick={onDelete}>Eliminar</button>
+            <button className={btnSecondary} onClick={onEdit}>Editar</button>
           </div>
         )}
       </div>
@@ -113,20 +114,20 @@ export default function PJDetail({ pj, onBack }) {
             ))}
             {hasDMNotes && (
               <button className="font-exo text-[10px] font-semibold tracking-[0.15em] uppercase px-4 py-2.5 text-accent-dim hover:text-accent-bright hover:bg-bg-mid border-none bg-transparent cursor-pointer whitespace-nowrap transition-colors" onClick={() => scrollTo('dm')}>
-                🔒 DM
+                <Lock size={10} className="inline mr-1" />DM
               </button>
             )}
           </div>
         </div>
       )}
 
-      {hasStats(pj) && <PJStatsSection pj={pj} />}
-      {hasSkills(pj) && <PJSkillsSection pj={pj} />}
+      <PJStatsSection pj={pj} />
+      <PJSkillsSection pj={pj} />
       {pj.ataques?.length > 0 && <PJAttacksSection pj={pj} />}
       {hasSpells(pj) && <PJSpellsSection pj={pj} />}
       {hasEquipment(pj) && <PJEquipmentSection pj={pj} />}
       {hasTraits(pj) && <PJTraitsSection pj={pj} />}
-      {hasNarrative(pj) && <PJNarrativeSection pj={pj} />}
+      <PJNarrativeSection pj={pj} />
       {hasAppearance(pj) && <PJAppearanceSection pj={pj} />}
 
       {hasDMNotes && (
