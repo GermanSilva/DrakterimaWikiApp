@@ -1,0 +1,143 @@
+<h2>¿Cómo organizás el detalle de un PJ con tantos campos?</h2>
+<p class="subtitle">Con hoja completa habrá ~8 secciones. ¿Cómo las navegás?</p>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Pestañas horizontales</h3>
+      <div class="mockup">
+        <div class="mockup-header">Vista de detalle — Maisie</div>
+        <div class="mockup-body">
+          <div style="display:flex;gap:2px;margin-bottom:12px;flex-wrap:wrap">
+            <div style="background:#991b1b;color:#fff;padding:6px 14px;font-size:12px;border-radius:4px 4px 0 0;font-weight:600">Stats</div>
+            <div style="background:#1a1a1a;color:#999;padding:6px 14px;font-size:12px;border-radius:4px 4px 0 0">Habilidades</div>
+            <div style="background:#1a1a1a;color:#999;padding:6px 14px;font-size:12px;border-radius:4px 4px 0 0">Combate</div>
+            <div style="background:#1a1a1a;color:#999;padding:6px 14px;font-size:12px;border-radius:4px 4px 0 0">Hechizos</div>
+            <div style="background:#1a1a1a;color:#999;padding:6px 14px;font-size:12px;border-radius:4px 4px 0 0">Equipo</div>
+            <div style="background:#1a1a1a;color:#999;padding:6px 14px;font-size:12px;border-radius:4px 4px 0 0">Narrativa</div>
+            <div style="background:#1a1a1a;color:#999;padding:6px 14px;font-size:12px;border-radius:4px 4px 0 0">Apariencia</div>
+          </div>
+          <div style="border:1px solid #282828;border-radius:0 4px 4px 4px;padding:12px">
+            <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-bottom:8px">
+              <div style="background:#111;border:1px solid #282828;border-radius:4px;padding:8px;text-align:center">
+                <div style="font-size:18px;font-weight:700;color:#ececec">+3</div>
+                <div style="font-size:9px;color:#666">FUE · 16</div>
+              </div>
+              <div style="background:#111;border:1px solid #282828;border-radius:4px;padding:8px;text-align:center">
+                <div style="font-size:18px;font-weight:700;color:#ececec">+2</div>
+                <div style="font-size:9px;color:#666">DES · 14</div>
+              </div>
+              <div style="background:#111;border:1px solid #282828;border-radius:4px;padding:8px;text-align:center">
+                <div style="font-size:18px;font-weight:700;color:#ececec">+1</div>
+                <div style="font-size:9px;color:#666">CON · 12</div>
+              </div>
+              <div style="background:#111;border:1px solid #282828;border-radius:4px;padding:8px;text-align:center">
+                <div style="font-size:18px;font-weight:700;color:#ececec">+0</div>
+                <div style="font-size:9px;color:#666">INT · 10</div>
+              </div>
+              <div style="background:#111;border:1px solid #282828;border-radius:4px;padding:8px;text-align:center">
+                <div style="font-size:18px;font-weight:700;color:#ececec">+4</div>
+                <div style="font-size:9px;color:#666">SAB · 18</div>
+              </div>
+              <div style="background:#111;border:1px solid #282828;border-radius:4px;padding:8px;text-align:center">
+                <div style="font-size:18px;font-weight:700;color:#ececec">+1</div>
+                <div style="font-size:9px;color:#666">CAR · 13</div>
+              </div>
+            </div>
+            <div style="font-size:11px;color:#666;text-align:center">Pestañas separan los ~8 grupos de campos</div>
+          </div>
+        </div>
+      </div>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Limpio, no abruma</li><li>Patrón familiar (Roll20, D&D Beyond)</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Oculta info: hay que navegar para ver todo</li><li>Más estado para manejar en React</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Página larga con anclas rápidas</h3>
+      <div class="mockup">
+        <div class="mockup-header">Vista de detalle — Maisie</div>
+        <div class="mockup-body">
+          <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+            <a style="font-size:11px;color:#991b1b;text-decoration:none;padding:3px 8px;border:1px solid #991b1b;border-radius:20px">Stats</a>
+            <a style="font-size:11px;color:#666;text-decoration:none;padding:3px 8px;border:1px solid #282828;border-radius:20px">Habilidades</a>
+            <a style="font-size:11px;color:#666;text-decoration:none;padding:3px 8px;border:1px solid #282828;border-radius:20px">Combate</a>
+            <a style="font-size:11px;color:#666;text-decoration:none;padding:3px 8px;border:1px solid #282828;border-radius:20px">Hechizos</a>
+            <a style="font-size:11px;color:#666;text-decoration:none;padding:3px 8px;border:1px solid #282828;border-radius:20px">Narrativa</a>
+          </div>
+          <div style="border-left:2px solid #282828;padding-left:12px">
+            <div style="color:#991b1b;font-size:11px;font-weight:600;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">— Stats</div>
+            <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:12px">
+              <div style="background:#111;border:1px solid #282828;border-radius:4px;padding:6px;text-align:center"><div style="font-size:14px;font-weight:700;color:#ececec">+3</div><div style="font-size:8px;color:#666">FUE</div></div>
+              <div style="background:#111;border:1px solid #282828;border-radius:4px;padding:6px;text-align:center"><div style="font-size:14px;font-weight:700;color:#ececec">+2</div><div style="font-size:8px;color:#666">DES</div></div>
+              <div style="background:#111;border:1px solid #282828;border-radius:4px;padding:6px;text-align:center"><div style="font-size:14px;font-weight:700;color:#ececec">+1</div><div style="font-size:8px;color:#666">CON</div></div>
+              <div style="background:#111;border:1px solid #282828;border-radius:4px;padding:6px;text-align:center"><div style="font-size:14px;font-weight:700;color:#ececec">+0</div><div style="font-size:8px;color:#666">INT</div></div>
+              <div style="background:#111;border:1px solid #282828;border-radius:4px;padding:6px;text-align:center"><div style="font-size:14px;font-weight:700;color:#ececec">+4</div><div style="font-size:8px;color:#666">SAB</div></div>
+              <div style="background:#111;border:1px solid #282828;border-radius:4px;padding:6px;text-align:center"><div style="font-size:14px;font-weight:700;color:#ececec">+1</div><div style="font-size:8px;color:#666">CAR</div></div>
+            </div>
+            <div style="color:#666;font-size:11px;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">— Habilidades</div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px;font-size:11px;color:#999;margin-bottom:10px">
+              <div>● Acrobacias +4</div><div>◌ Arcanismo +0</div>
+              <div>● Atletismo +5</div><div>◌ Engaño +1</div>
+              <div style="color:#666;font-size:10px">... continúa hacia abajo</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Todo visible sin cambiar de vista</li><li>Más simple de implementar</li><li>Las anclas de texto saltan rápido a cada sección</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Página muy larga con hoja completa</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Secciones colapsables (acordeón)</h3>
+      <div class="mockup">
+        <div class="mockup-header">Vista de detalle — Maisie</div>
+        <div class="mockup-body">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="border:1px solid #991b1b;border-radius:4px;overflow:hidden">
+              <div style="background:#1a0a0a;padding:8px 12px;display:flex;justify-content:space-between;font-size:12px;font-weight:600;color:#ececec"><span>⚡ Stats & Combate</span><span style="color:#991b1b">▼</span></div>
+              <div style="padding:10px 12px;border-top:1px solid #282828">
+                <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:4px">
+                  <div style="background:#111;border:1px solid #282828;border-radius:4px;padding:6px;text-align:center"><div style="font-size:14px;font-weight:700;color:#ececec">+3</div><div style="font-size:8px;color:#666">FUE</div></div>
+                  <div style="background:#111;border:1px solid #282828;border-radius:4px;padding:6px;text-align:center"><div style="font-size:14px;font-weight:700;color:#ececec">+2</div><div style="font-size:8px;color:#666">DES</div></div>
+                  <div style="background:#111;border:1px solid #282828;border-radius:4px;padding:6px;text-align:center"><div style="font-size:14px;font-weight:700;color:#ececec">+4</div><div style="font-size:8px;color:#666">SAB</div></div>
+                  <div style="background:#111;border:1px solid #282828;border-radius:4px;padding:6px;text-align:center"><div style="font-size:14px;font-weight:700;color:#ececec">+1</div><div style="font-size:8px;color:#666">CAR</div></div>
+                  <div style="background:#111;border:1px solid #282828;border-radius:4px;padding:6px;text-align:center"><div style="font-size:14px;font-weight:700;color:#ececec">+1</div><div style="font-size:8px;color:#666">CON</div></div>
+                  <div style="background:#111;border:1px solid #282828;border-radius:4px;padding:6px;text-align:center"><div style="font-size:14px;font-weight:700;color:#ececec">+0</div><div style="font-size:8px;color:#666">INT</div></div>
+                </div>
+              </div>
+            </div>
+            <div style="border:1px solid #282828;border-radius:4px">
+              <div style="padding:8px 12px;display:flex;justify-content:space-between;font-size:12px;font-weight:600;color:#666"><span>🎯 Habilidades & Proficiencias</span><span>▶</span></div>
+            </div>
+            <div style="border:1px solid #282828;border-radius:4px">
+              <div style="padding:8px 12px;display:flex;justify-content:space-between;font-size:12px;font-weight:600;color:#666"><span>⚔️ Ataques & Equipo</span><span>▶</span></div>
+            </div>
+            <div style="border:1px solid #282828;border-radius:4px">
+              <div style="padding:8px 12px;display:flex;justify-content:space-between;font-size:12px;font-weight:600;color:#666"><span>✨ Hechizos</span><span>▶</span></div>
+            </div>
+            <div style="border:1px solid #282828;border-radius:4px">
+              <div style="padding:8px 12px;display:flex;justify-content:space-between;font-size:12px;font-weight:600;color:#666"><span>📖 Narrativa</span><span>▶</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>No ocupa pantalla innecesariamente</li><li>Usuario decide qué expandir</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Un click más para ver info</li><li>Más lógica de estado (qué está abierto)</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>

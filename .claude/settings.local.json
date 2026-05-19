@@ -1,10 +1,17 @@
 {
-  "enabledPlugins": {
-    "hookify@claude-code-plugins": false
-  },
   "permissions": {
     "allow": [
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(bash \"C:/Users/germa/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/brainstorming/scripts/start-server.sh\" --project-dir \"e:/Claude Cowork/Drakterima/dragones-wiki\")",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git commit *)",
+      "Bash(node)",
+      "Bash(node --input-type=module)",
+      "Bash(node -e \"require\\('tailwindcss'\\)\")"
     ]
+  },
+  "enabledPlugins": {
+    "hookify@claude-code-plugins": false
   }
 }

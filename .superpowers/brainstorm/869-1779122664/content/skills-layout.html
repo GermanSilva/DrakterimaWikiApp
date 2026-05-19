@@ -1,0 +1,138 @@
+<h2>¿Cómo mostrás habilidades y tiradas de salvación?</h2>
+<p class="subtitle">18 skills + 6 tiradas de salvación. Cada una puede ser: sin proficiencia, con proficiencia (●), o con maestría (◆)</p>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Columnas densas estilo hoja física</h3>
+      <div class="mockup">
+        <div class="mockup-header">Habilidades & Salvaciones</div>
+        <div class="mockup-body" style="padding:10px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            <div>
+              <div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Tiradas de Salvación</div>
+              <div style="font-size:11px;line-height:2;color:#ececec">
+                <div style="display:flex;align-items:center;gap:6px"><span style="color:#c09020">●</span><span style="color:#c09020;width:28px;text-align:right">+5</span><span style="color:#999;margin-left:4px">FUE</span></div>
+                <div style="display:flex;align-items:center;gap:6px"><span style="color:#666">◌</span><span style="width:28px;text-align:right">+2</span><span style="color:#999;margin-left:4px">DES</span></div>
+                <div style="display:flex;align-items:center;gap:6px"><span style="color:#c09020">●</span><span style="color:#c09020;width:28px;text-align:right">+4</span><span style="color:#999;margin-left:4px">CON</span></div>
+                <div style="display:flex;align-items:center;gap:6px"><span style="color:#666">◌</span><span style="width:28px;text-align:right">+0</span><span style="color:#999;margin-left:4px">INT</span></div>
+                <div style="display:flex;align-items:center;gap:6px"><span style="color:#c09020">●</span><span style="color:#c09020;width:28px;text-align:right">+7</span><span style="color:#999;margin-left:4px">SAB</span></div>
+                <div style="display:flex;align-items:center;gap:6px"><span style="color:#666">◌</span><span style="width:28px;text-align:right">+1</span><span style="color:#999;margin-left:4px">CAR</span></div>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Habilidades</div>
+              <div style="font-size:11px;line-height:1.9;color:#ececec">
+                <div style="display:flex;align-items:center;gap:5px"><span style="color:#c09020">●</span><span style="color:#c09020;width:24px;text-align:right;font-size:10px">+5</span><span style="color:#888;margin-left:4px;font-size:11px">Acrobacias</span><span style="font-size:9px;color:#555">(DES)</span></div>
+                <div style="display:flex;align-items:center;gap:5px"><span style="color:#666">◌</span><span style="width:24px;text-align:right;font-size:10px">+2</span><span style="color:#888;margin-left:4px;font-size:11px">Arcanismo</span><span style="font-size:9px;color:#555">(INT)</span></div>
+                <div style="display:flex;align-items:center;gap:5px"><span style="color:#c09020">●</span><span style="color:#c09020;width:24px;text-align:right;font-size:10px">+7</span><span style="color:#888;margin-left:4px;font-size:11px">Atletismo</span><span style="font-size:9px;color:#555">(FUE)</span></div>
+                <div style="display:flex;align-items:center;gap:5px"><span style="color:#666">◌</span><span style="width:24px;text-align:right;font-size:10px">+1</span><span style="color:#888;margin-left:4px;font-size:11px">Engaño</span><span style="font-size:9px;color:#555">(CAR)</span></div>
+                <div style="font-size:10px;color:#555;margin-top:2px">… 14 más</div>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:8px;border-top:1px solid #282828;padding-top:6px;font-size:10px;color:#666">
+            Bono proficiencia: <span style="color:#c09020">+3</span> &nbsp;·&nbsp; Percepción pasiva: <span style="color:#ececec">15</span>
+          </div>
+        </div>
+      </div>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Compacto, familiar para jugadores de D&D</li><li>Muestra bono calculado junto al nombre</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Denso visualmente</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Agrupadas por atributo</h3>
+      <div class="mockup">
+        <div class="mockup-header">Habilidades & Salvaciones</div>
+        <div class="mockup-body" style="padding:10px">
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+            <div style="border:1px solid #282828;border-radius:4px;overflow:hidden">
+              <div style="background:#1a1a1a;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:11px;font-weight:600;color:#ececec">FUE</span>
+                <span style="font-size:14px;color:#c09020;font-weight:700">+3</span>
+              </div>
+              <div style="padding:6px 8px;font-size:10px;line-height:1.9;color:#999">
+                <div><span style="color:#c09020">●</span> Salvación +5</div>
+                <div><span style="color:#c09020">●</span> Atletismo +5</div>
+              </div>
+            </div>
+            <div style="border:1px solid #282828;border-radius:4px;overflow:hidden">
+              <div style="background:#1a1a1a;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:11px;font-weight:600;color:#ececec">DES</span>
+                <span style="font-size:14px;color:#ececec;font-weight:700">+2</span>
+              </div>
+              <div style="padding:6px 8px;font-size:10px;line-height:1.9;color:#999">
+                <div><span style="color:#666">◌</span> Salvación +2</div>
+                <div><span style="color:#c09020">●</span> Acrobacias +5</div>
+                <div><span style="color:#666">◌</span> Juego de Manos +2</div>
+                <div><span style="color:#666">◌</span> Sigilo +2</div>
+              </div>
+            </div>
+            <div style="border:1px solid #282828;border-radius:4px;overflow:hidden">
+              <div style="background:#1a1a1a;padding:6px 8px;display:flex;justify-content:space-between;align-items:center">
+                <span style="font-size:11px;font-weight:600;color:#ececec">SAB</span>
+                <span style="font-size:14px;color:#c09020;font-weight:700">+4</span>
+              </div>
+              <div style="padding:6px 8px;font-size:10px;line-height:1.9;color:#999">
+                <div><span style="color:#c09020">●</span> Salvación +7</div>
+                <div><span style="color:#c09020">●</span> Perspicacia +7</div>
+                <div><span style="color:#666">◌</span> Medicina +4</div>
+                <div><span style="color:#666">◌</span> Percepción +4</div>
+                <div><span style="color:#666">◌</span> Trato Animal +4</div>
+              </div>
+            </div>
+          </div>
+          <div style="margin-top:4px;font-size:10px;color:#666">+ 3 tarjetas más (CON, INT, CAR) · Bono prof: +3</div>
+        </div>
+      </div>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Agrupa salvación con sus skills relacionadas</li><li>Visualmente claro qué viene de qué atributo</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Ocupa más espacio</li><li>Más difícil hacer scan alfabético de skills</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Solo proficientes + texto libre para el resto</h3>
+      <div class="mockup">
+        <div class="mockup-header">Habilidades & Salvaciones</div>
+        <div class="mockup-body" style="padding:10px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div>
+              <div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Proficiente en:</div>
+              <div style="display:flex;flex-wrap:wrap;gap:4px">
+                <span style="background:#1a0a0a;border:1px solid #7f1d1d;color:#fca5a5;padding:3px 8px;border-radius:20px;font-size:11px">FUE salv.</span>
+                <span style="background:#1a0a0a;border:1px solid #7f1d1d;color:#fca5a5;padding:3px 8px;border-radius:20px;font-size:11px">CON salv.</span>
+                <span style="background:#1a0a0a;border:1px solid #7f1d1d;color:#fca5a5;padding:3px 8px;border-radius:20px;font-size:11px">Atletismo</span>
+                <span style="background:#1a0a0a;border:1px solid #7f1d1d;color:#fca5a5;padding:3px 8px;border-radius:20px;font-size:11px">Acrobacias</span>
+                <span style="background:#1a0a0a;border:1px solid #7f1d1d;color:#fca5a5;padding:3px 8px;border-radius:20px;font-size:11px">Perspicacia</span>
+                <span style="background:#1a1a1a;border:1px solid #282828;color:#666;padding:3px 8px;border-radius:20px;font-size:11px">+ agregar</span>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:10px;color:#666;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Idiomas & Herramientas</div>
+              <div style="font-size:11px;color:#999;line-height:1.7">Común, Élfico, Enano<br>Herramientas de ladrón</div>
+            </div>
+          </div>
+          <div style="margin-top:8px;border-top:1px solid #282828;padding-top:6px;font-size:10px;color:#666">
+            Bono prof: <span style="color:#c09020">+3</span> · El bono del skill se calcula al vuelo al ver el detalle
+          </div>
+        </div>
+      </div>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Mínimo: solo marcás lo relevante</li><li>Muy rápido de completar</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Menos detallado que la hoja real</li><li>No muestra las skills sin proficiencia</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>

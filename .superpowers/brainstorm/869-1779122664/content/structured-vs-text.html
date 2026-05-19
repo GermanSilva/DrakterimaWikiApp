@@ -1,0 +1,92 @@
+<h2>Ataques, Hechizos y Equipo: ¿listas estructuradas o texto libre?</h2>
+<p class="subtitle">Estas secciones pueden implementarse de dos maneras muy distintas</p>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Listas estructuradas con CRUD</h3>
+      <div class="mockup">
+        <div class="mockup-header">Ataques</div>
+        <div class="mockup-body" style="padding:10px">
+          <table style="width:100%;font-size:11px;border-collapse:collapse;margin-bottom:8px">
+            <tr style="color:#666;border-bottom:1px solid #282828">
+              <th style="text-align:left;padding:4px 6px;font-weight:400">Arma</th>
+              <th style="text-align:center;padding:4px 6px;font-weight:400">Bono</th>
+              <th style="text-align:center;padding:4px 6px;font-weight:400">Daño</th>
+              <th style="text-align:left;padding:4px 6px;font-weight:400">Tipo</th>
+              <th style="padding:4px 2px"></th>
+            </tr>
+            <tr style="color:#ececec;border-bottom:1px solid #1a1a1a">
+              <td style="padding:5px 6px">Espada Larga</td>
+              <td style="text-align:center;padding:5px 6px;color:#c09020">+5</td>
+              <td style="text-align:center;padding:5px 6px">1d8+3</td>
+              <td style="padding:5px 6px;color:#999">Cortante</td>
+              <td style="padding:5px 2px;color:#666;font-size:10px">✎ ✕</td>
+            </tr>
+            <tr style="color:#ececec">
+              <td style="padding:5px 6px">Arco Corto</td>
+              <td style="text-align:center;padding:5px 6px;color:#c09020">+4</td>
+              <td style="text-align:center;padding:5px 6px">1d6+2</td>
+              <td style="padding:5px 6px;color:#999">Perforante</td>
+              <td style="padding:5px 2px;color:#666;font-size:10px">✎ ✕</td>
+            </tr>
+          </table>
+          <div style="font-size:11px;color:#991b1b;cursor:pointer">+ Agregar ataque</div>
+          <div style="margin-top:12px;border-top:1px solid #282828;padding-top:10px">
+            <div style="font-size:10px;color:#666;margin-bottom:4px">EQUIPO</div>
+            <div style="font-size:11px;color:#999">• Escudo +1 &nbsp; • Mochila &nbsp; • Cuerda (50ft) &nbsp; <span style="color:#991b1b">+ Agregar</span></div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:#999;margin:8px 0">Cada ataque/ítem/hechizo es un objeto en el array del PJ. Se agregan/editan/eliminan con mini-formularios inline.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Datos consultables y bien formateados</li><li>Base para future features (ej. calcular bonos)</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Implementación más compleja (3 arrays nuevos en el schema)</li><li>Más trabajo de UI</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Texto libre + formato wiki</h3>
+      <div class="mockup">
+        <div class="mockup-header">Ataques / Equipo / Hechizos</div>
+        <div class="mockup-body" style="padding:10px">
+          <div style="margin-bottom:10px">
+            <div style="font-size:10px;color:#666;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Ataques</div>
+            <div style="font-size:11px;color:#ececec;font-family:monospace;line-height:1.8">
+              Espada Larga · +5 · 1d8+3 cortante<br>
+              Arco Corto · +4 · 1d6+2 perforante (rango 80/320)<br>
+              Cuchillo · +4 · 1d4+2 perforante, arrojo (20/60)
+            </div>
+          </div>
+          <div style="margin-bottom:10px;border-top:1px solid #282828;padding-top:8px">
+            <div style="font-size:10px;color:#666;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Equipo</div>
+            <div style="font-size:11px;color:#ececec;font-family:monospace;line-height:1.8">
+              Escudo +1, Mochila de aventurero<br>
+              Cuerda de seda (50 ft), Antorcha x5<br>
+              Poción de curación x2 (2d4+2)
+            </div>
+          </div>
+          <div style="border-top:1px solid #282828;padding-top:8px">
+            <div style="font-size:10px;color:#666;margin-bottom:4px;text-transform:uppercase;letter-spacing:1px">Hechizos</div>
+            <div style="font-size:11px;color:#ececec;font-family:monospace;line-height:1.8">
+              DC 15 · Bono +7<br>
+              <span style="color:#666">Niv 1 (4/4):</span> Curar Heridas, Arma Mágica<br>
+              <span style="color:#666">Niv 2 (3/3):</span> Restauración Menor
+            </div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:#999;margin:8px 0">Cada sección es un textarea. El DM escribe lo que quiera, igual que <code>trasfondo</code> y <code>notas</code> hoy.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Mucho más simple de implementar</li><li>Máxima flexibilidad para el DM</li><li>Consistente con el resto de la app</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>No estructurado → no consultable ni calculable</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>

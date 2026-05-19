@@ -1,0 +1,40 @@
+<h2>¿Qué tan completa querés la hoja de personaje?</h2>
+<p class="subtitle">El PJ ya tiene: 6 atributos, HP/AC/velocidad/iniciativa, trasfondo, notas DM. ¿Qué más agregamos?</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Hoja completa (mecánicas + narrativa)</h3>
+      <p>Todo lo que entraría en la hoja física: proficiencias de tiradas de salvación, las 18 habilidades con marcadores de proficiencia, dados de golpe, tiradas de muerte, tabla de ataques/armas, slots de hechizo, idiomas, equipo/inventario, rasgos de clase, trasfondo D&D, alineamiento, PE.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Hoja verdaderamente completa</li><li>Todo en un solo lugar</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Mucho trabajo de implementación</li><li>Muchos campos para mantener actualizados</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Mecánicas clave + narrativa completa</h3>
+      <p>Agrega los campos narrativos faltantes (personalidad, ideales, vínculos, defectos, apariencia física, trasfondo D&D) + mecánicas importantes aún ausentes (proficiencia en tiradas de salvación y habilidades, bono de proficiencia, inspiración, dados de golpe, tabla de ataques). Sin inventario detallado ni hechizos.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Balance entre utilidad y complejidad</li><li>Alcance razonable en una sola sesión</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Spells e inventario siguen sin estar</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Solo narrativa + descripción física</h3>
+      <p>Agrega los campos de "página 2" de la hoja: personalidad, ideales, vínculos, defectos, apariencia física (edad, altura, peso, ojos, piel, pelo), trasfondo D&D, alineamiento, facciones/organizaciones, notas de apariencia. Sin tocar las mecánicas de combate/habilidades.</p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Implementación más rápida</li><li>Enriquece el roleplay sin complejidad mecánica</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Las mecánicas de habilidades/salvaciones siguen incompletas</li></ul></div>
+      </div>
+    </div>
+  </div>
+</div>

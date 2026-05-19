@@ -1,0 +1,104 @@
+<h2>¿Qué tan detallada es la sección de Hechizos?</h2>
+<p class="subtitle">Ya eligieron listas estructuradas — pero los hechizos tienen mucha más info posible que los ataques</p>
+
+<div class="options">
+
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Slots + lista de nombres (liviano)</h3>
+      <div class="mockup">
+        <div class="mockup-header">Hechizos — Maisie (Druida 5)</div>
+        <div class="mockup-body" style="padding:10px">
+          <div style="display:flex;gap:12px;margin-bottom:10px;flex-wrap:wrap">
+            <div style="text-align:center">
+              <div style="font-size:10px;color:#666;margin-bottom:3px">DC Conjuración</div>
+              <div style="font-size:18px;font-weight:700;color:#7aad82">15</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:10px;color:#666;margin-bottom:3px">Bono ataque</div>
+              <div style="font-size:18px;font-weight:700;color:#7aad82">+7</div>
+            </div>
+            <div style="text-align:center">
+              <div style="font-size:10px;color:#666;margin-bottom:3px">Atributo</div>
+              <div style="font-size:18px;font-weight:700;color:#7aad82">SAB</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+            <div style="border:1px solid #282828;border-radius:4px;padding:4px 8px;text-align:center;min-width:44px">
+              <div style="font-size:9px;color:#666">Niv 1</div>
+              <div style="font-size:12px;color:#ececec;font-weight:600">4/4</div>
+            </div>
+            <div style="border:1px solid #282828;border-radius:4px;padding:4px 8px;text-align:center;min-width:44px">
+              <div style="font-size:9px;color:#666">Niv 2</div>
+              <div style="font-size:12px;color:#ececec;font-weight:600">3/3</div>
+            </div>
+            <div style="border:1px solid #282828;border-radius:4px;padding:4px 8px;text-align:center;min-width:44px">
+              <div style="font-size:9px;color:#666">Niv 3</div>
+              <div style="font-size:12px;color:#ececec;font-weight:600">2/3</div>
+            </div>
+          </div>
+          <div style="border-top:1px solid #282828;padding-top:8px">
+            <div style="font-size:10px;color:#666;margin-bottom:4px">TRUCOS</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">
+              <span style="background:#111;border:1px solid #282828;padding:2px 8px;border-radius:20px;font-size:11px;color:#ccc">Llama Sagrada</span>
+              <span style="background:#111;border:1px solid #282828;padding:2px 8px;border-radius:20px;font-size:11px;color:#ccc">Guía</span>
+              <span style="background:#111;border:1px solid #282828;padding:2px 8px;border-radius:20px;font-size:11px;color:#ccc">Resistencia</span>
+            </div>
+            <div style="font-size:10px;color:#666;margin-bottom:4px">NIVEL 1</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px">
+              <span style="background:#111;border:1px solid #282828;padding:2px 8px;border-radius:20px;font-size:11px;color:#ccc">Curar Heridas</span>
+              <span style="background:#111;border:1px solid #282828;padding:2px 8px;border-radius:20px;font-size:11px;color:#ccc">Enredar</span>
+              <span style="background:#111;border:1px solid #282828;padding:2px 8px;border-radius:20px;font-size:11px;color:#ccc">Hablar con Animales</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:#999;margin:8px 0">Schema: <code style="font-size:10px">spell_dc, spell_bonus, spell_ability, spell_slots [{level, max, current}], spells [{name, level}]</code></p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Cubre el 80% de lo útil</li><li>Simple de rellenar</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Sin descripción de cada hechizo</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Slots + hechizos con descripción completa</h3>
+      <div class="mockup">
+        <div class="mockup-header">Hechizos — detalle expandido</div>
+        <div class="mockup-body" style="padding:10px">
+          <div style="font-size:10px;color:#666;margin-bottom:6px;text-transform:uppercase;letter-spacing:1px">Nivel 1 · Slots: 4/4</div>
+          <div style="border:1px solid #282828;border-radius:4px;overflow:hidden;margin-bottom:6px">
+            <div style="padding:7px 10px;display:flex;justify-content:space-between;align-items:center;background:#111">
+              <div>
+                <span style="font-size:12px;font-weight:600;color:#ececec">Curar Heridas</span>
+                <span style="font-size:10px;color:#666;margin-left:8px">Evocación · Acción</span>
+              </div>
+              <span style="font-size:10px;color:#7aad82">Toque · Instante</span>
+            </div>
+            <div style="padding:7px 10px;font-size:11px;color:#999;border-top:1px solid #1a1a1a">
+              Una criatura que tocás recupera 1d8 + mod SAB PGs. No funciona en muertos vivientes ni constructos.
+            </div>
+          </div>
+          <div style="border:1px solid #282828;border-radius:4px;overflow:hidden">
+            <div style="padding:7px 10px;background:#111">
+              <span style="font-size:12px;font-weight:600;color:#ececec">Enredar</span>
+              <span style="font-size:10px;color:#666;margin-left:8px">Conjuración · Acción</span>
+            </div>
+            <div style="padding:7px 10px;font-size:11px;color:#999;border-top:1px solid #1a1a1a">
+              Plantas en un cuadrado de 20ft atrapan criaturas. Concentración, 1 minuto...
+            </div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:12px;color:#999;margin:8px 0">Schema: <code style="font-size:10px">spells [{name, level, school, cast_time, range, duration, description}]</code></p>
+      <div class="pros-cons">
+        <div class="pros"><h4>Pros</h4><ul><li>Hoja verdaderamente autosuficiente</li><li>Sin necesitar el libro en mesa</li></ul></div>
+        <div class="cons"><h4>Contras</h4><ul><li>Mucho texto para cargar</li><li>Formulario de hechizo más complejo</li></ul></div>
+      </div>
+    </div>
+  </div>
+
+</div>

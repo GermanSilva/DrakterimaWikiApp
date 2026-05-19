@@ -15,6 +15,8 @@ import PJNarrativeSection from './detail/PJNarrativeSection'
 import PJAppearanceSection from './detail/PJAppearanceSection'
 
 const btnSecondary = 'inline-flex items-center gap-1.5 font-exo text-[11px] font-semibold tracking-[0.1em] uppercase px-4 py-2 cursor-pointer transition-all bg-transparent text-txt-secondary border border-border-light hover:border-accent-dim hover:text-txt-primary'
+const articleId = 'font-mono text-[11px] text-txt-muted select-all cursor-text opacity-50'
+const articleLink = 'inline-flex items-center gap-1.5 font-mono text-[11px] select-all cursor-text font-semibold tracking-[0.1em] uppercase px-4 py-2 cursor-pointer transition-all bg-transparent text-txt-secondary border border-border-light hover:border-accent-dim hover:text-txt-primary'
 
 const SECTIONS = [
   { id: 'stats',       label: 'Stats',       show: () => true,                                                                Component: PJStatsSection },
@@ -42,7 +44,7 @@ export default function PJDetail({ pj, onEdit, onDelete, onBack }) {
         <button className={btnSecondary} onClick={onBack}>← Volver</button>
         {isDM && (
           <div className="flex items-center gap-2">
-            <span className="font-mono text-[11px] text-txt-muted select-all cursor-text opacity-50" title="ID para wiki-link">
+            <span className={articleLink} title="ID para wiki-link">
               {`{${pj.id}${COLLECTION_LETTER['pjs']}}`}
             </span>
             <button className={btnSecondary} onClick={onDelete}>Eliminar</button>
