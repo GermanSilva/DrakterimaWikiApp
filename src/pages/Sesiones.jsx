@@ -4,6 +4,7 @@ import { Tag, PageHeader, EmptyState } from '../components/Shared'
 import { isVisible } from '../helpers'
 import PlayerNotes from '../components/PlayerNotes'
 import WikiText, { COLLECTION_LETTER } from '../components/WikiText'
+import ImageLightbox from '../components/ImageLightbox'
 import { Scroll } from 'lucide-react'
 
 const sectionTitleCls = 'font-exo text-[9px] font-semibold tracking-[0.25em] text-accent-dim uppercase mb-3.5'
@@ -27,10 +28,11 @@ function renderResumen(text) {
 function SesionDetailInline({ sesion, onBack }) {
   const { openForm, isDM } = useApp()
   const isPlanned = !sesion.logros?.trim()
+  const [lightbox, setLightbox] = useState(false)
 
   return (
     <div>
-      <div className="flex justify-between mb-7">
+      <div className="flex justify-between mb-7 sticky top-[60px] z-10 bg-[#060606] py-3 -mx-10 px-10 max-md:-mx-5 max-md:px-5">
         <button className={btnSecondary} onClick={onBack}>← Volver</button>
         {isDM && (
           <div className="flex items-center gap-2">
@@ -62,11 +64,13 @@ function SesionDetailInline({ sesion, onBack }) {
             <img
               src={sesion.imagen_url}
               alt={sesion.titulo || ''}
-              className="max-w-full max-h-[120px] rounded-lg object-cover border border-border-base"
+              className="max-w-full max-h-[120px] rounded-lg object-cover border border-border-base cursor-zoom-in"
               onError={e => e.target.style.display = 'none'}
+              onClick={() => setLightbox(true)}
             />
           </div>
         )}
+        {lightbox && <ImageLightbox src={sesion.imagen_url} alt={sesion.titulo || ''} onClose={() => setLightbox(false)} />}
       </div>
 
       {sesion.resumen && (

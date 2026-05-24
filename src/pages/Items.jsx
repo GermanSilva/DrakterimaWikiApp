@@ -4,6 +4,7 @@ import { Tag, PageHeader, EmptyState } from '../components/Shared'
 import { isVisible } from '../helpers'
 import PlayerNotes from '../components/PlayerNotes'
 import WikiText, { COLLECTION_LETTER } from '../components/WikiText'
+import ImageLightbox from '../components/ImageLightbox'
 import { Gem } from 'lucide-react'
 
 const sectionTitleCls = 'font-exo text-[9px] font-semibold tracking-[0.25em] text-accent-dim uppercase mb-2'
@@ -13,9 +14,10 @@ const btnSecondary = 'inline-flex items-center gap-1.5 font-exo text-[11px] font
 
 function ItemDetailInline({ item, onBack }) {
   const { openForm, isDM } = useApp()
+  const [lightbox, setLightbox] = useState(false)
   return (
     <div>
-      <div className="flex justify-between mb-7">
+      <div className="flex justify-between mb-7 sticky top-[60px] z-10 bg-[#060606] py-3 -mx-10 px-10 max-md:-mx-5 max-md:px-5">
         <button className={btnSecondary} onClick={onBack}>← Volver</button>
         {isDM && (
           <div className="flex items-center gap-2">
@@ -43,9 +45,10 @@ function ItemDetailInline({ item, onBack }) {
 
       {item.imagen_url && (
         <div className="my-4 text-center">
-          <img src={item.imagen_url} alt={item.nombre} className="max-w-full max-h-[280px] rounded-lg object-cover border border-border-base" onError={e => e.target.style.display = 'none'} />
+          <img src={item.imagen_url} alt={item.nombre} className="max-w-full max-h-[280px] rounded-lg object-cover border border-border-base cursor-zoom-in" onError={e => e.target.style.display = 'none'} onClick={() => setLightbox(true)} />
         </div>
       )}
+      {lightbox && <ImageLightbox src={item.imagen_url} alt={item.nombre} onClose={() => setLightbox(false)} />}
 
       {item.poseedor && (
         <div className="mb-3 mt-3">

@@ -4,6 +4,7 @@ import { Tag, RegionTag, RelacionTag, PageHeader, EmptyState } from '../componen
 import { isVisible } from '../helpers'
 import PlayerNotes from '../components/PlayerNotes'
 import WikiText, { COLLECTION_LETTER } from '../components/WikiText'
+import ImageLightbox from '../components/ImageLightbox'
 import { Landmark, Lock } from 'lucide-react'
 
 const REGION_COLOR = {
@@ -22,9 +23,10 @@ const btnSecondary = 'inline-flex items-center gap-1.5 font-exo text-[11px] font
 
 function FaccionDetailInline({ faccion, onBack }) {
   const { openForm, isDM } = useApp()
+  const [lightbox, setLightbox] = useState(false)
   return (
     <div>
-      <div className="flex justify-between mb-7">
+      <div className="flex justify-between mb-7 sticky top-[60px] z-10 bg-[#060606] py-3 -mx-10 px-10 max-md:-mx-5 max-md:px-5">
         <button className={btnSecondary} onClick={onBack}>← Volver</button>
         {isDM && (
           <div className="flex items-center gap-2">
@@ -52,9 +54,10 @@ function FaccionDetailInline({ faccion, onBack }) {
 
       {faccion.imagen_url && (
         <div className="my-4 text-center">
-          <img src={faccion.imagen_url} alt={faccion.nombre} className="max-w-full max-h-[280px] rounded-lg object-cover border border-border-base" onError={e => e.target.style.display = 'none'} />
+          <img src={faccion.imagen_url} alt={faccion.nombre} className="max-w-full max-h-[280px] rounded-lg object-cover border border-border-base cursor-zoom-in" onError={e => e.target.style.display = 'none'} onClick={() => setLightbox(true)} />
         </div>
       )}
+      {lightbox && <ImageLightbox src={faccion.imagen_url} alt={faccion.nombre} onClose={() => setLightbox(false)} />}
 
       <div className="grid grid-cols-2 gap-0 gap-x-8 max-md:grid-cols-1">
         <div>

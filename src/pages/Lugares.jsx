@@ -4,6 +4,7 @@ import { Tag, RegionTag, PageHeader, FilterPills, EmptyState } from '../componen
 import { regionLabel, regionOptions, isVisible } from '../helpers'
 import PlayerNotes from '../components/PlayerNotes'
 import WikiText, { COLLECTION_LETTER } from '../components/WikiText'
+import ImageLightbox from '../components/ImageLightbox'
 import { Map, Lock } from 'lucide-react'
 
 const REGION_COLOR = {
@@ -27,9 +28,10 @@ const FILTROS = [
 
 function LugarDetailInline({ lugar, onBack }) {
   const { openForm, isDM } = useApp()
+  const [lightbox, setLightbox] = useState(false)
   return (
     <div>
-      <div className="flex justify-between mb-7">
+      <div className="flex justify-between mb-7 sticky top-[60px] z-10 bg-[#060606] py-3 -mx-10 px-10 max-md:-mx-5 max-md:px-5">
         <button className={btnSecondary} onClick={onBack}>← Volver</button>
         {isDM && (
           <div className="flex items-center gap-2">
@@ -59,9 +61,10 @@ function LugarDetailInline({ lugar, onBack }) {
 
       {lugar.imagen_url && (
         <div className="my-4 text-center">
-          <img src={lugar.imagen_url} alt={lugar.nombre} className="max-w-full max-h-[280px] rounded-lg object-cover border border-border-base" onError={e => e.target.style.display = 'none'} />
+          <img src={lugar.imagen_url} alt={lugar.nombre} className="max-w-full max-h-[280px] rounded-lg object-cover border border-border-base cursor-zoom-in" onError={e => e.target.style.display = 'none'} onClick={() => setLightbox(true)} />
         </div>
       )}
+      {lightbox && <ImageLightbox src={lugar.imagen_url} alt={lugar.nombre} onClose={() => setLightbox(false)} />}
 
       {lugar.descripcion && (
         <div className={detailSectionCls}>

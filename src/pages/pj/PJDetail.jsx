@@ -4,6 +4,7 @@ import { COLLECTION_LETTER } from '../../components/WikiText'
 import { Tag, RegionTag } from '../../components/Shared'
 import PlayerNotes from '../../components/PlayerNotes'
 import WikiText from '../../components/WikiText'
+import ImageLightbox from '../../components/ImageLightbox'
 import { Lock } from 'lucide-react'
 import { REGION_COLOR, detailTextCls } from './pjConstants'
 import PJStatsSection from './detail/PJStatsSection'
@@ -35,18 +36,29 @@ export default function PJDetail({ pj, onEdit, onDelete, onBack }) {
   const hasDMNotes = isDM && !!pj.notas
 
   const sentinelRef = useRef(null)
+  const backBarRef = useRef(null)
+  const stickyNavRef = useRef(null)
   const [showStickyNav, setShowStickyNav] = useState(false)
+  const [lightbox, setLightbox] = useState(false)
   const hasNav = visibleSections.length > 0 || hasDMNotes
 
+  const HEADER_H = 60
+
   function scrollTo(id) {
-    document.getElementById(`pj-section-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    const el = document.getElementById(`pj-section-${id}`)
+    if (!el) return
+    const offset = HEADER_H + (backBarRef.current?.offsetHeight ?? 0) + (stickyNavRef.current?.offsetHeight ?? 0)
+    const top = el.getBoundingClientRect().top + window.scrollY - offset
+    window.scrollTo({ top, behavior: 'smooth' })
   }
 
   useEffect(() => {
     if (!sentinelRef.current) return
+    const backBarH = backBarRef.current?.offsetHeight ?? 0
+    const topOffset = HEADER_H + backBarH + 38
     const observer = new IntersectionObserver(
       ([entry]) => setShowStickyNav(!entry.isIntersecting),
-      { threshold: 0 }
+      { threshold: 0, rootMargin: `-${topOffset}px 0px 0px 0px` }
     )
     observer.observe(sentinelRef.current)
     return () => observer.disconnect()
@@ -76,7 +88,7 @@ export default function PJDetail({ pj, onEdit, onDelete, onBack }) {
 
   return (
     <div>
-      <div className="flex justify-between mb-7">
+      <div ref={backBarRef} className="flex justify-between mb-7 sticky top-[60px] z-10 bg-[#060606] py-3 -mx-10 px-10 max-md:-mx-5 max-md:px-5">
         <button className={btnSecondary} onClick={onBack}>← Volver</button>
         {isDM && (
           <div className="flex items-center gap-2">
@@ -90,7 +102,11 @@ export default function PJDetail({ pj, onEdit, onDelete, onBack }) {
       </div>
 
       {showStickyNav && hasNav && (
-        <div className="sticky top-0 z-10 bg-bg-card border-b border-border-base overflow-x-auto">
+        <div
+          ref={stickyNavRef}
+          className="sticky z-10 bg-bg-card border-b border-border-base overflow-x-auto"
+          style={{ top: HEADER_H + (backBarRef.current?.offsetHeight ?? 0) }}
+        >
           <div className="flex min-w-max">{navButtons}</div>
         </div>
       )}
@@ -121,15 +137,17 @@ export default function PJDetail({ pj, onEdit, onDelete, onBack }) {
         </div>
 
         {pj.imagen_url && (
-          <div className="my-4 text-center">
+          <div className="my-4 -mb-40 text-center">
             <img
               src={pj.imagen_url}
               alt={pj.nombre}
-              className="max-w-full max-h-[280px] rounded-lg object-cover border border-border-base"
+              className="max-w-full max-h-[280px] rounded-lg object-cover border border-border-base cursor-zoom-in"
               onError={e => e.target.style.display = 'none'}
+              onClick={() => setLightbox(true)}
             />
           </div>
         )}
+        {lightbox && <ImageLightbox src={pj.imagen_url} alt={pj.nombre} onClose={() => setLightbox(false)} />}
       </div>
 
       {visibleSections.map(({ id, Component }) => (

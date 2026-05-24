@@ -8,7 +8,9 @@
       "Bash(git commit *)",
       "Bash(node)",
       "Bash(node --input-type=module)",
-      "Bash(node -e \"require\\('tailwindcss'\\)\")"
+      "Bash(node -e \"require\\('tailwindcss'\\)\")",
+      "Bash(node --input-type=module --experimental-vm-modules)",
+      "Bash(node -e ':*)"
     ]
   },
   "enabledPlugins": {

@@ -17,7 +17,7 @@ function LoreDetailInline({ entrada, onBack }) {
   const { openForm, isDM } = useApp()
   return (
     <div>
-      <div className="flex justify-between mb-7">
+      <div className="flex justify-between mb-7 sticky top-[60px] z-10 bg-[#060606] py-3 -mx-10 px-10 max-md:-mx-5 max-md:px-5">
         <button className={btnSecondary} onClick={onBack}>← Volver</button>
         {isDM && (
           <div className="flex items-center gap-2">

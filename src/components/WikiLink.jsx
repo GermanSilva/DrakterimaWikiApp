@@ -23,7 +23,7 @@ export default function WikiLink({ id, letter, displayText, entity, page, goToDe
       >
         {displayText}
       </span>
-      <Tooltip title={title} section={section} />
+      <Tooltip title={title} section={section} imagenUrl={entity.imagen_url} />
     </span>
   )
 }
