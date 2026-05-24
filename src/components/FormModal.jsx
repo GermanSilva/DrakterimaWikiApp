@@ -2,13 +2,15 @@ import { useState } from 'react'
 import { useApp } from '../AppContext'
 import { regionLabel, regionOptions } from '../helpers'
 import PJForm from '../pages/pj/PJForm'
+import { Lock } from 'lucide-react'
 
 /* ── Shared field styles ── */
-export const labelCls = 'block font-exo text-[10px] font-medium tracking-[0.2em] uppercase text-txt-muted mb-1.5'
+export const labelCls = 'block font-exo text-[10px] font-medium tracking-[0.2em] uppercase text-txt-muted mb-1.5 flex gap-2'
 export const inputCls = 'w-full bg-bg-mid border border-border-base text-txt-primary font-barlow text-sm px-3 py-2 outline-none transition-colors focus:border-accent-dim'
 export const btnPrimary = 'inline-flex items-center gap-1.5 font-exo text-[11px] font-semibold tracking-[0.1em] uppercase px-4 py-2 cursor-pointer transition-all bg-accent text-white hover:bg-accent-bright border-none'
 export const btnSecondary = 'inline-flex items-center gap-1.5 font-exo text-[11px] font-semibold tracking-[0.1em] uppercase px-4 py-2 cursor-pointer transition-all bg-transparent text-txt-secondary border border-border-light hover:border-accent-dim hover:text-txt-primary'
 export const btnDanger = 'inline-flex items-center gap-1.5 font-exo text-[11px] font-semibold tracking-[0.1em] uppercase px-4 py-2 cursor-pointer transition-all bg-transparent text-accent border border-accent-dim hover:bg-accent/[.15]'
+const labelLock = (< Lock size={12} className='text-accent-bright'/>)
 
 export function FormGroup({ children, className = '' }) {
   return <div className={`mb-[18px] px-8 ${className}`}>{children}</div>
@@ -66,6 +68,7 @@ function SesionForm({ item }) {
     resumen: item?.resumen ?? '',
     logros: item?.logros ?? '',
     ganchos: item?.ganchos ?? '',
+    imagen_url: item?.imagen_url ?? '',
     estado: item?.estado ?? 'publicado',
     visibilidad: item?.visibilidad ?? [],
   })
@@ -99,8 +102,15 @@ function SesionForm({ item }) {
         <textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.logros} onChange={set('logros')} placeholder="Decisiones clave, revelaciones..." />
       </FormGroup>
       <FormGroup>
-        <label className={labelCls}>Ganchos pendientes (próxima sesión)</label>
+        <label className={labelCls}>{labelLock}Ganchos pendientes (próxima sesión)</label>
         <textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.ganchos} onChange={set('ganchos')} placeholder="¿Qué quedó sin resolver?" />
+      </FormGroup>
+      <FormGroup>
+        <label className={labelCls}>Imagen (URL externa)</label>
+        <input className={inputCls} type="url" placeholder="https://i.imgur.com/..." value={f.imagen_url} onChange={set('imagen_url')} />
+        {f.imagen_url && (
+          <img src={f.imagen_url} alt="preview" className="mt-2 max-w-full max-h-[140px] rounded-md object-cover" onError={e => e.target.style.display = 'none'} />
+        )}
       </FormGroup>
       <EstadoField estado={f.estado} visibilidad={f.visibilidad} setF={setF} />
       <div className="flex gap-2.5 justify-end sticky bottom-0 z-[1] bg-bg-card px-8 py-4 pb-6 border-t border-border-base mt-3">
@@ -158,8 +168,8 @@ function PNJForm({ item }) {
       <FormGroup><label className={labelCls}>Facción / Organización</label><input className={inputCls} value={f.faccion} onChange={set('faccion')} placeholder="Ej: Orden de Argan..." /></FormGroup>
       <FormGroup><label className={labelCls}>Descripción física y personalidad</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={4} value={f.descripcion} onChange={set('descripcion')} /></FormGroup>
       <FormGroup><label className={labelCls}>Historia / Contexto</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.historia} onChange={set('historia')} /></FormGroup>
-      <FormGroup><label className={labelCls}>Motivaciones secretas</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={2} value={f.secreto} onChange={set('secreto')} /></FormGroup>
-      <FormGroup><label className={labelCls}>Notas del DM</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={2} value={f.notas} onChange={set('notas')} /></FormGroup>
+      <FormGroup><label className={labelCls}>{labelLock}Motivaciones secretas</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={2} value={f.secreto} onChange={set('secreto')} /></FormGroup>
+      <FormGroup><label className={labelCls}>{labelLock}Notas del DM</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={2} value={f.notas} onChange={set('notas')} /></FormGroup>
       <FormGroup>
         <label className={labelCls}>Imagen (URL externa)</label>
         <input className={inputCls} type="url" placeholder="https://i.imgur.com/..." value={f.imagen_url} onChange={set('imagen_url')} />
@@ -217,7 +227,7 @@ function LugarForm({ item }) {
         </div>
       </FormRow>
       <FormGroup><label className={labelCls}>Descripción</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={5} value={f.descripcion} onChange={set('descripcion')} /></FormGroup>
-      <FormGroup><label className={labelCls}>Notas del DM</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.notas} onChange={set('notas')} /></FormGroup>
+      <FormGroup><label className={labelCls}>{labelLock}Notas del DM</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.notas} onChange={set('notas')} /></FormGroup>
       <FormGroup>
         <label className={labelCls}>Imagen (URL externa)</label>
         <input className={inputCls} type="url" placeholder="https://i.imgur.com/..." value={f.imagen_url} onChange={set('imagen_url')} />
@@ -283,8 +293,8 @@ function FaccionForm({ item }) {
         </div>
       </FormRow>
       <FormGroup><label className={labelCls}>Descripción</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={4} value={f.descripcion} onChange={set('descripcion')} /></FormGroup>
-      <FormGroup><label className={labelCls}>Objetivos secretos</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.secreto} onChange={set('secreto')} /></FormGroup>
-      <FormGroup><label className={labelCls}>Notas DM</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={2} value={f.notas} onChange={set('notas')} /></FormGroup>
+      <FormGroup><label className={labelCls}>{labelLock}Objetivos secretos</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.secreto} onChange={set('secreto')} /></FormGroup>
+      <FormGroup><label className={labelCls}>{labelLock}Notas DM</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={2} value={f.notas} onChange={set('notas')} /></FormGroup>
       <FormGroup>
         <label className={labelCls}>Imagen (URL externa)</label>
         <input className={inputCls} type="url" placeholder="https://i.imgur.com/..." value={f.imagen_url} onChange={set('imagen_url')} />
@@ -325,7 +335,7 @@ function LoreForm({ item }) {
         <input className={inputCls} value={f.categoria} onChange={set('categoria')} placeholder="Ej: historia, geografía, recurso, magia..." />
       </FormGroup>
       <FormGroup><label className={labelCls}>Descripción (pública / conocida)</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={5} value={f.descripcion} onChange={set('descripcion')} /></FormGroup>
-      <FormGroup><label className={labelCls}>Información secreta (solo DM)</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.notas} onChange={set('notas')} /></FormGroup>
+      <FormGroup><label className={labelCls}>{labelLock}Información secreta (solo DM)</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.notas} onChange={set('notas')} /></FormGroup>
       <EstadoField estado={f.estado} visibilidad={f.visibilidad} setF={setF} />
       <div className="flex gap-2.5 justify-end sticky bottom-0 z-[1] bg-bg-card px-8 py-4 pb-6 border-t border-border-base mt-3">
         {item && <button className={btnDanger} onClick={() => remove('lore', item.id)}>Eliminar</button>}

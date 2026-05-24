@@ -16,11 +16,11 @@ function renderResumen(text) {
     if (/^\d+\./.test(line.trim())) {
       return (
         <div key={i} className="py-1.5 pl-3.5 border-l-2 border-border-base mb-1.5 text-sm text-txt-secondary hover:border-l-accent-dim transition-colors">
-          {line}
+          <WikiText text={line} />
         </div>
       )
     }
-    return <span key={i}>{line}<br /></span>
+    return <span key={i}><WikiText text={line} /><br /></span>
   })
 }
 
@@ -40,21 +40,33 @@ function SesionDetailInline({ sesion, onBack }) {
         )}
       </div>
 
-      <div className="mb-8 pb-5 border-b border-border-base">
-        <div className="font-exo text-[10px] tracking-[0.3em] text-txt-muted uppercase mb-1 font-medium">
-          Sesión {sesion.numero}
-          {sesion.fecha && <> · {sesion.fecha}</>}
-          {isPlanned && (
-            <span className="font-exo text-[9px] font-semibold tracking-[0.15em] uppercase text-txt-muted border border-border-light px-2 py-0.5 ml-2.5 align-middle">
-              Planificada
-            </span>
-          )}
-          {sesion.estado === 'borrador' && <> <Tag cls="borrador" text="Borrador" /></>}
-          {sesion.estado === 'secreto' && <> <Tag cls="secreto" text="Secreto" /></>}
+      <div className="mb-8 pb-5 border-b border-border-base flex w-full gap-4">
+        <div className="flex-1">
+          <div className="font-exo text-[10px] tracking-[0.3em] text-txt-muted uppercase mb-1 font-medium">
+            Sesión {sesion.numero}
+            {sesion.fecha && <> · {sesion.fecha}</>}
+            {isPlanned && (
+              <span className="font-exo text-[9px] font-semibold tracking-[0.15em] uppercase text-txt-muted border border-border-light px-2 py-0.5 ml-2.5 align-middle">
+                Planificada
+              </span>
+            )}
+            {sesion.estado === 'borrador' && <> <Tag cls="borrador" text="Borrador" /></>}
+            {sesion.estado === 'secreto' && <> <Tag cls="secreto" text="Secreto" /></>}
+          </div>
+          <div className="font-exo text-[26px] font-bold text-txt-primary tracking-[0.04em] uppercase">
+            {sesion.titulo || 'Sin título'}
+          </div>
         </div>
-        <div className="font-exo text-[26px] font-bold text-txt-primary tracking-[0.04em] uppercase">
-          {sesion.titulo || 'Sin título'}
-        </div>
+        {sesion.imagen_url && (
+          <div className="my-1 shrink-0 max-w-[200px]">
+            <img
+              src={sesion.imagen_url}
+              alt={sesion.titulo || ''}
+              className="max-w-full max-h-[120px] rounded-lg object-cover border border-border-base"
+              onError={e => e.target.style.display = 'none'}
+            />
+          </div>
+        )}
       </div>
 
       {sesion.resumen && (
@@ -120,20 +132,32 @@ export default function Sesiones() {
             return (
               <div
                 key={s.id}
-                className="relative mb-5 cursor-pointer"
+                className="relative mb-5 cursor-pointer flex gap-3"
                 onClick={() => setSelectedId(s.id)}
               >
                 <div className={`absolute left-[-21px] top-[5px] w-2.5 h-2.5 border-2 border-bg-mid ${isPlanned ? 'bg-transparent border-txt-muted' : 'bg-border-light'}`} />
-                <div className="font-exo text-[10px] font-medium text-txt-muted mb-1.5 tracking-[0.1em] uppercase">
-                  Sesión {s.numero} · {s.fecha || 'Sin fecha'}
-                  {s.estado === 'borrador' && <> <Tag cls="borrador" text="Borrador" /></>}
-                  {s.estado === 'secreto' && <> <Tag cls="secreto" text="Secreto" /></>}
+                <div className="w-32 shrink-0 self-stretch min-h-[64px] bg-bg-mid overflow-hidden">
+                  {s.imagen_url && (
+                    <img
+                      src={s.imagen_url}
+                      alt={s.titulo || ''}
+                      className="w-full h-full object-cover"
+                      onError={e => e.target.style.display = 'none'}
+                    />
+                  )}
                 </div>
-                <div className={`font-exo text-[12px] font-semibold tracking-[0.04em] mb-1 uppercase ${isPlanned ? 'text-txt-secondary' : 'text-txt-primary'}`}>
-                  {s.titulo || 'Sin título'}
-                </div>
-                <div className="text-[13px] text-txt-secondary leading-relaxed">
-                  {(s.resumen || '').substring(0, 180)}{(s.resumen || '').length > 180 ? '...' : ''}
+                <div className="flex-1 min-w-0">
+                  <div className="font-exo text-[10px] font-medium text-txt-muted mb-1.5 tracking-[0.1em] uppercase">
+                    Sesión {s.numero} · {s.fecha || 'Sin fecha'}
+                    {s.estado === 'borrador' && <> <Tag cls="borrador" text="Borrador" /></>}
+                    {s.estado === 'secreto' && <> <Tag cls="secreto" text="Secreto" /></>}
+                  </div>
+                  <div className={`font-exo text-[12px] font-semibold tracking-[0.04em] mb-1 uppercase ${isPlanned ? 'text-txt-secondary' : 'text-txt-primary'}`}>
+                    {s.titulo || 'Sin título'}
+                  </div>
+                  <div className="text-[13px] text-txt-secondary leading-relaxed">
+                    {(s.resumen || '').substring(0, 180)}{(s.resumen || '').length > 180 ? '...' : ''}
+                  </div>
                 </div>
               </div>
             )

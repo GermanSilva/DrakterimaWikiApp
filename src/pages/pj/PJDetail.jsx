@@ -53,27 +53,31 @@ export default function PJDetail({ pj, onEdit, onDelete, onBack }) {
         )}
       </div>
 
-      <div className="pb-5 border-b border-border-base">
-        <div className="font-exo text-[10px] tracking-[0.3em] uppercase mb-1 font-medium" style={{ color: REGION_COLOR[pj.region] || '#6e6e6e' }}>
-          Personaje Jugador
+      <div className='flex w-full gap-4'>
+        <div className='flex-1 flex flex-col gap-2 h-fit'>
+          <div className="pb-5 border-b border-border-base">
+          <div className="font-exo text-[10px] tracking-[0.3em] uppercase mb-1 font-medium" style={{ color: REGION_COLOR[pj.region] || '#6e6e6e' }}>
+            Personaje Jugador
+          </div>
+          <div className="font-exo text-[26px] font-bold text-txt-primary uppercase">{pj.nombre}</div>
+          <div className="font-exo text-[16px] font-semibold uppercase text-txt-muted -mt-1">{pj.jugador}</div>
+          <div className="flex flex-wrap gap-1.5 mt-2.5">
+            <Tag cls="pj" text={`${pj.clase || '?'} - Nv. ${pj.nivel || 1}`} />
+            {pj.raza && <Tag cls="neutral" text={pj.raza} />}
+            {pj.region && <RegionTag region={pj.region} />}
+            {pj.alineamiento && <Tag cls="neutral" text={pj.alineamiento} />}
+            {pj.estado === 'borrador' && <Tag cls="borrador" text="Borrador" />}
+            {pj.estado === 'secreto' && <Tag cls="secreto" text="Secreto" />}
+          </div>
         </div>
-        <div className="font-exo text-[26px] font-bold text-txt-primary uppercase">{pj.nombre}</div>
-        <div className="font-exo text-[16px] font-semibold uppercase text-txt-muted -mt-1">{pj.jugador}</div>
-        <div className="flex flex-wrap gap-1.5 mt-2.5">
-          <Tag cls="pj" text={`${pj.clase || '?'} - Nv. ${pj.nivel || 1}`} />
-          {pj.raza && <Tag cls="neutral" text={pj.raza} />}
-          {pj.region && <RegionTag region={pj.region} />}
-          {pj.alineamiento && <Tag cls="neutral" text={pj.alineamiento} />}
-          {pj.estado === 'borrador' && <Tag cls="borrador" text="Borrador" />}
-          {pj.estado === 'secreto' && <Tag cls="secreto" text="Secreto" />}
         </div>
-      </div>
 
-      {pj.imagen_url && (
-        <div className="my-4 text-center">
-          <img src={pj.imagen_url} alt={pj.nombre} className="max-w-full max-h-[280px] rounded-lg object-cover border border-border-base" onError={e => e.target.style.display = 'none'} />
-        </div>
-      )}
+        {pj.imagen_url && (
+          <div className="my-4 text-center">
+            <img src={pj.imagen_url} alt={pj.nombre} className="max-w-full max-h-[280px] rounded-lg object-cover border border-border-base" onError={e => e.target.style.display = 'none'} />
+          </div>
+        )}
+      </div>
 
       {(visibleSections.length > 0 || hasDMNotes) && (
         <div className="sticky top-0 z-10 bg-bg-card border-b border-border-base mb-2 overflow-x-auto">
