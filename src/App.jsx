@@ -249,7 +249,9 @@ export default function App() {
     logoutPlayer,
     savePlayerNote,
     tryAccess,
-    openForm: (type, id = null) => { if (isDM) setForm({ type, id }) },
+    openForm: (type, id = null) => {
+      if (isDM || (type === 'pjs' && id === currentPlayer?.id)) setForm({ type, id })
+    },
     closeForm: () => setForm(null),
     showToast,
     sidebarOpen,

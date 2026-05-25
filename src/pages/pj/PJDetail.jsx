@@ -31,7 +31,8 @@ const SECTIONS = [
 ]
 
 export default function PJDetail({ pj, onEdit, onDelete, onBack }) {
-  const { isDM } = useApp()
+  const { isDM, currentPlayer } = useApp()
+  const isOwnPlayer = !isDM && currentPlayer?.id === pj.id
   const visibleSections = SECTIONS.filter(s => s.show(pj))
   const hasDMNotes = isDM && !!pj.notas
 
@@ -98,6 +99,9 @@ export default function PJDetail({ pj, onEdit, onDelete, onBack }) {
             <button className={btnSecondary} onClick={onDelete}>Eliminar</button>
             <button className={btnSecondary} onClick={onEdit}>Editar</button>
           </div>
+        )}
+        {isOwnPlayer && (
+          <button className={btnSecondary} onClick={onEdit}>Editar</button>
         )}
       </div>
 

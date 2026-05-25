@@ -5,14 +5,17 @@ import PJIdentityTab from './form/PJIdentityTab'
 import PJMechanicsTab from './form/PJMechanicsTab'
 import PJInventoryTab from './form/PJInventoryTab'
 
-const TABS = [
-  { id: 'identidad', label: 'Identidad' },
-  { id: 'mecanicas', label: 'Mecánicas' },
-  { id: 'inventario', label: 'Equipo & Rasgos' },
-]
-
 export default function PJForm({ item }) {
-  const { save, remove, closeForm, isDM } = useApp()
+  const { save, remove, closeForm, isDM, currentPlayer } = useApp()
+  const isOwnPlayer = !isDM && currentPlayer?.id === item?.id
+
+  const TABS = [
+    { id: 'identidad', label: 'Identidad' },
+    ...(!isOwnPlayer ? [
+      { id: 'mecanicas', label: 'Mecánicas' },
+      { id: 'inventario', label: 'Equipo & Rasgos' },
+    ] : []),
+  ]
   const [tab, setTab] = useState('identidad')
   const [newPlayerPwd, setNewPlayerPwd] = useState('')
   const [showPlayerPwd, setShowPlayerPwd] = useState(false)
@@ -175,6 +178,7 @@ export default function PJForm({ item }) {
         {tab === 'identidad' && (
           <PJIdentityTab
             f={f} setF={setF} isDM={isDM} item={item}
+            isOwnPlayer={isOwnPlayer}
             newPlayerPwd={newPlayerPwd} setNewPlayerPwd={setNewPlayerPwd}
             showPlayerPwd={showPlayerPwd} setShowPlayerPwd={setShowPlayerPwd}
             accessStatus={accessStatus} handleResetAccess={handleResetAccess}
@@ -185,7 +189,7 @@ export default function PJForm({ item }) {
       </div>
 
       <div className="flex gap-2.5 justify-end sticky bottom-0 z-[1] bg-bg-card px-8 py-4 pb-6 border-t border-border-base mt-3">
-        {item && <button className={btnDanger} onClick={() => remove('pjs', item.id)}>Eliminar</button>}
+        {item && !isOwnPlayer && <button className={btnDanger} onClick={() => remove('pjs', item.id)}>Eliminar</button>}
         <button className={btnSecondary} onClick={closeForm}>Cancelar</button>
         <button className={btnPrimary} onClick={handleSave}>Guardar</button>
       </div>

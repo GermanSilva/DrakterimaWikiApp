@@ -12,7 +12,7 @@ function Separator({ label }) {
   )
 }
 
-export default function PJIdentityTab({ f, setF, isDM, item, newPlayerPwd, setNewPlayerPwd, showPlayerPwd, setShowPlayerPwd, accessStatus, handleResetAccess }) {
+export default function PJIdentityTab({ f, setF, isDM, item, isOwnPlayer, newPlayerPwd, setNewPlayerPwd, showPlayerPwd, setShowPlayerPwd, accessStatus, handleResetAccess }) {
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
 
   return (
@@ -30,10 +30,12 @@ export default function PJIdentityTab({ f, setF, isDM, item, newPlayerPwd, setNe
         <div><label className={labelCls}>Alineamiento</label><input className={inputCls} value={f.alineamiento} onChange={set('alineamiento')} placeholder="Ej: Leal Bueno" /></div>
       </FormRow>
       <FormRow>
-        <div>
-          <label className={labelCls}>Nivel</label>
-          <input className={inputCls} type="number" value={f.nivel} onChange={set('nivel')} min="1" max="20" />
-        </div>
+        {!isOwnPlayer && (
+          <div>
+            <label className={labelCls}>Nivel</label>
+            <input className={inputCls} type="number" value={f.nivel} onChange={set('nivel')} min="1" max="20" />
+          </div>
+        )}
         <div>
           <label className={labelCls}>Región de Origen</label>
           <select className={inputCls} value={f.region} onChange={set('region')}>
@@ -42,7 +44,9 @@ export default function PJIdentityTab({ f, setF, isDM, item, newPlayerPwd, setNe
         </div>
       </FormRow>
       <FormRow>
-        <div><label className={labelCls}>Experiencia (XP)</label><input className={inputCls} type="number" value={f.experiencia} onChange={set('experiencia')} min="0" /></div>
+        {!isOwnPlayer && (
+          <div><label className={labelCls}>Experiencia (XP)</label><input className={inputCls} type="number" value={f.experiencia} onChange={set('experiencia')} min="0" /></div>
+        )}
         <div className="flex items-end">
           <div className="w-full">
             <label className={labelCls}>Imagen (URL externa)</label>
@@ -90,35 +94,7 @@ export default function PJIdentityTab({ f, setF, isDM, item, newPlayerPwd, setNe
       <FormGroup><label className={labelCls}>Relación con la Magralita</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={2} value={f.magralita} onChange={set('magralita')} /></FormGroup>
       {isDM && <FormGroup><label className={labelCls}>Notas del DM (privadas 🔒)</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={3} value={f.notas} onChange={set('notas')} /></FormGroup>}
 
-      {isDM && item && (
-        <FormGroup className="border-t border-border-base pt-[18px] !mb-0">
-          <label className={labelCls}>Acceso del jugador</label>
-          <div className="flex items-center gap-2 mb-2.5 text-[12px]">
-            <span className="text-txt-muted">Estado:</span>
-            {accessStatus}
-          </div>
-          <div className="relative">
-            <input
-              className={`${inputCls} pr-10`}
-              type={showPlayerPwd ? 'text' : 'password'}
-              placeholder="Nueva contraseña inicial…"
-              value={newPlayerPwd}
-              onChange={e => setNewPlayerPwd(e.target.value)}
-            />
-            <button type="button" className="absolute right-2.5 top-1/2 -translate-y-1/2 bg-transparent border-none cursor-pointer text-txt-muted hover:text-txt-primary" onClick={() => setShowPlayerPwd(v => !v)} tabIndex={-1}>
-              {showPlayerPwd ? <EyeOff size={15} /> : <Eye size={15} />}
-            </button>
-          </div>
-          {item.player_password && (
-            <div className="flex gap-2 mt-2">
-              <button className={btnSecondary} onClick={handleResetAccess} type="button">Quitar acceso</button>
-            </div>
-          )}
-          <p className="text-[11px] text-txt-muted mt-1.5 mb-0">Al setear una contraseña nueva el jugador deberá cambiarla en su primer acceso.</p>
-        </FormGroup>
-      )}
-
-      <EstadoField estado={f.estado} visibilidad={f.visibilidad} setF={setF} />
+      {isDM && <EstadoField estado={f.estado} visibilidad={f.visibilidad} setF={setF} />}
     </div>
   )
 }
