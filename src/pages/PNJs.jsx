@@ -43,28 +43,32 @@ function PNJDetailInline({ pnj, onBack }) {
         )}
       </div>
 
-      <div className="mb-8 pb-5 border-b border-border-base">
-        <div className="font-exo text-[10px] tracking-[0.3em] uppercase mb-1 font-medium" style={{ color: REGION_COLOR[pnj.region] || '#6e6e6e' }}>
-          PNJ · {pnj.rol || 'Personaje'}
+      <div className="flex w-full gap-4">
+        <div className="flex-1 flex flex-col gap-2 h-fit">
+          <div className="mb-8 pb-5 border-b border-border-base">
+            <div className="font-exo text-[10px] tracking-[0.3em] uppercase mb-1 font-medium" style={{ color: REGION_COLOR[pnj.region] || '#6e6e6e' }}>
+              PNJ · {pnj.rol || 'Personaje'}
+            </div>
+            <div className="font-exo text-[26px] font-bold text-txt-primary tracking-[0.04em] uppercase">
+              {pnj.nombre}
+            </div>
+            <div className="flex flex-wrap gap-1.5 mt-2.5">
+              {pnj.region && <RegionTag region={pnj.region} />}
+              {pnj.relacion && <RelacionTag relacion={pnj.relacion} />}
+              {pnj.faccion && <Tag cls="orden" text={pnj.faccion} />}
+              {pnj.estado === 'borrador' && <Tag cls="borrador" text="Borrador" />}
+              {pnj.estado === 'secreto' && <Tag cls="secreto" text="Secreto" />}
+            </div>
+          </div>
         </div>
-        <div className="font-exo text-[26px] font-bold text-txt-primary tracking-[0.04em] uppercase">
-          {pnj.nombre}
-        </div>
-        <div className="flex flex-wrap gap-1.5 mt-2.5">
-          {pnj.region && <RegionTag region={pnj.region} />}
-          {pnj.relacion && <RelacionTag relacion={pnj.relacion} />}
-          {pnj.faccion && <Tag cls="orden" text={pnj.faccion} />}
-          {pnj.estado === 'borrador' && <Tag cls="borrador" text="Borrador" />}
-          {pnj.estado === 'secreto' && <Tag cls="secreto" text="Secreto" />}
-        </div>
-      </div>
 
-      {pnj.imagen_url && (
-        <div className="my-4 text-center">
-          <img src={pnj.imagen_url} alt={pnj.nombre} className="max-w-full max-h-[280px] rounded-lg object-cover border border-border-base cursor-zoom-in" onError={e => e.target.style.display = 'none'} onClick={() => setLightbox(true)} />
-        </div>
-      )}
-      {lightbox && <ImageLightbox src={pnj.imagen_url} alt={pnj.nombre} onClose={() => setLightbox(false)} />}
+        {pnj.imagen_url && (
+          <div className="my-4 -mb-40 text-center">
+            <img src={pnj.imagen_url} alt={pnj.nombre} className="max-w-full max-h-[280px] rounded-lg object-cover border border-border-base cursor-zoom-in" onError={e => e.target.style.display = 'none'} onClick={() => setLightbox(true)} />
+          </div>
+        )}
+        {lightbox && <ImageLightbox src={pnj.imagen_url} alt={pnj.nombre} onClose={() => setLightbox(false)} />}
+      </div>
 
       <div className="grid grid-cols-2 gap-0 gap-x-8 max-md:grid-cols-1">
         <div>
