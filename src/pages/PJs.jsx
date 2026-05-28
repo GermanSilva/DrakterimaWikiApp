@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useApp } from '../AppContext'
 import { isVisible } from '../helpers'
 import { PageHeader, EmptyState } from '../components/Shared'
@@ -7,9 +7,13 @@ import PJCard from './pj/PJCard'
 import PJDetail from './pj/PJDetail'
 
 export default function PJs() {
-  const { db, openForm, remove, isDM, currentPlayer } = useApp()
-  const [selectedId, setSelectedId] = useState(null)
+  const { db, openForm, remove, isDM, currentPlayer, pendingDetail, consumePendingDetail } = useApp()
+  const [selectedId, setSelectedId] = useState(() => pendingDetail?.id ?? null)
   const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    if (pendingDetail?.id != null) consumePendingDetail()
+  }, [])
 
   if (selectedId !== null) {
     const pj = db.pjs.find(p => p.id === selectedId)

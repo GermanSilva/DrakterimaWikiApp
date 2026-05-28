@@ -1,4 +1,5 @@
-import { ABILITY_SCORES, sectionTitleCls } from '../pjConstants'
+import { ABILITY_SCORES } from '../pjConstants'
+import { sectionTitleCls } from '../../../constants'
 import { abilityMod, signedBonus, passivePerception, suggestedProfBonus } from '../../../helpers/pjCalc'
 
 function AbilityBox({ label, base }) {

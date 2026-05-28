@@ -1,78 +1,33 @@
-import { useState } from 'react'
 import { useApp } from '../AppContext'
 import { RelacionTag } from '../components/Shared'
-import { isVisible } from '../helpers'
-import { Scroll, Shield, Users, Map, Landmark, BookOpen } from 'lucide-react'
-import { firestore } from '../firebase'
-import { writeBatch, doc } from 'firebase/firestore'
-import { COLLECTION_LETTER, findEntity } from '../components/WikiText'
+import { isVisible, plainText } from '../helpers'
+import { Scroll, Shield, Users, Map, Landmark, BookOpen, Gem } from 'lucide-react'
 
-const MIGRATION_FIELDS = {
-  sesiones:  ['resumen', 'secreto'],
-  pjs:       ['trasfondo', 'notas'],
-  pnjs:      ['descripcion', 'notas'],
-  lugares:   ['descripcion', 'notas'],
-  facciones: ['descripcion', 'notas'],
-  lore:      ['contenido', 'notas'],
-  items:     ['descripcion', 'notas'],
-}
+const ARTICLE_COLLECTIONS = [
+  { key: 'lugares', label: 'Lugar', Icon: Map },
+  { key: 'facciones', label: 'Facción', Icon: Landmark },
+  { key: 'lore', label: 'Lore', Icon: BookOpen },
+  { key: 'items', label: 'Ítem', Icon: Gem },
+]
 
-async function migrateWikiLinks(db, showToast) {
-  let migrated = 0
-  let unresolved = 0
-  const batch = writeBatch(firestore)
-  let batchHasChanges = false
+function entityName(e) { return e.nombre || e.titulo || `#${e.id}` }
 
-  for (const [coll, fields] of Object.entries(MIGRATION_FIELDS)) {
-    for (const entity of db[coll] || []) {
-      let changed = false
-      const updated = { ...entity }
-
-      for (const field of fields) {
-        if (!updated[field]) continue
-        updated[field] = updated[field].replace(/\[\[\{(\d+)\}([^\]]*)\]\]/g, (match, idStr, text) => {
-          const id = parseInt(idStr, 10)
-          const found = findEntity(db, id)
-          if (found) {
-            migrated++
-            changed = true
-            return `[[{${id}${COLLECTION_LETTER[found.page]}}${text}]]`
-          }
-          console.warn(`Wiki-link migration: ID ${id} no encontrado en ninguna colección`)
-          unresolved++
-          return match
-        })
-      }
-
-      if (changed) {
-        batch.set(doc(firestore, coll, String(entity.id)), updated)
-        batchHasChanges = true
-      }
-    }
-  }
-
-  if (batchHasChanges) await batch.commit()
-
-  const msg = unresolved > 0
-    ? `${migrated} enlaces migrados. ${unresolved} sin resolver (ver consola).`
-    : migrated > 0
-      ? `${migrated} enlaces migrados correctamente.`
-      : 'No se encontraron enlaces para migrar.'
-  showToast(msg)
+function formatDate(iso) {
+  if (!iso) return ''
+  return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
 const STAT_ITEMS = [
-  { key: 'sesiones', Icon: Scroll,    label: 'Sesiones' },
-  { key: 'pjs',      Icon: Shield,    label: 'Jugadores' },
-  { key: 'pnjs',     Icon: Users,     label: 'PNJs' },
-  { key: 'lugares',  Icon: Map,       label: 'Lugares' },
-  { key: 'facciones',Icon: Landmark,  label: 'Facciones' },
-  { key: 'lore',     Icon: BookOpen,  label: 'Lore' },
+  { key: 'sesiones', Icon: Scroll, label: 'Sesiones' },
+  { key: 'pjs', Icon: Shield, label: 'Jugadores' },
+  { key: 'pnjs', Icon: Users, label: 'PNJs' },
+  { key: 'lugares', Icon: Map, label: 'Lugares' },
+  { key: 'facciones', Icon: Landmark, label: 'Facciones' },
+  { key: 'lore', Icon: BookOpen, label: 'Lore' },
 ]
 
 export default function Dashboard() {
-  const { db, navigate, goToDetail, isDM, currentPlayer, showToast } = useApp()
-  const [migrating, setMigrating] = useState(false)
+  const { db, navigate, goToDetail, isDM, currentPlayer } = useApp()
   const visibleSesiones = db.sesiones.filter(s => isVisible(s, isDM, currentPlayer))
   const lastSesion = visibleSesiones.length ? visibleSesiones[visibleSesiones.length - 1] : null
   const nextSesion = visibleSesiones.find(s => !s.logros?.trim()) ?? null
@@ -136,33 +91,28 @@ export default function Dashboard() {
               <div className="text-[13px] text-txt-secondary leading-[1.7]">
                 <span className="text-txt-muted text-[11px] tracking-[0.1em] uppercase font-exo">Ganchos</span>
                 <br />
-                {nextSesion.ganchos.substring(0, 280)}{nextSesion.ganchos.length > 280 ? '…' : ''}
+                {(() => { const t = plainText(nextSesion.ganchos); return t.length > 280 ? t.substring(0, 280) + '…' : t })()}
               </div>
             )}
           </div>
         </>
       )}
 
-      {isDM && (
-        <div className="mb-6 flex justify-end">
-          <button
-            className="inline-flex items-center gap-1.5 font-exo text-[11px] font-semibold tracking-[0.1em] uppercase px-4 py-2 cursor-pointer transition-all bg-transparent text-txt-muted border border-border-light hover:border-accent-dim hover:text-txt-primary disabled:opacity-40 disabled:cursor-not-allowed"
-            disabled={migrating}
-            onClick={async () => {
-              setMigrating(true)
-              try {
-                await migrateWikiLinks(db, showToast)
-              } catch (e) {
-                console.error('Error en la migración:', e)
-                showToast('Error en la migración. Ver consola.')
-              } finally {
-                setMigrating(false)
-              }
-            }}
+      {lastSesion && (
+        <>
+          <Divider>Última Sesión</Divider>
+          <div
+            className="bg-bg-card border border-border-base border-l-[3px] border-l-accent-dim px-[22px] py-[18px] mb-3.5 cursor-pointer"
+            onClick={() => navigate('sesiones')}
           >
-            {migrating ? 'Migrando…' : 'Migrar wiki-links'}
-          </button>
-        </div>
+            <div className="font-exo text-[12px] font-semibold tracking-[0.05em] text-txt-primary mb-2 uppercase">
+              📜 {lastSesion.titulo || `Sesión ${lastSesion.numero}`}
+            </div>
+            <div className="text-[13px] text-txt-secondary leading-[1.7]">
+              {(() => { const t = plainText(lastSesion.resumen) || 'Sin resumen.'; return t.length > 220 ? t.substring(0, 220) + '…' : t })()}
+            </div>
+          </div>
+        </>
       )}
 
       {recentPNJs.length > 0 && (
@@ -172,7 +122,7 @@ export default function Dashboard() {
             {recentPNJs.map(p => (
               <div
                 key={p.id}
-                className="flex-1 min-w-[160px] max-w-[240px] bg-bg-card border border-border-base px-4 py-3.5 cursor-pointer transition-colors hover:border-accent-dim hover:bg-bg-card-hover"
+                className="flex-1 min-w-[160px] max-w-[240px] bg-bg-card border border-border-base px-4 py-3.5 cursor-pointer transition-colors hover:border-accent-dim hover:bg-bg-card-hover "
                 onClick={() => goToDetail('pnjs', p.id)}
               >
                 <div className="font-exo text-[13px] font-semibold text-txt-primary tracking-[0.04em] mb-1">
@@ -190,37 +140,52 @@ export default function Dashboard() {
         </>
       )}
 
-      <Divider>Lore del Mundo</Divider>
+      {(() => {
+        const articles = ARTICLE_COLLECTIONS.flatMap(({ key, label, Icon }) =>
+          (db[key] || [])
+            .filter(e => isVisible(e, isDM, currentPlayer) && e.createdAt)
+            .map(e => ({ ...e, _coll: key, _label: label, _Icon: Icon }))
+        ).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 6)
 
-      <LoreBlock title="🏔️ Regiones de Drakterima">
-        <strong className="text-txt-primary">Magral</strong> · Corazón fértil del sur. Capital: Genesia. Gobernada por la Orden de Argan.<br />
-        <strong className="text-txt-primary">Nezor</strong> · Desierto del este. Organizado en clanes y confederaciones de caudillos del Culto de Ragon.<br />
-        <strong className="text-txt-primary">Tierras Heladas</strong> · Norte implacable. Dominado por los Goliath. Independientes de Magral.<br />
-        <strong className="text-txt-primary">Islas Pétreas</strong> · Archipiélago suroeste. Neutral. Industria minera, metalúrgica y naval.<br />
-        <strong className="text-txt-primary">Kardevir</strong> · Ciudad del Paso. Centro geográfico. Sede del Gremio de Aventureros.
-      </LoreBlock>
-
-      <LoreBlock title="💎 La Magralita — Sangre del Mundo" accent>
-        Mineral mágico de alto valor estratégico. Potencia objetos arcanos y estabiliza conjuros complejos. Su manipulación indebida genera inestabilidad peligrosa. Controlar sus yacimientos implica poder económico, militar y político.
-      </LoreBlock>
-
-      {lastSesion && (
-        <>
-          <Divider>Última Sesión</Divider>
-          <div
-            className="bg-bg-card border border-border-base border-l-[3px] border-l-accent-dim px-[22px] py-[18px] mb-3.5 cursor-pointer"
-            onClick={() => navigate('sesiones')}
-          >
-            <div className="font-exo text-[12px] font-semibold tracking-[0.05em] text-txt-primary mb-2 uppercase">
-              📜 {lastSesion.titulo || `Sesión ${lastSesion.numero}`}
-            </div>
-            <div className="text-[13px] text-txt-secondary leading-[1.7]">
-              {(lastSesion.resumen || 'Sin resumen.').substring(0, 220)}
-              {lastSesion.resumen?.length > 220 ? '...' : ''}
-            </div>
-          </div>
-        </>
-      )}
+        return (
+          <>
+            <Divider>Últimos Artículos</Divider>
+            {articles.length === 0 ? (
+              <div className="text-[13px] text-txt-muted italic text-center py-4">
+                Sin artículos recientes. Ejecutá "Actualizar timestamps" en Zona DM para ver los existentes.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2 mb-4">
+                {articles.map(e => {
+                  const Icon = e._Icon
+                  const preview = plainText(e.descripcion)
+                  return (
+                    <div
+                      key={`${e._coll}-${e.id}`}
+                      className="bg-bg-card border border-border-base px-[18px] py-[14px] cursor-pointer transition-all hover:border-accent-dim hover:bg-bg-card-hover"
+                      onClick={() => goToDetail(e._coll, e.id)}
+                    >
+                      <div className="flex items-center justify-between gap-3 mb-1">
+                        <div className="flex items-center gap-1.5 text-txt-muted">
+                          <Icon size={11} />
+                          <span className="font-exo text-[9px] font-semibold tracking-[0.2em] uppercase">{e._label}</span>
+                        </div>
+                        <span className="font-exo text-[10px] text-txt-muted flex-shrink-0">{formatDate(e.createdAt)}</span>
+                      </div>
+                      <div className="font-exo text-[13px] font-semibold text-txt-primary tracking-[0.03em]">
+                        {entityName(e)}
+                      </div>
+                      {preview && (
+                        <div className="text-[12px] text-txt-secondary mt-0.5 line-clamp-1">{preview}</div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </>
+        )
+      })()}
     </div>
   )
 }
@@ -229,19 +194,6 @@ function Divider({ children }) {
   return (
     <div className="flex items-center gap-3 my-6 text-txt-muted font-exo text-[10px] font-medium tracking-[0.2em] uppercase before:content-[''] before:flex-1 before:h-px before:bg-border-base after:content-[''] after:flex-1 after:h-px after:bg-border-base">
       {children}
-    </div>
-  )
-}
-
-function LoreBlock({ title, children, accent = false }) {
-  return (
-    <div className={`bg-bg-card border border-border-base border-l-[3px] px-[22px] py-[18px] mb-3.5 ${accent ? 'border-l-accent' : 'border-l-accent-dim'}`}>
-      <div className="font-exo text-[12px] font-semibold tracking-[0.05em] text-txt-primary mb-2 uppercase">
-        {title}
-      </div>
-      <div className="text-[13px] text-txt-secondary leading-[1.7]">
-        {children}
-      </div>
     </div>
   )
 }

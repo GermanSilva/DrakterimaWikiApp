@@ -1,5 +1,5 @@
 import WikiText from '../../../components/WikiText'
-import { sectionTitleCls, detailTextCls, detailSectionCls } from '../pjConstants'
+import { sectionTitleCls, detailTextCls, detailSectionCls } from '../../../constants'
 
 const PHYSICAL_FIELDS = [
   { key: 'edad', label: 'Edad' },

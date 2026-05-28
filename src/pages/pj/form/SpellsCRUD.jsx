@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { labelCls, inputCls, btnSecondary } from '../../../components/FormModal'
+import { labelCls, inputCls, btnSecondary } from '../../../constants'
 
 const EMPTY = { nombre: '', nivel: 0 }
 const LEVELS = ['Truco (0)', '1', '2', '3', '4', '5', '6', '7', '8', '9']

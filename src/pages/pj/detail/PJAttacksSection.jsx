@@ -1,4 +1,4 @@
-import { sectionTitleCls, detailSectionCls } from '../pjConstants'
+import { sectionTitleCls, detailSectionCls } from '../../../constants'
 
 export default function PJAttacksSection({ pj }) {
   return (

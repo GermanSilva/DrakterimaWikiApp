@@ -1,39 +1,45 @@
-import { useState, useEffect } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useApp } from '../AppContext'
 import { Tag, PageHeader, EmptyState } from '../components/Shared'
-import { isVisible } from '../helpers'
+import { DateTimeFormat, isVisible, plainText } from '../helpers'
 import PlayerNotes from '../components/PlayerNotes'
 import WikiText, { COLLECTION_LETTER } from '../components/WikiText'
 import ImageLightbox from '../components/ImageLightbox'
+import LazyImg from '../components/LazyImg'
 import { Scroll } from 'lucide-react'
+import { sectionTitleCls, detailTextCls, btnSecondary } from '../constants'
 
-const sectionTitleCls = 'font-exo text-[9px] font-semibold tracking-[0.25em] text-accent-dim uppercase mb-3.5'
-const detailTextCls = 'text-sm leading-7 text-txt-secondary'
-const btnSecondary = 'inline-flex items-center gap-1.5 font-exo text-[11px] font-semibold tracking-[0.1em] uppercase px-4 py-2 cursor-pointer transition-all bg-transparent text-txt-secondary border border-border-light hover:border-accent-dim hover:text-txt-primary'
-
-function renderResumen(text) {
-  if (!text) return null
-  return text.split('\n').map((line, i) => {
-    if (/^\d+\./.test(line.trim())) {
-      return (
-        <div key={i} className="py-1.5 pl-3.5 border-l-2 border-border-base mb-1.5 text-sm text-txt-secondary hover:border-l-accent-dim transition-colors">
-          <WikiText text={line} />
-        </div>
-      )
-    }
-    return <span key={i}><WikiText text={line} /><br /></span>
-  })
-}
 
 function SesionDetailInline({ sesion, onBack }) {
   const { openForm, isDM } = useApp()
   const isPlanned = !sesion.logros?.trim()
   const [lightbox, setLightbox] = useState(false)
+  const backBarRef = useRef(null)
+  const nameRef = useRef(null)
+  const [showNameInHeader, setShowNameInHeader] = useState(false)
+  const HEADER_H = 60
+  useEffect(() => {
+    if (!nameRef.current) return
+    const backBarH = backBarRef.current?.offsetHeight ?? 0
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowNameInHeader(!entry.isIntersecting),
+      { threshold: 0, rootMargin: `-${HEADER_H + backBarH}px 0px 0px 0px` }
+    )
+    observer.observe(nameRef.current)
+    return () => observer.disconnect()
+  }, [])
+  const icon = <Scroll size={18} className="inline mr-1 text-accent-bright" />
 
   return (
     <div>
-      <div className="flex justify-between mb-7 sticky top-[60px] z-10 bg-[#060606] py-3 -mx-10 px-10 max-md:-mx-5 max-md:px-5">
+      <div ref={backBarRef} className="flex justify-between items-center mb-7 sticky top-[60px] z-10 bg-[#060606] py-3 -mx-10 px-10 max-md:-mx-5 max-md:px-5">
         <button className={btnSecondary} onClick={onBack}>← Volver</button>
+        <span
+          className="flex-1 font-exo text-[13px] font-bold uppercase tracking-[0.1em] text-txt-primary leading-none truncate px-4 pointer-events-none"
+          style={{ opacity: showNameInHeader ? 1 : 0, transition: 'opacity 0.2s ease' }}
+        >
+          {icon}{sesion.titulo || 'Sin título'}
+        </span>
         {isDM && (
           <div className="flex items-center gap-2">
             <span className="font-mono text-[11px] text-txt-muted select-all cursor-text opacity-50" title="ID para wiki-link">{`{${sesion.id}${COLLECTION_LETTER['sesiones']}}`}</span>
@@ -42,33 +48,42 @@ function SesionDetailInline({ sesion, onBack }) {
         )}
       </div>
 
-      <div className="mb-8 pb-5 border-b border-border-base flex w-full gap-4">
-        <div className="flex-1">
-          <div className="font-exo text-[10px] tracking-[0.3em] text-txt-muted uppercase mb-1 font-medium">
-            Sesión {sesion.numero}
-            {sesion.fecha && <> · {sesion.fecha}</>}
-            {isPlanned && (
-              <span className="font-exo text-[9px] font-semibold tracking-[0.15em] uppercase text-txt-muted border border-border-light px-2 py-0.5 ml-2.5 align-middle">
-                Planificada
-              </span>
-            )}
-            {sesion.estado === 'borrador' && <> <Tag cls="borrador" text="Borrador" /></>}
-            {sesion.estado === 'secreto' && <> <Tag cls="secreto" text="Secreto" /></>}
+      <div className="flex w-full gap-4 max-sm:flex-col">
+        <div className='flex-1 flex flex-col gap-2 h-fit'>
+          <div className="pb-4 border-b border-border-base">
+            <div className="font-exo text-[10px] tracking-[0.3em] text-txt-muted uppercase mb-1 font-medium">
+              Sesión {sesion.numero}
+              {sesion.fecha && <> · {sesion.fecha}</>}
+              {isPlanned && (
+                <span className="font-exo text-[9px] font-semibold tracking-[0.15em] uppercase text-txt-muted border border-border-light px-2 py-0.5 ml-2.5 align-middle">
+                  Planificada
+                </span>
+              )}
+              {sesion.estado === 'borrador' && <> <Tag cls="borrador" text="Borrador" /></>}
+              {sesion.estado === 'secreto' && <> <Tag cls="secreto" text="Secreto" /></>}
+            </div>
+            <div ref={nameRef} className="font-exo text-[26px] font-bold text-txt-primary tracking-[0.04em] uppercase">
+              {sesion.titulo || 'Sin título'}
+            </div>
           </div>
-          <div className="font-exo text-[26px] font-bold text-txt-primary tracking-[0.04em] uppercase">
-            {sesion.titulo || 'Sin título'}
+
+          <div>
+            <div className={'text-txt-muted text-xs flex flex-wrap max-sm:flex-col'}>
+              <div className="flex items-center gap-1"><span className="font-bold text-txt-secondary">Creado:</span> <span className="whitespace-nowrap">{DateTimeFormat(sesion.createdAt)}</span></div>
+              <span className="mx-4 text-accent-dim max-sm:hidden">♦</span>
+              <div className="flex items-center gap-1"><span className="font-bold text-txt-secondary">Última modificación:</span> <span className="whitespace-nowrap">{DateTimeFormat(sesion.updatedAt)}</span></div>
+            </div>
           </div>
         </div>
+
         {sesion.imagen_url && (
-          <div className="my-1 shrink-0 max-w-[200px]">
-            <img
-              src={sesion.imagen_url}
-              alt={sesion.titulo || ''}
-              className="max-w-full max-h-[120px] rounded-lg object-cover border border-border-base cursor-zoom-in"
-              onError={e => e.target.style.display = 'none'}
-              onClick={() => setLightbox(true)}
-            />
-          </div>
+          <LazyImg
+            src={sesion.imagen_url}
+            alt={sesion.titulo || ''}
+            className="max-w-full max-h-[120px] rounded-lg object-cover border border-border-base cursor-zoom-in"
+            containerCls="my-1 shrink-0 max-w-[200px] h-[120px] flex items-center justify-center"
+            onClick={() => setLightbox(true)}
+          />
         )}
         {lightbox && <ImageLightbox src={sesion.imagen_url} alt={sesion.titulo || ''} onClose={() => setLightbox(false)} />}
       </div>
@@ -76,7 +91,7 @@ function SesionDetailInline({ sesion, onBack }) {
       {sesion.resumen && (
         <div className="mb-7 pb-6 border-b border-border-base">
           <div className={sectionTitleCls}>Resumen</div>
-          <div className={detailTextCls}>{renderResumen(sesion.resumen)}</div>
+          <div className={detailTextCls}><WikiText text={sesion.resumen} /></div>
         </div>
       )}
 
@@ -146,6 +161,8 @@ export default function Sesiones() {
                       src={s.imagen_url}
                       alt={s.titulo || ''}
                       className="w-full h-full object-cover"
+                      loading="lazy"
+                      decoding="async"
                       onError={e => e.target.style.display = 'none'}
                     />
                   )}
@@ -160,7 +177,7 @@ export default function Sesiones() {
                     {s.titulo || 'Sin título'}
                   </div>
                   <div className="text-[13px] text-txt-secondary leading-relaxed">
-                    {(s.resumen || '').substring(0, 180)}{(s.resumen || '').length > 180 ? '...' : ''}
+                    {(() => { const t = plainText(s.resumen); return t.length > 180 ? t.substring(0, 180) + '…' : t })()}
                   </div>
                 </div>
               </div>

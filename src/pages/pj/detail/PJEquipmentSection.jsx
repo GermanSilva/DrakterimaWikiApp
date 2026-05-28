@@ -1,4 +1,4 @@
-import { sectionTitleCls, detailSectionCls } from '../pjConstants'
+import { sectionTitleCls, detailSectionCls } from '../../../constants'
 
 const CURRENCY = [
   { key: 'pp', label: 'PP' },

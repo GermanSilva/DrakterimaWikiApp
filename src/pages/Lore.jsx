@@ -1,24 +1,39 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useApp } from '../AppContext'
 import { Tag, PageHeader, FilterPills, EmptyState } from '../components/Shared'
-import { isVisible } from '../helpers'
+import { isVisible, plainText } from '../helpers'
 import PlayerNotes from '../components/PlayerNotes'
 import WikiText, { COLLECTION_LETTER } from '../components/WikiText'
 import { BookOpen, Lock } from 'lucide-react'
-
-const sectionTitleCls = 'font-exo text-[9px] font-semibold tracking-[0.25em] text-accent-dim uppercase mb-2'
-const detailTextCls = 'text-sm leading-7 text-txt-secondary'
-const detailSectionCls = 'mt-5 pt-4 border-t border-border-base'
-const dmSectionCls = 'mt-5 pt-4 border-t-2 border-t-accent'
-const dmTitleCls = 'font-exo text-[9px] font-semibold tracking-[0.25em] text-accent-bright uppercase mb-2'
-const btnSecondary = 'inline-flex items-center gap-1.5 font-exo text-[11px] font-semibold tracking-[0.1em] uppercase px-4 py-2 cursor-pointer transition-all bg-transparent text-txt-secondary border border-border-light hover:border-accent-dim hover:text-txt-primary'
+import { sectionTitleCls, detailTextCls, detailSectionCls, dmSectionCls, dmTitleCls, btnSecondary } from '../constants'
 
 function LoreDetailInline({ entrada, onBack }) {
   const { openForm, isDM } = useApp()
+  const backBarRef = useRef(null)
+  const nameRef = useRef(null)
+  const [showNameInHeader, setShowNameInHeader] = useState(false)
+  const HEADER_H = 60
+  useEffect(() => {
+    if (!nameRef.current) return
+    const backBarH = backBarRef.current?.offsetHeight ?? 0
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowNameInHeader(!entry.isIntersecting),
+      { threshold: 0, rootMargin: `-${HEADER_H + backBarH}px 0px 0px 0px` }
+    )
+    observer.observe(nameRef.current)
+    return () => observer.disconnect()
+  }, [])
+  const icon = <BookOpen size={18} className="inline mr-1 text-accent-bright" />
   return (
     <div>
-      <div className="flex justify-between mb-7 sticky top-[60px] z-10 bg-[#060606] py-3 -mx-10 px-10 max-md:-mx-5 max-md:px-5">
+      <div ref={backBarRef} className="flex justify-between items-center mb-7 sticky top-[60px] z-10 bg-[#060606] py-3 -mx-10 px-10 max-md:-mx-5 max-md:px-5">
         <button className={btnSecondary} onClick={onBack}>← Volver</button>
+        <span
+          className="flex-1 font-exo text-[13px] font-bold uppercase tracking-[0.1em] text-txt-primary leading-none truncate px-4 pointer-events-none"
+          style={{ opacity: showNameInHeader ? 1 : 0, transition: 'opacity 0.2s ease' }}
+        >
+          {icon}{entrada.titulo}
+        </span>
         {isDM && (
           <div className="flex items-center gap-2">
             <span className="font-mono text-[11px] text-txt-muted select-all cursor-text opacity-50" title="ID para wiki-link">{`{${entrada.id}${COLLECTION_LETTER['lore']}}`}</span>
@@ -31,7 +46,7 @@ function LoreDetailInline({ entrada, onBack }) {
         <div className="font-exo text-[10px] tracking-[0.3em] text-txt-muted uppercase mb-1 font-medium">
           Lore · {entrada.categoria || 'General'}
         </div>
-        <div className="font-exo text-[26px] font-bold text-txt-primary tracking-[0.04em] uppercase">
+        <div ref={nameRef} className="font-exo text-[26px] font-bold text-txt-primary tracking-[0.04em] uppercase">
           {entrada.titulo}
         </div>
         <div className="flex flex-wrap gap-1.5 mt-2.5">
@@ -49,7 +64,7 @@ function LoreDetailInline({ entrada, onBack }) {
       )}
       {isDM && entrada.notas && (
         <div className={dmSectionCls}>
-          <div className={dmTitleCls}><Lock size={10} className="inline mr-1" />Secretos DM</div>
+          <div className={dmTitleCls}><Lock size={12} className="inline mr-1" />Secretos DM</div>
           <div className={detailTextCls}><WikiText text={entrada.notas} /></div>
         </div>
       )}
@@ -59,9 +74,13 @@ function LoreDetailInline({ entrada, onBack }) {
 }
 
 export default function Lore() {
-  const { db, openForm, isDM, currentPlayer } = useApp()
+  const { db, openForm, isDM, currentPlayer, pendingDetail, consumePendingDetail } = useApp()
   const [filtro, setFiltro] = useState('todos')
-  const [selectedId, setSelectedId] = useState(null)
+  const [selectedId, setSelectedId] = useState(() => pendingDetail?.id ?? null)
+
+  useEffect(() => {
+    if (pendingDetail?.id != null) consumePendingDetail()
+  }, [])
 
   if (selectedId !== null) {
     const entrada = db.lore.find(l => l.id === selectedId)
@@ -113,7 +132,7 @@ export default function Lore() {
                 {l.estado === 'secreto' && <Tag cls="secreto" text="Secreto" />}
               </div>
               <div className="text-[13px] text-txt-secondary leading-relaxed italic line-clamp-3">
-                {l.descripcion || ''}
+                {plainText(l.descripcion)}
               </div>
             </div>
           ))}

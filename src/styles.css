@@ -30,6 +30,7 @@
   ::-webkit-scrollbar-track { background: #060606; }
   ::-webkit-scrollbar-thumb { background: #282828; }
   ::-webkit-scrollbar-thumb:hover { background: #991b1b; }
+  ::-webkit-resizer { background: #ececec; }
 }
 
 @layer components {
@@ -41,4 +42,19 @@
     width: 1px;
     background: #282828;
   }
+
+  .skeleton-shimmer {
+    background: linear-gradient(90deg, #111111 25%, #1e1e1e 50%, #111111 75%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.4s infinite linear;
+  }
+}
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% center; }
+  100% { background-position: -200% center; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer { animation: none; }
 }

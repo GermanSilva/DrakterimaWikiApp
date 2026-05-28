@@ -2,6 +2,18 @@
 
 Este archivo provee orientación a Claude Code (claude.ai/code) cuando trabaja en este repositorio.
 
+## Preferencias de workflow (superpowers)
+
+> **IMPORTANTE — estas reglas sobreescriben el comportamiento por defecto de cualquier skill de superpowers, incluyendo brainstorming, writing-plans y subagent-driven-development. No preguntar, no ofrecer alternativas, aplicar directamente.**
+
+Cuando se usa el flujo brainstorming → writing-plans → ejecución de superpowers:
+
+- **Commits intermedios + squash final**: cada tarea de implementación hace su propio commit (facilita code reviews con `git diff`). Al terminar todas las tareas, hacer `git reset --soft <base-sha>` para colapsar todos los commits en uno solo, luego el commit final único. El spec y el plan se incluyen en ese commit final.
+- **Auto-aprobar specs**: no pedir al usuario que revise el spec escrito; pasar directamente a writing-plans sin esperar confirmación.
+- **Siempre subagentes**: al terminar writing-plans, invocar directamente `superpowers:subagent-driven-development` sin ofrecer opciones. No preguntar "¿cuál preferís?".
+- **Permisos auto-aprobados**: los subagentes tienen todos los permisos aprobados automáticamente. Los permisos de lectura están aprobados. Los permisos de comandos Bash de comprobación o búsqueda de archivos o código también están aprobados. Los permisos de escritura y ejecución de comandos que introducen cambios solo pueden ser dados por el usuario. En caso de duda consultar con el usuario. No asumir nada.
+- **Finalización**: Siempre terminar la implementación manteniendo la rama como está, sin ofrecer opciones alternativas de finalización.
+
 ## Comandos
 
 ```bash
@@ -30,7 +42,7 @@ El deploy se dispara automáticamente al pushear a `main` vía `.github/workflow
 Los datos viven en **Firebase Firestore**. La app usa `onSnapshot` para sincronización en tiempo real entre múltiples pestañas/usuarios sin necesidad de recargar.
 
 - **`src/firebase.js`**: inicializa Firestore con las 6 vars `VITE_FIREBASE_*` y habilita persistencia offline con `enableMultiTabIndexedDbPersistence`.
-- **Colecciones Firestore**: `sesiones`, `pjs`, `pnjs`, `lugares`, `facciones`, `lore`, `items`, `player_notes`. Los documentos usan el `id` numérico convertido a string como doc ID.
+- **Colecciones Firestore**: `sesiones`, `pjs`, `pnjs`, `lugares`, `facciones`, `lore`, `items`, `player_notes`, `login_logs`. Los documentos usan el `id` numérico convertido a string como doc ID.
 - **Seed**: al primer load, `seedCollectionIfEmpty(collName, seedData)` comprueba si la colección está vacía y la rellena con datos iniciales usando `writeBatch`.
 - Sin Firebase Storage — las imágenes se referencian por URL externa (`imagen_url`, campo de texto).
 
@@ -92,9 +104,21 @@ Los formularios abren en `FormModal` (modal centrado). El título y las acciones
 
 Cada formulario incluye el componente `EstadoField` para controlar la visibilidad de la entidad.
 
+### Constantes de estilo (`constants.js`)
+
+`src/constants.js` exporta clases Tailwind reutilizables: `sectionTitleCls`, `detailTextCls`, `detailSectionCls`, `dmSectionCls`, `dmTitleCls`, `labelCls`, `inputCls`, `btnPrimary`, `btnDanger`, `btnSecondary`, `REGION_COLOR`. Usar en lugar de duplicar clases inline.
+
+### Zona DM
+
+`src/pages/ZonaDM.jsx` es una página visible solo para el DM. Contiene: exportar/importar JSON, registro de accesos de jugadores (`login_logs` collection en Firestore) y mantenimiento (backfill de timestamps). Al agregar nuevas tareas admin, hacerlas aquí.
+
 ### Imágenes
 
-Todas las entidades que muestran imagen usan un campo `imagen_url` (texto con URL externa). Los formularios tienen un input de tipo `url` con preview en tiempo real. En las vistas de detalle se muestra la imagen con `onError` para ocultarla si la URL es inválida.
+Todas las entidades que muestran imagen usan un campo `imagen_url` (texto con URL externa). Los formularios tienen un input de tipo `url` con preview en tiempo real. En las vistas de detalle se renderiza con `LazyImg` (skeleton + lazy loading); hacer click abre `ImageLightbox`.
+
+### Edición por jugadores
+
+Los jugadores pueden editar campos de identidad de su propio PJ. `isOwnPlayer = !isDM && currentPlayer?.id === pj.id` determina si mostrar el botón de editar.
 
 ### Autenticación
 
@@ -112,15 +136,47 @@ Varios tipos tienen campos privados (`notas`, `secreto`) visualmente diferenciad
 Los campos de texto largo en vistas de detalle soportan wiki-links internos. Sintaxis:
 
 ```
-[[{id}Texto del enlace]]
+[[{NL}Texto del enlace]]
 ```
 
-Ejemplo: `[[{3}Magrales del este]]` se renderiza como un enlace clickeable con el texto "Magrales del este" que navega al artículo con `id=3` en cualquier colección.
+Donde `N` es el id numérico y `L` es la letra de colección (S, P, N, G, F, L, I).
+Ejemplo: `[[{3G}Magrales del este]]` navega al lugar con id 3.
+Links sin letra (`[[{3}Texto]]`) se renderizan como formato inválido (sin navegación).
+Las letras canónicas están en `wikiHelpers.js` → `COLLECTION_LETTER`.
 
-- El componente `WikiText` (`src/components/WikiText.jsx`) parsea el texto, busca el `id` en todas las colecciones (`COLLECTIONS`), y llama a `goToDetail(page, id)` al hacer click.
-- Si el artículo no existe o no es visible, el texto se muestra con estilo `wiki-link-broken` (atenuado, sin acción).
+`WikiText` también parsea Markdown básico:
+- Bloques: `# ## ###` headings, `- *` listas sin orden, `1.` listas numeradas, `---` separador horizontal.
+- Inline: `**bold**`, `*italic*`, `***bold-italic***`, `[[https://...]]` imagen inline.
+
+- El componente `WikiText` (`src/components/WikiText.jsx`) parsea el texto y llama a `goToDetail(page, id)` al hacer click en un enlace.
+- Si el artículo no existe, se muestra atenuado sin acción.
 - `WikiText` reemplaza `dangerouslySetInnerHTML={nl2br(...)}` en todos los detalles de entidad. Usar `<WikiText text={campo} />` dentro de `<div className="detail-text">`.
 - Los campos cortos (nombre, título, fecha) no necesitan WikiText.
+
+### Helpers de wiki-links (`wikiHelpers.js`)
+
+- `COLLECTION_LETTER`: map colección → letra (`pjs → 'P'`, `lugares → 'G'`, `pnjs → 'N'`, `sesiones → 'S'`, `facciones → 'F'`, `lore → 'L'`, `items → 'I'`).
+- `LETTER_COLLECTION`: inverso de `COLLECTION_LETTER`.
+- `findEntity(db, id)`: busca entidad por id numérico en todas las colecciones.
+- `COLLECTION_DISPLAY`: nombres legibles de colecciones para tooltips.
+
+### Componentes de imagen y wiki
+
+- `LazyImg`: imagen con lazy loading y skeleton shimmer. Prop `containerCls` debe incluir clase de altura para que el skeleton sea visible. Usar en todas las vistas de detalle.
+- `WikiImage`: wrapper de `LazyImg` para imágenes inline embebidas en WikiText (`[[https://...]]`).
+- `ImageLightbox`: modal fullscreen. Cerrar con Escape o click afuera. Props: `src`, `alt`, `onClose`.
+- `WikiLink`: enlace clickeable con tooltip hover (thumbnail + título). Lo usa WikiText internamente; no instanciar directamente.
+- `WikiLinkPicker`: modal de búsqueda para insertar wiki-links en textareas de formularios. Integrado en `FormModal`.
+- `Tooltip`: tooltip hover con skeleton de thumbnail. Props: `title`, `section`, `imagenUrl`.
+
+### Nombre en header sticky
+
+Todas las vistas de detalle inline muestran el nombre de la entidad en la barra "← Volver" cuando el título principal sale del viewport. Patrón:
+- `nameRef` en el `<div>` del título principal.
+- `backBarRef` en la barra sticky con `sticky top-[60px]`.
+- `HEADER_H = 60` constante (altura del Header global).
+- `IntersectionObserver` con `rootMargin: -${HEADER_H + backBarH}px 0px 0px 0px`.
+- `showNameInHeader` state → `opacity: 0→1` con `transition: opacity 0.2s ease`.
 
 ### Helpers (`helpers.js`)
 
@@ -164,4 +220,5 @@ Para desarrollo local: crear `.env.local` con los mismos valores.
 6. Inicializar la colección en Firestore con `seedCollectionIfEmpty` en `App.jsx`.
 7. Filtrar el listado con `isVisible(entity, isDM, currentPlayer)`.
 8. Usar `<WikiText text={campo} />` en campos de texto largo del detalle.
-9. Agregar la colección al array `COLLECTIONS` en `WikiText.jsx` para que sea enlazable.
+9. Agregar la colección a `COLLECTION_LETTER` en `wikiHelpers.js` para que sea enlazable con wiki-links.
+10. Usar el patrón sticky name-in-header (`nameRef`, `backBarRef`, `IntersectionObserver`) en la vista de detalle.

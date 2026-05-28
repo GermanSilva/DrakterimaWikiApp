@@ -1,25 +1,13 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useApp } from '../AppContext'
 import { Tag, RegionTag, PageHeader, FilterPills, EmptyState } from '../components/Shared'
-import { regionLabel, regionOptions, isVisible } from '../helpers'
+import { regionLabel, regionOptions, isVisible, plainText } from '../helpers'
 import PlayerNotes from '../components/PlayerNotes'
 import WikiText, { COLLECTION_LETTER } from '../components/WikiText'
 import ImageLightbox from '../components/ImageLightbox'
+import LazyImg from '../components/LazyImg'
 import { Map, Lock } from 'lucide-react'
-
-const REGION_COLOR = {
-  magral:  '#7aad82',
-  nezor:   '#c4834a',
-  heladas: '#7aaad0',
-  islas:   '#9090c0',
-}
-
-const sectionTitleCls = 'font-exo text-[9px] font-semibold tracking-[0.25em] text-accent-dim uppercase mb-2'
-const detailTextCls = 'text-sm leading-7 text-txt-secondary'
-const detailSectionCls = 'mt-5 pt-4 border-t border-border-base'
-const dmSectionCls = 'mt-5 pt-4 border-t-2 border-t-accent'
-const dmTitleCls = 'font-exo text-[9px] font-semibold tracking-[0.25em] text-accent-bright uppercase mb-2'
-const btnSecondary = 'inline-flex items-center gap-1.5 font-exo text-[11px] font-semibold tracking-[0.1em] uppercase px-4 py-2 cursor-pointer transition-all bg-transparent text-txt-secondary border border-border-light hover:border-accent-dim hover:text-txt-primary'
+import { sectionTitleCls, detailTextCls, detailSectionCls, dmSectionCls, dmTitleCls, btnSecondary, REGION_COLOR } from '../constants'
 
 const FILTROS = [
   { value: 'todos', label: 'Todos' },
@@ -29,10 +17,31 @@ const FILTROS = [
 function LugarDetailInline({ lugar, onBack }) {
   const { openForm, isDM } = useApp()
   const [lightbox, setLightbox] = useState(false)
+  const backBarRef = useRef(null)
+  const nameRef = useRef(null)
+  const [showNameInHeader, setShowNameInHeader] = useState(false)
+  const HEADER_H = 60
+  useEffect(() => {
+    if (!nameRef.current) return
+    const backBarH = backBarRef.current?.offsetHeight ?? 0
+    const observer = new IntersectionObserver(
+      ([entry]) => setShowNameInHeader(!entry.isIntersecting),
+      { threshold: 0, rootMargin: `-${HEADER_H + backBarH}px 0px 0px 0px` }
+    )
+    observer.observe(nameRef.current)
+    return () => observer.disconnect()
+  }, [])
+  const icon = <Map size={18} className="inline mr-1 text-accent-bright" />
   return (
     <div>
-      <div className="flex justify-between mb-7 sticky top-[60px] z-10 bg-[#060606] py-3 -mx-10 px-10 max-md:-mx-5 max-md:px-5">
+      <div ref={backBarRef} className="flex justify-between items-center mb-7 sticky top-[60px] z-10 bg-[#060606] py-3 -mx-10 px-10 max-md:-mx-5 max-md:px-5">
         <button className={btnSecondary} onClick={onBack}>← Volver</button>
+        <span
+          className="flex-1 font-exo text-[13px] font-bold uppercase tracking-[0.1em] text-txt-primary leading-none truncate px-4 pointer-events-none"
+          style={{ opacity: showNameInHeader ? 1 : 0, transition: 'opacity 0.2s ease' }}
+        >
+          {icon}{lugar.nombre}
+        </span>
         {isDM && (
           <div className="flex items-center gap-2">
             <span className="font-mono text-[11px] text-txt-muted select-all cursor-text opacity-50" title="ID para wiki-link">{`{${lugar.id}${COLLECTION_LETTER['lugares']}}`}</span>
@@ -45,7 +54,7 @@ function LugarDetailInline({ lugar, onBack }) {
         <div className="font-exo text-[10px] tracking-[0.3em] uppercase mb-1 font-medium" style={{ color: REGION_COLOR[lugar.region] || '#6e6e6e' }}>
           {lugar.tipo || 'Lugar'} · {regionLabel[lugar.region] || lugar.region}
         </div>
-        <div className="font-exo text-[26px] font-bold text-txt-primary tracking-[0.04em] uppercase">
+        <div ref={nameRef} className="font-exo text-[26px] font-bold text-txt-primary tracking-[0.04em] uppercase">
           {lugar.nombre}
         </div>
         {lugar.subtitulo && (
@@ -60,9 +69,13 @@ function LugarDetailInline({ lugar, onBack }) {
       </div>
 
       {lugar.imagen_url && (
-        <div className="my-4 text-center">
-          <img src={lugar.imagen_url} alt={lugar.nombre} className="max-w-full max-h-[280px] rounded-lg object-cover border border-border-base cursor-zoom-in" onError={e => e.target.style.display = 'none'} onClick={() => setLightbox(true)} />
-        </div>
+        <LazyImg
+          src={lugar.imagen_url}
+          alt={lugar.nombre}
+          className="max-w-full max-h-[280px] rounded-lg object-cover border border-border-base cursor-zoom-in"
+          containerCls="my-4 h-[280px] flex items-center justify-center text-center"
+          onClick={() => setLightbox(true)}
+        />
       )}
       {lightbox && <ImageLightbox src={lugar.imagen_url} alt={lugar.nombre} onClose={() => setLightbox(false)} />}
 
@@ -74,7 +87,7 @@ function LugarDetailInline({ lugar, onBack }) {
       )}
       {isDM && lugar.notas && (
         <div className={dmSectionCls}>
-          <div className={dmTitleCls}><Lock size={10} className="inline mr-1" />Notas DM</div>
+          <div className={dmTitleCls}><Lock size={12} className="inline mr-1" />Notas DM</div>
           <div className={detailTextCls}><WikiText text={lugar.notas} /></div>
         </div>
       )}
@@ -84,9 +97,13 @@ function LugarDetailInline({ lugar, onBack }) {
 }
 
 export default function Lugares() {
-  const { db, openForm, isDM, currentPlayer } = useApp()
+  const { db, openForm, isDM, currentPlayer, pendingDetail, consumePendingDetail } = useApp()
   const [filtro, setFiltro] = useState('todos')
-  const [selectedId, setSelectedId] = useState(null)
+  const [selectedId, setSelectedId] = useState(() => pendingDetail?.id ?? null)
+
+  useEffect(() => {
+    if (pendingDetail?.id != null) consumePendingDetail()
+  }, [])
 
   if (selectedId !== null) {
     const lugar = db.lugares.find(l => l.id === selectedId)
@@ -138,7 +155,7 @@ export default function Lugares() {
                 <div className="font-exo text-[11px] text-accent-dim italic mb-2">{l.subtitulo}</div>
               )}
               <div className="text-[13px] text-txt-secondary leading-relaxed italic line-clamp-3">
-                {l.descripcion || ''}
+                {plainText(l.descripcion)}
               </div>
             </div>
           ))}

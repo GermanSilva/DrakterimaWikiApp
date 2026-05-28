@@ -1,4 +1,5 @@
-import { SKILLS_BY_ABILITY, sectionTitleCls, detailSectionCls } from '../pjConstants'
+import { SKILLS_BY_ABILITY } from '../pjConstants'
+import { sectionTitleCls, detailSectionCls } from '../../../constants'
 import { abilityModNum, signedBonus, suggestedProfBonus } from '../../../helpers/pjCalc'
 
 function SkillGroup({ pj, group, profBonus }) {

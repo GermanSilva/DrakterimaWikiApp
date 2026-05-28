@@ -2,15 +2,11 @@ import { useState } from 'react'
 import { useApp } from '../AppContext'
 import { regionLabel, regionOptions } from '../helpers'
 import PJForm from '../pages/pj/PJForm'
-import { Lock } from 'lucide-react'
+import { Lock, Link } from 'lucide-react'
+import WikiLinkPicker from './WikiLinkPicker'
+import { btnSecondary, btnDanger, btnPrimary, inputCls, labelCls } from '../constants'
 
-/* ── Shared field styles ── */
-export const labelCls = 'block font-exo text-[10px] font-medium tracking-[0.2em] uppercase text-txt-muted mb-1.5 flex gap-2'
-export const inputCls = 'w-full bg-bg-mid border border-border-base text-txt-primary font-barlow text-sm px-3 py-2 outline-none transition-colors focus:border-accent-dim'
-export const btnPrimary = 'inline-flex items-center gap-1.5 font-exo text-[11px] font-semibold tracking-[0.1em] uppercase px-4 py-2 cursor-pointer transition-all bg-accent text-white hover:bg-accent-bright border-none'
-export const btnSecondary = 'inline-flex items-center gap-1.5 font-exo text-[11px] font-semibold tracking-[0.1em] uppercase px-4 py-2 cursor-pointer transition-all bg-transparent text-txt-secondary border border-border-light hover:border-accent-dim hover:text-txt-primary'
-export const btnDanger = 'inline-flex items-center gap-1.5 font-exo text-[11px] font-semibold tracking-[0.1em] uppercase px-4 py-2 cursor-pointer transition-all bg-transparent text-accent border border-accent-dim hover:bg-accent/[.15]'
-const labelLock = (< Lock size={12} className='text-accent-bright'/>)
+const labelLock = (< Lock size={12} className='text-accent-bright' />)
 
 export function FormGroup({ children, className = '' }) {
   return <div className={`mb-[18px] px-8 ${className}`}>{children}</div>
@@ -60,7 +56,7 @@ export function EstadoField({ estado, visibilidad, setF }) {
 }
 
 function SesionForm({ item }) {
-  const { db, save, remove, closeForm } = useApp()
+  const { db, save, remove, closeForm, activeFieldRef } = useApp()
   const [f, setF] = useState({
     numero: item?.numero ?? (db.sesiones.length + 1),
     fecha: item?.fecha ?? '',
@@ -76,9 +72,6 @@ function SesionForm({ item }) {
 
   return (
     <div>
-      <div className="font-exo text-[17px] font-bold text-txt-primary uppercase tracking-[0.06em] sticky top-0 z-[1] bg-bg-card px-8 pt-7 pb-5 border-b border-border-base">
-        {item ? 'Editar Sesión' : 'Nueva Sesión'}
-      </div>
       <FormRow>
         <div>
           <label className={labelCls}>Número de Sesión</label>
@@ -95,15 +88,21 @@ function SesionForm({ item }) {
       </FormGroup>
       <FormGroup>
         <label className={labelCls}>Resumen</label>
-        <textarea className={`${inputCls} resize-y min-h-[90px]`} rows={5} value={f.resumen} onChange={set('resumen')} placeholder="¿Qué ocurrió en la sesión?" />
+        <textarea className={`${inputCls} resize-y min-h-[90px]`} rows={5} value={f.resumen} onChange={set('resumen')}
+          onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'resumen' } }}
+          placeholder="¿Qué ocurrió en la sesión?" />
       </FormGroup>
       <FormGroup>
         <label className={labelCls}>Logros / Momentos importantes</label>
-        <textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.logros} onChange={set('logros')} placeholder="Decisiones clave, revelaciones..." />
+        <textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.logros} onChange={set('logros')}
+          onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'logros' } }}
+          placeholder="Decisiones clave, revelaciones..." />
       </FormGroup>
       <FormGroup>
         <label className={labelCls}>{labelLock}Ganchos pendientes (próxima sesión)</label>
-        <textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.ganchos} onChange={set('ganchos')} placeholder="¿Qué quedó sin resolver?" />
+        <textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.ganchos} onChange={set('ganchos')}
+          onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'ganchos' } }}
+          placeholder="¿Qué quedó sin resolver?" />
       </FormGroup>
       <FormGroup>
         <label className={labelCls}>Imagen (URL externa)</label>
@@ -123,7 +122,7 @@ function SesionForm({ item }) {
 }
 
 function PNJForm({ item }) {
-  const { save, remove, closeForm } = useApp()
+  const { save, remove, closeForm, activeFieldRef } = useApp()
   const [f, setF] = useState({
     nombre: item?.nombre ?? '',
     rol: item?.rol ?? '',
@@ -142,9 +141,6 @@ function PNJForm({ item }) {
 
   return (
     <div>
-      <div className="font-exo text-[17px] font-bold text-txt-primary uppercase tracking-[0.06em] sticky top-0 z-[1] bg-bg-card px-8 pt-7 pb-5 border-b border-border-base">
-        {item ? 'Editar PNJ' : 'Nuevo PNJ'}
-      </div>
       <FormRow>
         <div><label className={labelCls}>Nombre</label><input className={inputCls} value={f.nombre} onChange={set('nombre')} /></div>
         <div><label className={labelCls}>Rol / Título</label><input className={inputCls} value={f.rol} onChange={set('rol')} placeholder="Ej: Comandante, Mercader..." /></div>
@@ -159,17 +155,21 @@ function PNJForm({ item }) {
         <div>
           <label className={labelCls}>Relación con el grupo</label>
           <select className={inputCls} value={f.relacion} onChange={set('relacion')}>
-            {['neutral','aliado','enemigo','desconocido'].map(r => (
-              <option key={r} value={r}>{r.charAt(0).toUpperCase()+r.slice(1)}</option>
+            {['neutral', 'aliado', 'enemigo', 'desconocido'].map(r => (
+              <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
             ))}
           </select>
         </div>
       </FormRow>
       <FormGroup><label className={labelCls}>Facción / Organización</label><input className={inputCls} value={f.faccion} onChange={set('faccion')} placeholder="Ej: Orden de Argan..." /></FormGroup>
-      <FormGroup><label className={labelCls}>Descripción física y personalidad</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={4} value={f.descripcion} onChange={set('descripcion')} /></FormGroup>
-      <FormGroup><label className={labelCls}>Historia / Contexto</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.historia} onChange={set('historia')} /></FormGroup>
-      <FormGroup><label className={labelCls}>{labelLock}Motivaciones secretas</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={2} value={f.secreto} onChange={set('secreto')} /></FormGroup>
-      <FormGroup><label className={labelCls}>{labelLock}Notas del DM</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={2} value={f.notas} onChange={set('notas')} /></FormGroup>
+      <FormGroup><label className={labelCls}>Descripción física y personalidad</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={4} value={f.descripcion} onChange={set('descripcion')}
+        onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'descripcion' } }} /></FormGroup>
+      <FormGroup><label className={labelCls}>Historia / Contexto</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.historia} onChange={set('historia')}
+        onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'historia' } }} /></FormGroup>
+      <FormGroup><label className={labelCls}>{labelLock}Motivaciones secretas</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={2} value={f.secreto} onChange={set('secreto')}
+        onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'secreto' } }} /></FormGroup>
+      <FormGroup><label className={labelCls}>{labelLock}Notas del DM</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={2} value={f.notas} onChange={set('notas')}
+        onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'notas' } }} /></FormGroup>
       <FormGroup>
         <label className={labelCls}>Imagen (URL externa)</label>
         <input className={inputCls} type="url" placeholder="https://i.imgur.com/..." value={f.imagen_url} onChange={set('imagen_url')} />
@@ -188,8 +188,8 @@ function PNJForm({ item }) {
 }
 
 function LugarForm({ item }) {
-  const { save, remove, closeForm } = useApp()
-  const tipoOpts = ['ciudad','fortaleza','aldea','dungeon','región','otro']
+  const { save, remove, closeForm, activeFieldRef } = useApp()
+  const tipoOpts = ['ciudad', 'fortaleza', 'aldea', 'dungeon', 'región', 'otro']
   const [f, setF] = useState({
     nombre: item?.nombre ?? '',
     subtitulo: item?.subtitulo ?? '',
@@ -205,9 +205,6 @@ function LugarForm({ item }) {
 
   return (
     <div>
-      <div className="font-exo text-[17px] font-bold text-txt-primary uppercase tracking-[0.06em] sticky top-0 z-[1] bg-bg-card px-8 pt-7 pb-5 border-b border-border-base">
-        {item ? 'Editar Lugar' : 'Nuevo Lugar'}
-      </div>
       <FormRow>
         <div><label className={labelCls}>Nombre</label><input className={inputCls} value={f.nombre} onChange={set('nombre')} /></div>
         <div><label className={labelCls}>Subtítulo</label><input className={inputCls} value={f.subtitulo} onChange={set('subtitulo')} placeholder="Ej: Ciudad del Paso" /></div>
@@ -222,12 +219,14 @@ function LugarForm({ item }) {
         <div>
           <label className={labelCls}>Tipo</label>
           <select className={inputCls} value={f.tipo} onChange={set('tipo')}>
-            {tipoOpts.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
+            {tipoOpts.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
           </select>
         </div>
       </FormRow>
-      <FormGroup><label className={labelCls}>Descripción</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={5} value={f.descripcion} onChange={set('descripcion')} /></FormGroup>
-      <FormGroup><label className={labelCls}>{labelLock}Notas del DM</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.notas} onChange={set('notas')} /></FormGroup>
+      <FormGroup><label className={labelCls}>Descripción</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={5} value={f.descripcion} onChange={set('descripcion')}
+        onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'descripcion' } }} /></FormGroup>
+      <FormGroup><label className={labelCls}>{labelLock}Notas del DM</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.notas} onChange={set('notas')}
+        onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'notas' } }} /></FormGroup>
       <FormGroup>
         <label className={labelCls}>Imagen (URL externa)</label>
         <input className={inputCls} type="url" placeholder="https://i.imgur.com/..." value={f.imagen_url} onChange={set('imagen_url')} />
@@ -246,8 +245,8 @@ function LugarForm({ item }) {
 }
 
 function FaccionForm({ item }) {
-  const { save, remove, closeForm } = useApp()
-  const tipoOpts = ['institución','militar','facción','gremio','culto','otro']
+  const { save, remove, closeForm, activeFieldRef } = useApp()
+  const tipoOpts = ['institución', 'militar', 'facción', 'gremio', 'culto', 'otro']
   const [f, setF] = useState({
     nombre: item?.nombre ?? '',
     tipo: item?.tipo ?? 'facción',
@@ -264,15 +263,12 @@ function FaccionForm({ item }) {
 
   return (
     <div>
-      <div className="font-exo text-[17px] font-bold text-txt-primary uppercase tracking-[0.06em] sticky top-0 z-[1] bg-bg-card px-8 pt-7 pb-5 border-b border-border-base">
-        {item ? 'Editar Facción' : 'Nueva Facción'}
-      </div>
       <FormRow>
         <div><label className={labelCls}>Nombre</label><input className={inputCls} value={f.nombre} onChange={set('nombre')} /></div>
         <div>
           <label className={labelCls}>Tipo</label>
           <select className={inputCls} value={f.tipo} onChange={set('tipo')}>
-            {tipoOpts.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
+            {tipoOpts.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
           </select>
         </div>
       </FormRow>
@@ -286,15 +282,18 @@ function FaccionForm({ item }) {
         <div>
           <label className={labelCls}>Relación con el grupo</label>
           <select className={inputCls} value={f.relacion} onChange={set('relacion')}>
-            {['neutral','aliado','enemigo'].map(r => (
-              <option key={r} value={r}>{r.charAt(0).toUpperCase()+r.slice(1)}</option>
+            {['neutral', 'aliado', 'enemigo'].map(r => (
+              <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>
             ))}
           </select>
         </div>
       </FormRow>
-      <FormGroup><label className={labelCls}>Descripción</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={4} value={f.descripcion} onChange={set('descripcion')} /></FormGroup>
-      <FormGroup><label className={labelCls}>{labelLock}Objetivos secretos</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.secreto} onChange={set('secreto')} /></FormGroup>
-      <FormGroup><label className={labelCls}>{labelLock}Notas DM</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={2} value={f.notas} onChange={set('notas')} /></FormGroup>
+      <FormGroup><label className={labelCls}>Descripción</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={4} value={f.descripcion} onChange={set('descripcion')}
+        onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'descripcion' } }} /></FormGroup>
+      <FormGroup><label className={labelCls}>{labelLock}Objetivos secretos</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.secreto} onChange={set('secreto')}
+        onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'secreto' } }} /></FormGroup>
+      <FormGroup><label className={labelCls}>{labelLock}Notas DM</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={2} value={f.notas} onChange={set('notas')}
+        onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'notas' } }} /></FormGroup>
       <FormGroup>
         <label className={labelCls}>Imagen (URL externa)</label>
         <input className={inputCls} type="url" placeholder="https://i.imgur.com/..." value={f.imagen_url} onChange={set('imagen_url')} />
@@ -313,7 +312,7 @@ function FaccionForm({ item }) {
 }
 
 function LoreForm({ item }) {
-  const { save, remove, closeForm } = useApp()
+  const { save, remove, closeForm, activeFieldRef } = useApp()
   const [f, setF] = useState({
     titulo: item?.titulo ?? '',
     categoria: item?.categoria ?? '',
@@ -326,16 +325,15 @@ function LoreForm({ item }) {
 
   return (
     <div>
-      <div className="font-exo text-[17px] font-bold text-txt-primary uppercase tracking-[0.06em] sticky top-0 z-[1] bg-bg-card px-8 pt-7 pb-5 border-b border-border-base">
-        {item ? 'Editar Lore' : 'Nueva Entrada de Lore'}
-      </div>
       <FormGroup><label className={labelCls}>Título</label><input className={inputCls} value={f.titulo} onChange={set('titulo')} /></FormGroup>
       <FormGroup>
         <label className={labelCls}>Categoría</label>
         <input className={inputCls} value={f.categoria} onChange={set('categoria')} placeholder="Ej: historia, geografía, recurso, magia..." />
       </FormGroup>
-      <FormGroup><label className={labelCls}>Descripción (pública / conocida)</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={5} value={f.descripcion} onChange={set('descripcion')} /></FormGroup>
-      <FormGroup><label className={labelCls}>{labelLock}Información secreta (solo DM)</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.notas} onChange={set('notas')} /></FormGroup>
+      <FormGroup><label className={labelCls}>Descripción (pública / conocida)</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={5} value={f.descripcion} onChange={set('descripcion')}
+        onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'descripcion' } }} /></FormGroup>
+      <FormGroup><label className={labelCls}>{labelLock}Información secreta (solo DM)</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.notas} onChange={set('notas')}
+        onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'notas' } }} /></FormGroup>
       <EstadoField estado={f.estado} visibilidad={f.visibilidad} setF={setF} />
       <div className="flex gap-2.5 justify-end sticky bottom-0 z-[1] bg-bg-card px-8 py-4 pb-6 border-t border-border-base mt-3">
         {item && <button className={btnDanger} onClick={() => remove('lore', item.id)}>Eliminar</button>}
@@ -347,9 +345,9 @@ function LoreForm({ item }) {
 }
 
 function ItemForm({ item }) {
-  const { save, remove, closeForm } = useApp()
-  const tipoOpts = ['arma','armadura','objeto maravilloso','foco arcano','poción','pergamino','anillo','varita','bastón','otro']
-  const rarezaOpts = ['común','infrecuente','raro','muy raro','legendario','artefacto']
+  const { save, remove, closeForm, activeFieldRef } = useApp()
+  const tipoOpts = ['arma', 'armadura', 'objeto maravilloso', 'foco arcano', 'poción', 'pergamino', 'anillo', 'varita', 'bastón', 'otro']
+  const rarezaOpts = ['común', 'infrecuente', 'raro', 'muy raro', 'legendario', 'artefacto']
   const [f, setF] = useState({
     nombre: item?.nombre ?? '',
     tipo: item?.tipo ?? 'objeto maravilloso',
@@ -366,15 +364,12 @@ function ItemForm({ item }) {
 
   return (
     <div>
-      <div className="font-exo text-[17px] font-bold text-txt-primary uppercase tracking-[0.06em] sticky top-0 z-[1] bg-bg-card px-8 pt-7 pb-5 border-b border-border-base">
-        {item ? 'Editar Ítem' : 'Nuevo Ítem'}
-      </div>
       <FormRow>
         <div><label className={labelCls}>Nombre</label><input className={inputCls} value={f.nombre} onChange={set('nombre')} /></div>
         <div>
           <label className={labelCls}>Tipo</label>
           <select className={inputCls} value={f.tipo} onChange={set('tipo')}>
-            {tipoOpts.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>)}
+            {tipoOpts.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
           </select>
         </div>
       </FormRow>
@@ -382,7 +377,7 @@ function ItemForm({ item }) {
         <div>
           <label className={labelCls}>Rareza</label>
           <select className={inputCls} value={f.rareza} onChange={set('rareza')}>
-            {rarezaOpts.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase()+r.slice(1)}</option>)}
+            {rarezaOpts.map(r => <option key={r} value={r}>{r.charAt(0).toUpperCase() + r.slice(1)}</option>)}
           </select>
         </div>
         <div>
@@ -393,8 +388,10 @@ function ItemForm({ item }) {
           </select>
         </div>
       </FormRow>
-      <FormGroup><label className={labelCls}>Descripción y propiedades</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={5} value={f.descripcion} onChange={set('descripcion')} /></FormGroup>
-      <FormGroup><label className={labelCls}>Historia / Lore del objeto</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.lore} onChange={set('lore')} /></FormGroup>
+      <FormGroup><label className={labelCls}>Descripción y propiedades</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={5} value={f.descripcion} onChange={set('descripcion')}
+        onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'descripcion' } }} /></FormGroup>
+      <FormGroup><label className={labelCls}>Historia / Lore del objeto</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={3} value={f.lore} onChange={set('lore')}
+        onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'lore' } }} /></FormGroup>
       <FormGroup><label className={labelCls}>Poseedor actual</label><input className={inputCls} value={f.poseedor} onChange={set('poseedor')} placeholder="Nombre del PJ o PNJ" /></FormGroup>
       <FormGroup>
         <label className={labelCls}>Imagen (URL externa)</label>
@@ -413,6 +410,15 @@ function ItemForm({ item }) {
   )
 }
 
+const FORM_TITLES = {
+  sesiones: ['Nueva Sesión', 'Editar Sesión'],
+  pnjs: ['Nuevo PNJ', 'Editar PNJ'],
+  lugares: ['Nuevo Lugar', 'Editar Lugar'],
+  facciones: ['Nueva Facción', 'Editar Facción'],
+  lore: ['Nueva Entrada de Lore', 'Editar Lore'],
+  items: ['Nuevo Ítem', 'Editar Ítem'],
+}
+
 const FORM_COMPONENTS = {
   sesiones: SesionForm,
   pjs: PJForm,
@@ -424,24 +430,68 @@ const FORM_COMPONENTS = {
 }
 
 export default function FormModal({ form }) {
-  const { db, closeForm } = useApp()
+  const { db, closeForm, activeFieldRef } = useApp()
+  const [pickerOpen, setPickerOpen] = useState(false)
   const item = form.id !== null ? (db[form.type] || []).find(x => x.id === form.id) ?? null : null
   const FormComponent = FORM_COMPONENTS[form.type]
+  const isPJForm = form.type === 'pjs'
+
+  function handleInsert(wikiLink) {
+    const field = activeFieldRef.current
+    if (!field) return
+    const { el, setter, key } = field
+    const start = el.selectionStart ?? el.value.length
+    const end = el.selectionEnd ?? el.value.length
+    const newValue = el.value.slice(0, start) + wikiLink + el.value.slice(end)
+    setter(prev => ({ ...prev, [key]: newValue }))
+    requestAnimationFrame(() => {
+      el.focus()
+      el.setSelectionRange(start + wikiLink.length, start + wikiLink.length)
+    })
+  }
+
+  const titles = FORM_TITLES[form.type]
+  const title = titles ? (item ? titles[1] : titles[0]) : ''
 
   return (
-    <div
-      className="fixed inset-0 bg-black/[.82] z-[300] backdrop-blur-[4px] flex items-center justify-center"
-      id="form-overlay"
-      onClick={e => {
-        if (e.target.id !== 'form-overlay') return
-        const inputs = e.currentTarget.querySelectorAll('input, textarea, select')
-        const hasData = [...inputs].some(el => el.value.trim())
-        if (!hasData || confirm('¿Descartar cambios?')) closeForm()
-      }}
-    >
-      <div className="w-[min(640px,92vw)] max-h-[88vh] bg-bg-card border border-border-light overflow-y-auto animate-fade-in">
-        {FormComponent ? <FormComponent item={item} /> : null}
+    <>
+      <div
+        className="fixed inset-0 bg-black/[.82] z-[300] backdrop-blur-[4px] flex items-center justify-center"
+        id="form-overlay"
+        onClick={e => {
+          if (e.target.id !== 'form-overlay') return
+          const inputs = e.currentTarget.querySelectorAll('input, textarea, select')
+          const hasData = [...inputs].some(el => el.value.trim())
+          if (!hasData || confirm('¿Descartar cambios?')) closeForm()
+        }}
+      >
+        <div className="w-[min(640px,92vw)] max-h-[88vh] bg-bg-card border border-border-light overflow-y-auto animate-fade-in">
+          {/* Extracted header for all non-PJForm types */}
+          {!isPJForm && (
+            <div className="font-exo text-[17px] font-bold text-txt-primary uppercase tracking-[0.06em] sticky top-0 z-[1] bg-bg-card px-8 pt-7 pb-5 border-b border-border-base flex items-center justify-between">
+              <span>{title}</span>
+              <button
+                type="button"
+                className={`${btnSecondary} flex items-center gap-1.5`}
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => setPickerOpen(true)}
+              >
+                <Link size={13} />
+                Insertar enlace
+              </button>
+            </div>
+          )}
+          {FormComponent
+            ? <FormComponent item={item} openPicker={isPJForm ? () => setPickerOpen(true) : undefined} />
+            : null}
+        </div>
       </div>
-    </div>
+      {pickerOpen && (
+        <WikiLinkPicker
+          onInsert={handleInsert}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
+    </>
   )
 }

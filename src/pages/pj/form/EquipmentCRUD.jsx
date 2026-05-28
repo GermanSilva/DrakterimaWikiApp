@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { labelCls, inputCls, btnSecondary } from '../../../components/FormModal'
+import { labelCls, inputCls, btnSecondary } from '../../../constants'
 
 const EMPTY = { nombre: '', cantidad: 1, descripcion: '' }
 const CURRENCY_FIELDS = ['pp', 'gp', 'ep', 'sp', 'cp']

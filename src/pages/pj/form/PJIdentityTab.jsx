@@ -1,8 +1,7 @@
-import { FormGroup, FormRow, EstadoField, labelCls, inputCls } from '../../../components/FormModal'
+import { FormGroup, FormRow, EstadoField } from '../../../components/FormModal'
 import { regionOptions, regionLabel } from '../../../helpers'
-import { Eye, EyeOff } from 'lucide-react'
-
-const btnSecondary = 'inline-flex items-center gap-1.5 font-exo text-[11px] font-semibold tracking-[0.1em] uppercase px-4 py-2 cursor-pointer transition-all bg-transparent text-txt-secondary border border-border-light hover:border-accent-dim hover:text-txt-primary'
+import { useApp } from '../../../AppContext'
+import { labelCls, inputCls } from '../../../constants'
 
 function Separator({ label }) {
   return (
@@ -14,6 +13,7 @@ function Separator({ label }) {
 
 export default function PJIdentityTab({ f, setF, isDM, item, isOwnPlayer, newPlayerPwd, setNewPlayerPwd, showPlayerPwd, setShowPlayerPwd, accessStatus, handleResetAccess }) {
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
+  const { activeFieldRef } = useApp()
 
   return (
     <div>
@@ -75,24 +75,33 @@ export default function PJIdentityTab({ f, setF, isDM, item, isOwnPlayer, newPla
       </FormRow>
       <FormGroup>
         <label className={labelCls}>Notas de Apariencia</label>
-        <textarea className={`${inputCls} resize-y min-h-[70px]`} rows={3} value={f.apariencia} onChange={set('apariencia')} />
+        <textarea className={`${inputCls} resize-y min-h-[70px]`} rows={3} value={f.apariencia} onChange={set('apariencia')}
+          onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'apariencia' } }} />
       </FormGroup>
 
       <Separator label="Personalidad" />
       <FormRow>
-        <div><label className={labelCls}>Rasgos de Personalidad</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={3} value={f.personalidad} onChange={set('personalidad')} /></div>
-        <div><label className={labelCls}>Ideales</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={3} value={f.ideales} onChange={set('ideales')} /></div>
+        <div><label className={labelCls}>Rasgos de Personalidad</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={3} value={f.personalidad} onChange={set('personalidad')}
+          onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'personalidad' } }} /></div>
+        <div><label className={labelCls}>Ideales</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={3} value={f.ideales} onChange={set('ideales')}
+          onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'ideales' } }} /></div>
       </FormRow>
       <FormRow>
-        <div><label className={labelCls}>Vínculos</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={3} value={f.vinculos} onChange={set('vinculos')} /></div>
-        <div><label className={labelCls}>Defectos</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={3} value={f.defectos} onChange={set('defectos')} /></div>
+        <div><label className={labelCls}>Vínculos</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={3} value={f.vinculos} onChange={set('vinculos')}
+          onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'vinculos' } }} /></div>
+        <div><label className={labelCls}>Defectos</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={3} value={f.defectos} onChange={set('defectos')}
+          onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'defectos' } }} /></div>
       </FormRow>
 
       <Separator label="Trasfondo & Campaña" />
-      <FormGroup><label className={labelCls}>Trasfondo / Historia</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={4} value={f.trasfondo} onChange={set('trasfondo')} /></FormGroup>
-      <FormGroup><label className={labelCls}>Motivación para unirse al Gremio</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={2} value={f.motivo} onChange={set('motivo')} /></FormGroup>
-      <FormGroup><label className={labelCls}>Relación con la Magralita</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={2} value={f.magralita} onChange={set('magralita')} /></FormGroup>
-      {isDM && <FormGroup><label className={labelCls}>Notas del DM (privadas 🔒)</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={3} value={f.notas} onChange={set('notas')} /></FormGroup>}
+      <FormGroup><label className={labelCls}>Trasfondo / Historia</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={4} value={f.trasfondo} onChange={set('trasfondo')}
+        onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'trasfondo' } }} /></FormGroup>
+      <FormGroup><label className={labelCls}>Motivación para unirse al Gremio</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={2} value={f.motivo} onChange={set('motivo')}
+        onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'motivo' } }} /></FormGroup>
+      <FormGroup><label className={labelCls}>Relación con la Magralita</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={2} value={f.magralita} onChange={set('magralita')}
+        onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'magralita' } }} /></FormGroup>
+      {isDM && <FormGroup><label className={labelCls}>Notas del DM (privadas 🔒)</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={3} value={f.notas} onChange={set('notas')}
+        onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'notas' } }} /></FormGroup>}
 
       {isDM && <EstadoField estado={f.estado} visibilidad={f.visibilidad} setF={setF} />}
     </div>

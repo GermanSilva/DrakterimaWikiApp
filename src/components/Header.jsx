@@ -50,6 +50,9 @@ function HeaderSession() {
 
   return (
     <div className="flex items-center gap-2.5">
+      <span className="max-md:hidden font-exo text-[11px] font-semibold tracking-[0.05em] text-txt-secondary whitespace-nowrap">
+        {displayName}
+      </span>
       {pj?.imagen_url && (
         <img
           src={pj.imagen_url}
@@ -58,9 +61,6 @@ function HeaderSession() {
           onError={e => e.target.style.display = 'none'}
         />
       )}
-      <span className="max-md:hidden font-exo text-[11px] font-semibold tracking-[0.05em] text-txt-secondary whitespace-nowrap">
-        {displayName}
-      </span>
       <button
         className="flex items-center gap-1.5 border border-border-light text-txt-secondary text-[11px] font-exo font-semibold tracking-[0.08em] uppercase cursor-pointer px-3 py-1.5 rounded-md transition-colors hover:text-accent hover:border-accent-dim hover:bg-accent/[.06]"
         onClick={logoutPlayer}
@@ -85,7 +85,7 @@ export default function Header() {
       </button>
       <div className="max-md:absolute max-md:left-1/2 max-md:-translate-x-1/2 flex items-center gap-2.5 leading-none">
         <DragonIcon width={28} height={28} fill="#dc2626" />
-        <div className="flex flex-col">
+        <div className="flex flex-col max-md:hidden">
           <span className="font-exo text-[9px] tracking-[0.3em] text-txt-muted uppercase font-medium">
             Leyendas de Drakterima
           </span>

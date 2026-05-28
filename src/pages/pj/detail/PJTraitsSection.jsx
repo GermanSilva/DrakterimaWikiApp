@@ -1,5 +1,5 @@
 import WikiText from '../../../components/WikiText'
-import { sectionTitleCls, detailTextCls, detailSectionCls } from '../pjConstants'
+import { sectionTitleCls, detailTextCls, detailSectionCls } from '../../../constants'
 
 export default function PJTraitsSection({ pj }) {
   return (

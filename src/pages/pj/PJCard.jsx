@@ -1,8 +1,9 @@
 import { useApp } from '../../AppContext'
 import { Tag, RegionTag } from '../../components/Shared'
 import { Lock, Shield } from 'lucide-react'
-import { REGION_COLOR, ABILITY_SCORES } from './pjConstants'
+import { ABILITY_SCORES } from './pjConstants'
 import { abilityMod, signedBonus } from '../../helpers/pjCalc'
+
 
 function ModStatBox({ label, base }) {
   const mod = abilityMod(base)

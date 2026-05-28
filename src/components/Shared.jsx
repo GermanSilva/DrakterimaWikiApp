@@ -1,26 +1,26 @@
 import { regionLabel, relacionLabel } from '../helpers'
 
 const TAG_STYLES = {
-  magral:  'border-[#2a4a2a] text-[#60946a] bg-[rgba(42,74,42,0.12)]',
-  nezor:   'border-[#5a3a15] text-[#a86830] bg-[rgba(90,58,21,0.12)]',
+  magral: 'border-[#2a4a2a] text-[#60946a] bg-[rgba(42,74,42,0.12)]',
+  nezor: 'border-[#5a3a15] text-[#a86830] bg-[rgba(90,58,21,0.12)]',
   heladas: 'border-[#1a3855] text-[#5080a8] bg-[rgba(26,56,85,0.12)]',
-  islas:   'border-[#363650] text-[#7070a0] bg-[rgba(54,54,80,0.12)]',
-  orden:   'border-[#383015] text-[#887830] bg-[rgba(56,48,21,0.12)]',
-  legion:  'border-[#1a2535] text-[#486090] bg-[rgba(26,37,53,0.12)]',
-  culto:   'border-accent-dim text-accent-bright bg-[rgba(220,38,38,0.08)]',
-  gremio:  'border-[#283828] text-[#587858] bg-[rgba(40,56,40,0.12)]',
+  islas: 'border-[#363650] text-[#7070a0] bg-[rgba(54,54,80,0.12)]',
+  orden: 'border-[#383015] text-[#887830] bg-[rgba(56,48,21,0.12)]',
+  legion: 'border-[#1a2535] text-[#486090] bg-[rgba(26,37,53,0.12)]',
+  culto: 'border-accent-dim text-accent-bright bg-[rgba(220,38,38,0.08)]',
+  gremio: 'border-[#283828] text-[#587858] bg-[rgba(40,56,40,0.12)]',
   neutral: 'border-border-light text-txt-muted bg-transparent',
-  aliado:  'border-[#1a3a1a] text-[#487848] bg-[rgba(26,58,26,0.10)]',
+  aliado: 'border-[#1a3a1a] text-[#487848] bg-[rgba(26,58,26,0.10)]',
   enemigo: 'border-accent-dim text-accent bg-[rgba(220,38,38,0.07)]',
-  pj:      'border-[#1a3050] text-[#4878a8] bg-[rgba(26,48,80,0.12)]',
-  borrador:'border-[#4a3800] text-[#a08020] bg-[rgba(74,56,0,0.12)]',
+  pj: 'border-[#1a3050] text-[#4878a8] bg-[rgba(26,48,80,0.12)]',
+  borrador: 'border-[#4a3800] text-[#a08020] bg-[rgba(74,56,0,0.12)]',
   secreto: 'border-[#3a1a55] text-[#8850c0] bg-[rgba(58,26,85,0.12)]',
 }
 
 export function Tag({ cls, text }) {
   const styles = TAG_STYLES[cls] || TAG_STYLES.neutral
   return (
-    <span className={`font-exo text-[9px] font-semibold tracking-[0.1em] uppercase px-2 py-0.5 border inline-block ${styles}`}>
+    <span className={`font-exo text-[9px] font-semibold tracking-[0.1em] uppercase px-2 py-0.5 border inline-block w-fit ${styles}`}>
       {text}
     </span>
   )

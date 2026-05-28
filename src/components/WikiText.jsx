@@ -91,8 +91,8 @@ function parseBlocks(text) {
 
     // Headings (check ### before ## before #)
     if (line.startsWith('### ')) { blocks.push({ type: 'h3', content: line.slice(4) }); i++; continue }
-    if (line.startsWith('## '))  { blocks.push({ type: 'h2', content: line.slice(3) }); i++; continue }
-    if (line.startsWith('# '))   { blocks.push({ type: 'h1', content: line.slice(2) }); i++; continue }
+    if (line.startsWith('## ')) { blocks.push({ type: 'h2', content: line.slice(3) }); i++; continue }
+    if (line.startsWith('# ')) { blocks.push({ type: 'h1', content: line.slice(2) }); i++; continue }
 
     // Horizontal rule
     if (line.trim() === '---') { blocks.push({ type: 'hr' }); i++; continue }
@@ -185,8 +185,8 @@ function renderInlineNodes(inlineText, keyPrefix, db, goToDetail) {
     }
 
     if (node.type === 'bold-italic') return <strong key={key}><em>{node.text}</em></strong>
-    if (node.type === 'bold')        return <strong key={key}>{node.text}</strong>
-    if (node.type === 'italic')      return <em key={key}>{node.text}</em>
+    if (node.type === 'bold') return <strong key={key}>{node.text}</strong>
+    if (node.type === 'italic') return <em key={key}>{node.text}</em>
 
     return <span key={key}>{node.text}</span>
   })
@@ -209,13 +209,13 @@ export default function WikiText({ text }) {
           return <hr key={i} className="my-3 border-border-base" />
         }
         if (block.type === 'h1') {
-          return <h1 key={i} className="font-exo text-xl font-bold text-txt-primary mt-4 mb-2">{renderInlineNodes(block.content, `${i}`, db, goToDetail)}</h1>
+          return <h1 key={i} className="font-exo text-xl font-bold text-accent-dim mt-4 mb-2">{renderInlineNodes(block.content, `${i}`, db, goToDetail)}</h1>
         }
         if (block.type === 'h2') {
-          return <h2 key={i} className="font-exo text-lg font-semibold text-txt-primary mt-3 mb-1.5">{renderInlineNodes(block.content, `${i}`, db, goToDetail)}</h2>
+          return <h2 key={i} className="font-exo text-lg font-semibold text-txt-primary mt-3 mb-1.5 border-b border-accent-dim">{renderInlineNodes(block.content, `${i}`, db, goToDetail)}</h2>
         }
         if (block.type === 'h3') {
-          return <h3 key={i} className="font-exo text-base font-semibold text-txt-secondary mt-2 mb-1">{renderInlineNodes(block.content, `${i}`, db, goToDetail)}</h3>
+          return <h3 key={i} className="font-exo text-base font-semibold text-txt-primary mt-2 mb-1">{renderInlineNodes(block.content, `${i}`, db, goToDetail)}</h3>
         }
         if (block.type === 'ul') {
           return (

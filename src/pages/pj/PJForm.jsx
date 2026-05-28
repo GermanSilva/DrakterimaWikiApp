@@ -1,11 +1,12 @@
 import { useState } from 'react'
+import { Link } from 'lucide-react'
 import { useApp } from '../../AppContext'
-import { btnPrimary, btnSecondary, btnDanger } from '../../components/FormModal'
 import PJIdentityTab from './form/PJIdentityTab'
 import PJMechanicsTab from './form/PJMechanicsTab'
 import PJInventoryTab from './form/PJInventoryTab'
+import { btnPrimary, btnSecondary, btnDanger } from '../../constants'
 
-export default function PJForm({ item }) {
+export default function PJForm({ item, openPicker }) {
   const { save, remove, closeForm, isDM, currentPlayer } = useApp()
   const isOwnPlayer = !isDM && currentPlayer?.id === item?.id
 
@@ -159,7 +160,20 @@ export default function PJForm({ item }) {
   return (
     <div>
       <div className="font-exo text-[17px] font-bold text-txt-primary uppercase tracking-[0.06em] sticky top-0 z-[1] bg-bg-card px-8 pt-7 pb-0 border-b border-border-base">
-        <div className="mb-0 pb-4">{item ? 'Editar PJ' : 'Nuevo Personaje Jugador'}</div>
+        <div className="mb-0 pb-4 flex items-center justify-between">
+          <span>{item ? 'Editar PJ' : 'Nuevo Personaje Jugador'}</span>
+          {openPicker && (
+            <button
+              type="button"
+              className={`${btnSecondary} flex items-center gap-1.5`}
+              onMouseDown={e => e.preventDefault()}
+              onClick={openPicker}
+            >
+              <Link size={13} />
+              Insertar enlace
+            </button>
+          )}
+        </div>
         <div className="flex gap-0 -mb-px">
           {TABS.map(t => (
             <button

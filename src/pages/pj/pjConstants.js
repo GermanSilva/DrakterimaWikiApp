@@ -1,10 +1,3 @@
-export const REGION_COLOR = {
-  magral:  '#7aad82',
-  nezor:   '#c4834a',
-  heladas: '#7aaad0',
-  islas:   '#9090c0',
-}
-
 export const ABILITY_SCORES = [
   { label: 'FUE', key: 'stat_str', saveKey: 'save_str' },
   { label: 'DES', key: 'stat_dex', saveKey: 'save_dex' },
@@ -61,8 +54,3 @@ export const SKILLS_BY_ABILITY = [
     ],
   },
 ]
-
-// Shared CSS class constants for detail sections
-export const sectionTitleCls = 'font-exo text-[9px] font-semibold tracking-[0.25em] text-accent-dim uppercase mb-2'
-export const detailTextCls = 'text-sm leading-7 text-txt-secondary'
-export const detailSectionCls = 'mt-5 pt-4 border-t border-border-base'

@@ -1,4 +1,5 @@
-import { FormGroup, FormRow, labelCls, inputCls } from '../../../components/FormModal'
+import { FormGroup, FormRow } from '../../../components/FormModal'
+import { labelCls, inputCls } from '../../../constants'
 import { ABILITY_SCORES } from '../pjConstants'
 import { passivePerception, suggestedProfBonus } from '../../../helpers/pjCalc'
 import SkillsProficiencyGrid from './SkillsProficiencyGrid'
@@ -92,7 +93,7 @@ export default function PJMechanicsTab({ f, setF }) {
       <div className="px-8 mb-[18px]">
         <label className={labelCls}>Slots por Nivel</label>
         <div className="grid grid-cols-9 gap-1.5 mt-1.5">
-          {[1,2,3,4,5,6,7,8,9].map(lvl => (
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(lvl => (
             <div key={lvl} className="text-center">
               <div className="font-exo text-[10px] text-txt-muted mb-1">Niv {lvl}</div>
               <input

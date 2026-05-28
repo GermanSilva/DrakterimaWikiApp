@@ -1,43 +1,40 @@
-import { useRef } from 'react'
 import { useApp } from '../AppContext'
 import {
   LayoutDashboard, Scroll, Shield, Users, Map,
-  Landmark, BookOpen, Gem, Upload, Download, NotebookPen,
+  Landmark, BookOpen, Gem, NotebookPen, SlidersHorizontal,
 } from 'lucide-react'
 
 const NAV = [
-  { section: 'Principal', items: [
-    { id: 'dashboard', icon: LayoutDashboard, label: 'Panel' },
-    { id: 'notas', icon: NotebookPen, label: 'Notas', count: true },
-    { id: 'sesiones', icon: Scroll, label: 'Sesiones', count: true },
-  ]},
-  { section: 'Personajes', items: [
-    { id: 'pjs', icon: Shield, label: 'Jugadores (PJ)', count: true },
-    { id: 'pnjs', icon: Users, label: 'PNJs', count: true },
-  ]},
-  { section: 'Mundo', items: [
-    { id: 'lugares', icon: Map, label: 'Lugares', count: true },
-    { id: 'facciones', icon: Landmark, label: 'Facciones', count: true },
-    { id: 'lore', icon: BookOpen, label: 'Lore', count: true },
-  ]},
-  { section: 'Homebrew', items: [
-    { id: 'items', icon: Gem, label: 'Ítems', count: true },
-  ]},
+  {
+    section: 'Principal', items: [
+      { id: 'dashboard', icon: LayoutDashboard, label: 'Panel' },
+      { id: 'zonaDM', icon: SlidersHorizontal, label: 'Zona DM', dmOnly: true },
+      { id: 'notas', icon: NotebookPen, label: 'Notas', count: true },
+      { id: 'sesiones', icon: Scroll, label: 'Sesiones', count: true },
+    ]
+  },
+  {
+    section: 'Personajes', items: [
+      { id: 'pjs', icon: Shield, label: 'Jugadores (PJ)', count: true },
+      { id: 'pnjs', icon: Users, label: 'PNJs', count: true },
+    ]
+  },
+  {
+    section: 'Mundo', items: [
+      { id: 'lugares', icon: Map, label: 'Lugares', count: true },
+      { id: 'facciones', icon: Landmark, label: 'Facciones', count: true },
+      { id: 'lore', icon: BookOpen, label: 'Lore', count: true },
+    ]
+  },
+  {
+    section: 'Homebrew', items: [
+      { id: 'items', icon: Gem, label: 'Ítems', count: true },
+    ]
+  },
 ]
 
 export default function Sidebar({ currentPage, counts }) {
-  const {
-    navigate, sidebarOpen, toggleSidebar,
-    exportData, importData,
-    isDM,
-  } = useApp()
-  const fileInputRef = useRef(null)
-
-  function handleImportFile(e) {
-    const file = e.target.files[0]
-    if (file) importData(file)
-    e.target.value = ''
-  }
+  const { navigate, sidebarOpen, toggleSidebar, isDM } = useApp()
 
   return (
     <nav
@@ -50,11 +47,11 @@ export default function Sidebar({ currentPage, counts }) {
       ].join(' ')}
     >
       {NAV.map(({ section, items }) => (
-        <div key={section}>
-          <div className="font-exo text-[9px] tracking-[0.3em] text-txt-muted uppercase px-[18px] pb-2 mt-5 first:mt-0 font-semibold">
+        <div key={section} className='mt-5 first:mt-0'>
+          <div className="font-exo text-[9px] tracking-[0.3em] text-txt-muted uppercase px-[18px] pb-2 font-semibold">
             {section}
           </div>
-          {items.map(item => {
+          {items.filter(item => !item.dmOnly || isDM).map(item => {
             const Icon = item.icon
             const active = currentPage === item.id
             return (
@@ -88,37 +85,9 @@ export default function Sidebar({ currentPage, counts }) {
         </div>
       ))}
 
-      <div className="mt-auto pt-3 pb-2 border-t border-border-base">
-        {isDM && (
-          <>
-            <div className="font-exo text-[9px] tracking-[0.3em] text-txt-muted uppercase px-[18px] pb-2 mt-5 font-semibold">
-              Datos
-            </div>
-            <button
-              className="flex items-center gap-2 w-full bg-transparent border-none text-txt-secondary text-[12px] font-exo tracking-[0.04em] cursor-pointer px-4 py-[7px] text-left rounded-md transition-colors hover:text-txt-primary hover:bg-white/[.04]"
-              onClick={exportData}
-            >
-              <Upload size={14} className="opacity-70" />
-              Exportar JSON
-            </button>
-            <button
-              className="flex items-center gap-2 w-full bg-transparent border-none text-txt-secondary text-[12px] font-exo tracking-[0.04em] cursor-pointer px-4 py-[7px] text-left rounded-md transition-colors hover:text-txt-primary hover:bg-white/[.04]"
-              onClick={() => fileInputRef.current.click()}
-            >
-              <Download size={14} className="opacity-70" />
-              Importar JSON
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".json,application/json"
-              className="hidden"
-              onChange={handleImportFile}
-            />
-          </>
-        )}
-        <div className="font-exo text-[10px] text-center tracking-[0.12em] text-txt-muted uppercase font-medium px-4 pt-2.5 opacity-60">
-          Wiki del DM · D&D 5E
+      <div className="mt-auto pt-3 border-t border-border-base">
+        <div className="font-exo text-[10px] text-center tracking-[0.12em] text-txt-muted uppercase font-medium opacity-60">
+          Drakterima 2026 · D&D 5E
         </div>
       </div>
     </nav>

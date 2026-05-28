@@ -15,6 +15,16 @@ export const relacionLabel = {
   desconocido: 'Desconocido',
 }
 
+export function DateTimeFormat(date) {
+  const d = new Date(date)
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const year = d.getFullYear()
+  const hours = String(d.getHours()).padStart(2, '0')
+  const minutes = String(d.getMinutes()).padStart(2, '0')
+  return `${day}/${month}/${year} - ${hours}:${minutes}`
+}
+
 export function isVisible(entity, isDM, currentPlayer) {
   if (isDM) return true
   const estado = entity.estado ?? 'publicado'
@@ -31,4 +41,21 @@ export function nextId(arr) {
 
 export function nl2br(text) {
   return { __html: (text || '').replace(/\n/g, '<br>') }
+}
+
+export function plainText(text) {
+  if (!text) return ''
+  return text
+    .replace(/\[\[https?:\/\/[^\]]*\]\]/g, '')           // strip inline images
+    .replace(/\[\[\{\d+[A-Z]\}([^\]]*)\]\]/g, '$1')      // valid wikilinks → display text
+    .replace(/\[\[\{\d+\}([^\]]*)\]\]/g, '$1')            // invalid wikilinks → display text
+    .replace(/\*\*\*([^*]+)\*\*\*/g, '$1')                // bold-italic
+    .replace(/\*\*([^*]+)\*\*/g, '$1')                    // bold
+    .replace(/\*([^*]+)\*/g, '$1')                        // italic
+    .replace(/^#{1,3} /gm, '')                            // headings
+    .replace(/^[-*] /gm, '')                              // unordered list markers
+    .replace(/^\d+\. /gm, '')                             // ordered list markers
+    .replace(/^---$/gm, '')                               // horizontal rules
+    .replace(/\n+/g, ' ')
+    .trim()
 }

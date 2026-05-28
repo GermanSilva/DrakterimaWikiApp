@@ -10,7 +10,27 @@
       "Bash(node --input-type=module)",
       "Bash(node -e \"require\\('tailwindcss'\\)\")",
       "Bash(node --input-type=module --experimental-vm-modules)",
-      "Bash(node -e ':*)"
+      "Bash(node -e ':*)",
+      "Bash(Get-Content \"C:\\\\Users\\\\germa\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\e--Claude-Cowork-Drakterima-dragones-wiki\\\\24ec903f-1588-4a19-a1f3-cff8a38cdebc\\\\tasks\\\\bzd4k3mg5.output\")",
+      "Bash(Select-Object -Last 30)",
+      "Bash(cat tailwind.config.js)",
+      "Bash(cat tailwind.config.ts)",
+      "Bash(node -e ' *)",
+      "Bash(timeout 15 bash -c 'until grep -q \"Local:.*http://\" \"C:\\\\Users\\\\germa\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\e--Claude-Cowork-Drakterima-dragones-wiki\\\\24ec903f-1588-4a19-a1f3-cff8a38cdebc\\\\tasks\\\\bvol64lky.output\"; do sleep 0.5; done')",
+      "Bash(npx eslint *)",
+      "mcp__plugin_context7_context7__resolve-library-id",
+      "PowerShell(ls \"e:\\\\Claude Cowork\\\\Drakterima\\\\dragones-wiki\\\\.claude\\\\skills\\\\\" -ErrorAction SilentlyContinue)",
+      "Read(//root/.cache/**)",
+      "Read(//c/Users/germa/.cache/**)",
+      "Bash(npx playwright *)",
+      "Bash(npm list *)",
+      "Read(//c/Users/germa/AppData/Roaming/npm/node_modules/**)",
+      "Bash(git reset *)",
+      "Bash(git merge-base *)",
+      "Bash(C:\\\\Users\\\\germa\\\\.claude\\\\plugins\\\\cache\\\\claude-plugins-official\\\\superpowers\\\\5.1.0\\\\scripts\\\\start-server.sh --project-dir \"e:/Claude Cowork/Drakterima/dragones-wiki\")",
+      "Bash(bash \"/c/Users/germa/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/scripts/start-server.sh\" --project-dir \"/e/Claude Cowork/Drakterima/dragones-wiki\")",
+      "Skill(claude-md-management:revise-claude-md)",
+      "Skill(claude-md-management:revise-claude-md:*)"
     ]
   },
   "enabledPlugins": {

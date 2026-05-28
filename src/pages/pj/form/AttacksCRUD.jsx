@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { labelCls, inputCls, btnSecondary, btnDanger } from '../../../components/FormModal'
+import { labelCls, inputCls, btnSecondary } from '../../../constants'
 
 const EMPTY = { nombre: '', bono_ataque: '', dano: '', tipo_dano: '', alcance: '', notas: '' }
 

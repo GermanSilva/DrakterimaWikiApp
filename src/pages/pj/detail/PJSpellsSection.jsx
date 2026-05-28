@@ -1,4 +1,4 @@
-import { sectionTitleCls, detailSectionCls } from '../pjConstants'
+import { sectionTitleCls, detailSectionCls } from '../../../constants'
 
 const SPELL_LEVELS = ['Trucos', 'Nivel 1', 'Nivel 2', 'Nivel 3', 'Nivel 4', 'Nivel 5', 'Nivel 6', 'Nivel 7', 'Nivel 8', 'Nivel 9']
 

@@ -126,4 +126,5 @@ export const defaultData = {
   lore: defaultLore,
   items: [],
   player_notes: [],
+  login_logs: [],
 }

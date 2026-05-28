@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { AppContext } from './AppContext'
 import { defaultData, seedPJs, seedPNJs, seedSesiones } from './seed'
 import { nextId, isVisible } from './helpers'
@@ -14,6 +14,7 @@ import FormModal from './components/FormModal'
 import Toast from './components/Toast'
 import Dashboard from './pages/Dashboard'
 import Notas from './pages/Notas'
+import ZonaDM from './pages/ZonaDM'
 import Sesiones from './pages/Sesiones'
 import PJs from './pages/PJs'
 import PNJs from './pages/PNJs'
@@ -31,7 +32,7 @@ const PLAYER_PASSWORDS = {
   6: import.meta.env.VITE_PLAYER_6_PASSWORD,
 }
 
-const COLLECTIONS = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items', 'player_notes']
+const COLLECTIONS = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items', 'player_notes', 'login_logs']
 
 async function seedCollectionIfEmpty(collName, seedData) {
   const snap = await getDocs(collection(firestore, collName))
@@ -45,6 +46,7 @@ async function seedCollectionIfEmpty(collName, seedData) {
 
 const PAGES = {
   dashboard: Dashboard,
+  zonaDM: ZonaDM,
   notas: Notas,
   sesiones: Sesiones,
   pjs: PJs,
@@ -73,12 +75,12 @@ export default function App() {
 
   useEffect(() => {
     async function maybeSeed() {
-      await seedCollectionIfEmpty('pjs',       seedPJs)
-      await seedCollectionIfEmpty('pnjs',      seedPNJs)
-      await seedCollectionIfEmpty('sesiones',  seedSesiones)
-      await seedCollectionIfEmpty('lugares',   defaultData.lugares)
+      await seedCollectionIfEmpty('pjs', seedPJs)
+      await seedCollectionIfEmpty('pnjs', seedPNJs)
+      await seedCollectionIfEmpty('sesiones', seedSesiones)
+      await seedCollectionIfEmpty('lugares', defaultData.lugares)
       await seedCollectionIfEmpty('facciones', defaultData.facciones)
-      await seedCollectionIfEmpty('lore',      defaultData.lore)
+      await seedCollectionIfEmpty('lore', defaultData.lore)
     }
     maybeSeed()
 
@@ -124,7 +126,7 @@ export default function App() {
   function lockDM() {
     sessionStorage.removeItem('drakterima_dm')
     setIsDM(false)
-    showToast('Modo jugador activado')
+    showToast('Modo Público activado')
   }
 
   function loginPlayer(password) {
@@ -137,6 +139,11 @@ export default function App() {
     sessionStorage.setItem('drakterima_player', JSON.stringify(player))
     setCurrentPlayer(player)
     showToast(`Bienvenido/a, ${pj.nombre}`)
+    const logId = `${Date.now()}_${pj.id}`
+    setDoc(doc(firestore, 'login_logs', logId), {
+      id: logId, playerId: pj.id, playerName: pj.nombre,
+      timestamp: new Date().toISOString(),
+    })
     return { success: true }
   }
 
@@ -205,8 +212,12 @@ export default function App() {
   }
 
   async function save(type, data) {
+    const isNew = data.id == null
     const id = data.id ?? nextId(db[type] || [])
-    await setDoc(doc(firestore, type, String(id)), { ...data, id })
+    const now = new Date().toISOString()
+    const existing = isNew ? null : (db[type] || []).find(e => e.id === data.id)
+    const createdAt = isNew ? now : (existing?.createdAt ?? now)
+    await setDoc(doc(firestore, type, String(id)), { ...data, id, createdAt, updatedAt: now })
     setForm(null)
     showToast('Guardado')
   }
@@ -226,10 +237,13 @@ export default function App() {
   }
 
   function goToDetail(p, id) {
+    window.scrollTo(0, 0)
     setPage(p)
     setDetail(null)
     setPendingDetail({ id })
   }
+
+  const activeFieldRef = useRef(null)
 
   const ctx = {
     db,
@@ -258,6 +272,7 @@ export default function App() {
     toggleSidebar: () => setSidebarOpen(v => !v),
     exportData,
     importData,
+    activeFieldRef,
   }
 
   const counts = {
