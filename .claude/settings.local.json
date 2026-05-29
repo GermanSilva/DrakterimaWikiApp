@@ -30,7 +30,11 @@
       "Bash(C:\\\\Users\\\\germa\\\\.claude\\\\plugins\\\\cache\\\\claude-plugins-official\\\\superpowers\\\\5.1.0\\\\scripts\\\\start-server.sh --project-dir \"e:/Claude Cowork/Drakterima/dragones-wiki\")",
       "Bash(bash \"/c/Users/germa/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/scripts/start-server.sh\" --project-dir \"/e/Claude Cowork/Drakterima/dragones-wiki\")",
       "Skill(claude-md-management:revise-claude-md)",
-      "Skill(claude-md-management:revise-claude-md:*)"
+      "Skill(claude-md-management:revise-claude-md:*)",
+      "Bash(node -e \"const lucide = require\\('e:/Claude Cowork/Drakterima/dragones-wiki/node_modules/lucide-react'\\); console.log\\(Object.keys\\(lucide\\).filter\\(k => k.toLowerCase\\(\\).includes\\('dice'\\)\\)\\)\")",
+      "Bash(node -e \"const { createRequires } = require\\('module'\\); try { require.resolve\\('lucide-react'\\); console.log\\('found'\\); } catch\\(e\\) { console.log\\('not found'\\); }\")",
+      "Bash(npx --no-install lucide-react)",
+      "Bash(node -e \"const l = require\\('./node_modules/lucide-react'\\); console.log\\(Object.keys\\(l\\).filter\\(k => k.toLowerCase\\(\\).includes\\('dice'\\)\\).join\\(', '\\)\\)\")"
     ]
   },
   "enabledPlugins": {

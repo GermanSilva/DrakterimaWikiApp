@@ -42,7 +42,7 @@ El deploy se dispara automáticamente al pushear a `main` vía `.github/workflow
 Los datos viven en **Firebase Firestore**. La app usa `onSnapshot` para sincronización en tiempo real entre múltiples pestañas/usuarios sin necesidad de recargar.
 
 - **`src/firebase.js`**: inicializa Firestore con las 6 vars `VITE_FIREBASE_*` y habilita persistencia offline con `enableMultiTabIndexedDbPersistence`.
-- **Colecciones Firestore**: `sesiones`, `pjs`, `pnjs`, `lugares`, `facciones`, `lore`, `items`, `player_notes`, `login_logs`. Los documentos usan el `id` numérico convertido a string como doc ID.
+- **Colecciones Firestore**: `sesiones`, `pjs`, `pnjs`, `lugares`, `facciones`, `lore`, `items`, `player_notes`, `login_logs`, `game_logs`, `game_pot`, `game_config`. Los documentos usan el `id` numérico convertido a string como doc ID.
 - **Seed**: al primer load, `seedCollectionIfEmpty(collName, seedData)` comprueba si la colección está vacía y la rellena con datos iniciales usando `writeBatch`.
 - Sin Firebase Storage — las imágenes se referencian por URL externa (`imagen_url`, campo de texto).
 
@@ -110,7 +110,17 @@ Cada formulario incluye el componente `EstadoField` para controlar la visibilida
 
 ### Zona DM
 
-`src/pages/ZonaDM.jsx` es una página visible solo para el DM. Contiene: exportar/importar JSON, registro de accesos de jugadores (`login_logs` collection en Firestore) y mantenimiento (backfill de timestamps). Al agregar nuevas tareas admin, hacerlas aquí.
+`src/pages/ZonaDM.jsx` es una página visible solo para el DM. Contiene: exportar/importar JSON, registro de accesos de jugadores (`login_logs`), configuración y logs del sistema de juegos (`JuegosSection`), y mantenimiento (backfill de timestamps). Al agregar nuevas tareas admin, hacerlas aquí.
+
+### Sistema de juegos (`Juegos.jsx`, `Dice3D.jsx`)
+
+`src/pages/Juegos.jsx` — lotería d20, un tiro por día por jugador. Lee config de `game_config/loteria` (commonMinRoll, commonPrize, specialPrize en monedas cp/sp/ep/gp/pp). Guarda resultado en `game_logs` con id `{pjId}_loteria_{fecha}`. El premio del DM va al pozo (`game_pot/current`).
+
+`src/components/Dice3D.jsx` — d20 icosaedro Three.js (dep: `three`): cámara cenital, parallax, bounce zoom, snap con resorte amortiguado. Se importa con `lazy()`. Props: `onComplete(roll)` (callback con resultado 1-20), `rolling` (bool dispara animación).
+
+Funciones de contexto (App.jsx): `saveGameResult(actorType, pjId, roll)`, `saveGameConfig(cfg)`, `assignPotToPJ(pjId, coins)`.
+
+`JuegosSection` en ZonaDM: configurar premios/umbral, ver/eliminar logs, gestionar el pozo, asignar monedas del pozo a un PJ.
 
 ### Imágenes
 

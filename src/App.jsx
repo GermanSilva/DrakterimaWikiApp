@@ -5,7 +5,7 @@ import { nextId, isVisible } from './helpers'
 import { firestore } from './firebase'
 import {
   collection, doc, setDoc, deleteDoc,
-  onSnapshot, getDocs, writeBatch,
+  onSnapshot, getDocs, writeBatch, increment,
 } from 'firebase/firestore'
 import Header from './components/Header'
 import Sidebar from './components/Sidebar'
@@ -22,6 +22,7 @@ import Lugares from './pages/Lugares'
 import Facciones from './pages/Facciones'
 import Lore from './pages/Lore'
 import Items from './pages/Items'
+import Juegos from './pages/Juegos'
 
 const PLAYER_PASSWORDS = {
   1: import.meta.env.VITE_PLAYER_1_PASSWORD,
@@ -32,7 +33,7 @@ const PLAYER_PASSWORDS = {
   6: import.meta.env.VITE_PLAYER_6_PASSWORD,
 }
 
-const COLLECTIONS = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items', 'player_notes', 'login_logs']
+const COLLECTIONS = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items', 'player_notes', 'login_logs', 'game_logs', 'game_pot', 'game_config']
 
 async function seedCollectionIfEmpty(collName, seedData) {
   const snap = await getDocs(collection(firestore, collName))
@@ -55,6 +56,7 @@ const PAGES = {
   facciones: Facciones,
   lore: Lore,
   items: Items,
+  juegos: Juegos,
 }
 
 export default function App() {
@@ -81,6 +83,13 @@ export default function App() {
       await seedCollectionIfEmpty('lugares', defaultData.lugares)
       await seedCollectionIfEmpty('facciones', defaultData.facciones)
       await seedCollectionIfEmpty('lore', defaultData.lore)
+      await seedCollectionIfEmpty('game_pot', [{ id: 'current', cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 }])
+      await seedCollectionIfEmpty('game_config', [{
+        id: 'loteria',
+        commonMinRoll: 17,
+        commonPrize: { cp: 3, sp: 0, ep: 0, gp: 0, pp: 0 },
+        specialPrize: { cp: 0, sp: 1, ep: 0, gp: 0, pp: 0 },
+      }])
     }
     maybeSeed()
 
@@ -157,6 +166,84 @@ export default function App() {
     const docId = `${pj_id}_${type}_${entity_id}`
     await setDoc(doc(firestore, 'player_notes', docId), { id: docId, pj_id, type, entity_id, text })
     showToast('Nota guardada')
+  }
+
+  async function saveGameResult(actorType, pjId, roll) {
+    const config = (db.game_config || []).find(c => c.id === 'loteria') ?? {
+      commonMinRoll: 17,
+      commonPrize: { cp: 3, sp: 0, ep: 0, gp: 0, pp: 0 },
+      specialPrize: { cp: 0, sp: 1, ep: 0, gp: 0, pp: 0 },
+    }
+    let prize = { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 }
+    if (roll === 20) prize = { ...config.specialPrize }
+    else if (roll >= config.commonMinRoll) prize = { ...config.commonPrize }
+
+    const now = new Date()
+    const date = now.toISOString().slice(0, 10)
+    const timestamp = now.toISOString()
+    const logId = actorType === 'player'
+      ? `${pjId}_loteria_${date}`
+      : `dm_loteria_${Date.now()}`
+
+    const batch = writeBatch(firestore)
+    batch.set(doc(firestore, 'game_logs', logId), {
+      id: logId, actorType, playerId: pjId ?? null,
+      game: 'loteria', date, timestamp, roll, prize,
+      prizeTarget: actorType === 'player' ? 'player' : 'pot',
+    })
+
+    if (actorType === 'player' && pjId != null) {
+      const pj = (db.pjs || []).find(p => p.id === pjId)
+      if (!pj) throw new Error(`PJ ${pjId} no encontrado`)
+      const monedas = {
+        cp: (pj.monedas?.cp || 0) + prize.cp,
+        sp: (pj.monedas?.sp || 0) + prize.sp,
+        ep: (pj.monedas?.ep || 0) + prize.ep,
+        gp: (pj.monedas?.gp || 0) + prize.gp,
+        pp: (pj.monedas?.pp || 0) + prize.pp,
+      }
+      batch.set(doc(firestore, 'pjs', String(pjId)), { ...pj, monedas, updatedAt: timestamp }, { merge: true })
+    } else {
+      batch.set(doc(firestore, 'game_pot', 'current'), {
+        cp: increment(prize.cp),
+        sp: increment(prize.sp),
+        ep: increment(prize.ep),
+        gp: increment(prize.gp),
+        pp: increment(prize.pp),
+      }, { merge: true })
+    }
+
+    await batch.commit()
+  }
+
+  async function assignPotToPJ(pjId, amount) {
+    const pot = (db.game_pot || []).find(p => p.id === 'current') ?? { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 }
+    const COIN_TYPES = ['cp', 'sp', 'ep', 'gp', 'pp']
+    for (const coin of COIN_TYPES) {
+      if ((amount[coin] || 0) > (pot[coin] || 0))
+        throw new Error(`No hay suficiente ${coin} en el pozo.`)
+    }
+    const pj = (db.pjs || []).find(p => p.id === pjId)
+    if (!pj) throw new Error(`PJ ${pjId} no encontrado`)
+
+    const now = new Date().toISOString()
+    const monedas = { ...pj.monedas }
+    const potUpdate = {}
+    for (const coin of COIN_TYPES) {
+      monedas[coin] = (monedas[coin] || 0) + (amount[coin] || 0)
+      potUpdate[coin] = increment(-(amount[coin] || 0))
+    }
+
+    const batch = writeBatch(firestore)
+    batch.set(doc(firestore, 'game_pot', 'current'), potUpdate, { merge: true })
+    batch.set(doc(firestore, 'pjs', String(pjId)), { ...pj, monedas, updatedAt: now }, { merge: true })
+    await batch.commit()
+    showToast('Monedas transferidas')
+  }
+
+  async function saveGameConfig(config) {
+    await setDoc(doc(firestore, 'game_config', 'loteria'), { ...config, id: 'loteria' }, { merge: true })
+    showToast('Configuración guardada')
   }
 
   function tryAccess(password) {
@@ -262,6 +349,9 @@ export default function App() {
     loginPlayer,
     logoutPlayer,
     savePlayerNote,
+    saveGameResult,
+    assignPotToPJ,
+    saveGameConfig,
     tryAccess,
     openForm: (type, id = null) => {
       if (isDM || (type === 'pjs' && id === currentPlayer?.id)) setForm({ type, id })
