@@ -59,3 +59,14 @@ export function plainText(text) {
     .replace(/\n+/g, ' ')
     .trim()
 }
+
+export function calcularOrden(afterId, sortedArticulos) {
+  if (!sortedArticulos.length) return 100
+  const getOrden = a => a.orden ?? a.numero * 100
+  if (afterId === null) return getOrden(sortedArticulos[0]) - 100
+  const idx = sortedArticulos.findIndex(a => a.id === afterId)
+  if (idx === -1) return getOrden(sortedArticulos[sortedArticulos.length - 1]) + 100
+  const afterOrden = getOrden(sortedArticulos[idx])
+  if (idx === sortedArticulos.length - 1) return afterOrden + 100
+  return (afterOrden + getOrden(sortedArticulos[idx + 1])) / 2
+}

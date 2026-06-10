@@ -96,7 +96,7 @@ export default function App() {
     const unsubs = COLLECTIONS.map(collName =>
       onSnapshot(collection(firestore, collName), snap => {
         const docs = snap.docs.map(d => d.data())
-        if (collName === 'sesiones') docs.sort((a, b) => a.numero - b.numero)
+        if (collName === 'sesiones') docs.sort((a, b) => (a.orden ?? a.numero * 100) - (b.orden ?? b.numero * 100))
         setDb(prev => ({ ...prev, [collName]: docs }))
       })
     )
@@ -271,6 +271,21 @@ export default function App() {
     showToast('Datos exportados')
   }
 
+  const ARTICLE_KEYS = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items', 'player_notes']
+
+  function exportArticles() {
+    const data = Object.fromEntries(ARTICLE_KEYS.map(k => [k, db[k] ?? []]))
+    const json = JSON.stringify(data, null, 2)
+    const blob = new Blob([json], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `drakterima-articulos-${new Date().toISOString().slice(0, 10)}.json`
+    a.click()
+    URL.revokeObjectURL(url)
+    showToast('Artículos exportados')
+  }
+
   function importData(file) {
     const reader = new FileReader()
     reader.onload = async e => {
@@ -361,6 +376,7 @@ export default function App() {
     sidebarOpen,
     toggleSidebar: () => setSidebarOpen(v => !v),
     exportData,
+    exportArticles,
     importData,
     activeFieldRef,
   }

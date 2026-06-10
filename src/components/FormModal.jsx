@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../AppContext'
-import { regionLabel, regionOptions } from '../helpers'
+import { regionLabel, regionOptions, calcularOrden } from '../helpers'
 import PJForm from '../pages/pj/PJForm'
 import { Lock, Link } from 'lucide-react'
 import WikiLinkPicker from './WikiLinkPicker'
@@ -55,10 +55,41 @@ export function EstadoField({ estado, visibilidad, setF }) {
   )
 }
 
+function PosicionField({ afterId, setAfterIdFn, currentId }) {
+  const { db } = useApp()
+  const sortedAll = [...db.sesiones]
+    .sort((a, b) => (a.orden ?? a.numero * 100) - (b.orden ?? b.numero * 100))
+    .filter(s => s.id !== currentId)
+  return (
+    <FormGroup>
+      <label className={labelCls}>Posición en la línea de tiempo</label>
+      <select
+        className={inputCls}
+        value={afterId === null ? '__first__' : afterId}
+        onChange={e => setAfterIdFn(e.target.value === '__first__' ? null : Number(e.target.value))}
+      >
+        <option value="__first__">(Al principio)</option>
+        {sortedAll.map(s => (
+          <option key={s.id} value={s.id}>
+            {s.tipo === 'avance'
+              ? `[Avance] ${s.titulo || 'Sin título'}`
+              : `[Sesión ${s.numero}] ${s.titulo || 'Sin título'}`}
+          </option>
+        ))}
+      </select>
+    </FormGroup>
+  )
+}
+
 function SesionForm({ item }) {
   const { db, save, remove, closeForm, activeFieldRef } = useApp()
+  const sortedAll = [...db.sesiones].sort((a, b) => (a.orden ?? a.numero * 100) - (b.orden ?? b.numero * 100))
+  const itemOrden = item ? (item.orden ?? item.numero * 100) : null
+  const defaultAfterId = item
+    ? (sortedAll.filter(s => s.id !== item.id && (s.orden ?? s.numero * 100) < itemOrden).pop()?.id ?? null)
+    : (sortedAll.length > 0 ? sortedAll[sortedAll.length - 1].id : null)
   const [f, setF] = useState({
-    numero: item?.numero ?? (db.sesiones.length + 1),
+    numero: item?.numero ?? (db.sesiones.filter(s => s.tipo !== 'avance').length + 1),
     fecha: item?.fecha ?? '',
     titulo: item?.titulo ?? '',
     resumen: item?.resumen ?? '',
@@ -67,8 +98,16 @@ function SesionForm({ item }) {
     imagen_url: item?.imagen_url ?? '',
     estado: item?.estado ?? 'publicado',
     visibilidad: item?.visibilidad ?? [],
+    afterId: defaultAfterId,
   })
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
+
+  function handleSave() {
+    const forOrden = sortedAll.filter(s => s.id !== item?.id)
+    const orden = calcularOrden(f.afterId, forOrden)
+    const { afterId, ...rest } = f
+    save('sesiones', { ...rest, id: item?.id, numero: parseInt(f.numero) || 0, tipo: 'sesion', orden })
+  }
 
   return (
     <div>
@@ -111,11 +150,73 @@ function SesionForm({ item }) {
           <img src={f.imagen_url} alt="preview" className="mt-2 max-w-full max-h-[140px] rounded-md object-cover" onError={e => e.target.style.display = 'none'} />
         )}
       </FormGroup>
+      <PosicionField afterId={f.afterId} setAfterIdFn={v => setF(p => ({ ...p, afterId: v }))} currentId={item?.id} />
       <EstadoField estado={f.estado} visibilidad={f.visibilidad} setF={setF} />
       <div className="flex gap-2.5 justify-end sticky bottom-0 z-[1] bg-bg-card px-8 py-4 pb-6 border-t border-border-base mt-3">
         {item && <button className={btnDanger} onClick={() => remove('sesiones', item.id)}>Eliminar</button>}
         <button className={btnSecondary} onClick={closeForm}>Cancelar</button>
-        <button className={btnPrimary} onClick={() => save('sesiones', { ...f, id: item?.id, numero: parseInt(f.numero) || 0 })}>Guardar</button>
+        <button className={btnPrimary} onClick={handleSave}>Guardar</button>
+      </div>
+    </div>
+  )
+}
+
+function AvanceForm({ item }) {
+  const { db, save, remove, closeForm, activeFieldRef } = useApp()
+  const sortedAll = [...db.sesiones].sort((a, b) => (a.orden ?? a.numero * 100) - (b.orden ?? b.numero * 100))
+  const itemOrden = item ? (item.orden ?? item.numero * 100) : null
+  const defaultAfterId = item
+    ? (sortedAll.filter(s => s.id !== item.id && (s.orden ?? s.numero * 100) < itemOrden).pop()?.id ?? null)
+    : (sortedAll.length > 0 ? sortedAll[sortedAll.length - 1].id : null)
+  const [f, setF] = useState({
+    titulo: item?.titulo ?? '',
+    texto: item?.texto ?? '',
+    notas: item?.notas ?? '',
+    imagen_url: item?.imagen_url ?? '',
+    estado: item?.estado ?? 'publicado',
+    visibilidad: item?.visibilidad ?? [],
+    afterId: defaultAfterId,
+  })
+  const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
+
+  function handleSave() {
+    const forOrden = sortedAll.filter(s => s.id !== item?.id)
+    const orden = calcularOrden(f.afterId, forOrden)
+    const { afterId, ...rest } = f
+    save('sesiones', { ...rest, id: item?.id, tipo: 'avance', orden })
+  }
+
+  return (
+    <div>
+      <FormGroup>
+        <label className={labelCls}>Título del Avance</label>
+        <input className={inputCls} value={f.titulo} onChange={set('titulo')} placeholder="Ej: Algo se acerca..." />
+      </FormGroup>
+      <FormGroup>
+        <label className={labelCls}>Texto</label>
+        <textarea className={`${inputCls} resize-y min-h-[120px]`} rows={6} value={f.texto} onChange={set('texto')}
+          onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'texto' } }}
+          placeholder="Bloque de lore, diálogo críptico, teaser narrativo..." />
+      </FormGroup>
+      <FormGroup>
+        <label className={labelCls}>{labelLock}Notas del DM</label>
+        <textarea className={`${inputCls} resize-y min-h-[60px]`} rows={2} value={f.notas} onChange={set('notas')}
+          onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'notas' } }}
+          placeholder="Notas internas..." />
+      </FormGroup>
+      <FormGroup>
+        <label className={labelCls}>Imagen (URL externa)</label>
+        <input className={inputCls} type="url" placeholder="https://i.imgur.com/..." value={f.imagen_url} onChange={set('imagen_url')} />
+        {f.imagen_url && (
+          <img src={f.imagen_url} alt="preview" className="mt-2 max-w-full max-h-[140px] rounded-md object-cover" onError={e => e.target.style.display = 'none'} />
+        )}
+      </FormGroup>
+      <PosicionField afterId={f.afterId} setAfterIdFn={v => setF(p => ({ ...p, afterId: v }))} currentId={item?.id} />
+      <EstadoField estado={f.estado} visibilidad={f.visibilidad} setF={setF} />
+      <div className="flex gap-2.5 justify-end sticky bottom-0 z-[1] bg-bg-card px-8 py-4 pb-6 border-t border-border-base mt-3">
+        {item && <button className={btnDanger} onClick={() => remove('sesiones', item.id)}>Eliminar</button>}
+        <button className={btnSecondary} onClick={closeForm}>Cancelar</button>
+        <button className={btnPrimary} onClick={handleSave}>Guardar</button>
       </div>
     </div>
   )
@@ -412,6 +513,7 @@ function ItemForm({ item }) {
 
 const FORM_TITLES = {
   sesiones: ['Nueva Sesión', 'Editar Sesión'],
+  avances: ['Nuevo Avance', 'Editar Avance'],
   pnjs: ['Nuevo PNJ', 'Editar PNJ'],
   lugares: ['Nuevo Lugar', 'Editar Lugar'],
   facciones: ['Nueva Facción', 'Editar Facción'],
@@ -421,6 +523,7 @@ const FORM_TITLES = {
 
 const FORM_COMPONENTS = {
   sesiones: SesionForm,
+  avances: AvanceForm,
   pjs: PJForm,
   pnjs: PNJForm,
   lugares: LugarForm,
@@ -432,7 +535,8 @@ const FORM_COMPONENTS = {
 export default function FormModal({ form }) {
   const { db, closeForm, activeFieldRef } = useApp()
   const [pickerOpen, setPickerOpen] = useState(false)
-  const item = form.id !== null ? (db[form.type] || []).find(x => x.id === form.id) ?? null : null
+  const collectionKey = form.type === 'avances' ? 'sesiones' : form.type
+  const item = form.id !== null ? (db[collectionKey] || []).find(x => x.id === form.id) ?? null : null
   const FormComponent = FORM_COMPONENTS[form.type]
   const isPJForm = form.type === 'pjs'
 
