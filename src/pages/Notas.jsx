@@ -76,9 +76,9 @@ export default function Notas() {
       .map(pj => ({ pj, notes: activeNotes.filter(n => n.pj_id === pj.id) }))
       .filter(g => g.notes.length > 0)
 
-    const displayed = selectedPjId === null
-      ? grouped
-      : grouped.filter(g => g.pj.id === selectedPjId)
+    const activePjIds = new Set(grouped.map(g => g.pj.id))
+    const effectiveFilter = activePjIds.has(selectedPjId) ? selectedPjId : null
+    const displayed = effectiveFilter === null ? grouped : grouped.filter(g => g.pj.id === effectiveFilter)
 
     return (
       <div>
