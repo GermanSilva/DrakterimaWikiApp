@@ -168,6 +168,11 @@ export default function App() {
     showToast('Nota guardada')
   }
 
+  async function deletePlayerNote(note_id) {
+    await deleteDoc(doc(firestore, 'player_notes', note_id))
+    showToast('Nota eliminada')
+  }
+
   async function saveGameResult(actorType, pjId, roll) {
     const config = (db.game_config || []).find(c => c.id === 'loteria') ?? {
       commonMinRoll: 17,
@@ -364,6 +369,7 @@ export default function App() {
     loginPlayer,
     logoutPlayer,
     savePlayerNote,
+    deletePlayerNote,
     saveGameResult,
     assignPotToPJ,
     saveGameConfig,

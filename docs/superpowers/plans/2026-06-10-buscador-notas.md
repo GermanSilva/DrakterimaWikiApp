@@ -1,18 +1,36 @@
-import { useState, useEffect } from 'react'
-import { useApp } from '../AppContext'
+# Buscador de notas — Plan de implementación
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Agregar un buscador a `Notas.jsx` que filtre por título de artículo, sección y contenido, con sintaxis `[sección]` y chips clicables como atajos.
+
+**Architecture:** Todo el cambio ocurre en `src/pages/Notas.jsx`. Se agregan funciones puras (`normalize`, `parseQuery`, `filterNotes`), un mapa `CHIP_VALUE`, y un componente interno `SearchBar`. El estado `query` vive en `Notas()` y se aplica sobre las notas antes de renderizar, en ambas vistas (DM y jugador).
+
+**Tech Stack:** React 18, lucide-react (icono `Search`), Tailwind CSS vía clases existentes del proyecto.
+
+---
+
+### Task 1: Agregar utilidades (`normalize`, `parseQuery`, `filterNotes`, `CHIP_VALUE`) e import de `Search`
+
+**Files:**
+- Modify: `src/pages/Notas.jsx`
+
+- [ ] **Step 1: Agregar `Search` al import de lucide-react**
+
+En `src/pages/Notas.jsx`, reemplazar la línea 3:
+
+```js
+// antes
+import { NotebookPen, Trash2 } from 'lucide-react'
+// después
 import { NotebookPen, Trash2, Search } from 'lucide-react'
-import { btnDanger, btnSecondary } from '../constants'
+```
 
-const TYPE_LABELS = {
-  sesiones:  'Sesión',
-  pjs:       'PJ',
-  pnjs:      'PNJ',
-  lugares:   'Lugar',
-  facciones: 'Facción',
-  lore:      'Lore',
-  items:     'Ítem',
-}
+- [ ] **Step 2: Agregar `CHIP_VALUE`, `normalize`, `parseQuery`, `filterNotes` después de `TYPE_LABELS`**
 
+Insertar el siguiente bloque después del cierre de `TYPE_LABELS` (después de la línea 14, antes de `function entityName`):
+
+```js
 const CHIP_VALUE = {
   sesiones:  'sesion',
   pjs:       'pj',
@@ -34,12 +52,6 @@ function parseQuery(q) {
   return { sectionFilter, textFilter }
 }
 
-function entityName(db, type, entity_id) {
-  const e = (db[type] || []).find(x => x.id === entity_id)
-  if (!e) return `#${entity_id}`
-  return e.nombre || e.titulo || (e.numero != null ? `Sesión ${e.numero}` : null) || `#${entity_id}`
-}
-
 function filterNotes(notes, parsed, db) {
   const { sectionFilter, textFilter } = parsed
   return notes.filter(note => {
@@ -59,105 +71,28 @@ function filterNotes(notes, parsed, db) {
     return true
   })
 }
+```
 
-function HighlightText({ text, term }) {
-  if (!term || !text) return <>{text}</>
-  const normText = normalize(text)
-  const normTerm = normalize(term)
-  if (!normTerm) return <>{text}</>
-  const parts = []
-  let last = 0
-  let idx = normText.indexOf(normTerm)
-  while (idx !== -1) {
-    if (idx > last) parts.push(text.slice(last, idx))
-    parts.push(<span key={idx} className="bg-accent/25 rounded-[2px]">{text.slice(idx, idx + normTerm.length)}</span>)
-    last = idx + normTerm.length
-    idx = normText.indexOf(normTerm, last)
-  }
-  if (last < text.length) parts.push(text.slice(last))
-  return <>{parts}</>
-}
+- [ ] **Step 3: Verificar que el archivo compila**
 
-function NoteCard({ note, db, goToDetail, onDelete, textFilter }) {
-  const name = entityName(db, note.type, note.entity_id)
-  const label = TYPE_LABELS[note.type] || note.type
-  return (
-    <div
-      className="bg-bg-card border border-border-base px-5 py-4 cursor-pointer transition-colors hover:border-accent-dim hover:bg-bg-card-hover"
-      onClick={() => goToDetail(note.type, note.entity_id)}
-    >
-      <div className="flex items-center gap-2 mb-2">
-        <span className="font-exo text-[13px] font-semibold text-txt-primary tracking-[0.03em]">
-          <HighlightText text={name} term={textFilter} />
-        </span>
-        <span className="font-exo text-[10px] tracking-[0.15em] uppercase text-txt-muted bg-border-light px-1.5 py-0.5 rounded-sm">
-          {label}
-        </span>
-        {onDelete && (
-          <button
-            aria-label="Eliminar nota"
-            className="ml-auto p-0.5 text-txt-muted hover:text-red-400 transition-colors cursor-pointer"
-            onClick={e => { e.stopPropagation(); onDelete() }}
-          >
-            <Trash2 size={14} />
-          </button>
-        )}
-      </div>
-      <div className="text-[13px] text-txt-secondary leading-[1.65] line-clamp-3">
-        <HighlightText text={note.text} term={textFilter} />
-      </div>
-    </div>
-  )
-}
+```bash
+npm run build
+```
 
-function PageHeader() {
-  return (
-    <div className="mb-7 pb-5 border-b border-border-base">
-      <div className="font-exo text-[10px] tracking-[0.3em] text-txt-muted uppercase mb-1 font-medium">
-        Registro
-      </div>
-      <div className="font-exo text-[26px] font-bold text-txt-primary tracking-[0.04em] uppercase">
-        Notas
-      </div>
-    </div>
-  )
-}
+Esperado: build sin errores. Si falla, revisar que `entityName` esté definida *antes* de `filterNotes` en el archivo (actualmente está en línea 16 — verificar que el bloque nuevo se insertó después de línea 14 y antes de línea 16).
 
-function ConfirmModal({ note, db, onConfirm, onCancel }) {
-  const name = entityName(db, note.type, note.entity_id)
-  const label = TYPE_LABELS[note.type] || note.type
+---
 
-  useEffect(() => {
-    function onKey(e) { if (e.key === 'Escape') onCancel() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onCancel])
+### Task 2: Agregar el componente `SearchBar`
 
-  return (
-    <div
-      className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center"
-      onClick={onCancel}
-    >
-      <div
-        className="bg-bg-card border border-border-base p-6 w-[min(380px,90vw)]"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="font-exo text-[15px] font-bold text-txt-primary mb-1">
-          ¿Eliminar esta nota?
-        </div>
-        <div className="text-[13px] text-txt-muted mb-5">
-          {name}
-          <span className="font-exo text-[10px] tracking-[0.15em] uppercase ml-2">{label}</span>
-        </div>
-        <div className="flex gap-2.5 justify-end">
-          <button className={btnDanger} onClick={onConfirm}>Eliminar</button>
-          <button className={btnSecondary} onClick={onCancel}>Cancelar</button>
-        </div>
-      </div>
-    </div>
-  )
-}
+**Files:**
+- Modify: `src/pages/Notas.jsx`
 
+- [ ] **Step 1: Insertar `SearchBar` justo antes de `export default function Notas()`**
+
+Insertar el siguiente bloque entre el cierre de `ConfirmModal` y la línea `export default function Notas()`:
+
+```jsx
 function SearchBar({ query, onChange, sectionTypes }) {
   const { sectionFilter } = parseQuery(query)
   const activeSection = sectionFilter ? normalize(sectionFilter) : null
@@ -208,26 +143,137 @@ function SearchBar({ query, onChange, sectionTypes }) {
     </div>
   )
 }
+```
 
-export default function Notas() {
+- [ ] **Step 2: Verificar que el archivo compila**
+
+```bash
+npm run build
+```
+
+Esperado: build sin errores.
+
+---
+
+### Task 3: Cablear la vista del jugador
+
+**Files:**
+- Modify: `src/pages/Notas.jsx`
+
+- [ ] **Step 1: Agregar estado `query` en `Notas()`**
+
+En `src/pages/Notas.jsx`, dentro de `export default function Notas()`, reemplazar:
+
+```js
+// antes (líneas 103-105)
+  const { db, isDM, currentPlayer, goToDetail, deletePlayerNote } = useApp()
+  const [selectedPjId, setSelectedPjId] = useState(null)
+  const [pendingDelete, setPendingDelete] = useState(null)
+```
+
+```js
+// después
   const { db, isDM, currentPlayer, goToDetail, deletePlayerNote } = useApp()
   const [selectedPjId, setSelectedPjId] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
   const [query, setQuery] = useState('')
+```
 
-  const activeNotes = (db.player_notes || []).filter(n => n.text?.trim())
+- [ ] **Step 2: Reemplazar la vista del jugador (bloque al final del componente)**
 
-  if (!isDM && !currentPlayer) {
-    return (
-      <div>
-        <PageHeader />
+Reemplazar desde `const myNotes = activeNotes.filter(...)` hasta el final del `return` del jugador (todo lo que viene después del `if (isDM) { ... }`):
+
+```js
+// antes
+  const myNotes = activeNotes.filter(n => n.pj_id === currentPlayer.id)
+
+  return (
+    <div>
+      <PageHeader />
+      {myNotes.length === 0 ? (
         <div className="text-txt-muted text-[13px] italic mt-8">
-          Accedé para ver tus notas.
+          Todavía no tenés notas guardadas.
         </div>
-      </div>
-    )
-  }
+      ) : (
+        <div className="flex flex-col gap-2.5">
+          {myNotes.map(note => (
+            <NoteCard key={note.id} note={note} db={db} goToDetail={goToDetail} onDelete={() => setPendingDelete(note)} />
+          ))}
+        </div>
+      )}
+      {pendingDelete && (
+        <ConfirmModal
+          note={pendingDelete}
+          db={db}
+          onConfirm={() => { deletePlayerNote(pendingDelete.id); setPendingDelete(null) }}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
+    </div>
+  )
+```
 
+```jsx
+// después
+  const rawNotes = activeNotes.filter(n => n.pj_id === currentPlayer.id)
+  const playerSectionTypes = [...new Set(rawNotes.map(n => n.type))]
+  const myNotes = filterNotes(rawNotes, parseQuery(query), db)
+
+  return (
+    <div>
+      <PageHeader />
+      {rawNotes.length === 0 ? (
+        <div className="text-txt-muted text-[13px] italic mt-8">
+          Todavía no tenés notas guardadas.
+        </div>
+      ) : (
+        <>
+          <SearchBar query={query} onChange={setQuery} sectionTypes={playerSectionTypes} />
+          {myNotes.length === 0 ? (
+            <div className="text-txt-muted text-[13px] italic mt-4">
+              No hay notas que coincidan con «{query}».
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2.5">
+              {myNotes.map(note => (
+                <NoteCard key={note.id} note={note} db={db} goToDetail={goToDetail} onDelete={() => setPendingDelete(note)} />
+              ))}
+            </div>
+          )}
+        </>
+      )}
+      {pendingDelete && (
+        <ConfirmModal
+          note={pendingDelete}
+          db={db}
+          onConfirm={() => { deletePlayerNote(pendingDelete.id); setPendingDelete(null) }}
+          onCancel={() => setPendingDelete(null)}
+        />
+      )}
+    </div>
+  )
+```
+
+- [ ] **Step 3: Verificar build**
+
+```bash
+npm run build
+```
+
+Esperado: build sin errores.
+
+---
+
+### Task 4: Cablear la vista del DM
+
+**Files:**
+- Modify: `src/pages/Notas.jsx`
+
+- [ ] **Step 1: Reemplazar el bloque `if (isDM) { ... }` completo**
+
+Reemplazar todo el bloque `if (isDM) { ... return (...) }` (actualmente líneas 120–190) con:
+
+```jsx
   if (isDM) {
     const allGrouped = (db.pjs || [])
       .map(pj => ({ pj, notes: activeNotes.filter(n => n.pj_id === pj.id) }))
@@ -297,7 +343,7 @@ export default function Notas() {
                   </div>
                   <div className="flex flex-col gap-2.5">
                     {notes.map(note => (
-                      <NoteCard key={note.id} note={note} db={db} goToDetail={goToDetail} onDelete={() => setPendingDelete(note)} textFilter={parsed.textFilter} />
+                      <NoteCard key={note.id} note={note} db={db} goToDetail={goToDetail} onDelete={() => setPendingDelete(note)} />
                     ))}
                   </div>
                 </div>
@@ -316,43 +362,55 @@ export default function Notas() {
       </div>
     )
   }
+```
 
-  const rawNotes = activeNotes.filter(n => n.pj_id === currentPlayer.id)
-  const playerSectionTypes = [...new Set(rawNotes.map(n => n.type))]
-  const parsedPlayer = parseQuery(query)
-  const myNotes = filterNotes(rawNotes, parsedPlayer, db)
+- [ ] **Step 2: Verificar build final**
 
-  return (
-    <div>
-      <PageHeader />
-      {rawNotes.length === 0 ? (
-        <div className="text-txt-muted text-[13px] italic mt-8">
-          Todavía no tenés notas guardadas.
-        </div>
-      ) : (
-        <>
-          <SearchBar query={query} onChange={setQuery} sectionTypes={playerSectionTypes} />
-          {myNotes.length === 0 ? (
-            <div className="text-txt-muted text-[13px] italic mt-4">
-              No hay notas que coincidan con «{query}».
-            </div>
-          ) : (
-            <div className="flex flex-col gap-2.5">
-              {myNotes.map(note => (
-                <NoteCard key={note.id} note={note} db={db} goToDetail={goToDetail} onDelete={() => setPendingDelete(note)} textFilter={parsedPlayer.textFilter} />
-              ))}
-            </div>
-          )}
-        </>
-      )}
-      {pendingDelete && (
-        <ConfirmModal
-          note={pendingDelete}
-          db={db}
-          onConfirm={() => { deletePlayerNote(pendingDelete.id); setPendingDelete(null) }}
-          onCancel={() => setPendingDelete(null)}
-        />
-      )}
-    </div>
-  )
-}
+```bash
+npm run build
+```
+
+Esperado: build sin errores, sin warnings sobre variables no usadas.
+
+---
+
+### Task 5: Verificar en el browser y hacer commit
+
+**Files:**
+- No changes
+
+- [ ] **Step 1: Levantar el servidor de desarrollo**
+
+```bash
+npm run dev
+```
+
+Abrir `http://localhost:5173` en el browser.
+
+- [ ] **Step 2: Verificar vista de jugador**
+
+1. Acceder como jugador.
+2. Ir a "Notas" — debe aparecer el input de búsqueda y chips con las secciones presentes.
+3. Escribir texto que aparezca en el contenido de una nota → debe filtrar correctamente.
+4. Escribir `[lugar]` → debe mostrar solo notas de Lugares.
+5. Escribir `[lugar] kardevir` → debe mostrar notas de Lugares que tengan "kardevir" en título o texto.
+6. Hacer click en un chip → debe insertar el `[xxx]` en el input.
+7. Hacer click en el chip activo → debe quitarlo.
+8. Buscar algo que no exista → debe mostrar "No hay notas que coincidan con «…»."
+9. Vaciar el input → vuelven a aparecer todas las notas.
+
+- [ ] **Step 3: Verificar vista DM**
+
+1. Acceder como DM.
+2. Ir a "Notas" → debe aparecer el buscador encima de los filtros por PJ.
+3. Seleccionar un PJ con el filtro → los chips deben reflejar solo las secciones de ese PJ.
+4. Buscar texto → filtra dentro del PJ seleccionado.
+5. Cambiar a "Todas" → chips vuelven a mostrar todas las secciones.
+6. Búsqueda sin resultados → "No hay notas que coincidan con «…»."
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add src/pages/Notas.jsx
+git commit -m "feat: buscador de notas con sintaxis [sección] y chips"
+```
