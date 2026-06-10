@@ -38,7 +38,10 @@
       "Read(//c/Users/germa/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/subagent-driven-development/**)",
       "Read(//c/Users/germa/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/requesting-code-review/**)",
       "Bash(pkill -f \"npm run dev\")",
-      "Bash(pkill -f \"vite\")"
+      "Bash(pkill -f \"vite\")",
+      "Bash(git checkout *)",
+      "Bash(git merge *)",
+      "Bash(git push *)"
     ]
   },
   "enabledPlugins": {
