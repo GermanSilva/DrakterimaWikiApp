@@ -34,7 +34,7 @@ function formatTimestamp(iso) {
 }
 
 export default function ZonaDM() {
-  const { db, showToast, isDM, exportData, importData } = useApp()
+  const { db, showToast, isDM, exportData, exportArticles, importData } = useApp()
   const loginLogs = [...(db.login_logs || [])].sort((a, b) => b.timestamp.localeCompare(a.timestamp))
   const [backfilling, setBackfilling] = useState(false)
   const fileInputRef = useRef(null)
@@ -65,6 +65,12 @@ export default function ZonaDM() {
           description="Descarga todos los datos de la wiki como archivo JSON."
           buttonLabel="Exportar"
           onClick={exportData}
+        />
+        <Action
+          label="Exportar artículos"
+          description="Descarga solo los artículos (sesiones, PJs, PNJs, lugares, facciones, lore, items, notas) sin logs ni configuración de juegos."
+          buttonLabel="Exportar"
+          onClick={exportArticles}
         />
         <Action
           label="Importar JSON"

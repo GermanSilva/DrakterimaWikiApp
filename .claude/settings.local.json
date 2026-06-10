@@ -34,7 +34,11 @@
       "Bash(node -e \"const lucide = require\\('e:/Claude Cowork/Drakterima/dragones-wiki/node_modules/lucide-react'\\); console.log\\(Object.keys\\(lucide\\).filter\\(k => k.toLowerCase\\(\\).includes\\('dice'\\)\\)\\)\")",
       "Bash(node -e \"const { createRequires } = require\\('module'\\); try { require.resolve\\('lucide-react'\\); console.log\\('found'\\); } catch\\(e\\) { console.log\\('not found'\\); }\")",
       "Bash(npx --no-install lucide-react)",
-      "Bash(node -e \"const l = require\\('./node_modules/lucide-react'\\); console.log\\(Object.keys\\(l\\).filter\\(k => k.toLowerCase\\(\\).includes\\('dice'\\)\\).join\\(', '\\)\\)\")"
+      "Bash(node -e \"const l = require\\('./node_modules/lucide-react'\\); console.log\\(Object.keys\\(l\\).filter\\(k => k.toLowerCase\\(\\).includes\\('dice'\\)\\).join\\(', '\\)\\)\")",
+      "Read(//c/Users/germa/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/subagent-driven-development/**)",
+      "Read(//c/Users/germa/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/requesting-code-review/**)",
+      "Bash(pkill -f \"npm run dev\")",
+      "Bash(pkill -f \"vite\")"
     ]
   },
   "enabledPlugins": {

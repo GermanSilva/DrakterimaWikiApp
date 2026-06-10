@@ -123,9 +123,11 @@ Campos:
 
 ### Botones de creación (header de página, solo DM)
 
-`+ Nueva Sesión` (existente) · `+ Nuevo Avance` (nuevo, llama `openForm('sesiones', null, { tipo: 'avance' })` — o equivalente según cómo `openForm` maneje defaults).
+`+ Nueva Sesión` (existente) · `+ Nuevo Avance` (nuevo).
 
-`openForm` en App.jsx necesita soporte para pasar un objeto `defaults` opcional, que `FormModal` usa para inicializar el state del form.
+`+ Nuevo Avance` llama `openForm('avances')`. `'avances'` es un **pseudo-tipo de formulario**: `FORM_COMPONENTS.avances = AvanceForm` y `FORM_TITLES.avances = ['Nuevo Avance', 'Editar Avance']`, pero `AvanceForm` siempre escribe a la colección `'sesiones'` de Firestore (igual que `SesionForm`). El botón Eliminar en `AvanceForm` también llama `remove('sesiones', item.id)`.
+
+Cuando el DM edita un avance existente, el botón Editar en el detalle llama `openForm('avances', sesion.id)` en lugar de `openForm('sesiones', sesion.id)`.
 
 ---
 
