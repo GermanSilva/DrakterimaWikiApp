@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useApp } from '../AppContext'
 import { NotebookPen } from 'lucide-react'
 
@@ -55,6 +56,7 @@ function PageHeader() {
 
 export default function Notas() {
   const { db, isDM, currentPlayer, goToDetail } = useApp()
+  const [selectedPjId, setSelectedPjId] = useState(null)
 
   const activeNotes = (db.player_notes || []).filter(n => n.text?.trim())
 
@@ -74,6 +76,10 @@ export default function Notas() {
       .map(pj => ({ pj, notes: activeNotes.filter(n => n.pj_id === pj.id) }))
       .filter(g => g.notes.length > 0)
 
+    const displayed = selectedPjId === null
+      ? grouped
+      : grouped.filter(g => g.pj.id === selectedPjId)
+
     return (
       <div>
         <PageHeader />
@@ -82,21 +88,48 @@ export default function Notas() {
             No hay notas de jugadores todavía.
           </div>
         ) : (
-          grouped.map(({ pj, notes }) => (
-            <div key={pj.id} className="mb-8">
-              <div className="flex items-center gap-2 mb-3">
-                <NotebookPen size={13} className="text-txt-muted" />
-                <span className="font-exo text-[11px] font-semibold tracking-[0.2em] text-txt-muted uppercase">
-                  {pj.nombre}{pj.jugador ? ` · ${pj.jugador}` : ''}
-                </span>
-              </div>
-              <div className="flex flex-col gap-2.5">
-                {notes.map(note => (
-                  <NoteCard key={note.id} note={note} db={db} goToDetail={goToDetail} />
-                ))}
-              </div>
+          <>
+            <div className="flex flex-wrap gap-2 mb-6">
+              <button
+                className={`font-exo text-[10px] tracking-[0.1em] uppercase px-3 py-1.5 border transition-colors cursor-pointer ${
+                  selectedPjId === null
+                    ? 'border-accent bg-accent/10 text-txt-primary'
+                    : 'border-border-base text-txt-muted hover:border-border-light hover:text-txt-secondary'
+                }`}
+                onClick={() => setSelectedPjId(null)}
+              >
+                Todas
+              </button>
+              {grouped.map(({ pj }) => (
+                <button
+                  key={pj.id}
+                  className={`font-exo text-[10px] tracking-[0.1em] uppercase px-3 py-1.5 border transition-colors cursor-pointer ${
+                    selectedPjId === pj.id
+                      ? 'border-accent bg-accent/10 text-txt-primary'
+                      : 'border-border-base text-txt-muted hover:border-border-light hover:text-txt-secondary'
+                  }`}
+                  onClick={() => setSelectedPjId(pj.id)}
+                >
+                  {pj.nombre}
+                </button>
+              ))}
             </div>
-          ))
+            {displayed.map(({ pj, notes }) => (
+              <div key={pj.id} className="mb-8">
+                <div className="flex items-center gap-2 mb-3">
+                  <NotebookPen size={13} className="text-txt-muted" />
+                  <span className="font-exo text-[11px] font-semibold tracking-[0.2em] text-txt-muted uppercase">
+                    {pj.nombre}{pj.jugador ? ` · ${pj.jugador}` : ''}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-2.5">
+                  {notes.map(note => (
+                    <NoteCard key={note.id} note={note} db={db} goToDetail={goToDetail} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </>
         )}
       </div>
     )
