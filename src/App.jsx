@@ -383,9 +383,10 @@ export default function App() {
 
   const counts = {
     ...Object.fromEntries(
-      ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items']
+      ['pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items']
         .map(k => [k, (db[k] || []).filter(e => isVisible(e, isDM, currentPlayer)).length])
     ),
+    sesiones: (db.sesiones || []).filter(e => isVisible(e, isDM, currentPlayer) && e.tipo !== 'avance').length,
     notas: isDM
       ? (db.player_notes || []).filter(n => n.text?.trim()).length
       : currentPlayer
