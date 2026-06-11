@@ -41,7 +41,11 @@
       "Bash(pkill -f \"vite\")",
       "Bash(git checkout *)",
       "Bash(git merge *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Read(//c/Users/germa/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/skills/brainstorming/**)",
+      "Bash(C:\\\\Users\\\\germa\\\\.claude\\\\plugins\\\\cache\\\\claude-plugins-official\\\\superpowers\\\\5.1.0\\\\scripts\\\\start-server.sh --project-dir \"e:\\\\Claude Cowork\\\\Drakterima\\\\dragones-wiki\")",
+      "Bash(bash \"C:/Users/germa/.claude/plugins/cache/claude-plugins-official/superpowers/5.1.0/scripts/start-server.sh\" --project-dir \"e:/Claude Cowork/Drakterima/dragones-wiki\")",
+      "Bash(npm install *)"
     ]
   },
   "enabledPlugins": {

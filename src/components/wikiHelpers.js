@@ -6,6 +6,7 @@ export const COLLECTION_LETTER = {
   facciones: 'F',
   lore:      'L',
   items:     'I',
+  mapas:     'M',
 }
 
 // letra → colección (inverso de COLLECTION_LETTER)
@@ -29,4 +30,5 @@ export const COLLECTION_DISPLAY = {
   facciones: 'Facción',
   lore:      'Lore',
   items:     'Item',
+  mapas:     'Mapa',
 }

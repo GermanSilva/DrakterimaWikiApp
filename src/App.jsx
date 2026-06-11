@@ -23,6 +23,7 @@ import Facciones from './pages/Facciones'
 import Lore from './pages/Lore'
 import Items from './pages/Items'
 import Juegos from './pages/Juegos'
+import Mapas from './pages/Mapas'
 
 const PLAYER_PASSWORDS = {
   1: import.meta.env.VITE_PLAYER_1_PASSWORD,
@@ -33,7 +34,7 @@ const PLAYER_PASSWORDS = {
   6: import.meta.env.VITE_PLAYER_6_PASSWORD,
 }
 
-const COLLECTIONS = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items', 'player_notes', 'login_logs', 'game_logs', 'game_pot', 'game_config']
+const COLLECTIONS = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items', 'player_notes', 'login_logs', 'game_logs', 'game_pot', 'game_config', 'mapas', 'map_points']
 
 async function seedCollectionIfEmpty(collName, seedData) {
   const snap = await getDocs(collection(firestore, collName))
@@ -52,6 +53,7 @@ const PAGES = {
   sesiones: Sesiones,
   pjs: PJs,
   pnjs: PNJs,
+  mapas: Mapas,
   lugares: Lugares,
   facciones: Facciones,
   lore: Lore,
@@ -90,6 +92,8 @@ export default function App() {
         commonPrize: { cp: 3, sp: 0, ep: 0, gp: 0, pp: 0 },
         specialPrize: { cp: 0, sp: 1, ep: 0, gp: 0, pp: 0 },
       }])
+      await seedCollectionIfEmpty('mapas', [])
+      await seedCollectionIfEmpty('map_points', [])
     }
     maybeSeed()
 
@@ -374,8 +378,8 @@ export default function App() {
     assignPotToPJ,
     saveGameConfig,
     tryAccess,
-    openForm: (type, id = null) => {
-      if (isDM || (type === 'pjs' && id === currentPlayer?.id)) setForm({ type, id })
+    openForm: (type, id = null, prefill = null) => {
+      if (isDM || (type === 'pjs' && id === currentPlayer?.id)) setForm({ type, id, prefill })
     },
     closeForm: () => setForm(null),
     showToast,
@@ -414,7 +418,7 @@ export default function App() {
             onClick={() => setSidebarOpen(false)}
           />
         )}
-        <main className="ml-[240px] max-md:ml-0 flex-1 py-8 px-10 max-md:p-5 max-w-[1100px]">
+        <main className={`ml-[240px] max-md:ml-0 flex-1 py-8 px-10 ${page === 'mapas' ? '' : 'max-md:p-5 max-w-[1100px]'}`}>
           <PageComponent />
         </main>
       </div>

@@ -35,7 +35,7 @@ export default function WikiLinkPicker({ onInsert, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/[.75] z-[400] flex items-center justify-center"
+      className="fixed inset-0 bg-black/[.75] z-[1001] flex items-center justify-center"
       onClick={onClose}
     >
       <div

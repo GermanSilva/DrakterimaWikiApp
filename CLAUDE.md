@@ -42,7 +42,7 @@ El deploy se dispara automáticamente al pushear a `main` vía `.github/workflow
 Los datos viven en **Firebase Firestore**. La app usa `onSnapshot` para sincronización en tiempo real entre múltiples pestañas/usuarios sin necesidad de recargar.
 
 - **`src/firebase.js`**: inicializa Firestore con las 6 vars `VITE_FIREBASE_*` y habilita persistencia offline con `enableMultiTabIndexedDbPersistence`.
-- **Colecciones Firestore**: `sesiones`, `pjs`, `pnjs`, `lugares`, `facciones`, `lore`, `items`, `player_notes`, `login_logs`, `game_logs`, `game_pot`, `game_config`. Los documentos usan el `id` numérico convertido a string como doc ID.
+- **Colecciones Firestore**: `sesiones`, `pjs`, `pnjs`, `lugares`, `facciones`, `lore`, `items`, `player_notes`, `login_logs`, `game_logs`, `game_pot`, `game_config`, `mapas`, `map_points`. Los documentos usan el `id` numérico convertido a string como doc ID.
 - **Seed**: al primer load, `seedCollectionIfEmpty(collName, seedData)` comprueba si la colección está vacía y la rellena con datos iniciales usando `writeBatch`.
 - Sin Firebase Storage — las imágenes se referencian por URL externa (`imagen_url`, campo de texto).
 
@@ -58,9 +58,11 @@ Los datos viven en **Firebase Firestore**. La app usa `onSnapshot` para sincroni
 
 `AppContext.jsx` expone el contexto; todos los componentes hijos lo consumen con `useApp()`. No se usa ninguna librería de estado externa.
 
+- `openForm(type, id, prefill)`: el tercer argumento `prefill` (objeto opcional) se pasa al formulario como prop — usado por `MapViewer` para pre-cargar `{ map_id, x, y }` al crear un punto via click-to-place.
+
 ### Esquema de datos (`seed.js`)
 
-El objeto `db` tiene ocho colecciones: `sesiones`, `pjs`, `pnjs`, `lugares`, `facciones`, `lore`, `items`, `player_notes`. Cada ítem tiene un `id` numérico asignado por `nextId()` (máximo id existente + 1).
+El objeto `db` tiene las colecciones: `sesiones`, `pjs`, `pnjs`, `lugares`, `facciones`, `lore`, `items`, `player_notes`, `mapas`, `map_points`. Cada ítem tiene un `id` numérico asignado por `nextId()` (máximo id existente + 1).
 
 - `defaultData` tiene `lugares`, `facciones` y `lore` pre-cargados.
 - `seedPJs`, `seedPNJs`, `seedSesiones` se inyectan en el primer load si esas colecciones están vacías.
@@ -87,6 +89,8 @@ Las etiquetas CSS `tag-borrador` (dorado) y `tag-secreto` (violeta) se muestran 
 Tres columnas: `Header` (barra superior con logo SVG y hamburger en mobile) → `Sidebar` (nav izquierdo con contadores y botones de importar/exportar) → `main` (página activa).
 
 El sidebar tiene menú hamburger en mobile (`sidebarOpen` / `toggleSidebar`). Al hacer click en un ítem del nav en mobile, el sidebar se cierra automáticamente.
+
+El `<main>` no tiene padding ni max-width cuando `page === 'mapas'` — el viewer Leaflet ocupa todo el espacio disponible.
 
 ### Navegación y detalle inline
 
@@ -165,7 +169,7 @@ Las letras canónicas están en `wikiHelpers.js` → `COLLECTION_LETTER`.
 
 ### Helpers de wiki-links (`wikiHelpers.js`)
 
-- `COLLECTION_LETTER`: map colección → letra (`pjs → 'P'`, `lugares → 'G'`, `pnjs → 'N'`, `sesiones → 'S'`, `facciones → 'F'`, `lore → 'L'`, `items → 'I'`).
+- `COLLECTION_LETTER`: map colección → letra (`pjs → 'P'`, `lugares → 'G'`, `pnjs → 'N'`, `sesiones → 'S'`, `facciones → 'F'`, `lore → 'L'`, `items → 'I'`, `mapas → 'M'`).
 - `LETTER_COLLECTION`: inverso de `COLLECTION_LETTER`.
 - `findEntity(db, id)`: busca entidad por id numérico en todas las colecciones.
 - `COLLECTION_DISPLAY`: nombres legibles de colecciones para tooltips.
@@ -219,6 +223,33 @@ VITE_PLAYER_1_PASSWORD … VITE_PLAYER_6_PASSWORD
 ```
 
 Para desarrollo local: crear `.env.local` con los mismos valores.
+
+### Mapas interactivos (`Mapas.jsx`, `MapViewer.jsx`, `MapPopup.jsx`)
+
+La sección Mapas usa **Leaflet** (`leaflet` + `react-leaflet`) con `CRS.Simple` para imágenes no-geográficas. El CSS de Leaflet se importa en `src/main.jsx`.
+
+**Colecciones:**
+- `mapas`: `{ id, nombre, imagen_url, descripcion, notas, is_default, estado, visibilidad }`. El campo `is_default` indica el mapa que se abre por defecto al entrar a la sección.
+- `map_points`: `{ id, map_id, nombre, descripcion, x, y, link_type, link_id, estado, visibilidad }`. Las coordenadas `x/y` son normalizadas (0.0–1.0). `link_type` puede ser `'lugar'|'pnj'|'faccion'|'lore'|'item'|'sesion'|'mapa'|null`.
+
+**Conversión de coordenadas** (en `MapViewer.jsx`, calculada dinámicamente según aspect ratio de la imagen):
+```js
+const mapBounds = [[0, 0], [imgSize.h, imgSize.w]]
+const toLeaflet = (x, y) => [(1 - y) * imgSize.h, x * imgSize.w]
+const fromLeaflet = (latlng) => ({ x: latlng.lng / imgSize.w, y: 1 - latlng.lat / imgSize.h })
+```
+El `imgSize` se detecta cargando la imagen con `new window.Image()` antes de montar el `MapContainer`. Esto preserva el aspect ratio real de la imagen.
+
+**Componentes:**
+- `Mapas.jsx`: maneja el stack de navegación jerárquica (`[{ id, nombre }]`). Cuando no hay mapa activo muestra una grilla de tarjetas; cuando hay uno activo, renderiza `MapViewer` a pantalla completa (`height: calc(100vh - 60px)`).
+- `MapViewer.jsx`: contiene el `MapContainer`. Los eventos del mapa van por `useMapEvents` dentro del container (no `onClick` en `MapContainer`). Gestiona el modo agregar punto, pin fantasma draggable (`draggable: true`), popup, breadcrumb y toolbar DM.
+- `MapPopup.jsx`: popup React posicionado absolutamente sobre el mapa (no Leaflet nativo). Lo posiciona `MapViewer` con `e.containerPoint`.
+
+**Pin fantasma (click-to-place):** toolbar DM → "+ Agregar punto" → cursor crosshair → click en mapa → pin fantasma semitransparente arrastrable → "Confirmar posición" llama `openForm('map_points', null, { map_id, x, y })` con las coordenadas normalizadas.
+
+**Colores de pins por tipo:** `lugar #dc2626`, `pnj #22c55e`, `faccion #f59e0b`, `lore #3b82f6`, `item #06b6d4`, `sesion #6b7280`, `mapa #eab308`, sin link `#e5e7eb`.
+
+**Visibilidad de puntos:** `pinOpacity(pt)` en `MapViewer` — `borrador`: DM opacity 0.4 / players no ven; `secreto`: DM opacity 0.4 / players en `visibilidad` ven opacity 1.
 
 ### Agregar un nuevo tipo de entidad
 

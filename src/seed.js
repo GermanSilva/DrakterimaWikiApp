@@ -127,4 +127,6 @@ export const defaultData = {
   items: [],
   player_notes: [],
   login_logs: [],
+  mapas: [],
+  map_points: [],
 }

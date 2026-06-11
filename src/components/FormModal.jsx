@@ -4,6 +4,8 @@ import { regionLabel, regionOptions, calcularOrden } from '../helpers'
 import PJForm from '../pages/pj/PJForm'
 import { Lock, Link } from 'lucide-react'
 import WikiLinkPicker from './WikiLinkPicker'
+import MapaForm from '../pages/MapaForm'
+import MapPointForm from '../pages/MapPointForm'
 import { btnSecondary, btnDanger, btnPrimary, inputCls, labelCls } from '../constants'
 
 const labelLock = (< Lock size={12} className='text-accent-bright' />)
@@ -519,6 +521,8 @@ const FORM_TITLES = {
   facciones: ['Nueva Facción', 'Editar Facción'],
   lore: ['Nueva Entrada de Lore', 'Editar Lore'],
   items: ['Nuevo Ítem', 'Editar Ítem'],
+  mapas: ['Nuevo Mapa', 'Editar Mapa'],
+  map_points: ['Nuevo Punto', 'Editar Punto'],
 }
 
 const FORM_COMPONENTS = {
@@ -530,6 +534,8 @@ const FORM_COMPONENTS = {
   facciones: FaccionForm,
   lore: LoreForm,
   items: ItemForm,
+  mapas: MapaForm,
+  map_points: MapPointForm,
 }
 
 export default function FormModal({ form }) {
@@ -560,7 +566,7 @@ export default function FormModal({ form }) {
   return (
     <>
       <div
-        className="fixed inset-0 bg-black/[.82] z-[300] backdrop-blur-[4px] flex items-center justify-center"
+        className="fixed inset-0 bg-black/[.82] z-[1000] backdrop-blur-[4px] flex items-center justify-center"
         id="form-overlay"
         onClick={e => {
           if (e.target.id !== 'form-overlay') return
@@ -586,7 +592,7 @@ export default function FormModal({ form }) {
             </div>
           )}
           {FormComponent
-            ? <FormComponent item={item} openPicker={isPJForm ? () => setPickerOpen(true) : undefined} />
+            ? <FormComponent item={item} prefill={form.prefill ?? null} openPicker={isPJForm ? () => setPickerOpen(true) : undefined} />
             : null}
         </div>
       </div>

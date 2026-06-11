@@ -21,6 +21,7 @@ const NAV = [
   },
   {
     section: 'Mundo', items: [
+      { id: 'mapas', icon: Map, label: 'Mapas' },
       { id: 'lugares', icon: Map, label: 'Lugares', count: true },
       { id: 'facciones', icon: Landmark, label: 'Facciones', count: true },
       { id: 'lore', icon: BookOpen, label: 'Lore', count: true },
