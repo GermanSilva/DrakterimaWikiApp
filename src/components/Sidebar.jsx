@@ -1,7 +1,7 @@
 import { useApp } from '../AppContext'
 import {
   LayoutDashboard, Scroll, Shield, Users, Map,
-  Landmark, BookOpen, Gem, NotebookPen, SlidersHorizontal, Dices,
+  Landmark, BookOpen, Gem, NotebookPen, SlidersHorizontal, Dices, BookMarked,
 } from 'lucide-react'
 
 const NAV = [
@@ -31,6 +31,11 @@ const NAV = [
     section: 'Homebrew', items: [
       { id: 'items', icon: Gem, label: 'Ítems', count: true },
       { id: 'juegos', icon: Dices, label: 'Juegos' },
+    ]
+  },
+  {
+    section: 'Referencia', items: [
+      { id: 'srd', icon: BookMarked, label: 'SRD / Reglas' },
     ]
   },
 ]

@@ -251,6 +251,26 @@ El `imgSize` se detecta cargando la imagen con `new window.Image()` antes de mon
 
 **Visibilidad de puntos:** `pinOpacity(pt)` en `MapViewer` — `borrador`: DM opacity 0.4 / players no ven; `secreto`: DM opacity 0.4 / players en `visibilidad` ven opacity 1.
 
+### SRD / Referencia D&D 5e (`SRD.jsx`, `src/srd/`)
+
+La sección SRD consume la API pública de open5e (`https://api.open5e.com/v1/`) para consulta rápida durante la sesión. **Read-only — sin interacción con Firebase ni con `save`/`remove`.**
+
+**Archivos:**
+- `src/pages/SRD.jsx` — página principal con `activeTab` state. `key={activeTab}` en el componente activo fuerza remount/reset de estado al cambiar pestaña (intencional).
+- `src/srd/srdApi.js` — capa de API. Una función por endpoint: `fetchSpells`, `fetchMonsters`, `fetchConditions`, `fetchWeapons`, `fetchArmors`, `fetchMagicItems`. Maneja URL building, paginación (`next` URL) y errores.
+- `src/srd/srdCommon.jsx` — hook `useTabFetch(fetchFn)` y primitivos UI compartidos (`SRDDetailHeader`, `SRDList`).
+- `src/srd/SpellsTab.jsx`, `MonstersTab.jsx`, `ConditionsTab.jsx`, `WeaponsTab.jsx`, `ArmorsTab.jsx`, `MagicItemsTab.jsx` — componentes por pestaña.
+
+**Pestañas:** Hechizos (`/v1/spells/`), Monstruos (`/v1/monsters/`), Condiciones (`/v1/conditions/`), Armas (`/v1/weapons/`), Armaduras (`/v1/armor/`), Ítems mágicos (`/v1/magicitems/`).
+
+**Parámetros API críticos:** spell level usa `level_int`; monster CR usa `cr` como param de URL (el campo en los objetos retornados es `challenge_rating`).
+
+**`useTabFetch`:** inicializa `loading: true` (evita flash de estado vacío), usa ignored-flag para prevenir race conditions en fetches concurrentes.
+
+**Detalle inline:** mismo patrón `selectedItem` / `← Volver` que el resto de la app. `SRDDetailHeader` incluye IntersectionObserver para fade-in del nombre en la barra sticky.
+
+**Datos defensivos:** `open5e` puede retornar `school` como string u objeto `{ name }`, `desc` como array o string, `speed` como string u objeto. Todos los componentes de detalle manejan ambas formas.
+
 ### Agregar un nuevo tipo de entidad
 
 1. Crear `src/pages/MiEntidad.jsx` con patrón de detalle inline (`selectedId` state).

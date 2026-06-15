@@ -24,6 +24,7 @@ import Lore from './pages/Lore'
 import Items from './pages/Items'
 import Juegos from './pages/Juegos'
 import Mapas from './pages/Mapas'
+import SRD from './pages/SRD'
 
 const PLAYER_PASSWORDS = {
   1: import.meta.env.VITE_PLAYER_1_PASSWORD,
@@ -59,6 +60,7 @@ const PAGES = {
   lore: Lore,
   items: Items,
   juegos: Juegos,
+  srd: SRD,
 }
 
 export default function App() {
