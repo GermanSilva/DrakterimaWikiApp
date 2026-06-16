@@ -1,8 +1,11 @@
+import { useState } from 'react'
 import { sectionTitleCls, detailSectionCls } from '../../../constants'
+import SpellDetailModal from './SpellDetailModal'
 
 const SPELL_LEVELS = ['Trucos', 'Nivel 1', 'Nivel 2', 'Nivel 3', 'Nivel 4', 'Nivel 5', 'Nivel 6', 'Nivel 7', 'Nivel 8', 'Nivel 9']
 
 export default function PJSpellsSection({ pj }) {
+  const [selectedSpell, setSelectedSpell] = useState(null)
   const hechizos = pj.hechizos ?? []
   const slots = pj.spell_slots ?? {}
   const byLevel = {}
@@ -57,15 +60,33 @@ export default function PJSpellsSection({ pj }) {
               {SPELL_LEVELS[lvl] ?? `Nivel ${lvl}`}
             </div>
             <div className="flex flex-wrap gap-1.5">
-              {byLevel[lvl].map(h => (
-                <span key={h.id} className="bg-bg-mid border border-border-base px-2.5 py-1 text-[12px] text-txt-secondary">
-                  {h.nombre}
-                </span>
-              ))}
+              {byLevel[lvl].map(h => {
+                const isPrepared = h.preparado || Number(h.nivel) === 0
+                return (
+                  <button
+                    key={h.id}
+                    type="button"
+                    onClick={() => setSelectedSpell(h)}
+                    className={`px-2.5 py-1 text-[12px] border cursor-pointer transition-colors flex items-center gap-1 ${
+                      isPrepared
+                        ? 'bg-accent text-white border-accent hover:bg-accent-bright'
+                        : 'bg-bg-mid border-border-base text-txt-secondary hover:border-accent-dim'
+                    }`}
+                  >
+                    {h.nombre}
+                    {h.concentracion && <span className="text-[10px] opacity-70 ml-0.5">C</span>}
+                    {h.ritual && <span className="text-[10px] opacity-70 ml-0.5">R</span>}
+                  </button>
+                )
+              })}
             </div>
           </div>
         ))}
       </div>
+
+      {selectedSpell && (
+        <SpellDetailModal spell={selectedSpell} onClose={() => setSelectedSpell(null)} />
+      )}
     </div>
   )
 }

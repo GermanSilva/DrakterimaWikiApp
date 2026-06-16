@@ -179,6 +179,7 @@ Las letras canónicas están en `wikiHelpers.js` → `COLLECTION_LETTER`.
 - `LazyImg`: imagen con lazy loading y skeleton shimmer. Prop `containerCls` debe incluir clase de altura para que el skeleton sea visible. Usar en todas las vistas de detalle.
 - `WikiImage`: wrapper de `LazyImg` para imágenes inline embebidas en WikiText (`[[https://...]]`).
 - `ImageLightbox`: modal fullscreen. Cerrar con Escape o click afuera. Props: `src`, `alt`, `onClose`.
+- `SpellDetailModal`: modal read-only para detalle de hechizo de PJ. Cerrar con Escape o click afuera. Props: `spell` (entrada de `pj.hechizos`), `onClose`. Usa `z-[250]`. Patrón idéntico a `ImageLightbox`.
 - `WikiLink`: enlace clickeable con tooltip hover (thumbnail + título). Lo usa WikiText internamente; no instanciar directamente.
 - `WikiLinkPicker`: modal de búsqueda para insertar wiki-links en textareas de formularios. Integrado en `FormModal`.
 - `Tooltip`: tooltip hover con skeleton de thumbnail. Props: `title`, `section`, `imagenUrl`.
@@ -250,6 +251,32 @@ El `imgSize` se detecta cargando la imagen con `new window.Image()` antes de mon
 **Colores de pins por tipo:** `lugar #dc2626`, `pnj #22c55e`, `faccion #f59e0b`, `lore #3b82f6`, `item #06b6d4`, `sesion #6b7280`, `mapa #eab308`, sin link `#e5e7eb`.
 
 **Visibilidad de puntos:** `pinOpacity(pt)` en `MapViewer` — `borrador`: DM opacity 0.4 / players no ven; `secreto`: DM opacity 0.4 / players en `visibilidad` ven opacity 1.
+
+### Hechizos en fichas de PJ (`PJSpellsSection`, `SpellDetailModal`, `SpellsCRUD`)
+
+Cada entrada en `pj.hechizos[]` tiene el siguiente schema — todos los campos nuevos son opcionales (retrocompatibles con datos anteriores):
+
+```js
+{
+  id,                    // number (Date.now() al crear)
+  nombre,                // string
+  nivel,                 // number 0–9 (0 = truco)
+  preparado,             // boolean — false por defecto
+  escuela,               // string libre (Evocación, Conjuración, etc.)
+  casting_time,          // string libre
+  alcance,               // string libre
+  componentes,           // string libre
+  duracion,              // string libre
+  concentracion,         // boolean
+  ritual,                // boolean
+  descripcion,           // string (texto largo)
+  a_niveles_superiores,  // string (texto largo, opcional)
+}
+```
+
+**Lógica de color en chips (`PJSpellsSection`):** `isPrepared = h.preparado || Number(h.nivel) === 0`. Los trucos son siempre preparados implícitamente. Chip rojo (`bg-accent`) si preparado, gris (`bg-bg-mid`) si no. Badges `C`/`R` dentro del chip para concentración y ritual.
+
+**Formulario (`SpellsCRUD`):** inline CRUD con `{ ...EMPTY, ...h }` en `startEdit` para backfill de campos faltantes en hechizos guardados antes de este schema. La sección "A niveles superiores" es colapsable vía `showUpcast` state.
 
 ### SRD / Referencia D&D 5e (`SRD.jsx`, `src/srd/`)
 

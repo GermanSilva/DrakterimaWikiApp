@@ -1,11 +1,11 @@
 import { sectionTitleCls, detailSectionCls } from '../../../constants'
 
 const CURRENCY = [
-  { key: 'pp', label: 'PP' },
-  { key: 'gp', label: 'GP' },
-  { key: 'ep', label: 'EP' },
-  { key: 'sp', label: 'SP' },
-  { key: 'cp', label: 'CP' },
+  { key: 'cp', label: 'Bronce' },
+  { key: 'sp', label: 'Plata' },
+  { key: 'ep', label: 'Electrum' },
+  { key: 'gp', label: 'Oro' },
+  { key: 'pp', label: 'Platino' },
 ]
 
 export default function PJEquipmentSection({ pj }) {

@@ -2,7 +2,13 @@ import { useState } from 'react'
 import { labelCls, inputCls, btnSecondary } from '../../../constants'
 
 const EMPTY = { nombre: '', cantidad: 1, descripcion: '' }
-const CURRENCY_FIELDS = ['pp', 'gp', 'ep', 'sp', 'cp']
+const CURRENCY_FIELDS = [
+  { key: 'cp', label: 'Cobre' },
+  { key: 'sp', label: 'Plata' },
+  { key: 'ep', label: 'Electrum' },
+  { key: 'gp', label: 'Oro' },
+  { key: 'pp', label: 'Platino' },
+]
 
 export default function EquipmentCRUD({ equipo = [], monedas = {}, onEquipoChange, onMonedasChange }) {
   const [editingId, setEditingId] = useState(null)
@@ -67,8 +73,8 @@ export default function EquipmentCRUD({ equipo = [], monedas = {}, onEquipoChang
         <div className="grid grid-cols-5 gap-2">
           {CURRENCY_FIELDS.map(key => (
             <div key={key} className="text-center">
-              <label className={`${labelCls} text-center block`}>{key.toUpperCase()}</label>
-              <input className={`${inputCls} text-center`} type="number" min="0" value={monedas[key] ?? 0} onChange={setMoneda(key)} />
+              <label className={`${labelCls} text-center block`}>{key.label.toUpperCase()}</label>
+              <input className={`${inputCls} text-center`} type="number" min="0" value={monedas[key.key] ?? 0} onChange={setMoneda(key.key)} />
             </div>
           ))}
         </div>
