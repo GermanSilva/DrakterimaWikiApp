@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { fetchSpells } from './srdApi'
-import { useTabFetch, SRDDetailHeader, SRDList } from './srdCommon'
+import { useTabFetch, SRDDetailHeader, SRDList, RawDataSection } from './srdCommon'
 import { inputCls, sectionTitleCls, detailTextCls, detailSectionCls } from '../constants'
 
 const SCHOOLS = ['Abjuration', 'Conjuration', 'Divination', 'Enchantment', 'Evocation', 'Illusion', 'Necromancy', 'Transmutation']
@@ -50,6 +50,7 @@ function SpellDetail({ spell, onBack }) {
           <div className="text-txt-secondary text-sm">{spell.dnd_class}</div>
         </div>
       )}
+      <RawDataSection data={spell} />
     </div>
   )
 }

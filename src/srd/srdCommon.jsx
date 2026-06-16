@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { btnSecondary } from '../constants'
+import { useApp } from '../AppContext'
 
 export function useTabFetch(fetchFn) {
   const [results, setResults] = useState([])
@@ -89,6 +90,24 @@ export function SRDList({ results, loading, error, nextUrl, onLoadMore, renderIt
         <div className="mt-4 text-center">
           <button className={btnSecondary} onClick={onLoadMore}>Ver más</button>
         </div>
+      )}
+    </div>
+  )
+}
+
+export function RawDataSection({ data }) {
+  const { isDM } = useApp()
+  const [open, setOpen] = useState(false)
+  if (!isDM) return null
+  return (
+    <div className="mt-8 pt-6 border-t border-border-base">
+      <button className={btnSecondary} onClick={() => setOpen(o => !o)}>
+        {'{ }'} {open ? 'Ocultar datos raw' : 'Ver datos raw'}
+      </button>
+      {open && (
+        <pre className="mt-3 text-[11px] text-txt-muted font-mono overflow-x-auto bg-[#0a0a0a] border border-border-base p-4 leading-relaxed">
+          {JSON.stringify(data, null, 2)}
+        </pre>
       )}
     </div>
   )

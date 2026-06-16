@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { fetchWeapons } from './srdApi'
-import { useTabFetch, SRDDetailHeader, SRDList } from './srdCommon'
+import { useTabFetch, SRDDetailHeader, SRDList, RawDataSection } from './srdCommon'
 import { inputCls, detailSectionCls } from '../constants'
 
 const WEAPON_CATEGORIES = [
@@ -31,6 +31,7 @@ function WeaponDetail({ weapon, onBack }) {
           ))}
         </div>
       </div>
+      <RawDataSection data={weapon} />
     </div>
   )
 }

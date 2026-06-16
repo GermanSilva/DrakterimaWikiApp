@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { fetchArmors } from './srdApi'
-import { useTabFetch, SRDDetailHeader, SRDList } from './srdCommon'
+import { useTabFetch, SRDDetailHeader, SRDList, RawDataSection } from './srdCommon'
 import { inputCls, detailSectionCls } from '../constants'
 
 const ARMOR_CATEGORIES = ['Light Armor', 'Medium Armor', 'Heavy Armor', 'Shield']
@@ -35,6 +35,7 @@ function ArmorDetail({ armor, onBack }) {
           ))}
         </div>
       </div>
+      <RawDataSection data={armor} />
     </div>
   )
 }

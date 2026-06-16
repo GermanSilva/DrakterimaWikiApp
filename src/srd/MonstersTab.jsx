@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { fetchMonsters } from './srdApi'
-import { useTabFetch, SRDDetailHeader, SRDList } from './srdCommon'
+import { useTabFetch, SRDDetailHeader, SRDList, RawDataSection } from './srdCommon'
 import { inputCls, sectionTitleCls, detailTextCls, detailSectionCls } from '../constants'
 
 const CR_OPTIONS = [
@@ -117,6 +117,7 @@ function MonsterDetail({ monster, onBack }) {
           ))}
         </div>
       )}
+      <RawDataSection data={monster} />
     </div>
   )
 }

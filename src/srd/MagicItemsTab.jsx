@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { fetchMagicItems } from './srdApi'
-import { useTabFetch, SRDDetailHeader, SRDList } from './srdCommon'
+import { useTabFetch, SRDDetailHeader, SRDList, RawDataSection } from './srdCommon'
 import { inputCls, sectionTitleCls, detailTextCls, detailSectionCls } from '../constants'
 
 const RARITIES = ['Common', 'Uncommon', 'Rare', 'Very Rare', 'Legendary']
@@ -37,6 +37,7 @@ function MagicItemDetail({ item, onBack }) {
           <p key={i} className={`${detailTextCls} mb-2`}>{p}</p>
         ))}
       </div>
+      <RawDataSection data={item} />
     </div>
   )
 }

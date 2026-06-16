@@ -25,7 +25,7 @@ Agregar `<RawDataSection data={xxx} />` como último elemento dentro del `<div>`
 |---|---|---|
 | `SpellsTab.jsx` | `SpellDetail` | `data={spell}` |
 | `MonstersTab.jsx` | `MonsterDetail` | `data={monster}` |
-| `ConditionsTab.jsx` | `ConditionDetail` | `data={condition}` |
+| `ConditionsTab.jsx` | `ConditionDetail` | `data={cond}` |
 | `WeaponsTab.jsx` | `WeaponDetail` | `data={weapon}` |
 | `ArmorsTab.jsx` | `ArmorDetail` | `data={armor}` |
 | `MagicItemsTab.jsx` | `MagicItemDetail` | `data={item}` |

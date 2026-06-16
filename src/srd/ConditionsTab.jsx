@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { fetchConditions } from './srdApi'
-import { SRDDetailHeader } from './srdCommon'
+import { SRDDetailHeader, RawDataSection } from './srdCommon'
 import { sectionTitleCls, detailTextCls, detailSectionCls } from '../constants'
 
 function ConditionDetail({ cond, onBack }) {
@@ -14,6 +14,7 @@ function ConditionDetail({ cond, onBack }) {
           <p key={i} className={`${detailTextCls} mb-2`}>{p}</p>
         ))}
       </div>
+      <RawDataSection data={cond} />
     </div>
   )
 }
