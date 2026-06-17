@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { sectionTitleCls, detailSectionCls } from '../../../constants'
 import SpellDetailModal from './SpellDetailModal'
 
-const SPELL_LEVELS = ['Trucos', 'Nivel 1', 'Nivel 2', 'Nivel 3', 'Nivel 4', 'Nivel 5', 'Nivel 6', 'Nivel 7', 'Nivel 8', 'Nivel 9']
+const SPELL_LEVELS = ['Trucos', 'Nivel 1', 'Nivel 2', 'Nivel 3', 'Nivel 4', 'Nivel 5', 'Nivel 6', 'Nivel 7', 'Nivel 8', 'Nivel 9', 'Habilidades']
 
 export default function PJSpellsSection({ pj }) {
   const [selectedSpell, setSelectedSpell] = useState(null)
@@ -61,7 +61,7 @@ export default function PJSpellsSection({ pj }) {
             </div>
             <div className="flex flex-wrap gap-1.5">
               {byLevel[lvl].map(h => {
-                const isPrepared = h.preparado || Number(h.nivel) === 0
+                const isPrepared = h.preparado || Number(h.nivel) === 0 || Number(h.nivel) === 10
                 return (
                   <button
                     key={h.id}

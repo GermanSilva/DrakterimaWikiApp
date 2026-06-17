@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { detailSectionCls, sectionTitleCls } from '../../../constants'
 
 export default function SpellDetailModal({ spell, onClose }) {
-  const levelLabel = Number(spell.nivel) === 0 ? 'Truco' : `Nivel ${spell.nivel}`
+  const levelLabel = Number(spell.nivel) === 0 ? 'Truco' : Number(spell.nivel) === 10 ? 'Habilidad' : `Nivel ${spell.nivel}`
 
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onClose() }

@@ -260,7 +260,7 @@ Cada entrada en `pj.hechizos[]` tiene el siguiente schema — todos los campos n
 {
   id,                    // number (Date.now() al crear)
   nombre,                // string
-  nivel,                 // number 0–9 (0 = truco)
+  nivel,                 // number 0–9 (0 = truco), 10 = habilidad
   preparado,             // boolean — false por defecto
   escuela,               // string libre (Evocación, Conjuración, etc.)
   casting_time,          // string libre
@@ -274,7 +274,7 @@ Cada entrada en `pj.hechizos[]` tiene el siguiente schema — todos los campos n
 }
 ```
 
-**Lógica de color en chips (`PJSpellsSection`):** `isPrepared = h.preparado || Number(h.nivel) === 0`. Los trucos son siempre preparados implícitamente. Chip rojo (`bg-accent`) si preparado, gris (`bg-bg-mid`) si no. Badges `C`/`R` dentro del chip para concentración y ritual.
+**Lógica de color en chips (`PJSpellsSection`):** `isPrepared = h.preparado || Number(h.nivel) === 0 || Number(h.nivel) === 10`. Los trucos (nivel 0) y las habilidades (nivel 10) son siempre activos implícitamente. Chip rojo (`bg-accent`) si preparado/activo, gris (`bg-bg-mid`) si no. Badges `C`/`R` dentro del chip para concentración y ritual.
 
 **Formulario (`SpellsCRUD`):** inline CRUD con `{ ...EMPTY, ...h }` en `startEdit` para backfill de campos faltantes en hechizos guardados antes de este schema. La sección "A niveles superiores" es colapsable vía `showUpcast` state.
 
