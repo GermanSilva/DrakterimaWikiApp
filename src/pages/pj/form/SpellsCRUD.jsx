@@ -7,8 +7,8 @@ const EMPTY = {
   concentracion: false, ritual: false,
   descripcion: '', a_niveles_superiores: '',
 }
-const LEVELS = ['Truco (0)', '1', '2', '3', '4', '5', '6', '7', '8', '9']
-const LEVEL_LABELS = ['Trucos', 'Niv 1', 'Niv 2', 'Niv 3', 'Niv 4', 'Niv 5', 'Niv 6', 'Niv 7', 'Niv 8', 'Niv 9']
+const LEVELS = ['Truco (0)', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'Habilidad']
+const LEVEL_LABELS = ['Trucos', 'Niv 1', 'Niv 2', 'Niv 3', 'Niv 4', 'Niv 5', 'Niv 6', 'Niv 7', 'Niv 8', 'Niv 9', 'Habilidades']
 
 export default function SpellsCRUD({ hechizos = [], onChange }) {
   const [editingId, setEditingId] = useState(null)
