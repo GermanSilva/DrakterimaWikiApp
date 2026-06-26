@@ -252,6 +252,60 @@ El `imgSize` se detecta cargando la imagen con `new window.Image()` antes de mon
 
 **Visibilidad de puntos:** `pinOpacity(pt)` en `MapViewer` — `borrador`: DM opacity 0.4 / players no ven; `secreto`: DM opacity 0.4 / players en `visibilidad` ven opacity 1.
 
+### Ataques en fichas de PJ (`PJAttacksSection`, `AttacksCRUD`)
+
+Cada entrada en `pj.ataques[]`:
+
+```js
+{
+  id,            // number (Date.now() al crear)
+  nombre,        // string — nombre del arma
+  bono_ataque,   // string libre, ej. "+5"
+  dano,          // string libre, ej. "1d8+3"
+  tipo_dano,     // string libre, ej. "Cortante"
+  alcance,       // string libre, ej. "5 ft"
+  notas,         // string libre, opcional
+  precio,        // number, default 0 — precio del arma
+  precio_moneda, // 'cp'|'sp'|'ep'|'gp'|'pp', default 'gp'
+  portando,      // boolean, default true — true = portando, false = guardado
+}
+```
+
+El precio de las armas se incluye en el totalizador "Valor total del inventario" de `PJEquipmentSection`. Las armas no tienen campo `cantidad` — se cuentan como 1 unidad en el total.
+
+`PJAttacksSection` agrupa las armas en dos sublistas: "Portando" y "Guardado", cada una con su subtotal de precio.
+
+### Equipo e inventario (`PJEquipmentSection`, `EquipmentCRUD`)
+
+Cada entrada en `pj.equipo[]`:
+
+```js
+{
+  id,            // number (Date.now() al crear)
+  nombre,        // string
+  cantidad,      // number, default 1
+  descripcion,   // string libre, opcional
+  precio,        // number, default 0 — precio unitario
+  precio_moneda, // 'cp'|'sp'|'ep'|'gp'|'pp', default 'gp'
+  portando,      // boolean, default true — true = portando, false = guardado
+}
+```
+
+Monedas del PJ:
+
+```js
+pj.monedas          // { cp, sp, ep, gp, pp } — dinero en mano (campo existente)
+pj.monedas_guardado // { cp, sp, ep, gp, pp } — dinero guardado/banco (campo nuevo, opcional)
+```
+
+`PJEquipmentSection` agrupa el equipo en dos sublistas: "Portando" y "Guardado", cada una con subtotal propio. El totalizador combinado ("Valor total del inventario") suma precios de equipo + armas (portando y guardado). Convierte todo a cobre usando tasas D&D 5e estándar: 1pp=1000cp, 1gp=100cp, 1ep=50cp, 1sp=10cp. El output omite electrum y muestra solo denominaciones no-cero en orden pp→gp→sp→cp.
+
+Las secciones de monedas (en mano y guardadas) muestran las denominaciones en orden descendente: pp, gp, ep, sp, cp. Los labels usan nombres completos: platino, oro, electrum, plata, bronce.
+
+### Atributos en formulario de mecánicas (`PJMechanicsTab`)
+
+En la grilla de atributos del formulario de edición, el label de cada atributo muestra el modificador calculado automáticamente junto al nombre (`FUE  +3`). El modificador se recalcula en tiempo real al cambiar el valor del input. Implementado con `abilityMod` de `helpers/pjCalc.js`. Layout: flex row con `justify-between` — nombre a la izquierda, modificador a la derecha.
+
 ### Hechizos en fichas de PJ (`PJSpellsSection`, `SpellDetailModal`, `SpellsCRUD`)
 
 Cada entrada en `pj.hechizos[]` tiene el siguiente schema — todos los campos nuevos son opcionales (retrocompatibles con datos anteriores):

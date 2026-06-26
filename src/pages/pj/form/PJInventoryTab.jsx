@@ -40,8 +40,10 @@ export default function PJInventoryTab({ f, setF }) {
         <EquipmentCRUD
           equipo={f.equipo}
           monedas={f.monedas}
+          monedas_guardado={f.monedas_guardado}
           onEquipoChange={items => setF(p => ({ ...p, equipo: items }))}
           onMonedasChange={m => setF(p => ({ ...p, monedas: m }))}
+          onMonedasGuardadoChange={m => setF(p => ({ ...p, monedas_guardado: m }))}
         />
       </div>
 

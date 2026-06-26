@@ -1,7 +1,7 @@
 import { FormGroup, FormRow } from '../../../components/FormModal'
 import { labelCls, inputCls } from '../../../constants'
 import { ABILITY_SCORES } from '../pjConstants'
-import { passivePerception, suggestedProfBonus } from '../../../helpers/pjCalc'
+import { abilityMod, passivePerception, suggestedProfBonus } from '../../../helpers/pjCalc'
 import SkillsProficiencyGrid from './SkillsProficiencyGrid'
 
 function Separator({ label }) {
@@ -39,7 +39,10 @@ export default function PJMechanicsTab({ f, setF }) {
         <div className="grid grid-cols-6 gap-2 max-md:grid-cols-3">
           {ABILITY_SCORES.map(({ label, key }) => (
             <div key={key} className="text-center">
-              <label className={`${labelCls} text-center block`}>{label}</label>
+              <label className={`${labelCls} flex justify-between items-baseline`}>
+                <span>{label}</span>
+                <span className="text-txt-primary font-bold">{abilityMod(parseInt(f[key]) || 10)}</span>
+              </label>
               <input className={`${inputCls} text-center`} type="number" value={f[key]} onChange={set(key)} min="1" max="30" />
             </div>
           ))}
