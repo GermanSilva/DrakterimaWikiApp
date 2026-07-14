@@ -1,10 +1,10 @@
 export const ABILITY_SCORES = [
-  { label: 'FUE', key: 'stat_str', saveKey: 'save_str' },
-  { label: 'DES', key: 'stat_dex', saveKey: 'save_dex' },
-  { label: 'CON', key: 'stat_con', saveKey: 'save_con' },
-  { label: 'INT', key: 'stat_int', saveKey: 'save_int' },
-  { label: 'SAB', key: 'stat_wis', saveKey: 'save_wis' },
-  { label: 'CAR', key: 'stat_cha', saveKey: 'save_cha' },
+  { label: 'FUE', full: 'Fuerza', color: '#DC1D1D', key: 'stat_str', saveKey: 'save_str' },
+  { label: 'DES', full: 'Destreza', color: '#25A514', key: 'stat_dex', saveKey: 'save_dex' },
+  { label: 'CON', full: 'Constitución', color: '#fcab29', key: 'stat_con', saveKey: 'save_con' },
+  { label: 'INT', full: 'Inteligencia', color: '#227eda', key: 'stat_int', saveKey: 'save_int' },
+  { label: 'SAB', full: 'Sabiduría', color: '#9026c1', key: 'stat_wis', saveKey: 'save_wis' },
+  { label: 'CAR', full: 'Carisma', color: '#fddb1c', key: 'stat_cha', saveKey: 'save_cha' },
 ]
 
 export const SKILLS_BY_ABILITY = [

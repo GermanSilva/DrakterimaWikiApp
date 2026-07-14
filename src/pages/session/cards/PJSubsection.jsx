@@ -3,15 +3,15 @@ import { ChevronDown, ChevronUp } from 'lucide-react'
 import { btnSecondary } from '../../../constants'
 
 export default function PJSubsection({ pj, onEdit, fullViewToggle = false, children }) {
-  const [collapsed, setCollapsed] = useState(false)
+  const [collapsed, setCollapsed] = useState(true)
   const [fullView, setFullView] = useState(false)
 
   return (
-    <div className="border border-border-base p-3">
-      <div className="flex justify-between items-center mb-2">
+    <div className="border border-border-base p-1">
+      <div className={`flex justify-between items-center ${collapsed ? 'mb-0' : 'mb-2'}`}>
         <button
           type="button"
-          className="flex items-center gap-1.5 font-exo text-[12px] font-semibold text-txt-primary uppercase tracking-[0.08em] cursor-pointer bg-transparent border-none p-0"
+          className="flex items-center gap-1.5 font-exo text-[12px] font-semibold text-txt-primary uppercase tracking-[0.08em] cursor-pointer bg-transparent border-none pl-2"
           onClick={() => setCollapsed(prev => !prev)}
         >
           {collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
