@@ -258,6 +258,10 @@ export default function App() {
     showToast('Configuración guardada')
   }
 
+  async function saveSessionScreen(layout) {
+    await setDoc(doc(firestore, 'game_config', 'session_screen'), { ...layout, id: 'session_screen' }, { merge: true })
+  }
+
   function tryAccess(password) {
     const dmPass = import.meta.env.VITE_DM_PASSWORD
     if (dmPass && password === dmPass) {
@@ -380,6 +384,7 @@ export default function App() {
     saveGameResult,
     assignPotToPJ,
     saveGameConfig,
+    saveSessionScreen,
     tryAccess,
     openForm: (type, id = null, prefill = null) => {
       if (isDM || (type === 'pjs' && id === currentPlayer?.id)) setForm({ type, id, prefill })
