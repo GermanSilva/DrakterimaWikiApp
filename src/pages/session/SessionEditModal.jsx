@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useApp } from '../../AppContext'
 import { btnPrimary, btnSecondary } from '../../constants'
 import AttacksCRUD from '../pj/form/AttacksCRUD'
+import EquipmentCRUD from '../pj/form/EquipmentCRUD'
 import { CARD_REGISTRY } from './cards/cardRegistry'
 
 // Scoped edit modal for a single card type on a single PJ.
@@ -59,6 +60,17 @@ export default function SessionEditModal({ pj, cardType, onClose }) {
             <AttacksCRUD
               ataques={draft.ataques ?? []}
               onChange={ataques => setDraft(p => ({ ...p, ataques }))}
+            />
+          )}
+
+          {cardType === 'inventory' && (
+            <EquipmentCRUD
+              equipo={draft.equipo ?? []}
+              monedas={draft.monedas ?? {}}
+              monedas_guardado={draft.monedas_guardado ?? {}}
+              onEquipoChange={equipo => setDraft(p => ({ ...p, equipo }))}
+              onMonedasChange={monedas => setDraft(p => ({ ...p, monedas }))}
+              onMonedasGuardadoChange={monedas_guardado => setDraft(p => ({ ...p, monedas_guardado }))}
             />
           )}
         </div>
