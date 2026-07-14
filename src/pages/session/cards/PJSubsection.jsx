@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { btnSecondary } from '../../../constants'
 
-export default function PJSubsection({ pj, onEdit, children }) {
+export default function PJSubsection({ pj, onEdit, fullViewToggle = false, children }) {
   const [collapsed, setCollapsed] = useState(false)
+  const [fullView, setFullView] = useState(false)
 
   return (
     <div className="border border-border-base p-3">
@@ -16,9 +17,20 @@ export default function PJSubsection({ pj, onEdit, children }) {
           {collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
           {pj.nombre}
         </button>
-        <button type="button" className={btnSecondary} onClick={(e) => { e.stopPropagation(); onEdit?.(pj) }}>Editar</button>
+        <div className="flex items-center gap-2">
+          {fullViewToggle && (
+            <button
+              type="button"
+              className={`${btnSecondary} ${fullView ? 'border-accent-dim text-accent-dim' : ''}`}
+              onClick={(e) => { e.stopPropagation(); setFullView(prev => !prev) }}
+            >
+              Vista completa
+            </button>
+          )}
+          <button type="button" className={btnSecondary} onClick={(e) => { e.stopPropagation(); onEdit?.(pj) }}>Editar</button>
+        </div>
       </div>
-      {!collapsed && children}
+      {!collapsed && (typeof children === 'function' ? children({ fullView }) : children)}
     </div>
   )
 }
