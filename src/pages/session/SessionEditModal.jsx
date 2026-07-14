@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../../AppContext'
 import { btnPrimary, btnSecondary } from '../../constants'
+import AttacksCRUD from '../pj/form/AttacksCRUD'
 import { CARD_REGISTRY } from './cards/cardRegistry'
 
 // Scoped edit modal for a single card type on a single PJ.
@@ -54,7 +55,12 @@ export default function SessionEditModal({ pj, cardType, onClose }) {
         </div>
 
         <div className="px-6 py-5">
-          {/* Per-cardType field sections are wired in incrementally. */}
+          {cardType === 'weapons' && (
+            <AttacksCRUD
+              ataques={draft.ataques ?? []}
+              onChange={ataques => setDraft(p => ({ ...p, ataques }))}
+            />
+          )}
         </div>
 
         <div className="flex gap-2.5 justify-end sticky bottom-0 z-[1] bg-bg-card px-6 py-4 border-t border-border-base">
