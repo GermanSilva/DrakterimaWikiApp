@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { SKILLS_BY_ABILITY } from '../../pj/pjConstants'
 import { abilityModNum, signedBonus, suggestedProfBonus } from '../../../helpers/pjCalc'
 import SessionCardShell from './SessionCardShell'
@@ -6,9 +7,17 @@ import EmptyPjsState from './EmptyPjsState'
 
 export default function SessionCardSkills({ db, onEdit, onRemove }) {
   const pjs = db?.pjs ?? []
+  const [collapsedIds, setCollapsedIds] = useState(() => new Set(pjs.map(pj => pj.id)))
+  const allExpanded = pjs.length > 0 && pjs.every(pj => !collapsedIds.has(pj.id))
+  const toggleAll = () => setCollapsedIds(allExpanded ? new Set(pjs.map(pj => pj.id)) : new Set())
+  const toggleOne = (pjId) => setCollapsedIds(prev => {
+    const next = new Set(prev)
+    next.has(pjId) ? next.delete(pjId) : next.add(pjId)
+    return next
+  })
 
   return (
-    <SessionCardShell title="Habilidades" onRemove={onRemove}>
+    <SessionCardShell title="Habilidades" onRemove={onRemove} onToggleAll={pjs.length > 0 ? toggleAll : undefined} allExpanded={allExpanded}>
       {pjs.length === 0 ? (
         <EmptyPjsState />
       ) : (
@@ -19,7 +28,7 @@ export default function SessionCardSkills({ db, onEdit, onRemove }) {
               group.skills.map(skill => ({ ...skill, group }))
             )
             return (
-              <PJSubsection key={pj.id} pj={pj} onEdit={onEdit} fullViewToggle>
+              <PJSubsection key={pj.id} pj={pj} onEdit={onEdit} fullViewToggle collapsed={collapsedIds.has(pj.id)} onToggleCollapsed={() => toggleOne(pj.id)}>
                 {({ fullView }) => {
                   const visibleSkills = fullView
                     ? allSkills

@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { ABILITY_SCORES } from '../../pj/pjConstants'
 import { abilityMod, passivePerception, suggestedProfBonus } from '../../../helpers/pjCalc'
 import SessionCardShell from './SessionCardShell'
@@ -15,9 +16,17 @@ function MiniStat({ label, value, accent }) {
 
 export default function SessionCardStats({ db, onEdit, onRemove }) {
   const pjs = db?.pjs ?? []
+  const [collapsedIds, setCollapsedIds] = useState(() => new Set(pjs.map(pj => pj.id)))
+  const allExpanded = pjs.length > 0 && pjs.every(pj => !collapsedIds.has(pj.id))
+  const toggleAll = () => setCollapsedIds(allExpanded ? new Set(pjs.map(pj => pj.id)) : new Set())
+  const toggleOne = (pjId) => setCollapsedIds(prev => {
+    const next = new Set(prev)
+    next.has(pjId) ? next.delete(pjId) : next.add(pjId)
+    return next
+  })
 
   return (
-    <SessionCardShell title="Stats" onRemove={onRemove}>
+    <SessionCardShell title="Stats" onRemove={onRemove} onToggleAll={pjs.length > 0 ? toggleAll : undefined} allExpanded={allExpanded}>
       {pjs.length === 0 ? (
         <EmptyPjsState />
       ) : (
@@ -25,7 +34,7 @@ export default function SessionCardStats({ db, onEdit, onRemove }) {
           {pjs.map(pj => {
             const profBonus = pj.stat_proficiency_bonus ?? suggestedProfBonus(pj.nivel ?? 1)
             return (
-              <PJSubsection key={pj.id} pj={pj} onEdit={onEdit} fullViewToggle>
+              <PJSubsection key={pj.id} pj={pj} onEdit={onEdit} fullViewToggle collapsed={collapsedIds.has(pj.id)} onToggleCollapsed={() => toggleOne(pj.id)}>
                 {({ fullView }) => (
                   <>
                     {fullView && (

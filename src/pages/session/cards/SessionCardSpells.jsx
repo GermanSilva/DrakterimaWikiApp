@@ -9,9 +9,17 @@ const isPrepared = (h) => h.preparado || Number(h.nivel) === 0 || Number(h.nivel
 export default function SessionCardSpells({ db, onEdit, onRemove }) {
   const pjs = db?.pjs ?? []
   const [selectedSpell, setSelectedSpell] = useState(null)
+  const [collapsedIds, setCollapsedIds] = useState(() => new Set(pjs.map(pj => pj.id)))
+  const allExpanded = pjs.length > 0 && pjs.every(pj => !collapsedIds.has(pj.id))
+  const toggleAll = () => setCollapsedIds(allExpanded ? new Set(pjs.map(pj => pj.id)) : new Set())
+  const toggleOne = (pjId) => setCollapsedIds(prev => {
+    const next = new Set(prev)
+    next.has(pjId) ? next.delete(pjId) : next.add(pjId)
+    return next
+  })
 
   return (
-    <SessionCardShell title="Hechizos" onRemove={onRemove}>
+    <SessionCardShell title="Hechizos" onRemove={onRemove} onToggleAll={pjs.length > 0 ? toggleAll : undefined} allExpanded={allExpanded}>
       {pjs.length === 0 ? (
         <EmptyPjsState />
       ) : (
@@ -19,7 +27,7 @@ export default function SessionCardSpells({ db, onEdit, onRemove }) {
           {pjs.map(pj => {
             const hechizos = pj.hechizos ?? []
             return (
-              <PJSubsection key={pj.id} pj={pj} onEdit={onEdit} fullViewToggle>
+              <PJSubsection key={pj.id} pj={pj} onEdit={onEdit} fullViewToggle collapsed={collapsedIds.has(pj.id)} onToggleCollapsed={() => toggleOne(pj.id)}>
                 {({ fullView }) => {
                   const visibleSpells = fullView ? hechizos : hechizos.filter(isPrepared)
                   return visibleSpells.length === 0 ? (
