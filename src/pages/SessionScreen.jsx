@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
-import { SortableContext, horizontalListSortingStrategy, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
+import { SortableContext, horizontalListSortingStrategy, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { useApp } from '../AppContext'
 import { CARD_REGISTRY } from './session/cards/cardRegistry'
 import SessionTabs from './session/SessionTabs'
@@ -134,8 +134,20 @@ export default function SessionScreen() {
             </button>
           </div>
         ) : (
-          <SortableContext items={visibleCards.map(c => c.id)} strategy={verticalListSortingStrategy}>
-            <div className="max-w-[900px] mx-auto py-6 px-10 max-md:px-5">
+          <SortableContext items={visibleCards.map(c => c.id)} strategy={rectSortingStrategy}>
+            {/*
+              Single column below the breakpoint (unchanged max-w-[900px] stack),
+              2-column grid of two fixed 750px tracks + 6px gap at/above it. The
+              breakpoint is expressed in VIEWPORT width (Tailwind media query),
+              so it must add back everything between the viewport edge and this
+              container's own content box on desktop: Sidebar `ml-[240px]`
+              (App.jsx) + main's `px-10` (80px) + this container's own `px-10`
+              (80px) = 400px of non-card chrome. Target available-card-width is
+              750*2 + 6 = 1506px, so viewport threshold = 1506 + 400 = 1906px.
+              Row-major fill order (1-2 / 3-4 / ...) is CSS Grid's default
+              `grid-auto-flow: row` — no reordering of `visibleCards` needed.
+            */}
+            <div className="max-w-[900px] mx-auto py-6 px-10 max-md:px-5 min-[1906px]:max-w-none min-[1906px]:grid min-[1906px]:grid-cols-[750px_750px] min-[1906px]:gap-1.5 min-[1906px]:justify-center">
               {visibleCards.map(entry => {
                 const reg = CARD_REGISTRY[entry.tipo]
                 if (!reg) return null
