@@ -6,6 +6,7 @@ import { abilityMod } from '../../helpers/pjCalc'
 import AttacksCRUD from '../pj/form/AttacksCRUD'
 import EquipmentCRUD from '../pj/form/EquipmentCRUD'
 import SpellsCRUD from '../pj/form/SpellsCRUD'
+import SkillsProficiencyGrid from '../pj/form/SkillsProficiencyGrid'
 import { CARD_REGISTRY } from './cards/cardRegistry'
 
 // Scoped edit modal for a single card type on a single PJ.
@@ -93,6 +94,10 @@ export default function SessionEditModal({ pj, cardType, onClose }) {
               hechizos={draft.hechizos ?? []}
               onChange={hechizos => setDraft(p => ({ ...p, hechizos }))}
             />
+          )}
+
+          {cardType === 'skills' && (
+            <SkillsProficiencyGrid f={draft} setF={setDraft} />
           )}
 
           {cardType === 'stats' && (
