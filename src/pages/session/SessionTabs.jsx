@@ -1,5 +1,6 @@
 import { forwardRef, useEffect } from 'react'
 import { CARD_REGISTRY } from './cards/cardRegistry'
+import SortableTab, { toTabId } from './SortableTab'
 
 const HEADER_H = 60
 
@@ -63,18 +64,9 @@ const SessionTabs = forwardRef(function SessionTabs(
           const label = CARD_REGISTRY[c.tipo].label
           const isActive = c.id === activeId
           return (
-            <button
-              key={c.id}
-              type="button"
-              onClick={() => onTabClick(c.id)}
-              className={`font-exo text-[11px] font-semibold tracking-[0.1em] uppercase px-4 py-3 whitespace-nowrap border-b-2 transition-colors cursor-pointer bg-transparent ${
-                isActive
-                  ? 'text-accent-bright border-accent'
-                  : 'text-txt-muted border-transparent hover:text-txt-primary'
-              }`}
-            >
+            <SortableTab key={c.id} id={toTabId(c.id)} isActive={isActive} onClick={() => onTabClick(c.id)}>
               {label}
-            </button>
+            </SortableTab>
           )
         })}
       </div>
