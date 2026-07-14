@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { AppContext } from './AppContext'
 import { defaultData, seedPJs, seedPNJs, seedSesiones } from './seed'
 import { nextId, isVisible } from './helpers'
@@ -25,6 +25,8 @@ import Items from './pages/Items'
 import Juegos from './pages/Juegos'
 import Mapas from './pages/Mapas'
 import SRD from './pages/SRD'
+
+const SessionScreen = lazy(() => import('./pages/SessionScreen'))
 
 const PLAYER_PASSWORDS = {
   1: import.meta.env.VITE_PLAYER_1_PASSWORD,
@@ -61,6 +63,7 @@ const PAGES = {
   items: Items,
   juegos: Juegos,
   srd: SRD,
+  sessionScreen: SessionScreen,
 }
 
 export default function App() {
@@ -426,8 +429,10 @@ export default function App() {
             onClick={() => setSidebarOpen(false)}
           />
         )}
-        <main className={`ml-[240px] max-md:ml-0 flex-1 py-8 px-10 ${page === 'mapas' ? '' : 'max-md:p-5 max-w-[1100px]'}`}>
-          <PageComponent />
+        <main className={`ml-[240px] max-md:ml-0 flex-1 py-8 px-10 ${page === 'mapas' || page === 'sessionScreen' ? '' : 'max-md:p-5 max-w-[1100px]'}`}>
+          <Suspense fallback={<div className="p-10 text-center text-txt-muted">Cargando…</div>}>
+            <PageComponent />
+          </Suspense>
         </main>
       </div>
       {detail && <DetailPanel detail={detail} />}
