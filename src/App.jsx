@@ -35,7 +35,7 @@ const PLAYER_PASSWORDS = {
   6: import.meta.env.VITE_PLAYER_6_PASSWORD,
 }
 
-const COLLECTIONS = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items', 'player_notes', 'login_logs', 'game_logs', 'game_pot', 'game_config', 'mapas', 'map_points']
+const COLLECTIONS = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items', 'player_notes', 'login_logs', 'game_logs', 'game_pot', 'game_config', 'mapas', 'map_points', 'homebrew_rules']
 
 async function seedCollectionIfEmpty(collName, seedData) {
   const snap = await getDocs(collection(firestore, collName))
@@ -96,6 +96,7 @@ export default function App() {
       }])
       await seedCollectionIfEmpty('mapas', [])
       await seedCollectionIfEmpty('map_points', [])
+      await seedCollectionIfEmpty('homebrew_rules', [])
     }
     maybeSeed()
 
