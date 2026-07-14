@@ -2,9 +2,15 @@ import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { btnSecondary } from '../../../constants'
 
-export default function PJSubsection({ pj, onEdit, fullViewToggle = false, children }) {
-  const [collapsed, setCollapsed] = useState(true)
+export default function PJSubsection({ pj, onEdit, fullViewToggle = false, collapsed: collapsedProp, onToggleCollapsed, children }) {
+  const [collapsedState, setCollapsedState] = useState(true)
   const [fullView, setFullView] = useState(false)
+  const isControlled = collapsedProp !== undefined
+  const collapsed = isControlled ? collapsedProp : collapsedState
+  const toggleCollapsed = () => {
+    if (isControlled) onToggleCollapsed?.()
+    else setCollapsedState(prev => !prev)
+  }
 
   return (
     <div className="border border-border-base p-1">
@@ -12,7 +18,7 @@ export default function PJSubsection({ pj, onEdit, fullViewToggle = false, child
         <button
           type="button"
           className="flex items-center gap-1.5 font-exo text-[12px] font-semibold text-txt-primary uppercase tracking-[0.08em] cursor-pointer bg-transparent border-none pl-2"
-          onClick={() => setCollapsed(prev => !prev)}
+          onClick={toggleCollapsed}
         >
           {collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
           {pj.nombre}
