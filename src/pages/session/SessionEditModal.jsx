@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../../AppContext'
-import { btnPrimary, btnSecondary } from '../../constants'
+import { labelCls, inputCls, btnPrimary, btnSecondary } from '../../constants'
+import { ABILITY_SCORES } from '../pj/pjConstants'
+import { abilityMod } from '../../helpers/pjCalc'
 import AttacksCRUD from '../pj/form/AttacksCRUD'
 import EquipmentCRUD from '../pj/form/EquipmentCRUD'
 import SpellsCRUD from '../pj/form/SpellsCRUD'
@@ -29,7 +31,18 @@ export default function SessionEditModal({ pj, cardType, onClose }) {
   }, [onClose])
 
   function handleConfirm() {
-    save('pjs', draft)
+    const data = {
+      ...draft,
+      stat_str: parseInt(draft.stat_str) || 0,
+      stat_dex: parseInt(draft.stat_dex) || 0,
+      stat_con: parseInt(draft.stat_con) || 0,
+      stat_int: parseInt(draft.stat_int) || 0,
+      stat_wis: parseInt(draft.stat_wis) || 0,
+      stat_cha: parseInt(draft.stat_cha) || 0,
+      stat_hp: parseInt(draft.stat_hp) || 0,
+      stat_ac: parseInt(draft.stat_ac) || 0,
+    }
+    save('pjs', data)
     onClose()
   }
 
@@ -80,6 +93,62 @@ export default function SessionEditModal({ pj, cardType, onClose }) {
               hechizos={draft.hechizos ?? []}
               onChange={hechizos => setDraft(p => ({ ...p, hechizos }))}
             />
+          )}
+
+          {cardType === 'stats' && (
+            <div className="grid grid-cols-6 gap-2 max-md:grid-cols-3">
+              {ABILITY_SCORES.map(({ label, key }) => (
+                <div key={key} className="text-center">
+                  <label className={`${labelCls} flex justify-between items-baseline`}>
+                    <span>{label}</span>
+                    <span className="text-txt-primary font-bold">{abilityMod(parseInt(draft[key]) || 10)}</span>
+                  </label>
+                  <input
+                    className={`${inputCls} text-center`}
+                    type="number"
+                    value={draft[key]}
+                    onChange={e => setDraft(p => ({ ...p, [key]: e.target.value }))}
+                    min="1" max="30"
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {cardType === 'hp-ac' && (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={labelCls}>HP Máx.</label>
+                <input
+                  className={inputCls}
+                  type="number"
+                  value={draft.stat_hp}
+                  onChange={e => setDraft(p => ({ ...p, stat_hp: e.target.value }))}
+                  min="0"
+                />
+              </div>
+              <div>
+                <label className={labelCls}>AC</label>
+                <input
+                  className={inputCls}
+                  type="number"
+                  value={draft.stat_ac}
+                  onChange={e => setDraft(p => ({ ...p, stat_ac: e.target.value }))}
+                  min="0"
+                />
+              </div>
+            </div>
+          )}
+
+          {cardType === 'inspiration' && (
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={!!draft.stat_inspiration}
+                onChange={e => setDraft(p => ({ ...p, stat_inspiration: e.target.checked }))}
+              />
+              <span className={labelCls} style={{ marginBottom: 0 }}>Inspiración</span>
+            </label>
           )}
         </div>
 
