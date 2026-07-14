@@ -16,7 +16,7 @@ const HEADER_H = 60
 // source of truth driving both the tab header and the stacked card list — no
 // separate tabs state, so reorder/add/remove can never desync the two.
 export default function SessionScreen() {
-  const { db, saveSessionScreen } = useApp()
+  const { db, isDM, saveSessionScreen } = useApp()
   const layout = (db.game_config || []).find(c => c.id === 'session_screen')
   const cards = layout?.cards ?? []
 
@@ -37,6 +37,13 @@ export default function SessionScreen() {
     if (!cards.some(c => c.id === activeId)) setActiveId(cards[0].id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cards.map(c => c.id).join(',')])
+
+  // DM-only: this screen renders db.pjs in full, with no visibility filter
+  // (by design — the DM needs to see every PJ regardless of `estado`/
+  // `visibilidad`). Same gate pattern as ZonaDM.jsx: hooks run
+  // unconditionally above, the gate is checked after them and before any
+  // card data is rendered.
+  if (!isDM) return null
 
   function scrollToCard(id) {
     const el = document.getElementById(`session-card-${id}`)
