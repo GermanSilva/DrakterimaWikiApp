@@ -25,16 +25,52 @@ function MonedasRow({ label, monedas }) {
   )
 }
 
-function EquipoList({ items }) {
+const THEAD_CLS = 'text-left font-exo text-[9px] font-semibold tracking-[0.15em] uppercase text-txt-muted pb-1 pr-3'
+const GROUP_ROW_CLS = 'text-left font-exo text-[9px] font-semibold tracking-[0.15em] uppercase text-txt-muted pt-2 pb-1'
+
+function EquipoTable({ portando, guardado }) {
   return (
-    <ul className="space-y-0.5">
-      {items.map(item => (
-        <li key={item.id} className="flex flex-wrap gap-2 text-[11px] text-txt-secondary">
-          <span className="text-txt-primary font-medium">{item.nombre}</span>
-          {item.cantidad > 1 && <span className="text-txt-muted">×{item.cantidad}</span>}
-        </li>
-      ))}
-    </ul>
+    <div className="overflow-x-auto">
+      <table className="w-full text-[11px] text-txt-secondary border-collapse">
+        <thead>
+          <tr className="border-b border-border-base">
+            <th className={THEAD_CLS}>Nombre</th>
+            <th className={THEAD_CLS}>Cantidad</th>
+            <th className={THEAD_CLS}>Descripción</th>
+          </tr>
+        </thead>
+        <tbody>
+          {portando.length > 0 && (
+            <>
+              <tr>
+                <th colSpan={3} className={GROUP_ROW_CLS}>Portando</th>
+              </tr>
+              {portando.map(item => (
+                <tr key={item.id} className="border-t border-border-base">
+                  <td className="text-txt-primary font-medium py-1 pr-3">{item.nombre}</td>
+                  <td className="py-1 pr-3">{item.cantidad ?? 1}</td>
+                  <td className="text-txt-muted py-1">{item.descripcion}</td>
+                </tr>
+              ))}
+            </>
+          )}
+          {guardado.length > 0 && (
+            <>
+              <tr>
+                <th colSpan={3} className={GROUP_ROW_CLS}>Guardado</th>
+              </tr>
+              {guardado.map(item => (
+                <tr key={item.id} className="border-t border-border-base">
+                  <td className="text-txt-primary font-medium py-1 pr-3">{item.nombre}</td>
+                  <td className="py-1 pr-3">{item.cantidad ?? 1}</td>
+                  <td className="text-txt-muted py-1">{item.descripcion}</td>
+                </tr>
+              ))}
+            </>
+          )}
+        </tbody>
+      </table>
+    </div>
   )
 }
 
@@ -61,18 +97,7 @@ export default function SessionCardInventory({ db, onEdit, onRemove }) {
                   <div className="text-[11px] text-txt-muted mt-1">Sin objetos registrados.</div>
                 ) : (
                   <div className="mt-1.5">
-                    {portando.length > 0 && (
-                      <div className="mb-1.5">
-                        <div className="font-exo text-[9px] font-semibold tracking-[0.15em] uppercase text-txt-muted mb-1">Portando</div>
-                        <EquipoList items={portando} />
-                      </div>
-                    )}
-                    {guardado.length > 0 && (
-                      <div>
-                        <div className="font-exo text-[9px] font-semibold tracking-[0.15em] uppercase text-txt-muted mb-1">Guardado</div>
-                        <EquipoList items={guardado} />
-                      </div>
-                    )}
+                    <EquipoTable portando={portando} guardado={guardado} />
                   </div>
                 )}
               </PJSubsection>
