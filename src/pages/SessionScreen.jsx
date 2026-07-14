@@ -48,6 +48,19 @@ export default function SessionScreen() {
     setActiveId(entry.id)
   }
 
+  // Removing the active card reassigns activeId to the nearest remaining
+  // card (the one right after it, else the one right before it), else none.
+  function removeCard(id) {
+    const idx = cards.findIndex(c => c.id === id)
+    if (idx === -1) return
+    const nextCards = cards.filter(c => c.id !== id)
+    saveSessionScreen({ ...layout, cards: nextCards })
+    if (activeId === id) {
+      const fallback = cards[idx + 1] ?? cards[idx - 1] ?? null
+      setActiveId(fallback ? fallback.id : null)
+    }
+  }
+
   return (
     <div>
       <SessionTabs
@@ -81,6 +94,7 @@ export default function SessionScreen() {
                   layout={layout}
                   entry={entry}
                   onEdit={pj => setEditing({ pj, cardType: entry.tipo })}
+                  onRemove={() => removeCard(entry.id)}
                 />
               </div>
             )

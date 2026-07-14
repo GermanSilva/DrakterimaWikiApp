@@ -10,7 +10,7 @@ const EMPTY_FORM = { nombre: '', texto: '' }
 // through the generic `save`/`remove('homebrew_rules', ...)` path (design
 // decision). Duplicate rule names are explicitly allowed by spec, so no
 // uniqueness check is performed before creating.
-export default function SessionCardRules({ db }) {
+export default function SessionCardRules({ db, onRemove }) {
   const { save, remove } = useApp()
   const rules = db?.homebrew_rules ?? []
   const [selectedId, setSelectedId] = useState(null)
@@ -33,7 +33,7 @@ export default function SessionCardRules({ db }) {
   }
 
   return (
-    <SessionCardShell title="Reglas">
+    <SessionCardShell title="Reglas" onRemove={onRemove}>
       {rules.length === 0 && !creating && (
         <div className="text-[13px] text-txt-muted mb-3">No hay reglas homebrew creadas todavía.</div>
       )}

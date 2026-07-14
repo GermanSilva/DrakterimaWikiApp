@@ -3,11 +3,11 @@ import SessionCardShell from './SessionCardShell'
 import PJSubsection from './PJSubsection'
 import EmptyPjsState from './EmptyPjsState'
 
-export default function SessionCardInspiration({ db, onEdit }) {
+export default function SessionCardInspiration({ db, onEdit, onRemove }) {
   const pjs = db?.pjs ?? []
 
   return (
-    <SessionCardShell title="Inspiración">
+    <SessionCardShell title="Inspiración" onRemove={onRemove}>
       {pjs.length === 0 ? (
         <EmptyPjsState />
       ) : (

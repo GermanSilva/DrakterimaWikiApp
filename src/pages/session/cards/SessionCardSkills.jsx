@@ -4,11 +4,11 @@ import SessionCardShell from './SessionCardShell'
 import PJSubsection from './PJSubsection'
 import EmptyPjsState from './EmptyPjsState'
 
-export default function SessionCardSkills({ db, onEdit }) {
+export default function SessionCardSkills({ db, onEdit, onRemove }) {
   const pjs = db?.pjs ?? []
 
   return (
-    <SessionCardShell title="Habilidades">
+    <SessionCardShell title="Habilidades" onRemove={onRemove}>
       {pjs.length === 0 ? (
         <EmptyPjsState />
       ) : (

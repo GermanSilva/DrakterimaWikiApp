@@ -38,11 +38,11 @@ function EquipoList({ items }) {
   )
 }
 
-export default function SessionCardInventory({ db, onEdit }) {
+export default function SessionCardInventory({ db, onEdit, onRemove }) {
   const pjs = db?.pjs ?? []
 
   return (
-    <SessionCardShell title="Inventario">
+    <SessionCardShell title="Inventario" onRemove={onRemove}>
       {pjs.length === 0 ? (
         <EmptyPjsState />
       ) : (
