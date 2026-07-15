@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect } from 'react'
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { useApp } from '../AppContext'
 import { CARD_REGISTRY } from './session/cards/cardRegistry'
 import SessionTabs from './session/SessionTabs'
 import SessionCardPicker from './session/SessionCardPicker'
 import SessionEditModal from './session/SessionEditModal'
+import SortableCardItem from './session/SortableCardItem'
 import { btnPrimary } from '../constants'
 
 const HEADER_H = 60
@@ -21,6 +24,11 @@ export default function SessionScreen() {
   const [activeId, setActiveId] = useState(null)
   const [pickerOpen, setPickerOpen] = useState(false)
   const [editing, setEditing] = useState(null) // { pj, cardType }
+
+  // `distance: 8` activation constraint so a plain click on a card's inner
+  // controls (Editar, Quitar, inputs) never gets misread as a drag start —
+  // the pointer has to move 8px past the grip handle first.
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
   // Keep activeId valid whenever the card list changes (first load, or a
   // card was added/removed elsewhere/another device).
@@ -61,6 +69,21 @@ export default function SessionScreen() {
     }
   }
 
+  // Reorders the SAME `layout.cards[]` array that drives both the tab bar
+  // and the card stack — there is no separate order/state to keep in sync
+  // (SessionTabs renders tabs directly from the `cards` prop it's given, in
+  // array order), so persisting the reordered array here is the only step
+  // needed for the tab order to update too.
+  function handleDragEnd(event) {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = cards.findIndex(c => c.id === active.id)
+    const newIndex = cards.findIndex(c => c.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+    const reordered = arrayMove(cards, oldIndex, newIndex)
+    saveSessionScreen({ ...layout, cards: reordered })
+  }
+
   return (
     <div>
       <SessionTabs
@@ -82,24 +105,30 @@ export default function SessionScreen() {
           </button>
         </div>
       ) : (
-        <div className="max-w-[900px] mx-auto py-6 px-10 max-md:px-5">
-          {cards.map(entry => {
-            const reg = CARD_REGISTRY[entry.tipo]
-            if (!reg) return null
-            const Component = reg.Component
-            return (
-              <div key={entry.id} id={`session-card-${entry.id}`} data-card-id={entry.id}>
-                <Component
-                  db={db}
-                  layout={layout}
-                  entry={entry}
-                  onEdit={pj => setEditing({ pj, cardType: entry.tipo })}
-                  onRemove={() => removeCard(entry.id)}
-                />
-              </div>
-            )
-          })}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
+            <div className="max-w-[900px] mx-auto py-6 px-10 max-md:px-5">
+              {cards.map(entry => {
+                const reg = CARD_REGISTRY[entry.tipo]
+                if (!reg) return null
+                const Component = reg.Component
+                return (
+                  <SortableCardItem key={entry.id} id={entry.id}>
+                    <div id={`session-card-${entry.id}`} data-card-id={entry.id}>
+                      <Component
+                        db={db}
+                        layout={layout}
+                        entry={entry}
+                        onEdit={pj => setEditing({ pj, cardType: entry.tipo })}
+                        onRemove={() => removeCard(entry.id)}
+                      />
+                    </div>
+                  </SortableCardItem>
+                )
+              })}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {pickerOpen && (
