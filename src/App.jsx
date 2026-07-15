@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { AppContext } from './AppContext'
 import { defaultData, seedPJs, seedPNJs, seedSesiones } from './seed'
 import { nextId, isVisible } from './helpers'
@@ -26,6 +26,8 @@ import Juegos from './pages/Juegos'
 import Mapas from './pages/Mapas'
 import SRD from './pages/SRD'
 
+const SessionScreen = lazy(() => import('./pages/SessionScreen'))
+
 const PLAYER_PASSWORDS = {
   1: import.meta.env.VITE_PLAYER_1_PASSWORD,
   2: import.meta.env.VITE_PLAYER_2_PASSWORD,
@@ -35,7 +37,7 @@ const PLAYER_PASSWORDS = {
   6: import.meta.env.VITE_PLAYER_6_PASSWORD,
 }
 
-const COLLECTIONS = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items', 'player_notes', 'login_logs', 'game_logs', 'game_pot', 'game_config', 'mapas', 'map_points']
+const COLLECTIONS = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items', 'player_notes', 'login_logs', 'game_logs', 'game_pot', 'game_config', 'mapas', 'map_points', 'homebrew_rules']
 
 async function seedCollectionIfEmpty(collName, seedData) {
   const snap = await getDocs(collection(firestore, collName))
@@ -61,6 +63,7 @@ const PAGES = {
   items: Items,
   juegos: Juegos,
   srd: SRD,
+  sessionScreen: SessionScreen,
 }
 
 export default function App() {
@@ -96,6 +99,7 @@ export default function App() {
       }])
       await seedCollectionIfEmpty('mapas', [])
       await seedCollectionIfEmpty('map_points', [])
+      await seedCollectionIfEmpty('homebrew_rules', [])
     }
     maybeSeed()
 
@@ -257,6 +261,10 @@ export default function App() {
     showToast('Configuración guardada')
   }
 
+  async function saveSessionScreen(layout) {
+    await setDoc(doc(firestore, 'game_config', 'session_screen'), { ...layout, id: 'session_screen' }, { merge: true })
+  }
+
   function tryAccess(password) {
     const dmPass = import.meta.env.VITE_DM_PASSWORD
     if (dmPass && password === dmPass) {
@@ -379,6 +387,7 @@ export default function App() {
     saveGameResult,
     assignPotToPJ,
     saveGameConfig,
+    saveSessionScreen,
     tryAccess,
     openForm: (type, id = null, prefill = null) => {
       if (isDM || (type === 'pjs' && id === currentPlayer?.id)) setForm({ type, id, prefill })
@@ -420,8 +429,10 @@ export default function App() {
             onClick={() => setSidebarOpen(false)}
           />
         )}
-        <main className={`ml-[240px] max-md:ml-0 flex-1 py-8 px-10 ${page === 'mapas' ? '' : 'max-md:p-5 max-w-[1100px]'}`}>
-          <PageComponent />
+        <main className={`ml-[240px] max-md:ml-0 flex-1 py-8 px-10 ${page === 'mapas' || page === 'sessionScreen' ? '' : 'max-md:p-5 max-w-[1100px]'}`}>
+          <Suspense fallback={<div className="p-10 text-center text-txt-muted">Cargando…</div>}>
+            <PageComponent />
+          </Suspense>
         </main>
       </div>
       {detail && <DetailPanel detail={detail} />}
