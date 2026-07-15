@@ -57,7 +57,7 @@ const SessionTabs = forwardRef(function SessionTabs(
   return (
     <div
       ref={ref}
-      className="sticky top-[60px] z-10 bg-[#060606] border-b border-border-base flex items-stretch px-10 max-md:px-5"
+      className="sticky -mt-8 top-[60px] z-10 bg-[#060606] border-b border-border-base flex items-stretch px-10 max-md:px-5"
     >
       <div className="flex-1 overflow-x-auto flex gap-1">
         {visibleCards.map(c => {
