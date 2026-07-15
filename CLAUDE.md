@@ -24,6 +24,8 @@ npm run preview   # Vista previa del build de producción
 
 No hay test runner configurado.
 
+`gh` (GitHub CLI) no viene preinstalado en el entorno — instalar con `scoop install gh` (o `choco install gh`) antes de crear PRs por comando.
+
 El proyecto está deployado en GitHub Pages: `https://germansilva.github.io/DrakterimaWikiApp/`
 El deploy se dispara automáticamente al pushear a `main` vía `.github/workflows/deploy.yml`.
 
@@ -42,7 +44,7 @@ El deploy se dispara automáticamente al pushear a `main` vía `.github/workflow
 Los datos viven en **Firebase Firestore**. La app usa `onSnapshot` para sincronización en tiempo real entre múltiples pestañas/usuarios sin necesidad de recargar.
 
 - **`src/firebase.js`**: inicializa Firestore con las 6 vars `VITE_FIREBASE_*` y habilita persistencia offline con `enableMultiTabIndexedDbPersistence`.
-- **Colecciones Firestore**: `sesiones`, `pjs`, `pnjs`, `lugares`, `facciones`, `lore`, `items`, `player_notes`, `login_logs`, `game_logs`, `game_pot`, `game_config`, `mapas`, `map_points`. Los documentos usan el `id` numérico convertido a string como doc ID.
+- **Colecciones Firestore**: `sesiones`, `pjs`, `pnjs`, `lugares`, `facciones`, `lore`, `items`, `player_notes`, `login_logs`, `game_logs`, `game_pot`, `game_config`, `mapas`, `map_points`, `homebrew_rules`. Los documentos usan el `id` numérico convertido a string como doc ID.
 - **Seed**: al primer load, `seedCollectionIfEmpty(collName, seedData)` comprueba si la colección está vacía y la rellena con datos iniciales usando `writeBatch`.
 - Sin Firebase Storage — las imágenes se referencian por URL externa (`imagen_url`, campo de texto).
 
@@ -50,7 +52,7 @@ Los datos viven en **Firebase Firestore**. La app usa `onSnapshot` para sincroni
 
 `App.jsx` es dueño de todo el estado: `db` (datos), `page` (vista activa), `detail` (panel de detalle), `form` (modal de formulario), `toastMsg`, `sidebarOpen`, `pendingDetail`. Todas las mutaciones pasan por `save(type, data)` y `remove(type, id)`, que escriben directamente a Firestore.
 
-- `save(type, data)`: `setDoc` en Firestore con el doc id = `String(data.id ?? nextId(...))`.
+- `save(type, data)`: `setDoc` en Firestore con el doc id = `String(data.id ?? nextId(...))`. **Sin merge — sobrescribe el doc entero.** Si mutás desde un modal acotado (solo un subconjunto de campos visibles), el objeto a guardar debe llevar TODOS los campos existentes (`{...entity, ...cambios}`) o se pierden los que falten. Funciones dedicadas como `saveGameConfig`/`saveSessionScreen` sí usan `{merge:true}`.
 - `remove(type, id)`: `deleteDoc` en Firestore.
 - `savePlayerNote(pj_id, type, entity_id, text)`: `setDoc` en `player_notes` con doc id `${pj_id}_${type}_${entity_id}`.
 - `importData(file)`: upsert masivo vía `writeBatch` a Firestore.
@@ -115,6 +117,21 @@ Cada formulario incluye el componente `EstadoField` para controlar la visibilida
 ### Zona DM
 
 `src/pages/ZonaDM.jsx` es una página visible solo para el DM. Contiene: exportar/importar JSON, registro de accesos de jugadores (`login_logs`), configuración y logs del sistema de juegos (`JuegosSection`), y mantenimiento (backfill de timestamps). Al agregar nuevas tareas admin, hacerlas aquí.
+
+### Pantalla de sesión DM (`SessionScreen.jsx`, `src/pages/session/`)
+
+Pantalla full-screen (sin padding en `<main>`, mismo patrón que `mapas`) para uso del DM durante una sesión en vivo. Accesible desde un botón en `ZonaDM.jsx` (sin entrada en `Sidebar` `NAV`). Gate `if (!isDM) return null` — muestra `db.pjs` sin filtro de visibilidad, es DM-only por diseño.
+
+**Fuente única de verdad**: `layout.cards[]`, persistido en `game_config/session_screen` vía `saveSessionScreen(layout)` (mismo patrón `{merge:true}` que `saveGameConfig`). Este array alimenta a la vez las pestañas del header, las cards apiladas y el drag-and-drop — no hay estado duplicado que sincronizar.
+
+- **Pestañas = anclas de scroll**, no un switcher: todas las cards se apilan verticalmente y son visibles a la vez. Pestaña activa resaltada vía `IntersectionObserver` (mismo patrón que el nombre sticky en detalles).
+- **`cardRegistry.js`** mapea tipo → componente: `stats`, `skills`, `weapons`, `spells`, `inventory`, `inspiration`, `notes`, `rules`. Un `tipo` obsoleto persistido en Firestore (ej. `hp-ac`, ya removida) se filtra sin romper nada y se limpia solo del doc en el próximo reorder.
+- **`PJSubsection.jsx`**: bloque colapsable compartido por las 6 cards de personaje, uno por PJ. Controlable externamente (`collapsed`/`onToggleCollapsed`) para el botón "Expandir/Contraer todo" de `SessionCardShell`. `fullViewToggle` + `children({fullView})` habilita "Vista completa" (estado local, no persistido) para revelar campos secundarios.
+- **`SessionEditModal.jsx`**: edición acotada por tipo de card, reutilizando `AttacksCRUD`/`EquipmentCRUD`/`SpellsCRUD`/grid de proficiencias existentes. El draft SIEMPRE se siembra completo (`{...pj}`) — ver gotcha de `save()` sin merge.
+- **Reglas homebrew** (colección `homebrew_rules`: `{ id, nombre, texto }`): crear/seleccionar/eliminar (hard-delete) directo desde la card, sin pantalla de administración dedicada todavía.
+- **Grilla responsive de 2 columnas** a partir de `1906px` de viewport (750px×2 + 6px gap + 400px de chrome fijo del layout). Usa `rectSortingStrategy` de dnd-kit (no `verticalListSortingStrategy`) para que el drag funcione en ambos layouts. Pestañas y cards comparten `DndContext`/`handleDragEnd`; las pestañas usan namespace de id separado (`tab-{id}`) para no colisionar en dnd-kit.
+
+`stat_hp_current` (HP actual, en `pj`): campo nuevo independiente de `stat_hp` (ahora inequívocamente "máximo"). Default cuando falta: `?? stat_hp`, sin migración. Editable en `PJMechanicsTab` y en la card `stats` de esta pantalla.
 
 ### Sistema de juegos (`Juegos.jsx`, `Dice3D.jsx`)
 
