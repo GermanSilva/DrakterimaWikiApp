@@ -34,7 +34,7 @@ function formatTimestamp(iso) {
 }
 
 export default function ZonaDM() {
-  const { db, showToast, isDM, exportData, exportArticles, importData } = useApp()
+  const { db, showToast, isDM, navigate, exportData, exportArticles, importData } = useApp()
   const loginLogs = [...(db.login_logs || [])].sort((a, b) => b.timestamp.localeCompare(a.timestamp))
   const [backfilling, setBackfilling] = useState(false)
   const fileInputRef = useRef(null)
@@ -58,6 +58,15 @@ export default function ZonaDM() {
           Zona DM
         </div>
       </div>
+
+      <Section title="Pantalla de sesión">
+        <Action
+          label="Abrir pantalla de sesión"
+          description="Vista en vivo con tarjetas de PJs y reglas homebrew para usar durante la sesión."
+          buttonLabel="Abrir"
+          onClick={() => navigate('sessionScreen')}
+        />
+      </Section>
 
       <Section title="Datos">
         <Action
