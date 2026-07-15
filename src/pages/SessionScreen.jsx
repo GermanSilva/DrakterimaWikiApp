@@ -19,6 +19,13 @@ export default function SessionScreen() {
   const { db, isDM, saveSessionScreen } = useApp()
   const layout = (db.game_config || []).find(c => c.id === 'session_screen')
   const cards = layout?.cards ?? []
+  // Defensive filter: drop any persisted entry whose `tipo` is no longer a
+  // CARD_REGISTRY key (e.g. a leftover `hp-ac` entry) before it reaches
+  // drag-and-drop index math, the empty-state check, or any child that
+  // trusts the array to only contain renderable cards. The array is never
+  // written back here — it self-heals the next time `saveSessionScreen`
+  // runs (e.g. on reorder), which persists this filtered shape.
+  const visibleCards = cards.filter(c => CARD_REGISTRY[c.tipo])
 
   const tabsBarRef = useRef(null)
   const [activeId, setActiveId] = useState(null)
@@ -33,10 +40,10 @@ export default function SessionScreen() {
   // Keep activeId valid whenever the card list changes (first load, or a
   // card was added/removed elsewhere/another device).
   useEffect(() => {
-    if (cards.length === 0) { setActiveId(null); return }
-    if (!cards.some(c => c.id === activeId)) setActiveId(cards[0].id)
+    if (visibleCards.length === 0) { setActiveId(null); return }
+    if (!visibleCards.some(c => c.id === activeId)) setActiveId(visibleCards[0].id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cards.map(c => c.id).join(',')])
+  }, [visibleCards.map(c => c.id).join(',')])
 
   // DM-only: this screen renders db.pjs in full, with no visibility filter
   // (by design — the DM needs to see every PJ regardless of `estado`/
@@ -76,18 +83,21 @@ export default function SessionScreen() {
     }
   }
 
-  // Reorders the SAME `layout.cards[]` array that drives both the tab bar
+  // Reorders the SAME `visibleCards` array that drives both the tab bar
   // and the card stack — there is no separate order/state to keep in sync
   // (SessionTabs renders tabs directly from the `cards` prop it's given, in
   // array order), so persisting the reordered array here is the only step
-  // needed for the tab order to update too.
+  // needed for the tab order to update too. Reordering off `visibleCards`
+  // (not the raw `cards`) also means an orphan entry (e.g. a leftover
+  // `hp-ac` tipo) is dropped from the persisted doc the next time a reorder
+  // happens — a drag-driven self-heal, no explicit migration needed.
   function handleDragEnd(event) {
     const { active, over } = event
     if (!over || active.id === over.id) return
-    const oldIndex = cards.findIndex(c => c.id === active.id)
-    const newIndex = cards.findIndex(c => c.id === over.id)
+    const oldIndex = visibleCards.findIndex(c => c.id === active.id)
+    const newIndex = visibleCards.findIndex(c => c.id === over.id)
     if (oldIndex === -1 || newIndex === -1) return
-    const reordered = arrayMove(cards, oldIndex, newIndex)
+    const reordered = arrayMove(visibleCards, oldIndex, newIndex)
     saveSessionScreen({ ...layout, cards: reordered })
   }
 
@@ -95,14 +105,14 @@ export default function SessionScreen() {
     <div>
       <SessionTabs
         ref={tabsBarRef}
-        cards={cards}
+        cards={visibleCards}
         activeId={activeId}
         onActiveChange={setActiveId}
         onTabClick={scrollToCard}
         onAddClick={() => setPickerOpen(true)}
       />
 
-      {cards.length === 0 ? (
+      {visibleCards.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-4 min-h-[calc(100vh-160px)] text-center px-10">
           <p className="text-txt-muted text-sm max-w-sm">
             Todavía no agregaste ninguna pestaña a la pantalla de sesión.
@@ -113,9 +123,9 @@ export default function SessionScreen() {
         </div>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={cards.map(c => c.id)} strategy={verticalListSortingStrategy}>
+          <SortableContext items={visibleCards.map(c => c.id)} strategy={verticalListSortingStrategy}>
             <div className="max-w-[900px] mx-auto py-6 px-10 max-md:px-5">
-              {cards.map(entry => {
+              {visibleCards.map(entry => {
                 const reg = CARD_REGISTRY[entry.tipo]
                 if (!reg) return null
                 const Component = reg.Component
@@ -140,7 +150,7 @@ export default function SessionScreen() {
 
       {pickerOpen && (
         <SessionCardPicker
-          existingTypes={cards.map(c => c.tipo)}
+          existingTypes={visibleCards.map(c => c.tipo)}
           onSelect={addCard}
           onClose={() => setPickerOpen(false)}
         />
