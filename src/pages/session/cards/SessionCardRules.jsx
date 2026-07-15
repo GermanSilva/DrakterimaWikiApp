@@ -13,11 +13,17 @@ const EMPTY_FORM = { nombre: '', texto: '' }
 export default function SessionCardRules({ db, onRemove }) {
   const { save, remove } = useApp()
   const rules = db?.homebrew_rules ?? []
-  const [selectedId, setSelectedId] = useState(null)
+  const [expandedIds, setExpandedIds] = useState(() => new Set())
   const [creating, setCreating] = useState(false)
   const [form, setForm] = useState(EMPTY_FORM)
 
-  const selectedRule = rules.find(r => r.id === selectedId) ?? null
+  const allExpanded = rules.length > 0 && rules.every(r => expandedIds.has(r.id))
+  const toggleAll = () => setExpandedIds(allExpanded ? new Set() : new Set(rules.map(r => r.id)))
+  const toggleOne = (id) => setExpandedIds(prev => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
 
   function submitCreate(e) {
     e.preventDefault()
@@ -29,11 +35,16 @@ export default function SessionCardRules({ db, onRemove }) {
 
   function handleDelete(id) {
     remove('homebrew_rules', id)
-    if (selectedId === id) setSelectedId(null)
+    setExpandedIds(prev => {
+      if (!prev.has(id)) return prev
+      const next = new Set(prev)
+      next.delete(id)
+      return next
+    })
   }
 
   return (
-    <SessionCardShell title="Reglas" onRemove={onRemove}>
+    <SessionCardShell title="Reglas" onRemove={onRemove} onToggleAll={rules.length > 0 ? toggleAll : undefined} allExpanded={allExpanded}>
       {rules.length === 0 && !creating && (
         <div className="text-[13px] text-txt-muted mb-3">No hay reglas homebrew creadas todavía.</div>
       )}
@@ -46,7 +57,7 @@ export default function SessionCardRules({ db, onRemove }) {
                 <button
                   type="button"
                   className="flex-1 text-left font-exo text-[12px] font-semibold text-txt-primary uppercase tracking-[0.05em] cursor-pointer bg-transparent border-none"
-                  onClick={() => setSelectedId(prev => (prev === rule.id ? null : rule.id))}
+                  onClick={() => toggleOne(rule.id)}
                 >
                   {rule.nombre}
                 </button>
@@ -59,7 +70,7 @@ export default function SessionCardRules({ db, onRemove }) {
                   <Trash2 size={13} />
                 </button>
               </div>
-              {selectedId === rule.id && rule.texto && (
+              {expandedIds.has(rule.id) && rule.texto && (
                 <div className="px-3 pb-2 text-[12px] text-txt-secondary whitespace-pre-line">{rule.texto}</div>
               )}
             </li>

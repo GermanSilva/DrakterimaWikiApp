@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import SessionCardShell from './SessionCardShell'
 import PJSubsection from './PJSubsection'
 import EmptyPjsState from './EmptyPjsState'
@@ -76,9 +77,17 @@ function EquipoTable({ portando, guardado }) {
 
 export default function SessionCardInventory({ db, onEdit, onRemove }) {
   const pjs = db?.pjs ?? []
+  const [collapsedIds, setCollapsedIds] = useState(() => new Set(pjs.map(pj => pj.id)))
+  const allExpanded = pjs.length > 0 && pjs.every(pj => !collapsedIds.has(pj.id))
+  const toggleAll = () => setCollapsedIds(allExpanded ? new Set(pjs.map(pj => pj.id)) : new Set())
+  const toggleOne = (pjId) => setCollapsedIds(prev => {
+    const next = new Set(prev)
+    next.has(pjId) ? next.delete(pjId) : next.add(pjId)
+    return next
+  })
 
   return (
-    <SessionCardShell title="Inventario" onRemove={onRemove}>
+    <SessionCardShell title="Inventario" onRemove={onRemove} onToggleAll={pjs.length > 0 ? toggleAll : undefined} allExpanded={allExpanded}>
       {pjs.length === 0 ? (
         <EmptyPjsState />
       ) : (
@@ -90,7 +99,7 @@ export default function SessionCardInventory({ db, onEdit, onRemove }) {
             const portando = equipo.filter(i => i.portando !== false)
             const guardado = equipo.filter(i => i.portando === false)
             return (
-              <PJSubsection key={pj.id} pj={pj} onEdit={onEdit}>
+              <PJSubsection key={pj.id} pj={pj} onEdit={onEdit} collapsed={collapsedIds.has(pj.id)} onToggleCollapsed={() => toggleOne(pj.id)}>
                 <MonedasRow label="En mano" monedas={monedas} />
                 <MonedasRow label="Guardadas" monedas={monedasGuardado} />
                 {equipo.length === 0 ? (
