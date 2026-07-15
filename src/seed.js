@@ -129,4 +129,5 @@ export const defaultData = {
   login_logs: [],
   mapas: [],
   map_points: [],
+  homebrew_rules: [],
 }
