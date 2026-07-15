@@ -30,6 +30,7 @@ export default function PJStatsSection({ pj }) {
       <div className={sectionTitleCls}>Stats</div>
       <div className="flex flex-wrap gap-2 mb-4">
         {pj.stat_hp > 0 && <StatBadge label="HP Máx." value={pj.stat_hp} />}
+        {pj.stat_hp > 0 && <StatBadge label="HP Actual" value={pj.stat_hp_current ?? pj.stat_hp} />}
         {pj.stat_ac > 0 && <StatBadge label="AC" value={pj.stat_ac} />}
         {pj.stat_speed > 0 && <StatBadge label="Velocidad" value={`${pj.stat_speed} ft`} />}
         {pj.stat_initiative !== undefined && <StatBadge label="Iniciativa" value={signedBonus(pj.stat_initiative)} />}
