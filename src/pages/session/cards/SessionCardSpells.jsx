@@ -25,7 +25,7 @@ export default function SessionCardSpells({ db, onEdit, onRemove }) {
       ) : (
         <div className="space-y-3">
           {pjs.map(pj => {
-            const hechizos = pj.hechizos ?? []
+            const hechizos = [...(pj.hechizos ?? [])].sort((a, b) => a.nivel - b.nivel)
             return (
               <PJSubsection key={pj.id} pj={pj} onEdit={onEdit} fullViewToggle collapsed={collapsedIds.has(pj.id)} onToggleCollapsed={() => toggleOne(pj.id)}>
                 {({ fullView }) => {
@@ -41,13 +41,14 @@ export default function SessionCardSpells({ db, onEdit, onRemove }) {
                           key={h.id}
                           type="button"
                           onClick={() => setSelectedSpell(h)}
-                          className={`px-2 py-0.5 text-[11px] border cursor-pointer transition-colors ${
-                            isPrepared(h)
-                              ? 'bg-accent text-white border-accent hover:bg-accent-bright'
-                              : 'bg-bg-mid border-border-base text-txt-secondary hover:border-accent-dim'
-                          }`}
+                          className={`px-2 py-0.5 text-[11px] border cursor-pointer transition-colors ${isPrepared(h)
+                            ? (h.nivel === 10 ? 'bg-purple-900 text-white border-purple-900 hover:bg-purple-800'
+                              : (h.nivel === 0 ? 'bg-blue-900 text-white border-blue-900 hover:bg-blue-800'
+                                : ('bg-accent text-white border-accent hover:bg-accent-bright')))
+                            : 'bg-bg-mid border-border-base text-txt-secondary hover:border-accent-dim'
+                            }`}
                         >
-                          {h.nombre}
+                          {h.nombre} {h.nivel === 0 || h.nivel === 10 ? '' : `[${h.nivel}]`}
                         </button>
                       ))}
                     </div>

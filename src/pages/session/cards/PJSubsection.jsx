@@ -17,7 +17,7 @@ export default function PJSubsection({ pj, onEdit, fullViewToggle = false, colla
       <div className={`flex justify-between items-center ${collapsed ? 'mb-0' : 'mb-2'}`}>
         <button
           type="button"
-          className="flex items-center gap-1.5 font-exo text-[12px] font-semibold text-txt-primary uppercase tracking-[0.08em] cursor-pointer bg-transparent border-none pl-2"
+          className="flex flex-1 items-center gap-1.5 font-exo text-[12px] font-semibold text-txt-primary uppercase tracking-[0.08em] cursor-pointer bg-transparent border-none pl-2"
           onClick={toggleCollapsed}
         >
           {collapsed ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
@@ -27,7 +27,7 @@ export default function PJSubsection({ pj, onEdit, fullViewToggle = false, colla
           {fullViewToggle && (
             <button
               type="button"
-              className={`${btnSecondary} ${fullView ? 'border-accent-dim text-accent-dim' : ''}`}
+              className={`${btnSecondary} p-1 ${fullView ? 'border-accent-dim text-accent-dim' : ''}`}
               onClick={(e) => { e.stopPropagation(); setFullView(prev => !prev) }}
             >
               Vista completa

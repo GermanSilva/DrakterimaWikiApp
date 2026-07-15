@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { SKILLS_BY_ABILITY } from '../../pj/pjConstants'
+import { SKILLS_BY_ABILITY, ABILITY_SCORES } from '../../pj/pjConstants'
 import { abilityModNum, signedBonus, suggestedProfBonus } from '../../../helpers/pjCalc'
 import SessionCardShell from './SessionCardShell'
 import PJSubsection from './PJSubsection'
@@ -41,12 +41,13 @@ export default function SessionCardSkills({ db, onEdit, onRemove }) {
                         const level = pj[skill.key] ?? 0
                         const modNum = abilityModNum(pj[skill.group.key])
                         const bonus = signedBonus(modNum + (level > 0 ? profBonus : 0) + (level > 1 ? profBonus : 0))
+                        const ability = ABILITY_SCORES.find(a => a.key === skill.group.key)
                         return (
                           <div key={skill.key} className="flex items-center gap-2 text-[11px]">
                             <span className={level === 2 ? 'text-accent-bright' : level === 1 ? 'text-accent-dim' : 'text-txt-muted'}>
                               {level === 2 ? '◆' : level === 1 ? '●' : '○'}
                             </span>
-                            <span className="text-txt-muted text-[10px]">[{skill.group.label}]</span>
+                            <span className="text-txt-muted text-[10px]" style={{ color: ability.color }}>[{skill.group.label}]</span>
                             <span className="text-txt-secondary flex-1">{skill.label}</span>
                             <span className={level > 0 ? 'text-accent-dim font-semibold' : 'text-txt-muted font-semibold'}>{bonus}</span>
                           </div>
