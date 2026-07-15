@@ -181,31 +181,6 @@ export default function SessionEditModal({ pj, cardType, onClose }) {
             </>
           )}
 
-          {cardType === 'hp-ac' && (
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className={labelCls}>HP Máx.</label>
-                <input
-                  className={inputCls}
-                  type="number"
-                  value={draft.stat_hp}
-                  onChange={e => setDraft(p => ({ ...p, stat_hp: e.target.value }))}
-                  min="0"
-                />
-              </div>
-              <div>
-                <label className={labelCls}>AC</label>
-                <input
-                  className={inputCls}
-                  type="number"
-                  value={draft.stat_ac}
-                  onChange={e => setDraft(p => ({ ...p, stat_ac: e.target.value }))}
-                  min="0"
-                />
-              </div>
-            </div>
-          )}
-
           {cardType === 'inspiration' && (
             <label className="flex items-center gap-2.5 cursor-pointer">
               <input

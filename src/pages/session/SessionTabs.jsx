@@ -20,8 +20,14 @@ const SessionTabs = forwardRef(function SessionTabs(
   { cards, activeId, onActiveChange, onTabClick, onAddClick },
   ref
 ) {
+  // Belt-and-suspenders: `cards` is expected to already be filtered by the
+  // caller (SessionScreen), but re-filtering here means a stale/obsolete
+  // `tipo` (e.g. a persisted `hp-ac` entry) can never leak a raw-string tab
+  // label or an IntersectionObserver target that scrolls to nothing.
+  const visibleCards = cards.filter(c => CARD_REGISTRY[c.tipo])
+
   useEffect(() => {
-    if (cards.length === 0) return
+    if (visibleCards.length === 0) return
     const barH = ref?.current?.offsetHeight ?? 0
     const topOffset = HEADER_H + barH
     const visible = new Set()
@@ -33,19 +39,19 @@ const SessionTabs = forwardRef(function SessionTabs(
           if (entry.isIntersecting) visible.add(id)
           else visible.delete(id)
         })
-        const topmost = cards.find(c => visible.has(c.id))
+        const topmost = visibleCards.find(c => visible.has(c.id))
         if (topmost) onActiveChange(topmost.id)
       },
       { rootMargin: `-${topOffset}px 0px -70% 0px`, threshold: 0 }
     )
 
-    cards.forEach(c => {
+    visibleCards.forEach(c => {
       const el = document.getElementById(`session-card-${c.id}`)
       if (el) observer.observe(el)
     })
 
     return () => observer.disconnect()
-  }, [cards.map(c => c.id).join(','), onActiveChange, ref])
+  }, [visibleCards.map(c => c.id).join(','), onActiveChange, ref])
 
   return (
     <div
@@ -53,8 +59,8 @@ const SessionTabs = forwardRef(function SessionTabs(
       className="sticky top-[60px] z-10 bg-[#060606] border-b border-border-base flex items-stretch px-10 max-md:px-5"
     >
       <div className="flex-1 overflow-x-auto flex gap-1">
-        {cards.map(c => {
-          const label = CARD_REGISTRY[c.tipo]?.label ?? c.tipo
+        {visibleCards.map(c => {
+          const label = CARD_REGISTRY[c.tipo].label
           const isActive = c.id === activeId
           return (
             <button

@@ -12,7 +12,11 @@ export default function SessionCardPicker({ existingTypes, onSelect, onClose }) 
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  const available = Object.entries(CARD_REGISTRY).filter(([tipo]) => !existingTypes.includes(tipo))
+  // Only registry-valid types count as "already added" — an obsolete
+  // persisted tipo (e.g. a leftover hp-ac entry) must never permanently
+  // block that slot from being offered again.
+  const existing = existingTypes.filter(tipo => CARD_REGISTRY[tipo])
+  const available = Object.entries(CARD_REGISTRY).filter(([tipo]) => !existing.includes(tipo))
 
   return (
     <div
