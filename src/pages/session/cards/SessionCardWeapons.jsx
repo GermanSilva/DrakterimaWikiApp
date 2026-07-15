@@ -17,11 +17,11 @@ function AtaquesList({ ataques }) {
   )
 }
 
-export default function SessionCardWeapons({ db, onEdit }) {
+export default function SessionCardWeapons({ db, onEdit, onRemove }) {
   const pjs = db?.pjs ?? []
 
   return (
-    <SessionCardShell title="Armas">
+    <SessionCardShell title="Armas" onRemove={onRemove}>
       {pjs.length === 0 ? (
         <EmptyPjsState />
       ) : (

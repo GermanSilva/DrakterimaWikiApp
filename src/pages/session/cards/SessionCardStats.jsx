@@ -13,11 +13,11 @@ function MiniStat({ label, value, accent }) {
   )
 }
 
-export default function SessionCardStats({ db, onEdit }) {
+export default function SessionCardStats({ db, onEdit, onRemove }) {
   const pjs = db?.pjs ?? []
 
   return (
-    <SessionCardShell title="Stats">
+    <SessionCardShell title="Stats" onRemove={onRemove}>
       {pjs.length === 0 ? (
         <EmptyPjsState />
       ) : (

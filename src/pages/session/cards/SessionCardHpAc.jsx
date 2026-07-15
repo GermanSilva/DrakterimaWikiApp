@@ -11,11 +11,11 @@ function StatBadge({ label, value }) {
   )
 }
 
-export default function SessionCardHpAc({ db, onEdit }) {
+export default function SessionCardHpAc({ db, onEdit, onRemove }) {
   const pjs = db?.pjs ?? []
 
   return (
-    <SessionCardShell title="HP y AC">
+    <SessionCardShell title="HP y AC" onRemove={onRemove}>
       {pjs.length === 0 ? (
         <EmptyPjsState />
       ) : (

@@ -4,12 +4,12 @@ import PJSubsection from './PJSubsection'
 import EmptyPjsState from './EmptyPjsState'
 import SpellDetailModal from '../../pj/detail/SpellDetailModal'
 
-export default function SessionCardSpells({ db, onEdit }) {
+export default function SessionCardSpells({ db, onEdit, onRemove }) {
   const pjs = db?.pjs ?? []
   const [selectedSpell, setSelectedSpell] = useState(null)
 
   return (
-    <SessionCardShell title="Hechizos">
+    <SessionCardShell title="Hechizos" onRemove={onRemove}>
       {pjs.length === 0 ? (
         <EmptyPjsState />
       ) : (

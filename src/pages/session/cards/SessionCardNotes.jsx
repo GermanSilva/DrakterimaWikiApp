@@ -8,7 +8,7 @@ import SessionCardShell from './SessionCardShell'
 // separate top-level `notesText` field — so reorder/removal never desyncs it
 // from its card. `layout` (the full `game_config/session_screen` doc) is
 // needed to reconstruct `cards[]` with only this entry's text updated.
-export default function SessionCardNotes({ layout, entry }) {
+export default function SessionCardNotes({ layout, entry, onRemove }) {
   const { saveSessionScreen } = useApp()
   const [text, setText] = useState(entry?.text ?? '')
 
@@ -22,7 +22,7 @@ export default function SessionCardNotes({ layout, entry }) {
   }
 
   return (
-    <SessionCardShell title="Notas">
+    <SessionCardShell title="Notas" onRemove={onRemove}>
       <label className={labelCls}>Texto libre</label>
       <textarea
         className={`${inputCls} min-h-[160px] resize-y`}
