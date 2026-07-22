@@ -95,7 +95,7 @@ export default function PJMechanicsTab({ f, setF }) {
         </select>
       </FormGroup>
       <div className="px-8 mb-[18px]">
-        <label className={labelCls}>Slots por Nivel</label>
+        <label className={labelCls}>Slots por Nivel — Máximos</label>
         <div className="grid grid-cols-9 gap-1.5 mt-1.5">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(lvl => (
             <div key={lvl} className="text-center">
@@ -105,6 +105,20 @@ export default function PJMechanicsTab({ f, setF }) {
                 type="number" min="0" max="9"
                 value={f.spell_slots[String(lvl)] ?? 0}
                 onChange={e => setF(p => ({ ...p, spell_slots: { ...p.spell_slots, [String(lvl)]: parseInt(e.target.value) || 0 } }))}
+              />
+            </div>
+          ))}
+        </div>
+        <label className={labelCls} style={{ marginTop: '12px' }}>Slots por Nivel — Actuales</label>
+        <div className="grid grid-cols-9 gap-1.5 mt-1.5">
+          {[1, 2, 3, 4, 5, 6, 7, 8, 9].map(lvl => (
+            <div key={lvl} className="text-center">
+              <div className="font-exo text-[10px] text-txt-muted mb-1">Niv {lvl}</div>
+              <input
+                className={`${inputCls} text-center px-1`}
+                type="number" min="0" max="9"
+                value={f.spell_slots_current[String(lvl)] ?? f.spell_slots[String(lvl)] ?? 0}
+                onChange={e => setF(p => ({ ...p, spell_slots_current: { ...p.spell_slots_current, [String(lvl)]: parseInt(e.target.value) || 0 } }))}
               />
             </div>
           ))}
