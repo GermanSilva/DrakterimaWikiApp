@@ -47,7 +47,7 @@ export default function PJSpellsSection({ pj }) {
           {Object.entries(slots).map(([lvl, max]) => max > 0 && (
             <div key={lvl} className="border border-border-base px-3 py-1.5 text-center min-w-[52px]">
               <div className="font-exo text-[9px] text-txt-muted">Niv {lvl}</div>
-              <div className="font-exo text-[13px] font-semibold text-txt-primary">{max}</div>
+              <div className="font-exo text-[13px] font-semibold text-txt-primary">{pj.spell_slots_current?.[lvl] ?? max}/{max}</div>
             </div>
           ))}
         </div>
