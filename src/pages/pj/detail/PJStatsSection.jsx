@@ -29,20 +29,22 @@ export default function PJStatsSection({ pj }) {
     <div id="pj-section-stats" className="pt-4">
       <div className={sectionTitleCls}>Stats</div>
       <div className="flex flex-wrap gap-2 mb-4">
-        {pj.stat_hp > 0 && <StatBadge label="HP Máx." value={pj.stat_hp} />}
-        {pj.stat_hp > 0 && <StatBadge label="HP Actual" value={pj.stat_hp_current ?? pj.stat_hp} />}
-        {pj.stat_ac > 0 && <StatBadge label="AC" value={pj.stat_ac} />}
-        {pj.stat_speed > 0 && <StatBadge label="Velocidad" value={`${pj.stat_speed} ft`} />}
-        {pj.stat_initiative !== undefined && <StatBadge label="Iniciativa" value={signedBonus(pj.stat_initiative)} />}
-        <StatBadge label="Bono Prof." value={`+${profBonus}`} accent />
-        {pj.stat_hit_dice && <StatBadge label="Dados Golpe" value={pj.stat_hit_dice} />}
-        {pj.stat_inspiration && <StatBadge label="Inspiración" value="★" accent />}
-        <StatBadge label="Perc. Pasiva" value={passivePerception(pj)} />
-      </div>
-      <div className="flex flex-wrap gap-2">
         {ABILITY_SCORES.map(({ label, key }) => (
           <AbilityBox key={key} label={label} base={pj[key] ?? 0} />
         ))}
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {pj.stat_hp > 0 && <StatBadge label="HP Máx." value={pj.stat_hp} />}
+        {pj.stat_hp > 0 && <StatBadge label="HP Actual" value={pj.stat_hp_current ?? pj.stat_hp} />}
+        {pj.stat_hp_temp > 0 && <StatBadge label="HP Temporal" value={pj.stat_hp_temp} accent />}
+        {pj.stat_ac > 0 && <StatBadge label="AC" value={pj.stat_ac} />}
+        {pj.stat_ac_temp > 0 && <StatBadge label="AC Temporal" value={pj.stat_ac_temp} accent />}
+        {pj.stat_speed > 0 && <StatBadge label="Velocidad" value={`${pj.stat_speed} ft`} />}
+        {pj.stat_initiative !== undefined && <StatBadge label="Iniciativa" value={signedBonus(pj.stat_initiative)} />}
+
+        {pj.stat_hit_dice && <StatBadge label="Dados Golpe" value={pj.stat_hit_dice} />}
+        {pj.stat_inspiration && <StatBadge label="Inspiración" value="★" accent />}
+        <StatBadge label="Perc. Pasiva" value={passivePerception(pj)} />
       </div>
     </div>
   )

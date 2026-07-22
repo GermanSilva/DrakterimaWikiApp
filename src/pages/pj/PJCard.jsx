@@ -56,10 +56,22 @@ export default function PJCard({ pj, onClick }) {
                 <span className="font-exo text-[14px] font-bold text-txt-primary">{pj.stat_hp}</span>
               </div>
             )}
+            {pj.stat_hp_temp > 0 && (
+              <div className="flex flex-col justify-center items-center">
+                <span className="font-exo text-[13px] text-txt-muted uppercase">HP Temp.</span>
+                <span className="font-exo text-[14px] font-bold text-accent-dim">{pj.stat_hp_temp}</span>
+              </div>
+            )}
             {pj.stat_ac > 0 && (
               <div className="flex flex-col justify-center items-center">
                 <span className="font-exo text-[13px] text-txt-muted uppercase">AC</span>
                 <span className="font-exo text-[14px] font-bold text-txt-primary">{pj.stat_ac}</span>
+              </div>
+            )}
+            {pj.stat_ac_temp > 0 && (
+              <div className="flex flex-col justify-center items-center">
+                <span className="font-exo text-[13px] text-txt-muted uppercase">AC Temp.</span>
+                <span className="font-exo text-[14px] font-bold text-accent-dim">{pj.stat_ac_temp}</span>
               </div>
             )}
             {pj.stat_speed > 0 && (

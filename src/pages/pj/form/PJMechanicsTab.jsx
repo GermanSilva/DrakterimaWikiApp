@@ -54,7 +54,9 @@ export default function PJMechanicsTab({ f, setF }) {
         <div className="grid grid-cols-4 gap-3 max-md:grid-cols-2">
           <div><label className={labelCls}>HP Máx.</label><input className={inputCls} type="number" value={f.stat_hp} onChange={set('stat_hp')} min="0" /></div>
           <div><label className={labelCls}>HP Actual</label><input className={inputCls} type="number" value={f.stat_hp_current} onChange={set('stat_hp_current')} min="0" /></div>
+          <div><label className={labelCls}>HP Temporal</label><input className={inputCls} type="number" value={f.stat_hp_temp} onChange={set('stat_hp_temp')} min="0" /></div>
           <div><label className={labelCls}>AC</label><input className={inputCls} type="number" value={f.stat_ac} onChange={set('stat_ac')} min="0" /></div>
+          <div><label className={labelCls}>AC Temporal</label><input className={inputCls} type="number" value={f.stat_ac_temp} onChange={set('stat_ac_temp')} min="0" /></div>
           <div><label className={labelCls}>Velocidad (ft)</label><input className={inputCls} type="number" value={f.stat_speed} onChange={set('stat_speed')} min="0" /></div>
           <div><label className={labelCls}>Iniciativa</label><input className={inputCls} type="number" value={f.stat_initiative} onChange={set('stat_initiative')} /></div>
         </div>

@@ -47,8 +47,8 @@ export default function SessionCardStats({ db, onEdit, onRemove }) {
                     </div>
                     {fullView && (
                       <div className="flex flex-wrap gap-1 mb-2">
-                        {pj.stat_hp > 0 && <MiniStat label="HP" value={`${pj.stat_hp_current ?? pj.stat_hp} / ${pj.stat_hp}`} />}
-                        {pj.stat_ac > 0 && <MiniStat label="CA" value={`${pj.stat_ac}`} />}
+                        {pj.stat_hp > 0 && <MiniStat label="HP" value={`${pj.stat_hp_current ?? pj.stat_hp} / ${pj.stat_hp}${pj.stat_hp_temp > 0 ? ` (+${pj.stat_hp_temp})` : ''}`} />}
+                        {pj.stat_ac > 0 && <MiniStat label="CA" value={`${pj.stat_ac}${pj.stat_ac_temp > 0 ? ` (+${pj.stat_ac_temp})` : ''}`} />}
                         {pj.stat_speed > 0 && <MiniStat label="Vel." value={`${pj.stat_speed} ft`} />}
                         <MiniStat label="Bono Prof." value={`+${profBonus}`} accent />
                         <MiniStat label="Perc. Pasiva" value={passivePerception(pj)} />

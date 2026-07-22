@@ -42,7 +42,9 @@ export default function SessionEditModal({ pj, cardType, onClose }) {
       stat_cha: parseInt(draft.stat_cha) || 0,
       stat_hp: parseInt(draft.stat_hp) || 0,
       stat_hp_current: parseInt(draft.stat_hp_current ?? draft.stat_hp) || 0,
+      stat_hp_temp: parseInt(draft.stat_hp_temp) || 0,
       stat_ac: parseInt(draft.stat_ac) || 0,
+      stat_ac_temp: parseInt(draft.stat_ac_temp) || 0,
       stat_speed: parseInt(draft.stat_speed) || 0,
       stat_proficiency_bonus: parseInt(draft.stat_proficiency_bonus) || 0,
     }
@@ -176,12 +178,32 @@ export default function SessionEditModal({ pj, cardType, onClose }) {
                     />
                   </div>
                   <div>
+                    <label className={labelCls}>HP Temporal</label>
+                    <input
+                      className={inputCls}
+                      type="number"
+                      value={draft.stat_hp_temp ?? ''}
+                      onChange={e => setDraft(p => ({ ...p, stat_hp_temp: e.target.value }))}
+                      min="0"
+                    />
+                  </div>
+                  <div>
                     <label className={labelCls}>AC</label>
                     <input
                       className={inputCls}
                       type="number"
                       value={draft.stat_ac}
                       onChange={e => setDraft(p => ({ ...p, stat_ac: e.target.value }))}
+                      min="0"
+                    />
+                  </div>
+                  <div>
+                    <label className={labelCls}>AC Temporal</label>
+                    <input
+                      className={inputCls}
+                      type="number"
+                      value={draft.stat_ac_temp ?? ''}
+                      onChange={e => setDraft(p => ({ ...p, stat_ac_temp: e.target.value }))}
                       min="0"
                     />
                   </div>

@@ -45,7 +45,10 @@ export default function PJSkillsSection({ pj }) {
 
   return (
     <div id="pj-section-habilidades" className={detailSectionCls}>
-      <div className={sectionTitleCls}>Habilidades & Salvaciones</div>
+      <div className='flex justify-between items-center mb-4'>
+        <div className={sectionTitleCls}>Habilidades & Salvaciones</div>
+        <div className={sectionTitleCls + ' border border-border-base px-2 py-1'}><span className='text-txt-muted'>Bonus Proficiencia: </span>+{profBonus}</div>
+      </div>
       <div className="grid grid-cols-3 gap-3 max-md:grid-cols-2 max-sm:grid-cols-1">
         {SKILLS_BY_ABILITY.map(group => (
           <SkillGroup key={group.key} pj={pj} group={group} profBonus={profBonus} />
