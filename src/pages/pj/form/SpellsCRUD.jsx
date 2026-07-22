@@ -161,7 +161,7 @@ export default function SpellsCRUD({ hechizos = [], onChange }) {
               <div key={h.id}>
                 {editingId === h.id ? inlineForm : (
                   <div className="flex items-center gap-2 text-[13px]">
-                    <span className="text-txt-primary flex-1">{h.nombre}</span>
+                    <span className={`flex-1 ${h.preparado || Number(h.nivel) === 0 || Number(h.nivel) === 10 ? 'text-txt-primary' : 'text-txt-muted'}`}>{h.nombre}</span>
                     {h.concentracion && <span className="font-exo text-[10px] text-txt-muted">C</span>}
                     {h.ritual && <span className="font-exo text-[10px] text-txt-muted">R</span>}
                     <button type="button" className="text-txt-muted hover:text-txt-primary text-[11px]" onClick={() => startEdit(h)}>✎</button>
