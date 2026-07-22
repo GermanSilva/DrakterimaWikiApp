@@ -109,6 +109,7 @@ export default function PJForm({ item, openPicker }) {
     spell_attack_bonus: item?.spell_attack_bonus ?? 0,
     spell_ability: item?.spell_ability ?? 'INT',
     spell_slots: item?.spell_slots ?? {},
+    spell_slots_current: item?.spell_slots_current ?? {},
     hechizos: item?.hechizos ?? [],
     // Attacks & equipment
     ataques: item?.ataques ?? [],
