@@ -164,7 +164,7 @@ export default function PJForm({ item, openPicker }) {
     <div>
       <div className="font-exo text-[17px] font-bold text-txt-primary uppercase tracking-[0.06em] sticky top-0 z-[1] bg-bg-card px-8 pt-7 pb-0 border-b border-border-base">
         <div className="mb-0 pb-4 flex items-center justify-between">
-          <span>{item ? 'Editar PJ' : 'Nuevo Personaje Jugador'}</span>
+          <span>{item ? `Editar PJ — ${item.nombre}` : 'Nuevo Personaje Jugador'}</span>
           {openPicker && (
             <button
               type="button"
