@@ -93,10 +93,39 @@ export default function SessionEditModal({ pj, cardType, onClose }) {
           )}
 
           {cardType === 'spells' && (
-            <SpellsCRUD
-              hechizos={draft.hechizos ?? []}
-              onChange={hechizos => setDraft(p => ({ ...p, hechizos }))}
-            />
+            <>
+              {Object.entries(draft.spell_slots ?? {}).filter(([, max]) => max > 0).length > 0 && (
+                <div className={detailSectionCls}>
+                  <div className={labelCls} style={{ marginBottom: '10px' }}>Espacios de Conjuro</div>
+                  <div className="flex flex-wrap gap-3">
+                    {Object.entries(draft.spell_slots ?? {}).filter(([, max]) => max > 0).map(([lvl, max]) => (
+                      <div key={lvl} className="text-center">
+                        <div className="font-exo text-[10px] text-txt-muted mb-1">Niv {lvl}</div>
+                        <div className="flex items-center gap-1">
+                          <input
+                            className={`${inputCls} text-center px-1 w-14`}
+                            type="number" min="0"
+                            value={draft.spell_slots_current?.[lvl] ?? max}
+                            onChange={e => setDraft(p => ({ ...p, spell_slots_current: { ...p.spell_slots_current, [lvl]: parseInt(e.target.value) || 0 } }))}
+                          />
+                          <span className="text-txt-muted">/</span>
+                          <input
+                            className={`${inputCls} text-center px-1 w-14`}
+                            type="number" min="0"
+                            value={max}
+                            onChange={e => setDraft(p => ({ ...p, spell_slots: { ...p.spell_slots, [lvl]: parseInt(e.target.value) || 0 } }))}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <SpellsCRUD
+                hechizos={draft.hechizos ?? []}
+                onChange={hechizos => setDraft(p => ({ ...p, hechizos }))}
+              />
+            </>
           )}
 
           {cardType === 'skills' && (
