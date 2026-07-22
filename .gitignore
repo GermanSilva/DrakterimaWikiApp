@@ -4,3 +4,4 @@ dist/
 *.local
 .claude/settings.local.json
 .superpowers/
+.atl/
