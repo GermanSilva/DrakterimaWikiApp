@@ -65,7 +65,7 @@ export default function SpellsCRUD({ hechizos = [], onChange }) {
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         <div>
-          <label className={labelCls}>Tiempo lanzamiento</label>
+          <label className={labelCls}>Tiempo lanz.</label>
           <input className={inputCls} value={draft.casting_time} onChange={set('casting_time')} placeholder="1 acción" />
         </div>
         <div>

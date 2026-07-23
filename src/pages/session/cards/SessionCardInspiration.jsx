@@ -22,12 +22,9 @@ export default function SessionCardInspiration({ db, onEdit, onRemove }) {
       ) : (
         <div className="space-y-3">
           {pjs.map(pj => (
-            <PJSubsection key={pj.id} pj={pj} onEdit={onEdit} collapsed={collapsedIds.has(pj.id)} onToggleCollapsed={() => toggleOne(pj.id)}>
-              <div className="flex items-center gap-2">
+            <PJSubsection key={pj.id} pj={pj} onEdit={onEdit} collapsed={false} onToggleCollapsed={() => { }} noPadding={true}>
+              <div className="absolute right-[90px] top-3.5 ">
                 <Star size={16} className={pj.stat_inspiration ? 'text-accent-bright fill-accent-bright' : 'text-txt-muted'} />
-                <span className={`text-[12px] ${pj.stat_inspiration ? 'text-accent-dim font-semibold' : 'text-txt-muted'}`}>
-                  {pj.stat_inspiration ? 'Con inspiración' : 'Sin inspiración'}
-                </span>
               </div>
             </PJSubsection>
           ))}
