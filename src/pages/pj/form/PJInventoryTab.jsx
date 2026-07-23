@@ -4,6 +4,7 @@ import { useApp } from '../../../AppContext'
 import AttacksCRUD from './AttacksCRUD'
 import SpellsCRUD from './SpellsCRUD'
 import EquipmentCRUD from './EquipmentCRUD'
+import ResourcesCRUD from './ResourcesCRUD'
 
 function Separator({ label }) {
   return (
@@ -32,6 +33,14 @@ export default function PJInventoryTab({ f, setF }) {
         <SpellsCRUD
           hechizos={f.hechizos}
           onChange={items => setF(p => ({ ...p, hechizos: items }))}
+        />
+      </div>
+
+      <Separator label="Recursos" />
+      <div className="px-8 mb-[18px]">
+        <ResourcesCRUD
+          recursos={f.recursos}
+          onChange={items => setF(p => ({ ...p, recursos: items }))}
         />
       </div>
 

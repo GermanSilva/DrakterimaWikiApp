@@ -5,6 +5,7 @@ import { ABILITY_SCORES } from '../pj/pjConstants'
 import { abilityMod } from '../../helpers/pjCalc'
 import AttacksCRUD from '../pj/form/AttacksCRUD'
 import EquipmentCRUD from '../pj/form/EquipmentCRUD'
+import ResourcesCRUD from '../pj/form/ResourcesCRUD'
 import SpellsCRUD from '../pj/form/SpellsCRUD'
 import SkillsProficiencyGrid from '../pj/form/SkillsProficiencyGrid'
 import { CARD_REGISTRY } from './cards/cardRegistry'
@@ -91,6 +92,13 @@ export default function SessionEditModal({ pj, cardType, onClose }) {
               onEquipoChange={equipo => setDraft(p => ({ ...p, equipo }))}
               onMonedasChange={monedas => setDraft(p => ({ ...p, monedas }))}
               onMonedasGuardadoChange={monedas_guardado => setDraft(p => ({ ...p, monedas_guardado }))}
+            />
+          )}
+
+          {cardType === 'resources' && (
+            <ResourcesCRUD
+              recursos={draft.recursos ?? []}
+              onChange={recursos => setDraft(p => ({ ...p, recursos }))}
             />
           )}
 

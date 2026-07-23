@@ -13,6 +13,7 @@ import PJSkillsSection from './detail/PJSkillsSection'
 import PJAttacksSection from './detail/PJAttacksSection'
 import PJSpellsSection from './detail/PJSpellsSection'
 import PJEquipmentSection from './detail/PJEquipmentSection'
+import PJResourcesSection from './detail/PJResourcesSection'
 import PJTraitsSection from './detail/PJTraitsSection'
 import PJNarrativeSection from './detail/PJNarrativeSection'
 import PJAppearanceSection from './detail/PJAppearanceSection'
@@ -22,6 +23,7 @@ const SECTIONS = [
   { id: 'habilidades', label: 'Habilidades', show: () => true, Component: PJSkillsSection },
   { id: 'ataques', label: 'Ataques', show: p => p.ataques?.length > 0, Component: PJAttacksSection },
   { id: 'hechizos', label: 'Hechizos', show: p => !!(p.hechizos?.length > 0 || Object.keys(p.spell_slots ?? {}).length > 0), Component: PJSpellsSection },
+  { id: 'recursos', label: 'Recursos', show: p => p.recursos?.length > 0, Component: PJResourcesSection },
   { id: 'equipo', label: 'Equipo', show: p => !!(p.equipo?.length > 0 || Object.values(p.monedas ?? {}).some(v => v > 0)), Component: PJEquipmentSection },
   { id: 'rasgos', label: 'Rasgos', show: p => !!(p.rasgos_clase || p.idiomas || p.prof_armas || p.prof_armaduras || p.prof_herramientas || p.otros_rasgos), Component: PJTraitsSection },
   { id: 'narrativa', label: 'Narrativa', show: () => true, Component: PJNarrativeSection },

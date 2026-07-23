@@ -116,6 +116,7 @@ export default function PJForm({ item, openPicker }) {
     // Attacks & equipment
     ataques: item?.ataques ?? [],
     equipo: item?.equipo ?? [],
+    recursos: item?.recursos ?? [],
     monedas: item?.monedas ?? { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 },
   })
 
