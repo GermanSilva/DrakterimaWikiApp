@@ -55,28 +55,54 @@ function MonedasDisplay({ label, monedas }) {
   )
 }
 
-function EquipoSublist({ items, label, subtotalStr }) {
+const THEAD_CLS = 'text-left font-exo text-[10px] font-semibold tracking-[0.15em] uppercase text-txt-muted pb-1 pr-4'
+const GROUP_ROW_CLS = 'text-left font-exo text-[10px] font-semibold tracking-[0.15em] uppercase text-txt-muted pt-3 pb-1'
+
+function EquipoGroup({ items, label, subtotalStr }) {
   if (items.length === 0) return null
   return (
-    <div className="mb-3">
-      <div className="font-exo text-[10px] font-semibold tracking-[0.15em] uppercase text-txt-muted mb-1">{label}</div>
-      <ul className="space-y-1 mb-1">
-        {items.map(item => (
-          <li key={item.id} className="flex gap-3 text-[13px] text-txt-secondary">
-            <span className="text-txt-primary font-medium flex-1">{item.nombre}</span>
-            {item.cantidad > 1 && <span className="text-txt-muted">×{item.cantidad}</span>}
-            {item.descripcion && <span className="text-txt-muted">— {item.descripcion}</span>}
-            {(parseInt(item.precio) > 0) && (
-              <span className="text-txt-muted shrink-0">{item.precio} {item.precio_moneda ?? 'gp'}</span>
-            )}
-          </li>
-        ))}
-      </ul>
+    <>
+      <tr>
+        <th colSpan={4} className={GROUP_ROW_CLS}>{label}</th>
+      </tr>
+      {items.map(item => (
+        <tr key={item.id} className="border-t border-border-base">
+          <td className="text-txt-primary font-medium py-1.5 pr-4">{item.nombre}</td>
+          <td className="py-1.5 pr-4">{item.cantidad > 1 ? `×${item.cantidad}` : ''}</td>
+          <td className="text-txt-muted py-1.5 pr-4">{item.descripcion}</td>
+          <td className="text-txt-muted py-1.5 shrink-0">
+            {parseInt(item.precio) > 0 ? `${item.precio} ${item.precio_moneda ?? 'gp'}` : ''}
+          </td>
+        </tr>
+      ))}
       {subtotalStr && (
-        <div className="text-[11px] text-txt-muted">
-          Subtotal: <span className="text-txt-primary font-semibold">{subtotalStr}</span>
-        </div>
+        <tr>
+          <td colSpan={4} className="text-[11px] text-txt-muted pt-1 pb-2">
+            Subtotal: <span className="text-txt-primary font-semibold">{subtotalStr}</span>
+          </td>
+        </tr>
       )}
+    </>
+  )
+}
+
+function EquipoTable({ portando, guardado, subtotalPortandoStr, subtotalGuardadoStr }) {
+  return (
+    <div className="overflow-x-auto mb-1">
+      <table className="w-full text-[13px] text-txt-secondary border-collapse">
+        <thead>
+          <tr className="border-b border-border-base">
+            <th className={THEAD_CLS}>Nombre</th>
+            <th className={THEAD_CLS}>Cant.</th>
+            <th className={THEAD_CLS}>Descripción</th>
+            <th className={THEAD_CLS}>Precio</th>
+          </tr>
+        </thead>
+        <tbody>
+          <EquipoGroup items={portando} label="Portando" subtotalStr={subtotalPortandoStr} />
+          <EquipoGroup items={guardado} label="Guardado" subtotalStr={subtotalGuardadoStr} />
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -101,8 +127,12 @@ export default function PJEquipmentSection({ pj }) {
       <div className={sectionTitleCls}>Equipo</div>
       {equipo.length > 0 && (
         <>
-          <EquipoSublist items={portando} label="Portando" subtotalStr={subtotalPortandoStr} />
-          <EquipoSublist items={guardado} label="Guardado" subtotalStr={subtotalGuardadoStr} />
+          <EquipoTable
+            portando={portando}
+            guardado={guardado}
+            subtotalPortandoStr={subtotalPortandoStr}
+            subtotalGuardadoStr={subtotalGuardadoStr}
+          />
           {totalStr && (
             <div className="text-[12px] text-txt-muted border-t border-border-base/30 pt-2 mt-1">
               Valor total del inventario: <span className="text-txt-primary font-semibold">{totalStr}</span>
