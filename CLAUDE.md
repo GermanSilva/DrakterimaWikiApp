@@ -118,20 +118,20 @@ Cada formulario incluye el componente `EstadoField` para controlar la visibilida
 
 `src/pages/ZonaDM.jsx` es una página visible solo para el DM. Contiene: exportar/importar JSON, registro de accesos de jugadores (`login_logs`), configuración y logs del sistema de juegos (`JuegosSection`), y mantenimiento (backfill de timestamps). Al agregar nuevas tareas admin, hacerlas aquí.
 
-### Pantalla de sesión DM (`SessionScreen.jsx`, `src/pages/session/`)
+### Pantalla de sesión DM (`SessionScreen.jsx` en `src/pages/`, subcomponentes en `src/pages/session/`)
 
 Pantalla full-screen (sin padding en `<main>`, mismo patrón que `mapas`) para uso del DM durante una sesión en vivo. Accesible desde un botón en `ZonaDM.jsx` (sin entrada en `Sidebar` `NAV`). Gate `if (!isDM) return null` — muestra `db.pjs` sin filtro de visibilidad, es DM-only por diseño.
 
 **Fuente única de verdad**: `layout.cards[]`, persistido en `game_config/session_screen` vía `saveSessionScreen(layout)` (mismo patrón `{merge:true}` que `saveGameConfig`). Este array alimenta a la vez las pestañas del header, las cards apiladas y el drag-and-drop — no hay estado duplicado que sincronizar.
 
 - **Pestañas = anclas de scroll**, no un switcher: todas las cards se apilan verticalmente y son visibles a la vez. Pestaña activa resaltada vía `IntersectionObserver` (mismo patrón que el nombre sticky en detalles).
-- **`cardRegistry.js`** mapea tipo → componente: `stats`, `skills`, `weapons`, `spells`, `inventory`, `inspiration`, `notes`, `rules`. Un `tipo` obsoleto persistido en Firestore (ej. `hp-ac`, ya removida) se filtra sin romper nada y se limpia solo del doc en el próximo reorder.
+- **`cardRegistry.js`** mapea tipo → `{ label, Component, editable }`: `stats`, `skills`, `weapons`, `spells`, `inventory`, `resources`, `inspiration`, `notes`, `rules`, `combat`. Cada `tipo` es una card única para toda la pantalla (no una instancia por PJ) — las cards "por PJ" iteran `db.pjs` internamente y renderizan un `PJSubsection` por cada uno. `editable: true` conecta el botón "Editar" a `SessionEditModal`; `editable: false` (notes, rules, combat) maneja su propia persistencia sin modal, guardando su estado directo en el entry de `layout.cards[]` (ej. `entry.text`, `entry.combatants`) vía `saveSessionScreen` — sin doc Firestore nuevo. Un `tipo` obsoleto persistido en Firestore (ej. `hp-ac`, ya removida) se filtra sin romper nada y se limpia solo del doc en el próximo reorder.
 - **`PJSubsection.jsx`**: bloque colapsable compartido por las 6 cards de personaje, uno por PJ. Controlable externamente (`collapsed`/`onToggleCollapsed`) para el botón "Expandir/Contraer todo" de `SessionCardShell`. `fullViewToggle` + `children({fullView})` habilita "Vista completa" (estado local, no persistido) para revelar campos secundarios.
 - **`SessionEditModal.jsx`**: edición acotada por tipo de card, reutilizando `AttacksCRUD`/`EquipmentCRUD`/`SpellsCRUD`/grid de proficiencias existentes. El draft SIEMPRE se siembra completo (`{...pj}`) — ver gotcha de `save()` sin merge.
 - **Reglas homebrew** (colección `homebrew_rules`: `{ id, nombre, texto }`): crear/seleccionar/eliminar (hard-delete) directo desde la card, sin pantalla de administración dedicada todavía.
 - **Grilla responsive de 2 columnas** a partir de `1906px` de viewport (750px×2 + 6px gap + 400px de chrome fijo del layout). Usa `rectSortingStrategy` de dnd-kit (no `verticalListSortingStrategy`) para que el drag funcione en ambos layouts. Pestañas y cards comparten `DndContext`/`handleDragEnd`; las pestañas usan namespace de id separado (`tab-{id}`) para no colisionar en dnd-kit.
 
-`stat_hp_current` (HP actual, en `pj`): campo nuevo independiente de `stat_hp` (ahora inequívocamente "máximo"). Default cuando falta: `?? stat_hp`, sin migración. Editable en `PJMechanicsTab` y en la card `stats` de esta pantalla.
+HP/AC temporal en `pj`: `stat_hp_current` (actual, default `?? stat_hp` si falta, sin migración), `stat_hp_temp`, `stat_ac`, `stat_ac_temp`, `stat_speed`. Editables en `PJMechanicsTab` y en la card `stats` de esta pantalla.
 
 ### Sistema de juegos (`Juegos.jsx`, `Dice3D.jsx`)
 
@@ -315,7 +315,7 @@ pj.monedas          // { cp, sp, ep, gp, pp } — dinero en mano (campo existent
 pj.monedas_guardado // { cp, sp, ep, gp, pp } — dinero guardado/banco (campo nuevo, opcional)
 ```
 
-`PJEquipmentSection` agrupa el equipo en dos sublistas: "Portando" y "Guardado", cada una con subtotal propio. El totalizador combinado ("Valor total del inventario") suma precios de equipo + armas (portando y guardado). Convierte todo a cobre usando tasas D&D 5e estándar: 1pp=1000cp, 1gp=100cp, 1ep=50cp, 1sp=10cp. El output omite electrum y muestra solo denominaciones no-cero en orden pp→gp→sp→cp.
+`PJEquipmentSection` renderiza el equipo en una `<table>` (Nombre/Cantidad/Descripción/Precio) agrupada en "Portando" y "Guardado" vía filas `colSpan`, cada grupo con subtotal propio — mismo formato de tabla que `SessionCardInventory.jsx` (`EquipoTable`) usa en la pantalla de sesión (esa versión omite Precio). El totalizador combinado ("Valor total del inventario") suma precios de equipo + armas (portando y guardado). Convierte todo a cobre usando tasas D&D 5e estándar: 1pp=1000cp, 1gp=100cp, 1ep=50cp, 1sp=10cp. El output omite electrum y muestra solo denominaciones no-cero en orden pp→gp→sp→cp.
 
 Las secciones de monedas (en mano y guardadas) muestran las denominaciones en orden descendente: pp, gp, ep, sp, cp. Los labels usan nombres completos: platino, oro, electrum, plata, bronce.
 
