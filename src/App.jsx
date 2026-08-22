@@ -25,6 +25,7 @@ import Items from './pages/Items'
 import Juegos from './pages/Juegos'
 import Mapas from './pages/Mapas'
 import SRD from './pages/SRD'
+import Calendario from './pages/Calendario'
 
 const SessionScreen = lazy(() => import('./pages/SessionScreen'))
 
@@ -37,7 +38,7 @@ const PLAYER_PASSWORDS = {
   6: import.meta.env.VITE_PLAYER_6_PASSWORD,
 }
 
-const COLLECTIONS = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items', 'player_notes', 'login_logs', 'game_logs', 'game_pot', 'game_config', 'mapas', 'map_points', 'homebrew_rules']
+const COLLECTIONS = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items', 'player_notes', 'login_logs', 'game_logs', 'game_pot', 'game_config', 'mapas', 'map_points', 'homebrew_rules', 'disponibilidad']
 
 async function seedCollectionIfEmpty(collName, seedData) {
   const snap = await getDocs(collection(firestore, collName))
@@ -63,6 +64,7 @@ const PAGES = {
   items: Items,
   juegos: Juegos,
   srd: SRD,
+  calendario: Calendario,
   sessionScreen: SessionScreen,
 }
 
@@ -73,6 +75,7 @@ export default function App() {
   const [form, setForm] = useState(null)
   const [toastMsg, setToastMsg] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('drakterima_sidebar_collapsed') === '1')
   const [pendingDetail, setPendingDetail] = useState(null)
   const [isDM, setIsDM] = useState(() => sessionStorage.getItem('drakterima_dm') === '1')
   const [currentPlayer, setCurrentPlayer] = useState(() => {
@@ -100,6 +103,7 @@ export default function App() {
       await seedCollectionIfEmpty('mapas', [])
       await seedCollectionIfEmpty('map_points', [])
       await seedCollectionIfEmpty('homebrew_rules', [])
+      await seedCollectionIfEmpty('disponibilidad', [])
     }
     maybeSeed()
 
@@ -390,12 +394,30 @@ export default function App() {
     saveSessionScreen,
     tryAccess,
     openForm: (type, id = null, prefill = null) => {
+      if (type === 'disponibilidad') {
+        const existing = id != null ? (db.disponibilidad || []).find(x => x.id === id) : null
+        const tipo = existing?.tipo ?? prefill?.tipo ?? 'personal'
+        if (tipo === 'sesion') {
+          if (!isDM) return
+          setForm({ type, id, prefill })
+          return
+        }
+        if (!currentPlayer) return
+        if (existing && existing.pj_id !== currentPlayer.id) return
+        setForm({ type, id, prefill })
+        return
+      }
       if (isDM || (type === 'pjs' && id === currentPlayer?.id)) setForm({ type, id, prefill })
     },
     closeForm: () => setForm(null),
     showToast,
     sidebarOpen,
     toggleSidebar: () => setSidebarOpen(v => !v),
+    sidebarCollapsed,
+    toggleSidebarCollapsed: () => setSidebarCollapsed(v => {
+      localStorage.setItem('drakterima_sidebar_collapsed', v ? '0' : '1')
+      return !v
+    }),
     exportData,
     exportArticles,
     importData,
@@ -429,7 +451,7 @@ export default function App() {
             onClick={() => setSidebarOpen(false)}
           />
         )}
-        <main className={`ml-[240px] max-md:ml-0 flex-1 py-8 px-10 ${page === 'mapas' || page === 'sessionScreen' ? '' : 'max-md:p-5 max-w-[1100px]'}`}>
+        <main className={`${sidebarCollapsed ? 'md:ml-0' : 'md:ml-[240px]'} max-md:ml-0 transition-[margin] duration-[250ms] ease-in-out flex-1 min-w-0 py-8 px-10 ${page === 'mapas' || page === 'sessionScreen' ? '' : 'max-md:p-5 max-w-[1100px]'}`}>
           <Suspense fallback={<div className="p-10 text-center text-txt-muted">Cargando…</div>}>
             <PageComponent />
           </Suspense>

@@ -1,7 +1,8 @@
 import { useApp } from '../AppContext'
 import {
   LayoutDashboard, Scroll, Shield, Users, Map,
-  Landmark, BookOpen, Gem, NotebookPen, SlidersHorizontal, Dices, BookMarked,
+  Landmark, BookOpen, Gem, NotebookPen, SlidersHorizontal, Dices, BookMarked, CalendarDays,
+  PanelLeftClose, PanelLeftOpen,
 } from 'lucide-react'
 
 const NAV = [
@@ -11,6 +12,7 @@ const NAV = [
       { id: 'zonaDM', icon: SlidersHorizontal, label: 'Zona DM', dmOnly: true },
       { id: 'notas', icon: NotebookPen, label: 'Notas', count: true },
       { id: 'sesiones', icon: Scroll, label: 'Sesiones', count: true },
+      { id: 'calendario', icon: CalendarDays, label: 'Calendario' },
     ]
   },
   {
@@ -41,62 +43,80 @@ const NAV = [
 ]
 
 export default function Sidebar({ currentPage, counts }) {
-  const { navigate, sidebarOpen, toggleSidebar, isDM } = useApp()
+  const { navigate, sidebarOpen, toggleSidebar, sidebarCollapsed, toggleSidebarCollapsed, isDM } = useApp()
 
   return (
-    <nav
-      className={[
-        'fixed left-0 top-[60px] w-[240px] h-[calc(100vh-60px)]',
-        'bg-bg-mid border-r border-border-base py-5 z-[200] overflow-y-auto flex flex-col',
-        'transition-transform duration-[250ms] ease-in-out',
-        sidebarOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full',
-        'md:translate-x-0',
-      ].join(' ')}
-    >
-      {NAV.map(({ section, items }) => (
-        <div key={section} className='mt-5 first:mt-0'>
-          <div className="font-exo text-[9px] tracking-[0.3em] text-txt-muted uppercase px-[18px] pb-2 font-semibold">
-            {section}
-          </div>
-          {items.filter(item => !item.dmOnly || isDM).map(item => {
-            const Icon = item.icon
-            const active = currentPage === item.id
-            return (
-              <div
-                key={item.id}
-                className={[
-                  'flex items-center gap-2.5 px-[18px] py-[9px] cursor-pointer transition-all border-l-2 text-[13px]',
-                  active
-                    ? 'bg-accent/[.1] text-accent-bright border-l-accent'
-                    : 'border-l-transparent text-txt-secondary hover:bg-accent/[.06] hover:text-txt-primary hover:border-l-accent-dim',
-                ].join(' ')}
-                onClick={() => { navigate(item.id); if (sidebarOpen) toggleSidebar() }}
-              >
-                <Icon size={15} className="w-5 text-center flex-shrink-0" />
-                <span className="font-exo text-[11px] tracking-[0.06em] font-medium uppercase">
-                  {item.label}
-                </span>
-                {item.count && (
-                  <span className={[
-                    'ml-auto text-[10px] font-exo px-1.5 py-0 rounded-sm min-w-[20px] text-center font-semibold',
+    <>
+      {sidebarCollapsed && (
+        <button
+          className="hidden md:flex fixed left-0 top-[70px] z-[200] items-center justify-center w-6 h-9 rounded-r-md bg-bg-mid border border-l-0 border-border-base text-txt-muted hover:text-accent-bright hover:border-accent-dim transition-colors"
+          onClick={toggleSidebarCollapsed}
+          aria-label="Mostrar sidebar"
+        >
+          <PanelLeftOpen size={14} />
+        </button>
+      )}
+      <nav
+        className={[
+          'fixed left-0 top-[60px] w-[240px] h-[calc(100vh-60px)]',
+          'bg-bg-mid border-r border-border-base py-5 z-[200] overflow-y-auto flex flex-col',
+          'transition-transform duration-[250ms] ease-in-out',
+          sidebarOpen ? 'max-md:translate-x-0' : 'max-md:-translate-x-full',
+          sidebarCollapsed ? 'md:-translate-x-full' : 'md:translate-x-0',
+        ].join(' ')}
+      >
+        <button
+          className="hidden md:flex items-center gap-2 px-[18px] pb-3 mb-2 border-b border-border-base text-txt-muted hover:text-accent-bright transition-colors self-stretch"
+          onClick={toggleSidebarCollapsed}
+        >
+          <PanelLeftClose size={15} />
+          <span className="font-exo text-[10px] tracking-[0.1em] uppercase font-semibold">Ocultar</span>
+        </button>
+        {NAV.map(({ section, items }) => (
+          <div key={section} className='mt-5 first:mt-0'>
+            <div className="font-exo text-[9px] tracking-[0.3em] text-txt-muted uppercase px-[18px] pb-2 font-semibold">
+              {section}
+            </div>
+            {items.filter(item => !item.dmOnly || isDM).map(item => {
+              const Icon = item.icon
+              const active = currentPage === item.id
+              return (
+                <div
+                  key={item.id}
+                  className={[
+                    'flex items-center gap-2.5 px-[18px] py-[9px] cursor-pointer transition-all border-l-2 text-[13px]',
                     active
-                      ? 'bg-accent-subtle text-accent-bright'
-                      : 'bg-border-light text-txt-muted',
-                  ].join(' ')}>
-                    {counts[item.id] || 0}
+                      ? 'bg-accent/[.1] text-accent-bright border-l-accent'
+                      : 'border-l-transparent text-txt-secondary hover:bg-accent/[.06] hover:text-txt-primary hover:border-l-accent-dim',
+                  ].join(' ')}
+                  onClick={() => { navigate(item.id); if (sidebarOpen) toggleSidebar() }}
+                >
+                  <Icon size={15} className="w-5 text-center flex-shrink-0" />
+                  <span className="font-exo text-[11px] tracking-[0.06em] font-medium uppercase">
+                    {item.label}
                   </span>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      ))}
+                  {item.count && (
+                    <span className={[
+                      'ml-auto text-[10px] font-exo px-1.5 py-0 rounded-sm min-w-[20px] text-center font-semibold',
+                      active
+                        ? 'bg-accent-subtle text-accent-bright'
+                        : 'bg-border-light text-txt-muted',
+                    ].join(' ')}>
+                      {counts[item.id] || 0}
+                    </span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        ))}
 
-      <div className="mt-auto pt-3 border-t border-border-base">
-        <div className="font-exo text-[10px] text-center tracking-[0.12em] text-txt-muted uppercase font-medium opacity-60">
-          Drakterima 2026 · D&D 5E
+        <div className="mt-auto pt-3 border-t border-border-base">
+          <div className="font-exo text-[10px] text-center tracking-[0.12em] text-txt-muted uppercase font-medium opacity-60">
+            Drakterima 2026 · D&D 5E
+          </div>
         </div>
-      </div>
-    </nav>
+      </nav>
+    </>
   )
 }

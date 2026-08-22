@@ -59,7 +59,7 @@ const SessionTabs = forwardRef(function SessionTabs(
       ref={ref}
       className="sticky -mt-8 top-[60px] z-10 bg-[#060606] border-b border-border-base flex items-stretch px-10 max-md:px-5"
     >
-      <div className="flex-1 overflow-x-auto flex gap-1">
+      <div className="flex-1 min-w-0 overflow-x-auto flex gap-1">
         {visibleCards.map(c => {
           const label = CARD_REGISTRY[c.tipo].label
           const isActive = c.id === activeId

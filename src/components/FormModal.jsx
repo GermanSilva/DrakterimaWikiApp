@@ -6,6 +6,7 @@ import { Lock, Link } from 'lucide-react'
 import WikiLinkPicker from './WikiLinkPicker'
 import MapaForm from '../pages/MapaForm'
 import MapPointForm from '../pages/MapPointForm'
+import DisponibilidadForm from '../pages/DisponibilidadForm'
 import { btnSecondary, btnDanger, btnPrimary, inputCls, labelCls } from '../constants'
 
 const labelLock = (< Lock size={12} className='text-accent-bright' />)
@@ -523,6 +524,7 @@ const FORM_TITLES = {
   items: ['Nuevo Ítem', 'Editar Ítem'],
   mapas: ['Nuevo Mapa', 'Editar Mapa'],
   map_points: ['Nuevo Punto', 'Editar Punto'],
+  disponibilidad: ['Nueva disponibilidad', 'Editar disponibilidad'],
 }
 
 const FORM_COMPONENTS = {
@@ -536,6 +538,7 @@ const FORM_COMPONENTS = {
   items: ItemForm,
   mapas: MapaForm,
   map_points: MapPointForm,
+  disponibilidad: DisponibilidadForm,
 }
 
 export default function FormModal({ form }) {
@@ -545,6 +548,7 @@ export default function FormModal({ form }) {
   const item = form.id !== null ? (db[collectionKey] || []).find(x => x.id === form.id) ?? null : null
   const FormComponent = FORM_COMPONENTS[form.type]
   const isPJForm = form.type === 'pjs'
+  const hasWikiLinkFields = form.type !== 'disponibilidad'
 
   function handleInsert(wikiLink) {
     const field = activeFieldRef.current
@@ -561,7 +565,10 @@ export default function FormModal({ form }) {
   }
 
   const titles = FORM_TITLES[form.type]
-  const title = titles ? (item ? titles[1] : titles[0]) : ''
+  let title = titles ? (item ? titles[1] : titles[0]) : ''
+  if (form.type === 'disponibilidad' && (item?.tipo ?? form.prefill?.tipo) === 'sesion') {
+    title = item ? 'Editar sesión' : 'Nueva sesión'
+  }
 
   return (
     <>
@@ -580,15 +587,17 @@ export default function FormModal({ form }) {
           {!isPJForm && (
             <div className="font-exo text-[17px] font-bold text-txt-primary uppercase tracking-[0.06em] sticky top-0 z-[1] bg-bg-card px-8 pt-7 pb-5 border-b border-border-base flex items-center justify-between">
               <span>{title}</span>
-              <button
-                type="button"
-                className={`${btnSecondary} flex items-center gap-1.5`}
-                onMouseDown={e => e.preventDefault()}
-                onClick={() => setPickerOpen(true)}
-              >
-                <Link size={13} />
-                Insertar enlace
-              </button>
+              {hasWikiLinkFields && (
+                <button
+                  type="button"
+                  className={`${btnSecondary} flex items-center gap-1.5`}
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => setPickerOpen(true)}
+                >
+                  <Link size={13} />
+                  Insertar enlace
+                </button>
+              )}
             </div>
           )}
           {FormComponent
