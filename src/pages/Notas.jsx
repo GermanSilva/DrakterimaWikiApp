@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useApp } from '../AppContext'
-import { NotebookPen, Trash2, Search } from 'lucide-react'
-import { btnDanger, btnSecondary } from '../constants'
+import { NotebookPen, Trash2, Search, X } from 'lucide-react'
+import { btnDanger, btnSecondary, btnPrimary } from '../constants'
 
 const TYPE_LABELS = {
   sesiones:  'Sesión',
@@ -78,13 +78,13 @@ function HighlightText({ text, term }) {
   return <>{parts}</>
 }
 
-function NoteCard({ note, db, goToDetail, onDelete, textFilter }) {
+function NoteCard({ note, db, onOpen, onDelete, textFilter }) {
   const name = entityName(db, note.type, note.entity_id)
   const label = TYPE_LABELS[note.type] || note.type
   return (
     <div
       className="bg-bg-card border border-border-base px-5 py-4 cursor-pointer transition-colors hover:border-accent-dim hover:bg-bg-card-hover"
-      onClick={() => goToDetail(note.type, note.entity_id)}
+      onClick={onOpen}
     >
       <div className="flex items-center gap-2 mb-2">
         <span className="font-exo text-[13px] font-semibold text-txt-primary tracking-[0.03em]">
@@ -105,6 +105,54 @@ function NoteCard({ note, db, goToDetail, onDelete, textFilter }) {
       </div>
       <div className="text-[13px] text-txt-secondary leading-[1.65] line-clamp-3">
         <HighlightText text={note.text} term={textFilter} />
+      </div>
+    </div>
+  )
+}
+
+function NoteDetailModal({ note, db, goToDetail, onClose }) {
+  const name = entityName(db, note.type, note.entity_id)
+  const label = TYPE_LABELS[note.type] || note.type
+
+  useEffect(() => {
+    function onKey(e) { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <div
+        className="bg-bg-card border border-border-base p-6 w-[min(520px,92vw)] max-h-[80vh] overflow-y-auto"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-2 mb-4">
+          <span className="font-exo text-[15px] font-bold text-txt-primary tracking-[0.03em]">{name}</span>
+          <span className="font-exo text-[10px] tracking-[0.15em] uppercase text-txt-muted bg-border-light px-1.5 py-0.5 rounded-sm">
+            {label}
+          </span>
+          <button
+            aria-label="Cerrar"
+            className="ml-auto text-txt-muted hover:text-txt-primary transition-colors cursor-pointer"
+            onClick={onClose}
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="text-[13px] text-txt-secondary leading-[1.65] whitespace-pre-wrap mb-5">
+          {note.text}
+        </div>
+        <div className="flex justify-end">
+          <button
+            className={btnPrimary}
+            onClick={() => { goToDetail(note.type, note.entity_id); onClose() }}
+          >
+            Ir al artículo
+          </button>
+        </div>
       </div>
     </div>
   )
@@ -213,6 +261,7 @@ export default function Notas() {
   const { db, isDM, currentPlayer, goToDetail, deletePlayerNote } = useApp()
   const [selectedPjId, setSelectedPjId] = useState(null)
   const [pendingDelete, setPendingDelete] = useState(null)
+  const [openNote, setOpenNote] = useState(null)
   const [query, setQuery] = useState('')
 
   const activeNotes = (db.player_notes || []).filter(n => n.text?.trim())
@@ -297,13 +346,16 @@ export default function Notas() {
                   </div>
                   <div className="flex flex-col gap-2.5">
                     {notes.map(note => (
-                      <NoteCard key={note.id} note={note} db={db} goToDetail={goToDetail} onDelete={() => setPendingDelete(note)} textFilter={parsed.textFilter} />
+                      <NoteCard key={note.id} note={note} db={db} onOpen={() => setOpenNote(note)} onDelete={() => setPendingDelete(note)} textFilter={parsed.textFilter} />
                     ))}
                   </div>
                 </div>
               ))
             )}
           </>
+        )}
+        {openNote && (
+          <NoteDetailModal note={openNote} db={db} goToDetail={goToDetail} onClose={() => setOpenNote(null)} />
         )}
         {pendingDelete && (
           <ConfirmModal
@@ -339,11 +391,14 @@ export default function Notas() {
           ) : (
             <div className="flex flex-col gap-2.5">
               {myNotes.map(note => (
-                <NoteCard key={note.id} note={note} db={db} goToDetail={goToDetail} onDelete={() => setPendingDelete(note)} textFilter={parsedPlayer.textFilter} />
+                <NoteCard key={note.id} note={note} db={db} onOpen={() => setOpenNote(note)} onDelete={() => setPendingDelete(note)} textFilter={parsedPlayer.textFilter} />
               ))}
             </div>
           )}
         </>
+      )}
+      {openNote && (
+        <NoteDetailModal note={openNote} db={db} goToDetail={goToDetail} onClose={() => setOpenNote(null)} />
       )}
       {pendingDelete && (
         <ConfirmModal

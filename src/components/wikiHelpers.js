@@ -7,6 +7,7 @@ export const COLLECTION_LETTER = {
   lore:      'L',
   items:     'I',
   mapas:     'M',
+  homebrew_rules: 'H',
 }
 
 // letra → colección (inverso de COLLECTION_LETTER)
@@ -31,4 +32,5 @@ export const COLLECTION_DISPLAY = {
   lore:      'Lore',
   items:     'Item',
   mapas:     'Mapa',
+  homebrew_rules: 'Regla Homebrew',
 }

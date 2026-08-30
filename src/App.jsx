@@ -26,6 +26,7 @@ import Juegos from './pages/Juegos'
 import Mapas from './pages/Mapas'
 import SRD from './pages/SRD'
 import Calendario from './pages/Calendario'
+import Homerules from './pages/Homerules'
 
 const SessionScreen = lazy(() => import('./pages/SessionScreen'))
 
@@ -66,6 +67,7 @@ const PAGES = {
   srd: SRD,
   calendario: Calendario,
   sessionScreen: SessionScreen,
+  homebrew_rules: Homerules,
 }
 
 export default function App() {
@@ -426,7 +428,7 @@ export default function App() {
 
   const counts = {
     ...Object.fromEntries(
-      ['pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items']
+      ['pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items', 'homebrew_rules']
         .map(k => [k, (db[k] || []).filter(e => isVisible(e, isDM, currentPlayer)).length])
     ),
     sesiones: (db.sesiones || []).filter(e => isVisible(e, isDM, currentPlayer) && e.tipo !== 'avance').length,

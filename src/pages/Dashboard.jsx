@@ -1,7 +1,7 @@
 import { useApp } from '../AppContext'
 import { RelacionTag } from '../components/Shared'
 import { isVisible, plainText } from '../helpers'
-import { Scroll, Shield, Users, Map, Landmark, BookOpen, Gem } from 'lucide-react'
+import { Scroll, Shield, Users, Map, Landmark, BookOpen, Gem, MonitorPlay } from 'lucide-react'
 
 const ARTICLE_COLLECTIONS = [
   { key: 'lugares', label: 'Lugar', Icon: Map },
@@ -17,6 +17,13 @@ function formatDate(iso) {
   return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
+// `fecha` es un string plano YYYY-MM-DD (sin hora) — parsearlo con `new Date(fecha)`
+// lo interpreta como UTC y puede correr el día mostrado según el huso horario local.
+function formatFechaCorta(fecha) {
+  const [y, m, d] = fecha.split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })
+}
+
 const STAT_ITEMS = [
   { key: 'sesiones', Icon: Scroll, label: 'Sesiones' },
   { key: 'pjs', Icon: Shield, label: 'Jugadores' },
@@ -30,30 +37,39 @@ export default function Dashboard() {
   const { db, navigate, goToDetail, isDM, currentPlayer } = useApp()
   const visibleSesiones = db.sesiones.filter(s => isVisible(s, isDM, currentPlayer))
   const lastSesion = visibleSesiones.length ? visibleSesiones[visibleSesiones.length - 1] : null
-  const nextSesion = visibleSesiones.find(s => !s.logros?.trim()) ?? null
   const recentPNJs = db.pnjs.filter(p => isVisible(p, isDM, currentPlayer)).slice(-3).reverse()
+
+  const now = new Date()
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const nextSesionBlock = (db.disponibilidad || [])
+    .filter(b => b.tipo === 'sesion' && b.fecha_inicio >= todayStr)
+    .sort((a, b) => a.fecha_inicio.localeCompare(b.fecha_inicio))[0] ?? null
+  const lastNumero = visibleSesiones
+    .filter(s => s.tipo !== 'avance')
+    .reduce((max, s) => Math.max(max, s.numero || 0), 0)
 
   return (
     <div>
-      <div className="mb-7 pb-5 border-b border-border-base">
-        <div className="font-exo text-[10px] tracking-[0.3em] text-txt-muted uppercase mb-1 font-medium">
-          Vista General
+      <div className="mb-7 pb-5 border-b border-border-base flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <div className="font-exo text-[10px] tracking-[0.3em] text-txt-muted uppercase mb-1 font-medium">
+            Vista General
+          </div>
+          <div className="font-exo text-[26px] font-bold text-txt-primary tracking-[0.04em] uppercase">
+            Panel de Campaña
+          </div>
+          <div className="text-sm text-txt-secondary italic mt-1">
+            Leyendas de Drakterima · D&D 5E Homebrew
+          </div>
         </div>
-        <div className="font-exo text-[26px] font-bold text-txt-primary tracking-[0.04em] uppercase">
-          Panel de Campaña
-        </div>
-        <div className="text-sm text-txt-secondary italic mt-1">
-          Leyendas de Drakterima · D&D 5E Homebrew
-        </div>
-      </div>
-
-      <div className="bg-[rgba(220,38,38,0.04)] border border-accent-dim px-5 py-4 mb-6">
-        <div className="font-exo text-[11px] font-semibold tracking-[0.2em] text-accent uppercase mb-2">
-          🐉 Conflicto Central
-        </div>
-        <div className="text-sm text-txt-secondary leading-[1.65] italic">
-          Dos dragones milenarios —Argan y Ragon— libran una guerra de influencia sobre Drakterima. La Orden de Argan (diplomacia, estructura) y el Culto de Ragon (conquista, poder) son sus brazos. Los aventureros del Gremio, con sede en Kardevir, podrían cambiar el equilibrio del continente.
-        </div>
+        {isDM && (
+          <button
+            className="inline-flex items-center gap-1.5 font-exo text-[11px] font-semibold tracking-[0.1em] uppercase px-4 py-2 cursor-pointer transition-all bg-accent text-white hover:bg-accent-bright border-none flex-shrink-0"
+            onClick={() => navigate('sessionScreen')}
+          >
+            <MonitorPlay size={14} /> Pantalla de Sesión
+          </button>
+        )}
       </div>
 
       {/* Stat cards */}
@@ -68,7 +84,7 @@ export default function Dashboard() {
               <Icon size={18} />
             </div>
             <div className="font-exo text-[34px] font-bold text-accent leading-none">
-              {(db[key] || []).filter(e => isVisible(e, isDM, currentPlayer)).length}
+              {(db[key] || []).filter(e => isVisible(e, isDM, currentPlayer) && (key !== 'sesiones' || e.tipo !== 'avance')).length}
             </div>
             <div className="font-exo text-[9px] font-medium tracking-[0.2em] text-txt-muted uppercase mt-1.5">
               {label}
@@ -77,23 +93,16 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {isDM && nextSesion && (
+      {isDM && nextSesionBlock && (
         <>
           <Divider>Próxima Sesión</Divider>
           <div
             className="bg-bg-card border border-border-base border-l-[3px] border-l-accent px-[22px] py-[18px] mb-3.5 cursor-pointer"
-            onClick={() => goToDetail('sesiones', nextSesion.id)}
+            onClick={() => navigate('calendario')}
           >
-            <div className="font-exo text-[12px] font-semibold tracking-[0.05em] text-txt-primary mb-2 uppercase">
-              📋 Sesión {nextSesion.numero} — {nextSesion.titulo || 'Sin título'}
+            <div className="font-exo text-[12px] font-semibold tracking-[0.05em] text-txt-primary uppercase">
+              📋 Sesión {lastNumero + 1} — {formatFechaCorta(nextSesionBlock.fecha_inicio)}
             </div>
-            {nextSesion.ganchos && (
-              <div className="text-[13px] text-txt-secondary leading-[1.7]">
-                <span className="text-txt-muted text-[11px] tracking-[0.1em] uppercase font-exo">Ganchos</span>
-                <br />
-                {(() => { const t = plainText(nextSesion.ganchos); return t.length > 280 ? t.substring(0, 280) + '…' : t })()}
-              </div>
-            )}
           </div>
         </>
       )}
