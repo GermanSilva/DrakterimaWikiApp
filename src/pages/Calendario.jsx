@@ -2,8 +2,8 @@ import { useState, useMemo } from 'react'
 import { useApp } from '../AppContext'
 import { PageHeader } from '../components/Shared'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import { btnSecondary } from '../constants'
-import { buildMonthAvailabilityMap, blockOverlapsDay } from '../helpers/disponibilidadCalc'
+import { btnSecondary, PLAYER_MARKERS } from '../constants'
+import { buildMonthAvailabilityMap, buildMonthUnavailabilityMap, blockOverlapsDay } from '../helpers/disponibilidadCalc'
 import DisponibilidadDayModal from '../components/DisponibilidadDayModal'
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
@@ -18,11 +18,16 @@ export default function Calendario() {
   const [selectedDay, setSelectedDay] = useState(null)
 
   const bloques = db.disponibilidad || []
+  const pjs = db.pjs || []
 
   const monthMap = useMemo(() => {
-    const personales = bloques.filter(b => b.tipo !== 'sesion')
+    const personales = bloques.filter(b => b.tipo === 'personal')
     return buildMonthAvailabilityMap(personales, viewDate.year, viewDate.month)
   }, [bloques, viewDate.year, viewDate.month])
+
+  const unavailableMap = useMemo(() => (
+    buildMonthUnavailabilityMap(bloques, viewDate.year, viewDate.month)
+  ), [bloques, viewDate.year, viewDate.month])
 
   if (!isDM && !currentPlayer) {
     return (
@@ -58,20 +63,19 @@ export default function Calendario() {
         <button className={btnSecondary} onClick={nextMonth}><ChevronRight size={15} /></button>
       </PageHeader>
 
-      <div className="grid grid-cols-7 gap-1.5 mb-2">
+      <div className="grid grid-cols-7 gap-1 sm:gap-1.5 mb-2">
         {DIAS.map(d => (
-          <div key={d} className="text-center font-exo text-[10px] tracking-[0.15em] uppercase text-txt-muted py-1">{d}</div>
+          <div key={d} className="text-center font-exo text-[9px] sm:text-[10px] tracking-[0.1em] sm:tracking-[0.15em] uppercase text-txt-muted py-1">{d}</div>
         ))}
       </div>
-      <div className="grid grid-cols-7 gap-1.5">
+      <div className="grid grid-cols-7 gap-1 sm:gap-1.5">
         {cells.map((d, i) => {
           if (d === null) return <div key={`empty-${i}`} />
           const fecha = `${viewDate.year}-${pad(viewDate.month + 1)}-${pad(d)}`
           const isToday = fecha === todayStr
-          const ids = monthMap[fecha] || []
-          const ownAvailable = !isDM && currentPlayer &&
-            bloques.some(b => b.pj_id === currentPlayer.id && blockOverlapsDay(b, fecha))
-          const hasActivity = isDM ? ids.length > 0 : ownAvailable
+          const availableIds = monthMap[fecha] || []
+          const unavailableIds = unavailableMap[fecha] || []
+          const hasActivity = availableIds.length > 0 || unavailableIds.length > 0
           const hasSesion = bloques.some(b => b.tipo === 'sesion' && blockOverlapsDay(b, fecha))
 
           return (
@@ -79,27 +83,46 @@ export default function Calendario() {
               key={fecha}
               onClick={() => setSelectedDay(fecha)}
               className={[
-                'aspect-square min-h-[64px] border cursor-pointer transition-colors p-1.5 flex flex-col',
+                'min-h-[56px] sm:min-h-[72px] border cursor-pointer transition-colors p-1 sm:p-1.5 flex flex-col',
                 isToday ? 'border-accent-dim' : 'border-border-base',
                 hasActivity ? 'bg-accent/[.08] hover:bg-accent/[.15]' : 'hover:bg-bg-card-hover',
               ].join(' ')}
             >
-              <div className="flex items-start justify-between">
-                <span className={`font-exo text-[18px] ${isToday ? 'text-accent-bright font-bold' : 'text-txt-secondary'}`}>
+              <div className="flex items-center justify-between gap-0.5 sm:gap-1">
+                <span className={`flex-1 font-exo text-[13px] sm:text-[18px] ${isToday ? 'text-accent-bright font-bold' : 'text-txt-secondary'}`}>
                   {d}
                 </span>
                 {hasSesion && (
-                  <span className="w-3 h-3 rounded-full bg-[#8850c0] mt-1.5" title="Sesión programada" />
+                  <span
+                    className="flex-[2] items-center justify-center font-exo text-center text-[5px] sm:text-[9px] font-bold uppercase tracking-[0.05em] leading-none px-1 py-[3px] sm:py-1"
+                    style={{ backgroundColor: '#d4af37', color: '#241c05' }}
+                    title="Sesión programada"
+                  >
+                    Sesión
+                  </span>
                 )}
               </div>
-              {isDM && ids.length > 0 && (
-                <span className="mt-auto self-end font-exo text-[16px] font-semibold text-accent-bright bg-accent/20 px-1.5 rounded-sm">
-                  {ids.length}
-                </span>
-              )}
-              {!isDM && ownAvailable && (
-                <span className="mt-auto self-end w-3 h-3 rounded-full bg-accent-bright" />
-              )}
+              <div className="mt-auto grid grid-cols-3 gap-0.5 sm:gap-1">
+                {pjs.map(pj => {
+                  const marker = PLAYER_MARKERS[pj.id]
+                  if (!marker) return null
+                  const isUnavailable = unavailableIds.includes(pj.id)
+                  const isAvailable = availableIds.includes(pj.id)
+                  if (!isUnavailable && !isAvailable) return null
+                  return (
+                    <span
+                      key={pj.id}
+                      title={`${pj.nombre} — ${isUnavailable ? 'no disponible' : 'disponible'}`}
+                      className="flex items-center justify-center font-exo text-[7px] sm:text-[9px] font-bold leading-none py-[3px] sm:py-1"
+                      style={isUnavailable
+                        ? { backgroundColor: '#52525b', color: '#ef4444' }
+                        : { backgroundColor: marker.color, color: '#fff' }}
+                    >
+                      {marker.label}
+                    </span>
+                  )
+                })}
+              </div>
             </div>
           )
         })}

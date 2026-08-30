@@ -19,3 +19,13 @@ export const REGION_COLOR = {
   heladas: '#7aaad0',
   islas: '#9090c0',
 }
+
+// Marcadores de disponibilidad por PJ en el Calendario — clave = pj_id (slot fijo 1-6, ver PLAYER_PASSWORDS en App.jsx).
+export const PLAYER_MARKERS = {
+  1: { label: 'MA', color: '#a855f7' }, // Maisie — violeta
+  2: { label: 'EL', color: '#22c55e' }, // Eldric — verde
+  3: { label: 'KX', color: '#4f46e5' }, // Kaylinx — índigo
+  4: { label: 'AL', color: '#e52b50' }, // Alyssara — amaranto
+  5: { label: 'KN', color: '#7a2436' }, // Kaelen — granate
+  6: { label: 'ÖL', color: '#f97316' }, // Öloon — naranja
+}

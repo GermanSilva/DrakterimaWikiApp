@@ -68,3 +68,23 @@ export function buildMonthAvailabilityMap(bloques, year, month) {
   }
   return map
 }
+
+// Bloques tipo 'no_disponible' son marcadores de día completo (solo `fecha`, sin rango horario).
+export function pjIdsUnavailableOnDay(bloques, fecha) {
+  const ids = new Set()
+  for (const b of bloques) {
+    if (b.tipo === 'no_disponible' && b.fecha === fecha) ids.add(b.pj_id)
+  }
+  return [...ids]
+}
+
+// month es 0-indexado (convención Date de JS).
+export function buildMonthUnavailabilityMap(bloques, year, month) {
+  const map = {}
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  for (let d = 1; d <= daysInMonth; d++) {
+    const fecha = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+    map[fecha] = pjIdsUnavailableOnDay(bloques, fecha)
+  }
+  return map
+}
