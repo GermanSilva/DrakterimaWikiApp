@@ -1,9 +1,15 @@
+import { useMemo } from 'react'
 import { useApp } from '../AppContext'
+import { isVisible, isUnread, readStateMap, getViewerId } from '../helpers'
+import { isPjUnread } from '../helpers/pjSections'
+import UnreadDot from './UnreadDot'
 import {
   LayoutDashboard, Scroll, Shield, Users, Map,
   Landmark, BookOpen, Gem, NotebookPen, SlidersHorizontal, Dices, BookMarked, CalendarDays,
   PanelLeftClose, PanelLeftOpen, Hammer,
 } from 'lucide-react'
+
+const UNREAD_NAV_TYPES = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items']
 
 const NAV = [
   {
@@ -44,7 +50,20 @@ const NAV = [
 ]
 
 export default function Sidebar({ currentPage, counts }) {
-  const { navigate, sidebarOpen, toggleSidebar, sidebarCollapsed, toggleSidebarCollapsed, isDM } = useApp()
+  const { db, navigate, sidebarOpen, toggleSidebar, sidebarCollapsed, toggleSidebarCollapsed, isDM, currentPlayer } = useApp()
+
+  const viewerId = getViewerId(isDM, currentPlayer)
+  const readState = useMemo(() => readStateMap(db.read_state), [db.read_state])
+  const unread = useMemo(() => {
+    const map = Object.fromEntries(
+      UNREAD_NAV_TYPES.map(type => [
+        type,
+        (db[type] || []).some(e => isVisible(e, isDM, currentPlayer) && (type === 'pjs' ? isPjUnread(e, viewerId, readState) : isUnread(e, type, viewerId, readState))),
+      ])
+    )
+    map.calendario = map.sesiones
+    return map
+  }, [db, isDM, currentPlayer, viewerId, readState])
 
   return (
     <>
@@ -96,6 +115,7 @@ export default function Sidebar({ currentPage, counts }) {
                   <span className="font-exo text-[11px] tracking-[0.06em] font-medium uppercase">
                     {item.label}
                   </span>
+                  {unread[item.id] && <UnreadDot unread className="shrink-0" />}
                   {item.count && (
                     <span className={[
                       'ml-auto text-[10px] font-exo px-1.5 py-0 rounded-sm min-w-[20px] text-center font-semibold',

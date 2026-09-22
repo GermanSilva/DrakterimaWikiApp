@@ -1,4 +1,5 @@
 import WikiText from '../../../components/WikiText'
+import UnreadDot from '../../../components/UnreadDot'
 import { sectionTitleCls, detailTextCls, detailSectionCls } from '../../../constants'
 
 const PHYSICAL_FIELDS = [
@@ -17,13 +18,13 @@ const PERSONALITY_FIELDS = [
   { key: 'defectos', label: 'Defectos' },
 ]
 
-export default function PJAppearanceSection({ pj }) {
+export default function PJAppearanceSection({ pj, unread }) {
   const physicalBadges = PHYSICAL_FIELDS.filter(f => pj[f.key])
   const personalityItems = PERSONALITY_FIELDS.filter(f => pj[f.key])
 
   return (
     <div id="pj-section-apariencia" className={detailSectionCls}>
-      <div className={sectionTitleCls}>Apariencia & Personalidad</div>
+      <div className={sectionTitleCls}>Apariencia & Personalidad<UnreadDot unread={unread} className="ml-2 inline-block align-middle" /></div>
 
       {physicalBadges.length > 0 && (
         <div className="flex flex-wrap gap-3 mb-4">

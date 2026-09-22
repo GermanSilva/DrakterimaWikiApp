@@ -1,5 +1,6 @@
 import { useApp } from '../../AppContext'
 import { Tag, RegionTag } from '../../components/Shared'
+import UnreadDot from '../../components/UnreadDot'
 import { Lock, Shield } from 'lucide-react'
 import { ABILITY_SCORES } from './pjConstants'
 import { abilityMod, signedBonus } from '../../helpers/pjCalc'
@@ -18,7 +19,7 @@ function ModStatBox({ label, base }) {
   )
 }
 
-export default function PJCard({ pj, onClick }) {
+export default function PJCard({ pj, unread, onClick }) {
   const { isDM } = useApp()
   const hasStats = pj.stat_hp || pj.stat_ac || pj.stat_str || pj.stat_dex || pj.stat_con || pj.stat_int || pj.stat_wis || pj.stat_cha
 
@@ -27,6 +28,7 @@ export default function PJCard({ pj, onClick }) {
       className="bg-bg-card border border-border-base p-[18px] cursor-pointer transition-all relative overflow-hidden animate-card-in before:absolute before:top-0 before:left-0 before:right-0 before:h-0.5 before:content-[''] before:bg-border-light before:transition-colors hover:bg-bg-card-hover hover:border-accent-dim hover:before:bg-accent"
       onClick={onClick}
     >
+      <UnreadDot unread={unread} className="absolute top-2 right-2" />
       <div className="flex items-start justify-between gap-2">
         <div className="font-exo text-[16px] font-semibold text-txt-primary tracking-[0.03em]">{pj.nombre}</div>
         <div className="flex items-center gap-1.5">

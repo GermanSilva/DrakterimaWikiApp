@@ -1,11 +1,12 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useApp } from '../AppContext'
 import { Tag, RegionTag, PageHeader, FilterPills, EmptyState } from '../components/Shared'
-import { regionLabel, regionOptions, isVisible, plainText } from '../helpers'
+import { regionLabel, regionOptions, isVisible, plainText, isUnread, readStateMap, getViewerId } from '../helpers'
 import PlayerNotes from '../components/PlayerNotes'
 import WikiText, { COLLECTION_LETTER } from '../components/WikiText'
 import ImageLightbox from '../components/ImageLightbox'
 import LazyImg from '../components/LazyImg'
+import UnreadDot from '../components/UnreadDot'
 import { Map, Lock } from 'lucide-react'
 import { sectionTitleCls, detailTextCls, detailSectionCls, dmSectionCls, dmTitleCls, btnSecondary, REGION_COLOR } from '../constants'
 
@@ -15,12 +16,15 @@ const FILTROS = [
 ]
 
 function LugarDetailInline({ lugar, onBack }) {
-  const { openForm, isDM } = useApp()
+  const { openForm, isDM, markRead } = useApp()
   const [lightbox, setLightbox] = useState(false)
   const backBarRef = useRef(null)
   const nameRef = useRef(null)
   const [showNameInHeader, setShowNameInHeader] = useState(false)
   const HEADER_H = 60
+  useEffect(() => {
+    markRead('lugares', lugar.id)
+  }, [lugar.id])
   useEffect(() => {
     if (!nameRef.current) return
     const backBarH = backBarRef.current?.offsetHeight ?? 0
@@ -100,6 +104,8 @@ export default function Lugares() {
   const { db, openForm, isDM, currentPlayer, pendingDetail, consumePendingDetail } = useApp()
   const [filtro, setFiltro] = useState('todos')
   const [selectedId, setSelectedId] = useState(() => pendingDetail?.id ?? null)
+  const viewerId = getViewerId(isDM, currentPlayer)
+  const readState = useMemo(() => readStateMap(db.read_state), [db.read_state])
 
   useEffect(() => {
     if (pendingDetail?.id != null) consumePendingDetail()
@@ -139,6 +145,7 @@ export default function Lugares() {
               className="bg-bg-card border border-border-base p-[18px] cursor-pointer transition-all relative overflow-hidden animate-card-in before:absolute before:top-0 before:left-0 before:right-0 before:h-0.5 before:content-[''] before:bg-border-light before:transition-colors hover:bg-bg-card-hover hover:border-accent-dim hover:before:bg-accent"
               onClick={() => setSelectedId(l.id)}
             >
+              <UnreadDot unread={isUnread(l, 'lugares', viewerId, readState)} className="absolute top-2 right-2" />
               <div className="flex items-start justify-between gap-2 mb-2.5">
                 <div className="font-exo text-[13px] font-semibold text-txt-primary tracking-[0.03em]">
                   {l.nombre}

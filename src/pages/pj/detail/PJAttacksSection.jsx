@@ -1,4 +1,5 @@
 import { sectionTitleCls, detailSectionCls } from '../../../constants'
+import UnreadDot from '../../../components/UnreadDot'
 
 function AtaquesTable({ ataques }) {
   if (ataques.length === 0) return null
@@ -36,13 +37,13 @@ function AtaquesTable({ ataques }) {
   )
 }
 
-export default function PJAttacksSection({ pj }) {
+export default function PJAttacksSection({ pj, unread }) {
   const portando = (pj.ataques ?? []).filter(a => a.portando !== false)
   const guardado = (pj.ataques ?? []).filter(a => a.portando === false)
 
   return (
     <div id="pj-section-ataques" className={detailSectionCls}>
-      <div className={sectionTitleCls}>Ataques</div>
+      <div className={sectionTitleCls}>Ataques<UnreadDot unread={unread} className="ml-2 inline-block align-middle" /></div>
       {portando.length > 0 && (
         <div className="mb-3">
           <div className="font-exo text-[10px] font-semibold tracking-[0.15em] uppercase text-txt-muted mb-1">Portando</div>

@@ -147,23 +147,26 @@ export default function SessionScreen() {
               Row-major fill order (1-2 / 3-4 / ...) is CSS Grid's default
               `grid-auto-flow: row` — no reordering of `visibleCards` needed.
             */}
-            <div className="max-w-[900px] mx-auto py-6 px-10 max-md:px-5 min-[1906px]:max-w-none min-[1906px]:grid min-[1906px]:grid-cols-[750px_750px] min-[1906px]:gap-1.5 min-[1906px]:justify-center">
+            {/* <div className="max-w-[900px] mx-auto py-6 px-10 max-md:px-5 min-[1906px]:max-w-none min-[1906px]:grid min-[1906px]:grid-cols-[750px_750px] min-[1906px]:gap-1.5 min-[1906px]:justify-center"> */}
+            <div className="flex flex-wrap justify-center">
               {visibleCards.map(entry => {
                 const reg = CARD_REGISTRY[entry.tipo]
                 if (!reg) return null
                 const Component = reg.Component
                 return (
-                  <SortableCardItem key={entry.id} id={entry.id}>
-                    <div id={`session-card-${entry.id}`} data-card-id={entry.id}>
-                      <Component
-                        db={db}
-                        layout={layout}
-                        entry={entry}
-                        onEdit={pj => setEditing({ pj, cardType: entry.tipo })}
-                        onRemove={() => removeCard(entry.id)}
-                      />
-                    </div>
-                  </SortableCardItem>
+                  <div key={entry.id} className="w-[720px]">
+                    <SortableCardItem id={entry.id}>
+                      <div id={`session-card-${entry.id}`} data-card-id={entry.id}>
+                        <Component
+                          db={db}
+                          layout={layout}
+                          entry={entry}
+                          onEdit={pj => setEditing({ pj, cardType: entry.tipo })}
+                          onRemove={() => removeCard(entry.id)}
+                        />
+                      </div>
+                    </SortableCardItem>
+                  </div>
                 )
               })}
             </div>

@@ -48,6 +48,15 @@
     background-size: 200% 100%;
     animation: skeleton-shimmer 1.4s infinite linear;
   }
+
+  .unread-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 9999px;
+    background: #ef4444;
+    box-shadow: 0 0 6px rgba(239, 68, 68, 0.65);
+    animation: pulse-unread 1.5s ease-in-out infinite;
+  }
 }
 
 @keyframes skeleton-shimmer {
@@ -55,6 +64,12 @@
   100% { background-position: -200% center; }
 }
 
+@keyframes pulse-unread {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.2; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .skeleton-shimmer { animation: none; }
+  .unread-dot { animation: none; opacity: 0.85; }
 }

@@ -1,4 +1,5 @@
 import { sectionTitleCls, detailSectionCls } from '../../../constants'
+import UnreadDot from '../../../components/UnreadDot'
 
 const CURRENCY = [
   { key: 'pp', label: 'Platino' },
@@ -107,7 +108,7 @@ function EquipoTable({ portando, guardado, subtotalPortandoStr, subtotalGuardado
   )
 }
 
-export default function PJEquipmentSection({ pj }) {
+export default function PJEquipmentSection({ pj, unread }) {
   const equipo = pj.equipo ?? []
   const monedas = pj.monedas ?? {}
   const monedas_guardado = pj.monedas_guardado ?? {}
@@ -124,7 +125,7 @@ export default function PJEquipmentSection({ pj }) {
 
   return (
     <div id="pj-section-equipo" className={detailSectionCls}>
-      <div className={sectionTitleCls}>Equipo</div>
+      <div className={sectionTitleCls}>Equipo<UnreadDot unread={unread} className="ml-2 inline-block align-middle" /></div>
       {equipo.length > 0 && (
         <>
           <EquipoTable

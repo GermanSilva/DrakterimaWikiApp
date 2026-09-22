@@ -39,6 +39,22 @@ export function nextId(arr) {
   return arr.length > 0 ? Math.max(...arr.map(x => x.id)) + 1 : 1
 }
 
+export function getViewerId(isDM, currentPlayer) {
+  if (isDM) return 'dm'
+  return currentPlayer ? String(currentPlayer.id) : null
+}
+
+export function readStateMap(readState) {
+  return Object.fromEntries((readState || []).map(r => [r.id, r]))
+}
+
+export function isUnread(entity, type, viewerId, readState) {
+  if (!viewerId || !entity.updatedAt) return false
+  const entry = readState[`${viewerId}_${type}_${entity.id}`]
+  if (!entry) return true
+  return new Date(entity.updatedAt) > new Date(entry.seenAt)
+}
+
 export function nl2br(text) {
   return { __html: (text || '').replace(/\n/g, '<br>') }
 }

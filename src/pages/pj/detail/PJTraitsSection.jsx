@@ -1,11 +1,12 @@
 import WikiText from '../../../components/WikiText'
+import UnreadDot from '../../../components/UnreadDot'
 import { sectionTitleCls, detailTextCls, detailSectionCls } from '../../../constants'
 
-export default function PJTraitsSection({ pj }) {
+export default function PJTraitsSection({ pj, unread }) {
   const bp = <span className='text-accent font-bold text-base'>♦ </span>
   return (
     <div id="pj-section-rasgos" className={detailSectionCls}>
-      <div className={sectionTitleCls}>Rasgos & Proficiencias</div>
+      <div className={sectionTitleCls}>Rasgos & Proficiencias<UnreadDot unread={unread} className="ml-2 inline-block align-middle" /></div>
       <div className="grid grid-cols-2 gap-x-8 gap-y-3 max-md:grid-cols-1">
         {pj.rasgos_clase && (
           <div className="col-span-2 max-md:col-span-1">

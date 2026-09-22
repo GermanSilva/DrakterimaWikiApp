@@ -1,4 +1,5 @@
 import { SKILLS_BY_ABILITY } from '../pjConstants'
+import UnreadDot from '../../../components/UnreadDot'
 import { sectionTitleCls, detailSectionCls } from '../../../constants'
 import { abilityModNum, signedBonus, suggestedProfBonus } from '../../../helpers/pjCalc'
 
@@ -40,13 +41,13 @@ function SkillGroup({ pj, group, profBonus }) {
   )
 }
 
-export default function PJSkillsSection({ pj }) {
+export default function PJSkillsSection({ pj, unread }) {
   const profBonus = pj.stat_proficiency_bonus ?? suggestedProfBonus(pj.nivel ?? 1)
 
   return (
     <div id="pj-section-habilidades" className={detailSectionCls}>
       <div className='flex justify-between items-center mb-4'>
-        <div className={sectionTitleCls}>Habilidades & Salvaciones</div>
+        <div className={sectionTitleCls}>Habilidades & Salvaciones<UnreadDot unread={unread} className="ml-2 inline-block align-middle" /></div>
         <div className={sectionTitleCls + ' border border-border-base px-2 py-1'}><span className='text-txt-muted'>Bonus Proficiencia: </span>+{profBonus}</div>
       </div>
       <div className="grid grid-cols-3 gap-3 max-md:grid-cols-2 max-sm:grid-cols-1">

@@ -4,7 +4,9 @@ import { PageHeader } from '../components/Shared'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { btnSecondary, PLAYER_MARKERS } from '../constants'
 import { buildMonthAvailabilityMap, buildMonthUnavailabilityMap, blockOverlapsDay } from '../helpers/disponibilidadCalc'
+import { isVisible, isUnread, readStateMap, getViewerId } from '../helpers'
 import DisponibilidadDayModal from '../components/DisponibilidadDayModal'
+import UnreadDot from '../components/UnreadDot'
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
@@ -28,6 +30,14 @@ export default function Calendario() {
   const unavailableMap = useMemo(() => (
     buildMonthUnavailabilityMap(bloques, viewDate.year, viewDate.month)
   ), [bloques, viewDate.year, viewDate.month])
+
+  const viewerId = getViewerId(isDM, currentPlayer)
+  const readState = useMemo(() => readStateMap(db.read_state), [db.read_state])
+  const unreadSesionFechas = useMemo(() => new Set(
+    (db.sesiones || [])
+      .filter(s => s.fecha && isVisible(s, isDM, currentPlayer) && isUnread(s, 'sesiones', viewerId, readState))
+      .map(s => s.fecha)
+  ), [db.sesiones, isDM, currentPlayer, viewerId, readState])
 
   if (!isDM && !currentPlayer) {
     return (
@@ -77,6 +87,7 @@ export default function Calendario() {
           const unavailableIds = unavailableMap[fecha] || []
           const hasActivity = availableIds.length > 0 || unavailableIds.length > 0
           const hasSesion = bloques.some(b => b.tipo === 'sesion' && blockOverlapsDay(b, fecha))
+          const hasUnreadSesion = unreadSesionFechas.has(fecha)
 
           return (
             <div
@@ -89,8 +100,9 @@ export default function Calendario() {
               ].join(' ')}
             >
               <div className="flex items-center justify-between gap-0.5 sm:gap-1">
-                <span className={`flex-1 font-exo text-[13px] sm:text-[18px] ${isToday ? 'text-accent-bright font-bold' : 'text-txt-secondary'}`}>
+                <span className={`flex-1 font-exo text-[13px] sm:text-[18px] flex items-center gap-1 ${isToday ? 'text-accent-bright font-bold' : 'text-txt-secondary'}`}>
                   {d}
+                  {hasUnreadSesion && <UnreadDot unread title="Sesión sin leer" />}
                 </span>
                 {hasSesion && (
                   <span

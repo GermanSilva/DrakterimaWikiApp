@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { sectionTitleCls, detailSectionCls } from '../../../constants'
 import SpellDetailModal from './SpellDetailModal'
+import UnreadDot from '../../../components/UnreadDot'
 
 const SPELL_LEVELS = ['Trucos', 'Nivel 1', 'Nivel 2', 'Nivel 3', 'Nivel 4', 'Nivel 5', 'Nivel 6', 'Nivel 7', 'Nivel 8', 'Nivel 9', 'Habilidades']
 
-export default function PJSpellsSection({ pj }) {
+export default function PJSpellsSection({ pj, unread }) {
   const [selectedSpell, setSelectedSpell] = useState(null)
   const hechizos = pj.hechizos ?? []
   const slots = pj.spell_slots ?? {}
@@ -17,7 +18,7 @@ export default function PJSpellsSection({ pj }) {
 
   return (
     <div id="pj-section-hechizos" className={detailSectionCls}>
-      <div className={sectionTitleCls}>Hechizos</div>
+      <div className={sectionTitleCls}>Hechizos<UnreadDot unread={unread} className="ml-2 inline-block align-middle" /></div>
 
       <div className='flex flex-wrap gap-4 gap-x-8'>
         {(pj.spell_dc > 0 || pj.spell_attack_bonus) && (

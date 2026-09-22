@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useApp } from '../AppContext'
-import { isVisible } from '../helpers'
+import { isVisible, readStateMap, getViewerId } from '../helpers'
+import { isPjUnread } from '../helpers/pjSections'
 import { PageHeader, EmptyState } from '../components/Shared'
 import { Shield } from 'lucide-react'
 import PJCard from './pj/PJCard'
@@ -10,6 +11,8 @@ export default function PJs() {
   const { db, openForm, remove, isDM, currentPlayer, pendingDetail, consumePendingDetail } = useApp()
   const [selectedId, setSelectedId] = useState(() => pendingDetail?.id ?? null)
   const [query, setQuery] = useState('')
+  const viewerId = getViewerId(isDM, currentPlayer)
+  const readState = useMemo(() => readStateMap(db.read_state), [db.read_state])
 
   useEffect(() => {
     if (pendingDetail?.id != null) consumePendingDetail()
@@ -65,7 +68,7 @@ export default function PJs() {
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3.5">
           {lista.map(p => (
-            <PJCard key={p.id} pj={p} onClick={() => setSelectedId(p.id)} />
+            <PJCard key={p.id} pj={p} unread={isPjUnread(p, viewerId, readState)} onClick={() => setSelectedId(p.id)} />
           ))}
         </div>
       )}

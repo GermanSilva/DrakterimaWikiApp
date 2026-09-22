@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { AppContext } from './AppContext'
 import { defaultData, seedPJs, seedPNJs, seedSesiones } from './seed'
-import { nextId, isVisible } from './helpers'
+import { nextId, isVisible, getViewerId } from './helpers'
+import { changedPjSections } from './helpers/pjSections'
 import { firestore } from './firebase'
 import {
   collection, doc, setDoc, deleteDoc,
@@ -39,7 +40,14 @@ const PLAYER_PASSWORDS = {
   6: import.meta.env.VITE_PLAYER_6_PASSWORD,
 }
 
-const COLLECTIONS = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items', 'player_notes', 'login_logs', 'game_logs', 'game_pot', 'game_config', 'mapas', 'map_points', 'homebrew_rules', 'disponibilidad']
+const COLLECTIONS = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items', 'player_notes', 'login_logs', 'game_logs', 'game_pot', 'game_config', 'mapas', 'map_points', 'homebrew_rules', 'disponibilidad', 'read_state']
+
+const UNREAD_TYPES = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items']
+
+function sectionReadEntry(viewerId, pjId, section, seenAt) {
+  const id = `${viewerId}_pjs_${pjId}_${section}`
+  return [doc(firestore, 'read_state', id), { id, viewerId, type: 'pjs', entityId: pjId, section, seenAt }]
+}
 
 async function seedCollectionIfEmpty(collName, seedData) {
   const snap = await getDocs(collection(firestore, collName))
@@ -223,7 +231,12 @@ export default function App() {
         gp: (pj.monedas?.gp || 0) + prize.gp,
         pp: (pj.monedas?.pp || 0) + prize.pp,
       }
-      batch.set(doc(firestore, 'pjs', String(pjId)), { ...pj, monedas, updatedAt: timestamp }, { merge: true })
+      const won = Object.values(prize).some(v => v > 0)
+      batch.set(doc(firestore, 'pjs', String(pjId)), {
+        ...pj, monedas, updatedAt: timestamp,
+        ...(won && { sections_updated: { equipo: timestamp } }),
+      }, { merge: true })
+      if (won) batch.set(...sectionReadEntry(String(pjId), pjId, 'equipo', timestamp), { merge: true })
     } else {
       batch.set(doc(firestore, 'game_pot', 'current'), {
         cp: increment(prize.cp),
@@ -257,7 +270,11 @@ export default function App() {
 
     const batch = writeBatch(firestore)
     batch.set(doc(firestore, 'game_pot', 'current'), potUpdate, { merge: true })
-    batch.set(doc(firestore, 'pjs', String(pjId)), { ...pj, monedas, updatedAt: now }, { merge: true })
+    const transferred = COIN_TYPES.some(coin => (amount[coin] || 0) > 0)
+    batch.set(doc(firestore, 'pjs', String(pjId)), {
+      ...pj, monedas, updatedAt: now,
+      ...(transferred && { sections_updated: { equipo: now } }),
+    }, { merge: true })
     await batch.commit()
     showToast('Monedas transferidas')
   }
@@ -269,6 +286,25 @@ export default function App() {
 
   async function saveSessionScreen(layout) {
     await setDoc(doc(firestore, 'game_config', 'session_screen'), { ...layout, id: 'session_screen' }, { merge: true })
+  }
+
+  async function markRead(type, entityId) {
+    const viewerId = getViewerId(isDM, currentPlayer)
+    if (!viewerId) return
+    const docId = `${viewerId}_${type}_${entityId}`
+    await setDoc(doc(firestore, 'read_state', docId), {
+      id: docId, viewerId, type, entityId, seenAt: new Date().toISOString(),
+    }, { merge: true })
+  }
+
+  async function markSectionRead(pjId, sectionKey) {
+    const viewerId = getViewerId(isDM, currentPlayer)
+    if (!viewerId) return
+    const now = new Date().toISOString()
+    const updatedTs = (db.pjs || []).find(p => p.id === pjId)?.sections_updated?.[sectionKey]
+    const seenAt = updatedTs && updatedTs > now ? updatedTs : now
+    const [ref, data] = sectionReadEntry(viewerId, pjId, sectionKey, seenAt)
+    await setDoc(ref, data, { merge: true })
   }
 
   function tryAccess(password) {
@@ -344,7 +380,30 @@ export default function App() {
     const now = new Date().toISOString()
     const existing = isNew ? null : (db[type] || []).find(e => e.id === data.id)
     const createdAt = isNew ? now : (existing?.createdAt ?? now)
-    await setDoc(doc(firestore, type, String(id)), { ...data, id, createdAt, updatedAt: now })
+    const viewerId = getViewerId(isDM, currentPlayer)
+    if (type === 'pjs') {
+      const changed = existing ? changedPjSections(existing, data) : ['general']
+      const sections_updated = {
+        ...(existing?.sections_updated ?? {}),
+        ...Object.fromEntries(changed.map(k => [k, now])),
+      }
+      await setDoc(doc(firestore, type, String(id)), { ...data, id, createdAt, updatedAt: now, sections_updated })
+      if (viewerId && changed.length > 0) {
+        const batch = writeBatch(firestore)
+        for (const k of changed) batch.set(...sectionReadEntry(viewerId, id, k, now), { merge: true })
+        await batch.commit()
+      }
+    } else {
+      await setDoc(doc(firestore, type, String(id)), { ...data, id, createdAt, updatedAt: now })
+    }
+    if (type !== 'pjs' && UNREAD_TYPES.includes(type)) {
+      if (viewerId) {
+        const readDocId = `${viewerId}_${type}_${id}`
+        await setDoc(doc(firestore, 'read_state', readDocId), {
+          id: readDocId, viewerId, type, entityId: id, seenAt: now,
+        }, { merge: true })
+      }
+    }
     setForm(null)
     showToast('Guardado')
   }
@@ -390,6 +449,8 @@ export default function App() {
     logoutPlayer,
     savePlayerNote,
     deletePlayerNote,
+    markRead,
+    markSectionRead,
     saveGameResult,
     assignPotToPJ,
     saveGameConfig,
@@ -453,7 +514,7 @@ export default function App() {
             onClick={() => setSidebarOpen(false)}
           />
         )}
-        <main className={`${sidebarCollapsed ? 'md:ml-0' : 'md:ml-[240px]'} max-md:ml-0 transition-[margin] duration-[250ms] ease-in-out flex-1 min-w-0 py-8 px-10 ${page === 'mapas' || page === 'sessionScreen' ? '' : 'max-md:p-5 max-w-[1100px]'}`}>
+        <main className={`${sidebarCollapsed ? 'md:ml-0' : 'md:ml-[240px]'} max-md:ml-0 transition-[margin] duration-[250ms] ease-in-out flex-1 min-w-0 py-8 ${page === 'mapas' || page === 'sessionScreen' ? '' : 'px-10 max-md:p-5 max-w-[1100px]'}`}>
           <Suspense fallback={<div className="p-10 text-center text-txt-muted">Cargando…</div>}>
             <PageComponent />
           </Suspense>

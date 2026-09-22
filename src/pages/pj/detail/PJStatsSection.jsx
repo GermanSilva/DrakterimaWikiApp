@@ -1,4 +1,5 @@
 import { ABILITY_SCORES } from '../pjConstants'
+import UnreadDot from '../../../components/UnreadDot'
 import { sectionTitleCls } from '../../../constants'
 import { abilityMod, signedBonus, passivePerception, suggestedProfBonus } from '../../../helpers/pjCalc'
 
@@ -22,12 +23,12 @@ function StatBadge({ label, value, accent }) {
   )
 }
 
-export default function PJStatsSection({ pj }) {
+export default function PJStatsSection({ pj, unread }) {
   const profBonus = pj.stat_proficiency_bonus ?? suggestedProfBonus(pj.nivel ?? 1)
 
   return (
     <div id="pj-section-stats" className="pt-4">
-      <div className={sectionTitleCls}>Stats</div>
+      <div className={sectionTitleCls}>Stats<UnreadDot unread={unread} className="ml-2 inline-block align-middle" /></div>
       <div className='grid grid-cols-2 gap-3 mb-3'>
         <div className="flex flex-wrap gap-2">
           {ABILITY_SCORES.map(({ label, key }) => (

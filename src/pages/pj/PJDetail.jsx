@@ -1,9 +1,13 @@
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useMemo } from 'react'
 import { useApp } from '../../AppContext'
 import { Tag, RegionTag } from '../../components/Shared'
 import PlayerNotes from '../../components/PlayerNotes'
 import WikiText from '../../components/WikiText'
 import ImageLightbox from '../../components/ImageLightbox'
+import UnreadDot from '../../components/UnreadDot'
+import { readStateMap, getViewerId } from '../../helpers'
+import { isSectionUnread } from '../../helpers/pjSections'
+import { SECTION_SHOW } from './pjConstants'
 import LazyImg from '../../components/LazyImg'
 import { Lock, Shield } from 'lucide-react'
 import { detailTextCls } from '../../constants'
@@ -19,22 +23,67 @@ import PJNarrativeSection from './detail/PJNarrativeSection'
 import PJAppearanceSection from './detail/PJAppearanceSection'
 
 const SECTIONS = [
-  { id: 'stats', label: 'Stats', show: () => true, Component: PJStatsSection },
-  { id: 'habilidades', label: 'Habilidades', show: () => true, Component: PJSkillsSection },
-  { id: 'ataques', label: 'Ataques', show: p => p.ataques?.length > 0, Component: PJAttacksSection },
-  { id: 'hechizos', label: 'Hechizos', show: p => !!(p.hechizos?.length > 0 || Object.keys(p.spell_slots ?? {}).length > 0), Component: PJSpellsSection },
-  { id: 'recursos', label: 'Recursos', show: p => p.recursos?.length > 0, Component: PJResourcesSection },
-  { id: 'equipo', label: 'Equipo', show: p => !!(p.equipo?.length > 0 || Object.values(p.monedas ?? {}).some(v => v > 0)), Component: PJEquipmentSection },
-  { id: 'rasgos', label: 'Rasgos', show: p => !!(p.rasgos_clase || p.idiomas || p.prof_armas || p.prof_armaduras || p.prof_herramientas || p.otros_rasgos), Component: PJTraitsSection },
-  { id: 'narrativa', label: 'Narrativa', show: () => true, Component: PJNarrativeSection },
-  { id: 'apariencia', label: 'Apariencia', show: p => !!(p.edad || p.altura || p.personalidad || p.ideales || p.vinculos || p.defectos || p.apariencia), Component: PJAppearanceSection },
-]
+  { id: 'stats', label: 'Stats', Component: PJStatsSection },
+  { id: 'habilidades', label: 'Habilidades', Component: PJSkillsSection },
+  { id: 'ataques', label: 'Ataques', Component: PJAttacksSection },
+  { id: 'hechizos', label: 'Hechizos', Component: PJSpellsSection },
+  { id: 'recursos', label: 'Recursos', Component: PJResourcesSection },
+  { id: 'equipo', label: 'Equipo', Component: PJEquipmentSection },
+  { id: 'rasgos', label: 'Rasgos', Component: PJTraitsSection },
+  { id: 'narrativa', label: 'Narrativa', Component: PJNarrativeSection },
+  { id: 'apariencia', label: 'Apariencia', Component: PJAppearanceSection },
+].map(s => ({ ...s, show: SECTION_SHOW[s.id] }))
+
+const DWELL_MS = 1500
+const SECTION_ID_PREFIX = 'pj-section-'
 
 export default function PJDetail({ pj, onEdit, onDelete, onBack }) {
-  const { isDM, currentPlayer } = useApp()
+  const { db, isDM, currentPlayer, markSectionRead } = useApp()
   const isOwnPlayer = !isDM && currentPlayer?.id === pj.id
+
   const visibleSections = SECTIONS.filter(s => s.show(pj))
   const hasDMNotes = isDM && !!pj.notas
+
+  const viewerId = getViewerId(isDM, currentPlayer)
+  const readState = useMemo(() => readStateMap(db.read_state), [db.read_state])
+  const unread = Object.fromEntries(
+    [...visibleSections.map(s => s.id), 'dm', 'general'].map(k => [k, isSectionUnread(pj, k, viewerId, readState)])
+  )
+  const unreadKey = Object.keys(unread).filter(k => unread[k] && k !== 'general').join(',')
+  const markSectionReadRef = useRef(markSectionRead)
+  markSectionReadRef.current = markSectionRead
+
+  useEffect(() => {
+    if (unread.general) markSectionReadRef.current(pj.id, 'general')
+  }, [pj.id, unread.general])
+
+  useEffect(() => {
+    if (!unreadKey) return
+    const timers = new Map()
+    // Tall sections can never reach 30% of their own height, so also accept a large visible slice.
+    const isMostlyVisible = e => e.intersectionRatio >= 0.3 || e.intersectionRect.height >= window.innerHeight * 0.4
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        const key = entry.target.id.slice(SECTION_ID_PREFIX.length)
+        clearTimeout(timers.get(key))
+        timers.delete(key)
+        if (entry.isIntersecting && isMostlyVisible(entry)) {
+          timers.set(key, setTimeout(() => {
+            timers.delete(key)
+            markSectionReadRef.current(pj.id, key)
+          }, DWELL_MS))
+        }
+      }
+    }, { threshold: Array.from({ length: 11 }, (_, i) => i / 10) })
+    for (const key of unreadKey.split(',')) {
+      const el = document.getElementById(SECTION_ID_PREFIX + key)
+      if (el) observer.observe(el)
+    }
+    return () => {
+      observer.disconnect()
+      timers.forEach(clearTimeout)
+    }
+  }, [pj.id, unreadKey])
 
   const sentinelRef = useRef(null)
   const backBarRef = useRef(null)
@@ -48,11 +97,12 @@ export default function PJDetail({ pj, onEdit, onDelete, onBack }) {
   const HEADER_H = 60
 
   function scrollTo(id) {
-    const el = document.getElementById(`pj-section-${id}`)
+    const el = document.getElementById(`${SECTION_ID_PREFIX}${id}`)
     if (!el) return
     const offset = HEADER_H + (backBarRef.current?.offsetHeight ?? 0) + (stickyNavRef.current?.offsetHeight ?? 0)
     const top = el.getBoundingClientRect().top + window.scrollY - offset
     window.scrollTo({ top, behavior: 'smooth' })
+    if (unread[id]) markSectionRead(pj.id, id)
   }
 
   useEffect(() => {
@@ -87,6 +137,7 @@ export default function PJDetail({ pj, onEdit, onDelete, onBack }) {
           onClick={() => scrollTo(s.id)}
         >
           {s.label}
+          <UnreadDot unread={unread[s.id]} className="ml-1.5 inline-block align-middle" />
         </button>
       ))}
       {hasDMNotes && (
@@ -95,6 +146,7 @@ export default function PJDetail({ pj, onEdit, onDelete, onBack }) {
           onClick={() => scrollTo('dm')}
         >
           <Lock size={12} className="inline mr-1" />DM
+          <UnreadDot unread={unread.dm} className="ml-1.5 inline-block align-middle" />
         </button>
       )}
     </>
@@ -170,13 +222,14 @@ export default function PJDetail({ pj, onEdit, onDelete, onBack }) {
       </div>
 
       {visibleSections.map(({ id, Component }) => (
-        <Component key={id} pj={pj} />
+        <Component key={id} pj={pj} unread={unread[id]} />
       ))}
 
       {hasDMNotes && (
         <div id="pj-section-dm" className="mt-5 pt-4 border-t-2 border-t-accent">
           <div className="font-exo text-[13px] font-semibold tracking-[0.25em] text-accent-bright uppercase mb-2">
             <Lock size={12} className="inline mr-1" />Notas DM
+            <UnreadDot unread={unread.dm} className="ml-2 inline-block align-middle" />
           </div>
           <div className={detailTextCls}><WikiText text={pj.notas} /></div>
         </div>

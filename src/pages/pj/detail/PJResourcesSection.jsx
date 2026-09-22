@@ -1,4 +1,5 @@
 import { sectionTitleCls, detailSectionCls } from '../../../constants'
+import UnreadDot from '../../../components/UnreadDot'
 
 const RECUPERACION_LABEL = { corto: 'Descanso Corto', largo: 'Descanso Largo' }
 
@@ -14,13 +15,13 @@ function ResourceBadge({ recurso }) {
   )
 }
 
-export default function PJResourcesSection({ pj }) {
+export default function PJResourcesSection({ pj, unread }) {
   const recursos = pj.recursos ?? []
   if (recursos.length === 0) return null
 
   return (
     <div id="pj-section-recursos" className={detailSectionCls}>
-      <div className={sectionTitleCls}>Recursos</div>
+      <div className={sectionTitleCls}>Recursos<UnreadDot unread={unread} className="ml-2 inline-block align-middle" /></div>
       <div className="flex flex-wrap gap-2">
         {recursos.map(r => <ResourceBadge key={r.id} recurso={r} />)}
       </div>

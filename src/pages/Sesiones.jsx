@@ -1,17 +1,18 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useMemo } from 'react'
 import { useApp } from '../AppContext'
 import { Tag, PageHeader, EmptyState } from '../components/Shared'
-import { DateTimeFormat, isVisible, plainText } from '../helpers'
+import { DateTimeFormat, isVisible, plainText, isUnread, readStateMap, getViewerId } from '../helpers'
 import PlayerNotes from '../components/PlayerNotes'
 import WikiText, { COLLECTION_LETTER } from '../components/WikiText'
 import ImageLightbox from '../components/ImageLightbox'
 import LazyImg from '../components/LazyImg'
+import UnreadDot from '../components/UnreadDot'
 import { Scroll } from 'lucide-react'
 import { sectionTitleCls, detailTextCls, btnSecondary, dmSectionCls, dmTitleCls } from '../constants'
 
 
 function SesionDetailInline({ sesion, onBack, prevId, nextId, onNavigate }) {
-  const { openForm, isDM } = useApp()
+  const { openForm, isDM, markRead } = useApp()
   const isAvance = sesion.tipo === 'avance'
   const isPlanned = !isAvance && !sesion.logros?.trim()
   const [lightbox, setLightbox] = useState(false)
@@ -19,6 +20,9 @@ function SesionDetailInline({ sesion, onBack, prevId, nextId, onNavigate }) {
   const nameRef = useRef(null)
   const [showNameInHeader, setShowNameInHeader] = useState(false)
   const HEADER_H = 60
+  useEffect(() => {
+    markRead('sesiones', sesion.id)
+  }, [sesion.id])
   useEffect(() => {
     if (!nameRef.current) return
     const backBarH = backBarRef.current?.offsetHeight ?? 0
@@ -139,6 +143,8 @@ export default function Sesiones() {
   const { db, openForm, pendingDetail, consumePendingDetail, isDM, currentPlayer } = useApp()
   const [selectedId, setSelectedId] = useState(() => pendingDetail?.id ?? null)
   const [tipoFilter, setTipoFilter] = useState('todos')
+  const viewerId = getViewerId(isDM, currentPlayer)
+  const readState = useMemo(() => readStateMap(db.read_state), [db.read_state])
 
   useEffect(() => {
     if (pendingDetail?.id != null) consumePendingDetail()
@@ -196,11 +202,10 @@ export default function Sesiones() {
             ].map(({ value, label }) => (
               <button
                 key={value}
-                className={`font-exo text-[10px] tracking-[0.1em] uppercase px-3 py-1.5 border transition-colors cursor-pointer ${
-                  tipoFilter === value
-                    ? 'border-accent bg-accent/10 text-txt-primary'
-                    : 'border-border-base text-txt-muted hover:border-border-light hover:text-txt-secondary'
-                }`}
+                className={`font-exo text-[10px] tracking-[0.1em] uppercase px-3 py-1.5 border transition-colors cursor-pointer ${tipoFilter === value
+                  ? 'border-accent bg-accent/10 text-txt-primary'
+                  : 'border-border-base text-txt-muted hover:border-border-light hover:text-txt-secondary'
+                  }`}
                 onClick={() => setTipoFilter(value)}
               >
                 {label}
@@ -221,11 +226,10 @@ export default function Sesiones() {
                     className="relative mb-5 cursor-pointer flex gap-3"
                     onClick={() => setSelectedId(s.id)}
                   >
-                    <div className={`absolute left-[-21px] top-[5px] w-2.5 h-2.5 border-2 border-bg-mid ${
-                      isAvance
-                        ? 'bg-accent/40 border-accent-dim rotate-45'
-                        : isPlanned ? 'bg-transparent border-txt-muted' : 'bg-border-light'
-                    }`} />
+                    <div className={`absolute left-[-21px] top-[5px] w-2.5 h-2.5 border-2 border-bg-mid ${isAvance
+                      ? 'bg-accent/40 border-accent-dim rotate-45'
+                      : isPlanned ? 'bg-transparent border-txt-muted' : 'bg-border-light'
+                      }`} />
                     <div className="w-32 shrink-0 self-stretch min-h-[64px] bg-bg-mid overflow-hidden">
                       {s.imagen_url && (
                         <img
@@ -238,16 +242,16 @@ export default function Sesiones() {
                         />
                       )}
                     </div>
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 relative">
                       <div className="font-exo text-[10px] font-medium text-txt-muted mb-1.5 tracking-[0.1em] uppercase">
                         {isAvance ? 'Avance' : `Sesión ${s.numero}`}
                         {s.fecha && ` · ${s.fecha}`}
                         {s.estado === 'borrador' && <> <Tag cls="borrador" text="Borrador" /></>}
                         {s.estado === 'secreto' && <> <Tag cls="secreto" text="Secreto" /></>}
+                        <UnreadDot unread={isUnread(s, 'sesiones', viewerId, readState)} className="absolute ml-1 mt-0.5" />
                       </div>
-                      <div className={`font-exo text-[12px] font-semibold tracking-[0.04em] mb-1 uppercase ${
-                        isAvance ? 'text-accent-dim italic' : isPlanned ? 'text-txt-secondary' : 'text-txt-primary'
-                      }`}>
+                      <div className={`font-exo text-[12px] font-semibold tracking-[0.04em] mb-1 uppercase ${isAvance ? 'text-accent-dim italic' : isPlanned ? 'text-txt-secondary' : 'text-txt-primary'
+                        }`}>
                         {s.titulo || 'Sin título'}
                       </div>
                       <div className="text-[13px] text-txt-secondary leading-relaxed">
