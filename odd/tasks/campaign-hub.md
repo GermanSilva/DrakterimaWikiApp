@@ -33,7 +33,7 @@ That requires real identity and server-side authorization; every other improveme
 - **Migration strategy:** migrate and coexist. The current GitHub Pages + Firestore
   app keeps running until cutover; a one-shot script imports the Firestore JSON
   export into Supabase as campaign "Drakterima".
-- **Dev environment:** local Supabase stack (`supabase start`) â€” requires the user to
+- **Dev environment:** local Supabase stack (`supabase start`) — requires the user to
   install Docker Desktop. No remote Supabase/Vercel operations without explicit
   per-operation authorization.
 - **Auth:** Supabase Auth with magic link + Google OAuth. Google credentials are
@@ -49,7 +49,7 @@ That requires real identity and server-side authorization; every other improveme
   move to a separate DM-only table/column set because RLS is row-level.
 - Ids: Postgres identity columns (no client `nextId`). Drakterima ids are preserved on
   import so existing wiki-links `[[{3G}...]]` keep resolving within the campaign.
-- Writes: explicit `create` / `update(patch)` â€” no whole-row overwrite gotcha.
+- Writes: explicit `create` / `update(patch)` — no whole-row overwrite gotcha.
 - Realtime: per-page Supabase Realtime subscriptions (RLS-aware), no global
   subscribe-to-everything.
 - Routing: URL routes `/c/:campaignSlug/...` with deep links; pages lazy-loaded.
@@ -66,13 +66,13 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 ## Constraints
 
 - Mutations from UI go through the data layer only (successor of `save/remove/savePlayerNote`).
-- Existing GitHub Pages deploy (`main` â†’ `deploy.yml`) must keep working until cutover.
+- Existing GitHub Pages deploy (`main` → `deploy.yml`) must keep working until cutover.
 - Remote operations (hosted Supabase, Vercel, Google Cloud) are user-authorized per operation.
 - ~400 authored changed lines per task is a planning heuristic only.
 
 ## TDD / checks
 
-- TDD mode: **off** â€” source: project CLAUDE.md ("No hay test runner configurado").
+- TDD mode: **off** — source: project CLAUDE.md ("No hay test runner configurado").
   Runner: none yet; H1 introduces Vitest (+ pgTAP via `supabase test db` in H3).
   Re-evaluate with the user once a runner exists.
 - Applicable checks per task: `npm run build`, `npm run lint` (after H1),
@@ -81,7 +81,7 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 ## Delivery
 
 - Strategy: `ask-on-risk` (default). Forecast: far above 400 authored lines
-  (estimated 6â€“9k) â†’ chain strategy: **feature-branch-chain** (user, 2026-10-06).
+  (estimated 6–9k) → chain strategy: **feature-branch-chain** (user, 2026-10-06).
   All slice PRs target `feat/campaign-hub`; `main` is untouched until cutover so the
   GitHub Pages deploy keeps serving the current app.
 - Slices: _to be recorded per PR_.
@@ -99,10 +99,10 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H6 | Router + hub shell: campaign list, `/c/:slug` layout, campaign context replacing App.jsx god-state, lazy pages | delegated (writer) | [ ] |
 | H7 | Port wiki entity pages + forms to the data layer (sesiones, pnjs, lugares, facciones, lore, items) | delegated (writer) | [ ] |
 | H8 | Port PJs (ownership, player self-edit), session screen, maps | delegated (writer) | [ ] |
-| H9 | Port calendar, games, notes, homerules, unread state; DM zone â†’ campaign settings | delegated (writer) | [ ] |
+| H9 | Port calendar, games, notes, homerules, unread state; DM zone → campaign settings | delegated (writer) | [ ] |
 | H10 | Campaign management: create campaign, branding, regions, custom fields, invites, members/roles | delegated (writer) | [ ] |
 | H11 | Refactors: `useStickyTitle`, split FormModal, error boundary + error toasts, a11y basics | delegated (writer) | [ ] |
-| H12 | Firestore â†’ Supabase import script (Drakterima campaign, id preservation, character claim via invites) | delegated (writer) | [ ] |
+| H12 | Firestore → Supabase import script (Drakterima campaign, id preservation, character claim via invites) | delegated (writer) | [ ] |
 | H13 | Vercel config (SPA rewrites, env), docs (CLAUDE.md), cutover runbook | inline | [ ] |
 | H14 | Cutover (user-owned remote steps) + Phase 2: deep feature analysis with approval stage | parent | [ ] |
 
@@ -119,13 +119,13 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 ## Progress / evidence
 
 - H0: branch `feat/campaign-hub` created from `4b12d60`; document created. Commit `ebae344`.
-  Review assess: passive (no review); boundary â†’ `ebae344`.
+  Review assess: passive (no review); boundary → `ebae344`.
 - H1: commits `c4cd3ea` (tooling) + `553da09` (keep `rules-of-hooks` as error, from
   review advisory). Checks: `npm run lint` 0 errors / 59 warnings (pre-existing code),
   `npm run typecheck` pass, `npm test` 5/5 pass (re-run by parent), `npm run build` pass.
   vitest pinned ^3 (v5 incompatible with vite 5). Native review on `c4cd3ea`: medium,
-  **granted** â†’ lens reliability â†’ **approved**, acknowledged (lineage
-  `review-68da3125b8e3da0b`, burned); boundary â†’ `c4cd3ea`. `553da09`: medium,
+  **granted** → lens reliability → **approved**, acknowledged (lineage
+  `review-68da3125b8e3da0b`, burned); boundary → `c4cd3ea`. `553da09`: medium,
   under_budget (pending in slice). Advisory follow-ups (non-blocking): broad
   `^[A-Z_]` unused-vars ignore (consider eslint-plugin-react jsx-uses-vars);
   `isVisible` tests lack string-vs-number id / unknown-estado cases (moot after RLS rewrite).
@@ -134,11 +134,11 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   `/auth/callback` (localhost + 127.0.0.1); email magic link on (CLI default); Google
   provider block present but `enabled = false` until credentials exist
   (`SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` / `_SECRET` in `supabase/.env`, now gitignored).
-  Adversarial sweep: inline self-check (found `supabase/.env` not ignored â†’ fixed).
-  `.env.example` could not be read (permission-protected) â†’ env vars documented in H13
+  Adversarial sweep: inline self-check (found `supabase/.env` not ignored → fixed).
+  `.env.example` could not be read (permission-protected) → env vars documented in H13
   runbook instead: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
-  Native review on slice `c4cd3ea..f60744d`: medium, granted â†’ approved, acknowledged
-  (lineage `review-984a98ae4b0fb96a`, burned); boundary â†’ `f60744d`.
+  Native review on slice `c4cd3ea..f60744d`: medium, granted → approved, acknowledged
+  (lineage `review-984a98ae4b0fb96a`, burned); boundary → `f60744d`.
   Carried into H3: add `supabase/seed.sql` (config seeds it); document Google env vars.
 - Stop-hook review of the whole branch `4b12d60..8322a47` (user granted): approved,
   acknowledged (lineage `review-3e6d2b2a66b1a959`, burned). New advisory carried into
@@ -170,15 +170,22 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   server-side (Dice3D animates to returned roll); no `delete_campaign` / add-member RPC;
   sole-DM account deletion blocked by default (product default chosen by parent).
 
+- H3 native review (slice `e07839f..2633720`): high, granted (standing consent), 4 lenses
+  (risk, resilience, readability, reliability) → **approved**, acknowledged (lineage
+  `review-b35867619efc736b`, burned); boundary → `2633720`. Advisory follow-ups applied in the
+  next commit: DM invite expiry clamped to created_at + 7 days (insert and update, +2 pgTAP),
+  stale DRAFT headers refreshed, task-doc mojibake repaired (cause: PowerShell 5.1
+  `Get-Content` read UTF-8 as cp1252 — edit docs with UTF-8-safe tools only).
+  `supabase test db`: **137/137 PASS**.
 - H11 (uncommitted, working tree): useStickyTitle (9 copies replaced), useDialogFocus,
   a11y `clickable()`, ErrorBoundary (app + per-page), error toasts on mutations, FormModal
-  split into `src/components/forms/*` (643 â†’ ~140 lines), dialog roles/labels, icon
+  split into `src/components/forms/*` (643 → ~140 lines), dialog roles/labels, icon
   aria-labels. Writer checks: lint 0 errors / 60 warnings, typecheck clean, build OK,
   one full `npm test` run 17/17 green BEFORE two last small edits. Pending: re-run
   `npm test` (machine out of virtual memory: vitest V8 OOM, git 0xC000012D), adversarial
   sweep, commit, review. Behaviour changes to confirm: failed save keeps form open;
   FormModal focuses first field on open (mobile keyboard).
-- H3 native review: due (high_risk) but NOT started â€” system out of memory.
+- H3 native review: due (high_risk) but NOT started — system out of memory.
 
 ## Workflow rules (user, 2026-10-06)
 

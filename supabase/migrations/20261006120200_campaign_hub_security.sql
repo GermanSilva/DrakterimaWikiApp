@@ -1,6 +1,6 @@
 -- Campaign hub, part 3/3: authorization helpers, guard triggers, RPCs, RLS, grants, realtime.
 --
--- DRAFT: not executed yet (no Docker). Verify with `supabase db reset` + `supabase test db`.
+-- Verified locally with `supabase db reset` + `supabase test db` (135+ pgTAP assertions).
 --
 -- Authorization model
 --   * Every table has RLS enabled. Access is granted only to the `authenticated` role (no anon grants).
@@ -263,8 +263,9 @@ create trigger entity_dm_notes_validate_target
 ------------------------------------------------------------------------------
 
 -- Invite normalisation and sanity checks (SECURITY DEFINER so it can read pjs regardless of RLS).
---   * a 'dm' invite is always single-use and expires after 7 days unless the DM set an earlier date
---     (a leaked DM code is a full takeover, so it must be short-lived);
+--   * a 'dm' invite is always single-use and expires at most 7 days after it was created (an
+--     earlier date is kept, a later one is clamped, also on UPDATE): a leaked DM code is a full
+--     takeover, so it must be short-lived;
 --   * a character invite cannot target a character that is already owned, nor one that already has
 --     another live (unconsumed, unexpired) invite.
 create function public.prepare_campaign_invite()
@@ -276,7 +277,10 @@ as $$
 begin
   if new.role = 'dm' then
     new.max_uses := 1;
-    new.expires_at := coalesce(new.expires_at, now() + interval '7 days');
+    new.expires_at := least(
+      coalesce(new.expires_at, 'infinity'::timestamptz),
+      coalesce(new.created_at, now()) + interval '7 days'
+    );
   end if;
 
   if tg_op = 'INSERT' and new.character_id is not null then

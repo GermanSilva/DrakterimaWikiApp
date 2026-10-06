@@ -1,6 +1,6 @@
 -- pgTAP: character ownership and the player-editable subset, calendar, notes, read state, games,
 -- multi-campaign role crossing, realtime publication.
--- Self-contained fixture, rolled back at the end. Not executed yet (no Docker available when written).
+-- Self-contained fixture, rolled back at the end.
 begin;
 
 select plan(55);

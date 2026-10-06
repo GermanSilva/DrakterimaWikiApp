@@ -1,6 +1,5 @@
 -- pgTAP: entity visibility (estado / visible_to), DM-only writes, DM-private notes,
 -- cross-campaign isolation. Self-contained fixture, rolled back at the end.
--- Not executed yet (no Docker available when written).
 begin;
 
 select plan(35);

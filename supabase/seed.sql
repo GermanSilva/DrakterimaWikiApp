@@ -1,7 +1,7 @@
 -- Local development seed. Loaded by `supabase db reset` (see [db.seed] in config.toml).
 -- NEVER run this against a hosted project: it inserts fake auth users.
 --
--- DRAFT: not executed yet (no Docker). Verify with `supabase db reset`.
+-- Verified locally with `supabase db reset` (magic link for the seeded users reaches Mailpit).
 --
 -- Users (magic-link only: no password is set; read the link in the local Mailpit inbox,
 -- http://127.0.0.1:54324, after requesting a sign-in link for the address):

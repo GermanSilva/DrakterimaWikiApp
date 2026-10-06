@@ -1,7 +1,6 @@
 -- Campaign hub, part 1/3: identity, campaigns, membership, invites.
 --
--- DRAFT: written without a running local stack (Docker was unavailable). It must be
--- verified with `supabase db reset` + `supabase test db` before it is trusted.
+-- Verified locally with `supabase db reset` + `supabase test db` (135+ pgTAP assertions).
 --
 -- Migration layout:
 --   1. core      (this file)  tables for identity / campaigns / members / invites + triggers

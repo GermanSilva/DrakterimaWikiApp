@@ -1,9 +1,9 @@
 -- pgTAP: identity, campaign creation, membership, invites.
 -- Self-contained: builds its own users/campaigns inside the transaction (rolled back at the end),
--- so it does not depend on supabase/seed.sql. Not executed yet (no Docker available when written).
+-- so it does not depend on supabase/seed.sql.
 begin;
 
-select plan(45);
+select plan(47);
 
 ------------------------------------------------------------------------------
 -- Inline helpers (no external dependencies)
@@ -95,6 +95,20 @@ select ok(
   (select max_uses = 1 and expires_at is not null and expires_at <= now() + interval '7 days 1 minute'
      from public.campaign_invites where code = 'testinvitecode0000000000000000dmopen'),
   'a DM invite is forced to a single use with a default expiry of at most 7 days');
+
+insert into public.campaign_invites (campaign_id, code, role, max_uses, expires_at) values
+  ('dddddddd-0000-4000-8000-00000000000b', 'testinvitecode00000000000000dmfuture', 'dm', 1, now() + interval '2 years');
+select ok(
+  (select expires_at <= now() + interval '7 days 1 minute'
+     from public.campaign_invites where code = 'testinvitecode00000000000000dmfuture'),
+  'an explicit far-future expiry on a DM invite is clamped to 7 days');
+
+update public.campaign_invites set expires_at = now() + interval '1 year'
+  where code = 'testinvitecode00000000000000dmfuture';
+select ok(
+  (select expires_at <= now() + interval '7 days 1 minute'
+     from public.campaign_invites where code = 'testinvitecode00000000000000dmfuture'),
+  'a DM invite expiry cannot be extended past 7 days after creation');
 
 select throws_ok(
   $$insert into public.campaign_invites (campaign_id, role, character_id, max_uses)
@@ -310,8 +324,8 @@ select is(
 
 select is(
   (select count(*) from public.campaign_invites where campaign_id = 'dddddddd-0000-4000-8000-00000000000b'),
-  3::bigint,
-  'the DM of B reads the invites of B (one player invite, two DM invites)');
+  4::bigint,
+  'the DM of B reads the invites of B (one player invite, three DM invites)');
 
 ------------------------------------------------------------------------------
 -- Leaving, removing, last DM
