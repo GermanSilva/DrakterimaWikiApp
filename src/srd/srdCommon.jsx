@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState } from 'react'
 import { btnSecondary } from '../constants'
 import { useApp } from '../AppContext'
+import useStickyTitle from '../hooks/useStickyTitle'
 
 export function useTabFetch(fetchFn) {
   const [results, setResults] = useState([])
@@ -27,20 +28,7 @@ export function useTabFetch(fetchFn) {
 }
 
 export function SRDDetailHeader({ name, subtitle, onBack }) {
-  const backBarRef = useRef(null)
-  const nameRef = useRef(null)
-  const [showName, setShowName] = useState(false)
-
-  useEffect(() => {
-    if (!nameRef.current) return
-    const backBarH = backBarRef.current?.offsetHeight ?? 0
-    const obs = new IntersectionObserver(
-      ([e]) => setShowName(!e.isIntersecting),
-      { threshold: 0, rootMargin: `-${60 + backBarH}px 0px 0px 0px` }
-    )
-    obs.observe(nameRef.current)
-    return () => obs.disconnect()
-  }, [])
+  const { backBarRef, nameRef, showNameInHeader: showName } = useStickyTitle()
 
   return (
     <>

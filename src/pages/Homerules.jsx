@@ -1,27 +1,16 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useApp } from '../AppContext'
+import useStickyTitle from '../hooks/useStickyTitle'
 import { Tag, PageHeader, EmptyState } from '../components/Shared'
 import { isVisible, plainText } from '../helpers'
 import WikiText, { COLLECTION_LETTER } from '../components/WikiText'
 import { Hammer } from 'lucide-react'
 import { sectionTitleCls, detailTextCls, detailSectionCls, btnSecondary } from '../constants'
+import { clickable } from '../helpers/a11y'
 
 function HomeruleDetailInline({ regla, onBack }) {
   const { openForm, isDM } = useApp()
-  const backBarRef = useRef(null)
-  const nameRef = useRef(null)
-  const [showNameInHeader, setShowNameInHeader] = useState(false)
-  const HEADER_H = 60
-  useEffect(() => {
-    if (!nameRef.current) return
-    const backBarH = backBarRef.current?.offsetHeight ?? 0
-    const observer = new IntersectionObserver(
-      ([entry]) => setShowNameInHeader(!entry.isIntersecting),
-      { threshold: 0, rootMargin: `-${HEADER_H + backBarH}px 0px 0px 0px` }
-    )
-    observer.observe(nameRef.current)
-    return () => observer.disconnect()
-  }, [])
+  const { backBarRef, nameRef, showNameInHeader } = useStickyTitle()
   const icon = <Hammer size={18} className="inline mr-1 text-accent-bright" />
   return (
     <div>
@@ -102,7 +91,7 @@ export default function Homerules() {
             <div
               key={r.id}
               className="bg-bg-card border border-border-base p-[18px] cursor-pointer transition-all relative overflow-hidden animate-card-in before:absolute before:top-0 before:left-0 before:right-0 before:h-0.5 before:content-[''] before:bg-border-light before:transition-colors hover:bg-bg-card-hover hover:border-accent-dim hover:before:bg-accent"
-              onClick={() => setSelectedId(r.id)}
+              {...clickable(() => setSelectedId(r.id))}
             >
               <div className="flex items-start justify-between gap-2 mb-2.5">
                 <div className="font-exo text-[13px] font-semibold text-txt-primary tracking-[0.03em]">

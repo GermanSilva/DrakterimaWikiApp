@@ -7,6 +7,7 @@ import { buildMonthAvailabilityMap, buildMonthUnavailabilityMap, blockOverlapsDa
 import { isVisible, isUnread, readStateMap, getViewerId } from '../helpers'
 import DisponibilidadDayModal from '../components/DisponibilidadDayModal'
 import UnreadDot from '../components/UnreadDot'
+import { clickable } from '../helpers/a11y'
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre']
 const DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
@@ -69,8 +70,8 @@ export default function Calendario() {
   return (
     <div>
       <PageHeader eyebrow="Agenda" title="Calendario" subtitle={`${MESES[viewDate.month]} ${viewDate.year}`}>
-        <button className={btnSecondary} onClick={prevMonth}><ChevronLeft size={15} /></button>
-        <button className={btnSecondary} onClick={nextMonth}><ChevronRight size={15} /></button>
+        <button className={btnSecondary} onClick={prevMonth} aria-label="Mes anterior"><ChevronLeft size={15} /></button>
+        <button className={btnSecondary} onClick={nextMonth} aria-label="Mes siguiente"><ChevronRight size={15} /></button>
       </PageHeader>
 
       <div className="grid grid-cols-7 gap-1 sm:gap-1.5 mb-2">
@@ -92,7 +93,7 @@ export default function Calendario() {
           return (
             <div
               key={fecha}
-              onClick={() => setSelectedDay(fecha)}
+              {...clickable(() => setSelectedDay(fecha))}
               className={[
                 'min-h-[56px] sm:min-h-[72px] border cursor-pointer transition-colors p-1 sm:p-1.5 flex flex-col',
                 isToday ? 'border-accent-dim' : 'border-border-base',

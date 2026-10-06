@@ -101,7 +101,7 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H8 | Port PJs (ownership, player self-edit), session screen, maps | delegated (writer) | [ ] |
 | H9 | Port calendar, games, notes, homerules, unread state; DM zone → campaign settings | delegated (writer) | [ ] |
 | H10 | Campaign management: create campaign, branding, regions, custom fields, invites, members/roles | delegated (writer) | [ ] |
-| H11 | Refactors: `useStickyTitle`, split FormModal, error boundary + error toasts, a11y basics | delegated (writer) | [ ] |
+| H11 | Refactors: `useStickyTitle`, split FormModal, error boundary + error toasts, a11y basics | delegated (writer; 2+ non-trivial files) | [x] |
 | H12 | Firestore → Supabase import script (Drakterima campaign, id preservation, character claim via invites) | delegated (writer) | [ ] |
 | H13 | Vercel config (SPA rewrites, env), docs (CLAUDE.md), cutover runbook | inline | [ ] |
 | H14 | Cutover (user-owned remote steps) + Phase 2: deep feature analysis with approval stage | parent | [ ] |
@@ -185,7 +185,14 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   `npm test` (machine out of virtual memory: vitest V8 OOM, git 0xC000012D), adversarial
   sweep, commit, review. Behaviour changes to confirm: failed save keeps form open;
   FormModal focuses first field on open (mobile keyboard).
-- H3 native review: due (high_risk) but NOT started — system out of memory.
+  Closed: `npm test` 17/17 on final code; adversarial sweep (independent read-only) confirmed
+  the FormModal split is behaviour-equivalent and found 4 issues, all fixed inline: error
+  toast hidden under the form overlay (z 999 → 1100), ConfirmModal autofocused "Eliminar"
+  (now "Cancelar" via `data-autofocus`), read_state failure after a successful save invited a
+  duplicating retry (now logged only), ErrorBoundary retry could not recover from a failed
+  lazy chunk (now reloads). Checks: lint 0 errors / 60 warnings, typecheck clean, test 17/17,
+  build OK.
+
 
 ## Workflow rules (user, 2026-10-06)
 

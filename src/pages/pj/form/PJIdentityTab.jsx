@@ -1,4 +1,4 @@
-import { FormGroup, FormRow, EstadoField } from '../../../components/FormModal'
+import { FormGroup, FormRow, EstadoField } from '../../../components/forms/formFields'
 import { regionOptions, regionLabel } from '../../../helpers'
 import { useApp } from '../../../AppContext'
 import { labelCls, inputCls } from '../../../constants'

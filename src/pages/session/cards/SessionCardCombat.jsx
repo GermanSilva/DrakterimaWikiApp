@@ -150,6 +150,7 @@ export default function SessionCardCombat({ db, layout, entry, onRemove }) {
                     type="button"
                     className="text-txt-muted hover:text-accent transition-colors p-1"
                     title="Quitar combatiente"
+                    aria-label="Quitar combatiente"
                     onClick={() => removeCombatant(c.id)}
                   >
                     <Trash2 size={13} />

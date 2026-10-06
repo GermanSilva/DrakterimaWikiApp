@@ -2,6 +2,7 @@ import { useApp } from '../AppContext'
 import { RelacionTag } from '../components/Shared'
 import { isVisible, plainText } from '../helpers'
 import { Scroll, Shield, Users, Map, Landmark, BookOpen, Gem, MonitorPlay } from 'lucide-react'
+import { clickable } from '../helpers/a11y'
 
 const ARTICLE_COLLECTIONS = [
   { key: 'lugares', label: 'Lugar', Icon: Map },
@@ -78,7 +79,7 @@ export default function Dashboard() {
           <div
             key={key}
             className="bg-bg-card border border-border-base px-5 py-[18px] cursor-pointer transition-all relative overflow-hidden before:absolute before:top-0 before:left-0 before:right-0 before:h-px before:content-[''] before:bg-border-light before:transition-colors hover:border-accent-dim hover:bg-bg-card-hover hover:before:bg-accent"
-            onClick={() => navigate(key)}
+            {...clickable(() => navigate(key))}
           >
             <div className="text-[18px] mb-2.5 opacity-55">
               <Icon size={18} />
@@ -98,7 +99,7 @@ export default function Dashboard() {
           <Divider>Próxima Sesión</Divider>
           <div
             className="bg-bg-card border border-border-base border-l-[3px] border-l-accent px-[22px] py-[18px] mb-3.5 cursor-pointer"
-            onClick={() => navigate('calendario')}
+            {...clickable(() => navigate('calendario'))}
           >
             <div className="font-exo text-[12px] font-semibold tracking-[0.05em] text-txt-primary uppercase">
               📋 Sesión {lastNumero + 1} — {formatFechaCorta(nextSesionBlock.fecha_inicio)}
@@ -112,7 +113,7 @@ export default function Dashboard() {
           <Divider>Última Sesión</Divider>
           <div
             className="bg-bg-card border border-border-base border-l-[3px] border-l-accent-dim px-[22px] py-[18px] mb-3.5 cursor-pointer"
-            onClick={() => navigate('sesiones')}
+            {...clickable(() => navigate('sesiones'))}
           >
             <div className="font-exo text-[12px] font-semibold tracking-[0.05em] text-txt-primary mb-2 uppercase">
               📜 {lastSesion.titulo || `Sesión ${lastSesion.numero}`}
@@ -132,7 +133,7 @@ export default function Dashboard() {
               <div
                 key={p.id}
                 className="flex-1 min-w-[160px] max-w-[240px] bg-bg-card border border-border-base px-4 py-3.5 cursor-pointer transition-colors hover:border-accent-dim hover:bg-bg-card-hover "
-                onClick={() => goToDetail('pnjs', p.id)}
+                {...clickable(() => goToDetail('pnjs', p.id))}
               >
                 <div className="font-exo text-[13px] font-semibold text-txt-primary tracking-[0.04em] mb-1">
                   {p.nombre}
@@ -172,7 +173,7 @@ export default function Dashboard() {
                     <div
                       key={`${e._coll}-${e.id}`}
                       className="bg-bg-card border border-border-base px-[18px] py-[14px] cursor-pointer transition-all hover:border-accent-dim hover:bg-bg-card-hover"
-                      onClick={() => goToDetail(e._coll, e.id)}
+                      {...clickable(() => goToDetail(e._coll, e.id))}
                     >
                       <div className="flex items-center justify-between gap-3 mb-1">
                         <div className="flex items-center gap-1.5 text-txt-muted">

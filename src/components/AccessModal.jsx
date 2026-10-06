@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useId } from 'react'
 import DragonIcon from '../svgs/dragonIcon'
 import { Eye, EyeOff } from 'lucide-react'
 
@@ -10,6 +10,7 @@ function EyeToggle({ show, onToggle }) {
       onClick={onToggle}
       tabIndex={-1}
       title={show ? 'Ocultar' : 'Mostrar'}
+      aria-label={show ? 'Ocultar contraseña' : 'Mostrar contraseña'}
     >
       {show ? <EyeOff size={15} /> : <Eye size={15} />}
     </button>
@@ -21,6 +22,7 @@ export default function AccessModal({ onClose, onAccess }) {
   const [error, setError] = useState('')
   const [showPwd, setShowPwd] = useState(false)
   const inputRef = useRef(null)
+  const titleId = useId()
 
   useEffect(() => {
     inputRef.current?.focus()
@@ -45,11 +47,15 @@ export default function AccessModal({ onClose, onAccess }) {
       className="fixed inset-0 bg-black/75 z-[300] flex items-center justify-center backdrop-blur-[2px]"
       onClick={e => e.target === e.currentTarget && onClose()}
     >
-      <div className="bg-bg-card border border-border-base rounded-[14px] px-8 py-9 pb-7 w-[360px] max-w-[calc(100vw-32px)] flex flex-col items-center gap-2 shadow-[0_24px_64px_rgba(0,0,0,0.6)]">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        className="bg-bg-card border border-border-base rounded-[14px] px-8 py-9 pb-7 w-[360px] max-w-[calc(100vw-32px)] flex flex-col items-center gap-2 shadow-[0_24px_64px_rgba(0,0,0,0.6)]">
         <div className="mb-1">
           <DragonIcon width={80} height={80} fill="#dc2626" />
         </div>
-        <div className="font-cinzel text-[20px] text-txt-primary tracking-[0.06em]">
+        <div id={titleId} className="font-cinzel text-[20px] text-txt-primary tracking-[0.06em]">
           Drakterima
         </div>
         <div className="text-[12px] text-txt-muted text-center mb-2 leading-relaxed">
@@ -61,6 +67,7 @@ export default function AccessModal({ onClose, onAccess }) {
             className="w-full bg-bg-mid border border-border-base rounded-lg text-txt-primary text-[15px] px-3.5 py-2.5 outline-none transition-colors focus:border-accent-dim mt-1 tracking-[0.1em] pr-10"
             type={showPwd ? 'text' : 'password'}
             placeholder="Contraseña"
+            aria-label="Contraseña"
             value={pwd}
             onChange={e => { setPwd(e.target.value); setError('') }}
             onKeyDown={e => e.key === 'Enter' && handleAccess()}

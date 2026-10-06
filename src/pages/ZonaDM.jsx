@@ -114,6 +114,7 @@ export default function ZonaDM() {
                 <button
                   className="flex-shrink-0 text-txt-muted hover:text-accent transition-colors p-1"
                   title="Eliminar entrada"
+                  aria-label="Eliminar entrada"
                   onClick={() => deleteDoc(doc(firestore, 'login_logs', log.id))}
                 >
                   <Trash2 size={13} />

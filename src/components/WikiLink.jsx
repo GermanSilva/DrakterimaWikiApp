@@ -1,5 +1,6 @@
 import Tooltip from './Tooltip'
 import { LETTER_COLLECTION, COLLECTION_DISPLAY } from './wikiHelpers'
+import { clickable } from '../helpers/a11y'
 
 /**
  * Enlace individual de wiki-link con tooltip al hover.
@@ -19,7 +20,7 @@ export default function WikiLink({ id, letter, displayText, entity, page, goToDe
     <span className="group relative inline-block">
       <span
         className="text-accent-bright cursor-pointer border-b border-dashed border-accent-dim hover:text-accent hover:border-b-solid transition-colors"
-        onClick={e => { e.stopPropagation(); goToDetail(page, id) }}
+        {...clickable(e => { e.stopPropagation(); goToDetail(page, id) })}
       >
         {displayText}
       </span>

@@ -8,6 +8,7 @@ import {
   Landmark, BookOpen, Gem, NotebookPen, SlidersHorizontal, Dices, BookMarked, CalendarDays,
   PanelLeftClose, PanelLeftOpen, Hammer,
 } from 'lucide-react'
+import { clickable } from '../helpers/a11y'
 
 const UNREAD_NAV_TYPES = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items']
 
@@ -109,7 +110,7 @@ export default function Sidebar({ currentPage, counts }) {
                       ? 'bg-accent/[.1] text-accent-bright border-l-accent'
                       : 'border-l-transparent text-txt-secondary hover:bg-accent/[.06] hover:text-txt-primary hover:border-l-accent-dim',
                   ].join(' ')}
-                  onClick={() => { navigate(item.id); if (sidebarOpen) toggleSidebar() }}
+                  {...clickable(() => { navigate(item.id); if (sidebarOpen) toggleSidebar() })}
                 >
                   <Icon size={15} className="w-5 text-center flex-shrink-0" />
                   <span className="font-exo text-[11px] tracking-[0.06em] font-medium uppercase">

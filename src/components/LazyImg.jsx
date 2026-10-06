@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { clickable } from '../helpers/a11y'
 
 // containerCls must include a height class (e.g. h-[280px]) for skeleton/error overlays to be visible
 export default function LazyImg({ src, alt, className, containerCls, onClick }) {
@@ -21,7 +22,7 @@ export default function LazyImg({ src, alt, className, containerCls, onClick }) 
         decoding="async"
         onLoad={() => setStatus('loaded')}
         onError={() => setStatus('error')}
-        onClick={onClick}
+        {...(onClick ? clickable(onClick) : {})}
       />
       {status === 'error' && (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-txt-muted italic">

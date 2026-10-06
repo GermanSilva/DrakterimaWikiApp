@@ -65,6 +65,7 @@ export default function SessionCardRules({ db, onRemove }) {
                   type="button"
                   className="text-txt-muted hover:text-accent transition-colors p-1"
                   title="Eliminar regla"
+                  aria-label="Eliminar regla"
                   onClick={() => handleDelete(rule.id)}
                 >
                   <Trash2 size={13} />

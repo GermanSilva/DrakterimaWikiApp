@@ -1,4 +1,4 @@
-import { FormGroup } from '../../../components/FormModal'
+import { FormGroup } from '../../../components/forms/formFields'
 import { labelCls, inputCls } from '../../../constants'
 import { useApp } from '../../../AppContext'
 import AttacksCRUD from './AttacksCRUD'

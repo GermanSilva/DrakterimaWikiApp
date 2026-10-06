@@ -22,6 +22,7 @@ export default function SessionCardShell({ title, onRemove, onToggleAll, allExpa
               type="button"
               className="shrink-0 text-txt-muted hover:text-accent transition-colors p-1 bg-transparent border-none cursor-pointer"
               title="Quitar pestaña"
+              aria-label="Quitar pestaña"
               onClick={onRemove}
             >
               <X size={14} />

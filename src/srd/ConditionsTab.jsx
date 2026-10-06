@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { fetchConditions } from './srdApi'
 import { SRDDetailHeader, RawDataSection } from './srdCommon'
 import { sectionTitleCls, detailTextCls, detailSectionCls } from '../constants'
+import { clickable } from '../helpers/a11y'
 
 function ConditionDetail({ cond, onBack }) {
   const paragraphs = Array.isArray(cond.desc) ? cond.desc : [cond.desc].filter(Boolean)
@@ -44,7 +45,7 @@ export default function ConditionsTab() {
         {conditions.map(cond => (
           <div
             key={cond.slug}
-            onClick={() => setSelected(cond)}
+            {...clickable(() => setSelected(cond))}
             className="flex items-center px-4 py-3 border border-border-base hover:border-accent-dim hover:bg-accent/[.04] cursor-pointer transition-all"
           >
             <span className="font-exo text-[13px] font-medium text-txt-primary">{cond.name}</span>

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { fetchArmors } from './srdApi'
 import { useTabFetch, SRDDetailHeader, SRDList, RawDataSection } from './srdCommon'
 import { inputCls, detailSectionCls } from '../constants'
+import { clickable } from '../helpers/a11y'
 
 const ARMOR_CATEGORIES = ['Light Armor', 'Medium Armor', 'Heavy Armor', 'Shield']
 
@@ -79,7 +80,7 @@ export default function ArmorsTab() {
         renderItem={armor => (
           <div
             key={armor.slug}
-            onClick={() => setSelected(armor)}
+            {...clickable(() => setSelected(armor))}
             className="flex items-center justify-between px-4 py-3 border border-border-base hover:border-accent-dim hover:bg-accent/[.04] cursor-pointer transition-all"
           >
             <span className="font-exo text-[13px] font-medium text-txt-primary">{armor.name}</span>

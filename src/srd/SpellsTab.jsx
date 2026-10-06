@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { fetchSpells } from './srdApi'
 import { useTabFetch, SRDDetailHeader, SRDList, RawDataSection } from './srdCommon'
 import { inputCls, sectionTitleCls, detailTextCls, detailSectionCls } from '../constants'
+import { clickable } from '../helpers/a11y'
 
 const SCHOOLS = ['Abjuration', 'Conjuration', 'Divination', 'Enchantment', 'Evocation', 'Illusion', 'Necromancy', 'Transmutation']
 
@@ -100,7 +101,7 @@ export default function SpellsTab() {
         renderItem={spell => (
           <div
             key={spell.slug}
-            onClick={() => setSelected(spell)}
+            {...clickable(() => setSelected(spell))}
             className="flex items-center justify-between px-4 py-3 border border-border-base hover:border-accent-dim hover:bg-accent/[.04] cursor-pointer transition-all"
           >
             <span className="font-exo text-[13px] font-medium text-txt-primary">{spell.name}</span>

@@ -35,6 +35,7 @@ function HeaderSession() {
         <button
           className="flex items-center gap-1.5 border border-border-light text-txt-secondary text-[11px] font-exo font-semibold tracking-[0.08em] uppercase cursor-pointer px-3 py-1.5 rounded-md transition-colors hover:text-accent hover:border-accent-dim hover:bg-accent/[.06]"
           onClick={lockDM}
+          aria-label="Salir del modo DM"
         >
           <LogOut size={13} />
           <span className="max-md:hidden">Salir</span>
@@ -64,6 +65,7 @@ function HeaderSession() {
       <button
         className="flex items-center gap-1.5 border border-border-light text-txt-secondary text-[11px] font-exo font-semibold tracking-[0.08em] uppercase cursor-pointer px-3 py-1.5 rounded-md transition-colors hover:text-accent hover:border-accent-dim hover:bg-accent/[.06]"
         onClick={logoutPlayer}
+        aria-label="Cerrar sesión"
       >
         <LogOut size={13} />
         <span className="max-md:hidden">Salir</span>

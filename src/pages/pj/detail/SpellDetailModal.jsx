@@ -1,7 +1,11 @@
-import { useEffect } from 'react'
+import { useEffect, useId, useRef } from 'react'
+import useDialogFocus from '../../../hooks/useDialogFocus'
 import { detailSectionCls, sectionTitleCls } from '../../../constants'
 
 export default function SpellDetailModal({ spell, onClose }) {
+  const dialogRef = useRef(null)
+  const titleId = useId()
+  useDialogFocus(dialogRef)
   const levelLabel = Number(spell.nivel) === 0 ? 'Truco' : Number(spell.nivel) === 10 ? 'Habilidad' : `Nivel ${spell.nivel}`
 
   useEffect(() => {
@@ -16,12 +20,17 @@ export default function SpellDetailModal({ spell, onClose }) {
       onClick={onClose}
     >
       <div
-        className="bg-bg-card border border-border-base max-w-lg w-full mx-4 px-4 max-h-[80vh] overflow-y-auto pb-6"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="bg-bg-card border border-border-base max-w-lg w-full mx-4 px-4 max-h-[80vh] overflow-y-auto pb-6 outline-none"
         onClick={e => e.stopPropagation()}
       >
         <div className="py-4 border-b border-border-base flex items-start justify-between gap-4">
           <div>
-            <div className="font-exo text-[18px] font-bold text-txt-primary uppercase">{spell.nombre}</div>
+            <div id={titleId} className="font-exo text-[18px] font-bold text-txt-primary uppercase">{spell.nombre}</div>
             <div className="font-exo text-[11px] text-txt-muted tracking-[0.15em] uppercase mt-0.5">
               {levelLabel}
               {spell.escuela ? ` · ${spell.escuela}` : ''}
@@ -33,6 +42,7 @@ export default function SpellDetailModal({ spell, onClose }) {
             type="button"
             className="text-txt-muted hover:text-txt-primary text-xl leading-none shrink-0 border-none bg-transparent cursor-pointer mt-0.5"
             onClick={onClose}
+            aria-label="Cerrar"
           >×</button>
         </div>
 

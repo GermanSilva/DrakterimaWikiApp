@@ -4,6 +4,7 @@ import UnreadDot from '../../components/UnreadDot'
 import { Lock, Shield } from 'lucide-react'
 import { ABILITY_SCORES } from './pjConstants'
 import { abilityMod, signedBonus } from '../../helpers/pjCalc'
+import { clickable } from '../../helpers/a11y'
 
 
 function ModStatBox({ label, base }) {
@@ -26,7 +27,7 @@ export default function PJCard({ pj, unread, onClick }) {
   return (
     <div
       className="bg-bg-card border border-border-base p-[18px] cursor-pointer transition-all relative overflow-hidden animate-card-in before:absolute before:top-0 before:left-0 before:right-0 before:h-0.5 before:content-[''] before:bg-border-light before:transition-colors hover:bg-bg-card-hover hover:border-accent-dim hover:before:bg-accent"
-      onClick={onClick}
+      {...clickable(onClick)}
     >
       <UnreadDot unread={unread} className="absolute top-2 right-2" />
       <div className="flex items-start justify-between gap-2">

@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../AppContext'
-import { FormRow } from '../components/FormModal'
+import { FormRow } from '../components/forms/formFields'
 import { inputCls, labelCls, btnPrimary, btnSecondary, btnDanger } from '../constants'
 
 function today() {
@@ -9,7 +9,7 @@ function today() {
 }
 
 export default function DisponibilidadForm({ item, prefill }) {
-  const { save, remove, closeForm, currentPlayer } = useApp()
+  const { save, remove, closeForm, currentPlayer, showToast } = useApp()
   const base = prefill?.fecha ?? today()
   const [f, setF] = useState({
     fecha_inicio: item?.fecha_inicio ?? base,
@@ -30,11 +30,11 @@ export default function DisponibilidadForm({ item, prefill }) {
 
   function handleSave() {
     if (!f.fecha_inicio || !f.fecha_fin || !f.hora_inicio || !f.hora_fin) {
-      alert('Completá los 4 campos.')
+      showToast('Completá los 4 campos.', 'error')
       return
     }
     if (f.fecha_fin === f.fecha_inicio && f.hora_fin <= f.hora_inicio) {
-      alert('La hora de fin debe ser posterior a la hora de inicio.')
+      showToast('La hora de fin debe ser posterior a la hora de inicio.', 'error')
       return
     }
     const tipo = item?.tipo ?? prefill?.tipo ?? 'personal'

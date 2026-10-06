@@ -1,4 +1,5 @@
-import { useEffect } from 'react'
+import { useEffect, useId, useRef } from 'react'
+import useDialogFocus from '../../hooks/useDialogFocus'
 import { CARD_REGISTRY } from './cards/cardRegistry'
 
 // WikiLinkPicker-style modal. Lists only card types not already present in
@@ -6,6 +7,9 @@ import { CARD_REGISTRY } from './cards/cardRegistry'
 // type, including `notes` and `rules`, which the design/spec treat as
 // singleton entries per screen just like every other card type.
 export default function SessionCardPicker({ existingTypes, onSelect, onClose }) {
+  const dialogRef = useRef(null)
+  const titleId = useId()
+  useDialogFocus(dialogRef)
   useEffect(() => {
     function onKey(e) { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
@@ -24,11 +28,16 @@ export default function SessionCardPicker({ existingTypes, onSelect, onClose }) 
       onClick={onClose}
     >
       <div
-        className="w-[min(420px,92vw)] max-h-[72vh] bg-bg-card border border-border-light flex flex-col animate-fade-in"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="w-[min(420px,92vw)] max-h-[72vh] bg-bg-card border border-border-light flex flex-col animate-fade-in outline-none"
         onClick={e => e.stopPropagation()}
       >
         <div className="px-5 pt-5 pb-3 border-b border-border-base shrink-0">
-          <div className="font-exo text-[13px] font-bold uppercase tracking-[0.1em] text-txt-primary">Agregar pestaña</div>
+          <div id={titleId} className="font-exo text-[13px] font-bold uppercase tracking-[0.1em] text-txt-primary">Agregar pestaña</div>
         </div>
 
         <div className="overflow-y-auto flex-1">

@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useApp } from '../AppContext'
+import useStickyTitle from '../hooks/useStickyTitle'
 import { Tag, PageHeader, EmptyState } from '../components/Shared'
 import { DateTimeFormat, isVisible, plainText, isUnread, readStateMap, getViewerId } from '../helpers'
 import PlayerNotes from '../components/PlayerNotes'
@@ -9,6 +10,7 @@ import LazyImg from '../components/LazyImg'
 import UnreadDot from '../components/UnreadDot'
 import { Scroll } from 'lucide-react'
 import { sectionTitleCls, detailTextCls, btnSecondary, dmSectionCls, dmTitleCls } from '../constants'
+import { clickable } from '../helpers/a11y'
 
 
 function SesionDetailInline({ sesion, onBack, prevId, nextId, onNavigate }) {
@@ -16,23 +18,10 @@ function SesionDetailInline({ sesion, onBack, prevId, nextId, onNavigate }) {
   const isAvance = sesion.tipo === 'avance'
   const isPlanned = !isAvance && !sesion.logros?.trim()
   const [lightbox, setLightbox] = useState(false)
-  const backBarRef = useRef(null)
-  const nameRef = useRef(null)
-  const [showNameInHeader, setShowNameInHeader] = useState(false)
-  const HEADER_H = 60
+  const { backBarRef, nameRef, showNameInHeader } = useStickyTitle()
   useEffect(() => {
     markRead('sesiones', sesion.id)
   }, [sesion.id])
-  useEffect(() => {
-    if (!nameRef.current) return
-    const backBarH = backBarRef.current?.offsetHeight ?? 0
-    const observer = new IntersectionObserver(
-      ([entry]) => setShowNameInHeader(!entry.isIntersecting),
-      { threshold: 0, rootMargin: `-${HEADER_H + backBarH}px 0px 0px 0px` }
-    )
-    observer.observe(nameRef.current)
-    return () => observer.disconnect()
-  }, [])
   const icon = <Scroll size={18} className="inline mr-1 text-accent-bright" />
 
   return (
@@ -224,7 +213,7 @@ export default function Sesiones() {
                   <div
                     key={s.id}
                     className="relative mb-5 cursor-pointer flex gap-3"
-                    onClick={() => setSelectedId(s.id)}
+                    {...clickable(() => setSelectedId(s.id))}
                   >
                     <div className={`absolute left-[-21px] top-[5px] w-2.5 h-2.5 border-2 border-bg-mid ${isAvance
                       ? 'bg-accent/40 border-accent-dim rotate-45'

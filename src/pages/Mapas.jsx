@@ -4,12 +4,13 @@ import { isVisible } from '../helpers'
 import MapViewer from '../components/MapViewer'
 import { btnPrimary, btnSecondary, btnFilled } from '../constants'
 import { Map } from 'lucide-react'
+import { clickable } from '../helpers/a11y'
 
 function MapCard({ mapa, onSelect }) {
   return (
     <div
       className="bg-bg-mid border border-border-base rounded cursor-pointer hover:border-accent transition-colors overflow-hidden"
-      onClick={() => onSelect(mapa)}
+      {...clickable(() => onSelect(mapa))}
     >
       {mapa.imagen_url
         ? <img src={mapa.imagen_url} alt={mapa.nombre} className="w-full h-32 object-cover" onError={e => e.target.style.display = 'none'} />

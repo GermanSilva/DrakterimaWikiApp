@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useId, useRef } from 'react'
+import useDialogFocus from '../hooks/useDialogFocus'
 import { useApp } from '../AppContext'
 import { NotebookPen, Trash2, Search, X } from 'lucide-react'
 import { btnDanger, btnSecondary, btnPrimary } from '../constants'
+import { clickable } from '../helpers/a11y'
 
 const TYPE_LABELS = {
   sesiones:  'Sesión',
@@ -84,7 +86,7 @@ function NoteCard({ note, db, onOpen, onDelete, textFilter }) {
   return (
     <div
       className="bg-bg-card border border-border-base px-5 py-4 cursor-pointer transition-colors hover:border-accent-dim hover:bg-bg-card-hover"
-      onClick={onOpen}
+      {...clickable(onOpen)}
     >
       <div className="flex items-center gap-2 mb-2">
         <span className="font-exo text-[13px] font-semibold text-txt-primary tracking-[0.03em]">
@@ -111,6 +113,9 @@ function NoteCard({ note, db, onOpen, onDelete, textFilter }) {
 }
 
 function NoteDetailModal({ note, db, goToDetail, onClose }) {
+  const dialogRef = useRef(null)
+  const titleId = useId()
+  useDialogFocus(dialogRef)
   const name = entityName(db, note.type, note.entity_id)
   const label = TYPE_LABELS[note.type] || note.type
 
@@ -126,11 +131,16 @@ function NoteDetailModal({ note, db, goToDetail, onClose }) {
       onClick={onClose}
     >
       <div
-        className="bg-bg-card border border-border-base p-6 w-[min(520px,92vw)] max-h-[80vh] overflow-y-auto"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="bg-bg-card border border-border-base p-6 w-[min(520px,92vw)] max-h-[80vh] overflow-y-auto outline-none"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 mb-4">
-          <span className="font-exo text-[15px] font-bold text-txt-primary tracking-[0.03em]">{name}</span>
+          <span id={titleId} className="font-exo text-[15px] font-bold text-txt-primary tracking-[0.03em]">{name}</span>
           <span className="font-exo text-[10px] tracking-[0.15em] uppercase text-txt-muted bg-border-light px-1.5 py-0.5 rounded-sm">
             {label}
           </span>
@@ -172,6 +182,10 @@ function PageHeader() {
 }
 
 function ConfirmModal({ note, db, onConfirm, onCancel }) {
+  const dialogRef = useRef(null)
+  const titleId = useId()
+  // Focus the safe action first so a stray Enter never deletes the note.
+  useDialogFocus(dialogRef, '[data-autofocus]')
   const name = entityName(db, note.type, note.entity_id)
   const label = TYPE_LABELS[note.type] || note.type
 
@@ -187,10 +201,15 @@ function ConfirmModal({ note, db, onConfirm, onCancel }) {
       onClick={onCancel}
     >
       <div
-        className="bg-bg-card border border-border-base p-6 w-[min(380px,90vw)]"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="bg-bg-card border border-border-base p-6 w-[min(380px,90vw)] outline-none"
         onClick={e => e.stopPropagation()}
       >
-        <div className="font-exo text-[15px] font-bold text-txt-primary mb-1">
+        <div id={titleId} className="font-exo text-[15px] font-bold text-txt-primary mb-1">
           ¿Eliminar esta nota?
         </div>
         <div className="text-[13px] text-txt-muted mb-5">
@@ -199,7 +218,7 @@ function ConfirmModal({ note, db, onConfirm, onCancel }) {
         </div>
         <div className="flex gap-2.5 justify-end">
           <button className={btnDanger} onClick={onConfirm}>Eliminar</button>
-          <button className={btnSecondary} onClick={onCancel}>Cancelar</button>
+          <button className={btnSecondary} onClick={onCancel} data-autofocus>Cancelar</button>
         </div>
       </div>
     </div>

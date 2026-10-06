@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { fetchWeapons } from './srdApi'
 import { useTabFetch, SRDDetailHeader, SRDList, RawDataSection } from './srdCommon'
 import { inputCls, detailSectionCls } from '../constants'
+import { clickable } from '../helpers/a11y'
 
 const WEAPON_CATEGORIES = [
   'Simple Melee Weapons',
@@ -75,7 +76,7 @@ export default function WeaponsTab() {
         renderItem={weapon => (
           <div
             key={weapon.slug}
-            onClick={() => setSelected(weapon)}
+            {...clickable(() => setSelected(weapon))}
             className="flex items-center justify-between px-4 py-3 border border-border-base hover:border-accent-dim hover:bg-accent/[.04] cursor-pointer transition-all"
           >
             <span className="font-exo text-[13px] font-medium text-txt-primary">{weapon.name}</span>

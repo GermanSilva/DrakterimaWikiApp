@@ -1,4 +1,4 @@
-import { FormGroup, FormRow } from '../../../components/FormModal'
+import { FormGroup, FormRow } from '../../../components/forms/formFields'
 import { labelCls, inputCls } from '../../../constants'
 import { ABILITY_SCORES } from '../pjConstants'
 import { abilityMod, passivePerception, suggestedProfBonus } from '../../../helpers/pjCalc'

@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { fetchMonsters } from './srdApi'
 import { useTabFetch, SRDDetailHeader, SRDList, RawDataSection } from './srdCommon'
 import { inputCls, sectionTitleCls, detailTextCls, detailSectionCls } from '../constants'
+import { clickable } from '../helpers/a11y'
 
 const CR_OPTIONS = [
   { label: '0', value: '0' },
@@ -166,7 +167,7 @@ export default function MonstersTab() {
         renderItem={monster => (
           <div
             key={monster.slug}
-            onClick={() => setSelected(monster)}
+            {...clickable(() => setSelected(monster))}
             className="flex items-center justify-between px-4 py-3 border border-border-base hover:border-accent-dim hover:bg-accent/[.04] cursor-pointer transition-all"
           >
             <span className="font-exo text-[13px] font-medium text-txt-primary">{monster.name}</span>

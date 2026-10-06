@@ -1,8 +1,10 @@
-import { useEffect } from 'react'
+import { useEffect, useId, useRef } from 'react'
 import { useApp } from '../AppContext'
+import useDialogFocus from '../hooks/useDialogFocus'
 import { X, Plus } from 'lucide-react'
 import { clipBlockToDay } from '../helpers/disponibilidadCalc'
 import { btnPrimary, btnDanger, btnSecondary, PLAYER_MARKERS } from '../constants'
+import { clickable } from '../helpers/a11y'
 
 const HOUR_MARKS = [6, 9, 12, 15, 18, 21, 0, 3, 6]
 const HOUR_LINES = Array.from({ length: 23 }, (_, i) => (i + 1) * 60)
@@ -49,7 +51,7 @@ function TimelineRow({ label, blocks, fecha, onBlockClick, color = SESION_COLOR,
               return (
                 <div
                   key={b.id}
-                  onClick={onBlockClick ? () => onBlockClick(b) : undefined}
+                  {...(onBlockClick ? clickable(() => onBlockClick(b)) : {})}
                   className={`absolute top-0 h-full flex items-center justify-center overflow-visible font-exo text-[9px] font-semibold whitespace-nowrap ${onBlockClick ? 'cursor-pointer hover:brightness-110' : ''}`}
                   style={{
                     left: `${(seg.startMin / 1440) * 100}%`,
@@ -72,6 +74,9 @@ function TimelineRow({ label, blocks, fecha, onBlockClick, color = SESION_COLOR,
 
 export default function DisponibilidadDayModal({ fecha, onClose }) {
   const { db, isDM, currentPlayer, openForm, save, remove } = useApp()
+  const dialogRef = useRef(null)
+  const titleId = useId()
+  useDialogFocus(dialogRef)
   const bloques = db.disponibilidad || []
   const sesionBlocks = bloques.filter(b => b.tipo === 'sesion')
   const isPjUnavailable = pjId => bloques.some(b => b.tipo === 'no_disponible' && b.pj_id === pjId && b.fecha === fecha)
@@ -99,14 +104,19 @@ export default function DisponibilidadDayModal({ fecha, onClose }) {
       onClick={onClose}
     >
       <div
-        className="w-[min(760px,92vw)] max-h-[85vh] overflow-y-auto bg-bg-card border border-border-light p-6"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="w-[min(760px,92vw)] max-h-[85vh] overflow-y-auto bg-bg-card border border-border-light p-6 outline-none"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
-          <div className="font-exo text-[16px] font-bold text-txt-primary uppercase tracking-[0.05em]">
+          <div id={titleId} className="font-exo text-[16px] font-bold text-txt-primary uppercase tracking-[0.05em]">
             {formatFechaLarga(fecha)}
           </div>
-          <button onClick={onClose} className="text-txt-muted hover:text-txt-primary transition-colors cursor-pointer">
+          <button type="button" aria-label="Cerrar" onClick={onClose} className="text-txt-muted hover:text-txt-primary transition-colors cursor-pointer">
             <X size={18} />
           </button>
         </div>

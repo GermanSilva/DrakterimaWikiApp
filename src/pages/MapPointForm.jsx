@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useApp } from '../AppContext'
-import { FormGroup, FormRow, EstadoField } from '../components/FormModal'
+import { FormGroup, FormRow, EstadoField } from '../components/forms/formFields'
 import { inputCls, labelCls, btnPrimary, btnSecondary, btnDanger } from '../constants'
 
 const LINK_TYPES = [

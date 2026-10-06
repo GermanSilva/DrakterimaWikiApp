@@ -39,6 +39,9 @@ export default function WikiLinkPicker({ onInsert, onClose }) {
       onClick={onClose}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label="Insertar enlace a un artículo"
         className="w-[min(480px,92vw)] max-h-[72vh] bg-bg-card border border-border-light flex flex-col animate-fade-in"
         onClick={e => e.stopPropagation()}
       >
@@ -48,6 +51,7 @@ export default function WikiLinkPicker({ onInsert, onClose }) {
             ref={inputRef}
             className={inputCls}
             placeholder="Buscar artículo..."
+            aria-label="Buscar artículo"
             value={query}
             onChange={e => setQuery(e.target.value)}
           />

@@ -13,6 +13,7 @@ import Sidebar from './components/Sidebar'
 import DetailPanel from './components/DetailPanel'
 import FormModal from './components/FormModal'
 import Toast from './components/Toast'
+import ErrorBoundary from './components/ErrorBoundary'
 import Dashboard from './pages/Dashboard'
 import Notas from './pages/Notas'
 import ZonaDM from './pages/ZonaDM'
@@ -84,6 +85,8 @@ export default function App() {
   const [detail, setDetail] = useState(null)
   const [form, setForm] = useState(null)
   const [toastMsg, setToastMsg] = useState('')
+  const [toastVariant, setToastVariant] = useState('success')
+  const toastTimerRef = useRef(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => localStorage.getItem('drakterima_sidebar_collapsed') === '1')
   const [pendingDetail, setPendingDetail] = useState(null)
@@ -137,14 +140,22 @@ export default function App() {
     return () => document.removeEventListener('keydown', onKey)
   }, [form, detail])
 
-  function showToast(msg) {
+  function showToast(msg, variant = 'success') {
     setToastMsg(msg)
-    setTimeout(() => setToastMsg(''), 2500)
+    setToastVariant(variant)
+    clearTimeout(toastTimerRef.current)
+    toastTimerRef.current = setTimeout(() => setToastMsg(''), variant === 'error' ? 5000 : 2500)
+  }
+
+  // Logs the failure and surfaces it to the user instead of failing silently.
+  function reportError(userMsg, err) {
+    console.error(userMsg, err)
+    showToast(userMsg, 'error')
   }
 
   function unlockDM(password) {
     const dmPass = import.meta.env.VITE_DM_PASSWORD
-    if (!dmPass) { alert('No hay contraseña DM configurada.'); return false }
+    if (!dmPass) { showToast('No hay contraseña DM configurada.', 'error'); return false }
     if (password === dmPass) {
       sessionStorage.removeItem('drakterima_player')
       setCurrentPlayer(null)
@@ -176,7 +187,7 @@ export default function App() {
     setDoc(doc(firestore, 'login_logs', logId), {
       id: logId, playerId: pj.id, playerName: pj.nombre,
       timestamp: new Date().toISOString(),
-    })
+    }).catch(err => console.error('No se pudo registrar el acceso', err))
     return { success: true }
   }
 
@@ -188,13 +199,21 @@ export default function App() {
 
   async function savePlayerNote(pj_id, type, entity_id, text) {
     const docId = `${pj_id}_${type}_${entity_id}`
-    await setDoc(doc(firestore, 'player_notes', docId), { id: docId, pj_id, type, entity_id, text })
-    showToast('Nota guardada')
+    try {
+      await setDoc(doc(firestore, 'player_notes', docId), { id: docId, pj_id, type, entity_id, text })
+      showToast('Nota guardada')
+    } catch (err) {
+      reportError('No se pudo guardar la nota', err)
+    }
   }
 
   async function deletePlayerNote(note_id) {
-    await deleteDoc(doc(firestore, 'player_notes', note_id))
-    showToast('Nota eliminada')
+    try {
+      await deleteDoc(doc(firestore, 'player_notes', note_id))
+      showToast('Nota eliminada')
+    } catch (err) {
+      reportError('No se pudo eliminar la nota', err)
+    }
   }
 
   async function saveGameResult(actorType, pjId, roll) {
@@ -285,16 +304,25 @@ export default function App() {
   }
 
   async function saveSessionScreen(layout) {
-    await setDoc(doc(firestore, 'game_config', 'session_screen'), { ...layout, id: 'session_screen' }, { merge: true })
+    try {
+      await setDoc(doc(firestore, 'game_config', 'session_screen'), { ...layout, id: 'session_screen' }, { merge: true })
+    } catch (err) {
+      reportError('No se pudo guardar la pantalla de sesión', err)
+    }
   }
 
+  // Read-state tracking is background bookkeeping: log failures, don't toast.
   async function markRead(type, entityId) {
     const viewerId = getViewerId(isDM, currentPlayer)
     if (!viewerId) return
     const docId = `${viewerId}_${type}_${entityId}`
-    await setDoc(doc(firestore, 'read_state', docId), {
-      id: docId, viewerId, type, entityId, seenAt: new Date().toISOString(),
-    }, { merge: true })
+    try {
+      await setDoc(doc(firestore, 'read_state', docId), {
+        id: docId, viewerId, type, entityId, seenAt: new Date().toISOString(),
+      }, { merge: true })
+    } catch (err) {
+      console.error('No se pudo marcar como leído', err)
+    }
   }
 
   async function markSectionRead(pjId, sectionKey) {
@@ -304,7 +332,11 @@ export default function App() {
     const updatedTs = (db.pjs || []).find(p => p.id === pjId)?.sections_updated?.[sectionKey]
     const seenAt = updatedTs && updatedTs > now ? updatedTs : now
     const [ref, data] = sectionReadEntry(viewerId, pjId, sectionKey, seenAt)
-    await setDoc(ref, data, { merge: true })
+    try {
+      await setDoc(ref, data, { merge: true })
+    } catch (err) {
+      console.error('No se pudo marcar la sección como leída', err)
+    }
   }
 
   function tryAccess(password) {
@@ -354,7 +386,7 @@ export default function App() {
         const parsed = JSON.parse(e.target.result)
         const keys = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items']
         if (!keys.some(k => Array.isArray(parsed[k]))) {
-          alert('Archivo inválido: no contiene datos de Drakterima.')
+          showToast('Archivo inválido: no contiene datos de Drakterima.', 'error')
           return
         }
         if (!confirm('¿Reemplazar todos los datos actuales con los del archivo importado? Esta acción no se puede deshacer.')) return
@@ -367,14 +399,14 @@ export default function App() {
         }
         await batch.commit()
         showToast('Datos importados')
-      } catch {
-        alert('Error al leer el archivo JSON.')
+      } catch (err) {
+        reportError('Error al importar el archivo JSON.', err)
       }
     }
     reader.readAsText(file)
   }
 
-  async function save(type, data) {
+  async function persist(type, data) {
     const isNew = data.id == null
     const id = data.id ?? nextId(db[type] || [])
     const now = new Date().toISOString()
@@ -398,11 +430,26 @@ export default function App() {
     }
     if (type !== 'pjs' && UNREAD_TYPES.includes(type)) {
       if (viewerId) {
+        // Bookkeeping only: the entity is already saved, so a failure here must not
+        // surface as a save error (a retry would create a duplicate entity).
         const readDocId = `${viewerId}_${type}_${id}`
-        await setDoc(doc(firestore, 'read_state', readDocId), {
-          id: readDocId, viewerId, type, entityId: id, seenAt: now,
-        }, { merge: true })
+        try {
+          await setDoc(doc(firestore, 'read_state', readDocId), {
+            id: readDocId, viewerId, type, entityId: id, seenAt: now,
+          }, { merge: true })
+        } catch (err) {
+          console.error('Failed to update read_state after save', err)
+        }
       }
+    }
+  }
+
+  async function save(type, data) {
+    try {
+      await persist(type, data)
+    } catch (err) {
+      reportError('No se pudo guardar. Intentá de nuevo.', err)
+      return
     }
     setForm(null)
     showToast('Guardado')
@@ -410,7 +457,12 @@ export default function App() {
 
   async function remove(type, id) {
     if (!confirm('¿Eliminar este registro?')) return
-    await deleteDoc(doc(firestore, type, String(id)))
+    try {
+      await deleteDoc(doc(firestore, type, String(id)))
+    } catch (err) {
+      reportError('No se pudo eliminar. Intentá de nuevo.', err)
+      return
+    }
     setForm(null)
     setDetail(null)
     showToast('Eliminado')
@@ -515,14 +567,16 @@ export default function App() {
           />
         )}
         <main className={`${sidebarCollapsed ? 'md:ml-0' : 'md:ml-[240px]'} max-md:ml-0 transition-[margin] duration-[250ms] ease-in-out flex-1 min-w-0 py-8 ${page === 'mapas' || page === 'sessionScreen' ? '' : 'px-10 max-md:p-5 max-w-[1100px]'}`}>
-          <Suspense fallback={<div className="p-10 text-center text-txt-muted">Cargando…</div>}>
-            <PageComponent />
-          </Suspense>
+          <ErrorBoundary key={page}>
+            <Suspense fallback={<div className="p-10 text-center text-txt-muted">Cargando…</div>}>
+              <PageComponent />
+            </Suspense>
+          </ErrorBoundary>
         </main>
       </div>
       {detail && <DetailPanel detail={detail} />}
       {form && <FormModal form={form} />}
-      {toastMsg && <Toast message={toastMsg} />}
+      {toastMsg && <Toast message={toastMsg} variant={toastVariant} />}
     </AppContext.Provider>
   )
 }

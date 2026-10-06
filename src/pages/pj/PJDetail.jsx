@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, useMemo } from 'react'
 import { useApp } from '../../AppContext'
+import useStickyTitle, { HEADER_H } from '../../hooks/useStickyTitle'
 import { Tag, RegionTag } from '../../components/Shared'
 import PlayerNotes from '../../components/PlayerNotes'
 import WikiText from '../../components/WikiText'
@@ -86,15 +87,11 @@ export default function PJDetail({ pj, onEdit, onDelete, onBack }) {
   }, [pj.id, unreadKey])
 
   const sentinelRef = useRef(null)
-  const backBarRef = useRef(null)
   const stickyNavRef = useRef(null)
-  const nameRef = useRef(null)
   const [showStickyNav, setShowStickyNav] = useState(false)
-  const [showNameInHeader, setShowNameInHeader] = useState(false)
+  const { backBarRef, nameRef, showNameInHeader } = useStickyTitle()
   const [lightbox, setLightbox] = useState(false)
   const hasNav = visibleSections.length > 0 || hasDMNotes
-
-  const HEADER_H = 60
 
   function scrollTo(id) {
     const el = document.getElementById(`${SECTION_ID_PREFIX}${id}`)
@@ -116,17 +113,6 @@ export default function PJDetail({ pj, onEdit, onDelete, onBack }) {
     observer.observe(sentinelRef.current)
     return () => observer.disconnect()
   }, [hasNav])
-
-  useEffect(() => {
-    if (!nameRef.current) return
-    const backBarH = backBarRef.current?.offsetHeight ?? 0
-    const observer = new IntersectionObserver(
-      ([entry]) => setShowNameInHeader(!entry.isIntersecting),
-      { threshold: 0, rootMargin: `-${HEADER_H + backBarH}px 0px 0px 0px` }
-    )
-    observer.observe(nameRef.current)
-    return () => observer.disconnect()
-  }, [])
 
   const navButtons = (
     <>

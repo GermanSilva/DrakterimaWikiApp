@@ -26,6 +26,7 @@ export default function SortableCardItem({ id, children }) {
         {...listeners}
         className="shrink-0 mt-5 text-txt-muted hover:text-accent-bright cursor-grab active:cursor-grabbing bg-transparent border-none p-1 touch-none"
         title="Arrastrar para reordenar"
+        aria-label="Arrastrar para reordenar"
       >
         <GripVertical size={16} />
       </button>

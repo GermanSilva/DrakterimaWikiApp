@@ -1,4 +1,5 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
+import useDialogFocus from '../hooks/useDialogFocus'
 
 /**
  * Modal de imagen a pantalla completa.
@@ -8,6 +9,8 @@ import { useEffect } from 'react'
  *   onClose — callback para cerrar
  */
 export default function ImageLightbox({ src, alt, onClose }) {
+  const dialogRef = useRef(null)
+  useDialogFocus(dialogRef)
   useEffect(() => {
     function onKey(e) {
       if (e.key === 'Escape') onClose()
@@ -18,7 +21,12 @@ export default function ImageLightbox({ src, alt, onClose }) {
 
   return (
     <div
-      className="fixed inset-0 bg-black/[.88] z-[400] flex items-center justify-center backdrop-blur-sm"
+      ref={dialogRef}
+      role="dialog"
+      aria-modal="true"
+      aria-label={alt || 'Imagen ampliada'}
+      tabIndex={-1}
+      className="fixed inset-0 bg-black/[.88] z-[400] flex items-center justify-center backdrop-blur-sm outline-none"
       onClick={onClose}
     >
       <img
