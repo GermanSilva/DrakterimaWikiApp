@@ -310,8 +310,8 @@ select is(
 
 select is(
   (select count(*) from public.campaign_invites where campaign_id = 'dddddddd-0000-4000-8000-00000000000b'),
-  1::bigint,
-  'the DM of B reads the invites of B');
+  3::bigint,
+  'the DM of B reads the invites of B (one player invite, two DM invites)');
 
 ------------------------------------------------------------------------------
 -- Leaving, removing, last DM

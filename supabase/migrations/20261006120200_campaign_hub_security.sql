@@ -407,17 +407,18 @@ begin
     v_char_exists := found;
   end if;
 
-  if v_char_exists and v_char_owner is not null and v_char_owner <> v_uid then
-    raise exception 'character_already_claimed';
-  end if;
-
   -- Existing member with nothing left to claim: succeed without side effects.
   if not (v_is_member and (not v_char_exists or coalesce(v_char_owner = v_uid, false))) then
+    -- Validate the invite itself first, so an expired/exhausted code never reveals
+    -- whether its character is already owned.
     if v_invite.expires_at is not null and v_invite.expires_at <= now() then
       raise exception 'invite_expired';
     end if;
     if v_invite.uses >= v_invite.max_uses then
       raise exception 'invite_exhausted';
+    end if;
+    if v_char_exists and v_char_owner is not null and v_char_owner <> v_uid then
+      raise exception 'character_already_claimed';
     end if;
 
     if not v_is_member then
