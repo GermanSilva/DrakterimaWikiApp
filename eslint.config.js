@@ -21,6 +21,8 @@ export default tseslint.config(
       ...Object.fromEntries(
         Object.entries(reactHooks.configs.recommended.rules).map(([k, v]) => [k, v === 'error' || v === 2 ? 'warn' : v]),
       ),
+      // Real runtime bugs: keep these as errors even though the rest of the preset is downgraded.
+      'react-hooks/rules-of-hooks': 'error',
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
