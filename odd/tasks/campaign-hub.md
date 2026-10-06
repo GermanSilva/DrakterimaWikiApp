@@ -140,6 +140,9 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   Native review on slice `c4cd3ea..f60744d`: medium, granted → approved, acknowledged
   (lineage `review-984a98ae4b0fb96a`, burned); boundary → `f60744d`.
   Carried into H3: add `supabase/seed.sql` (config seeds it); document Google env vars.
+- Stop-hook review of the whole branch `4b12d60..8322a47` (user granted): approved,
+  acknowledged (lineage `review-3e6d2b2a66b1a959`, burned). New advisory carried into
+  H3: eslint preset downgrade misses array-form severities (`['error', {...}]`).
 
 ## Workflow rules (user, 2026-10-06)
 
