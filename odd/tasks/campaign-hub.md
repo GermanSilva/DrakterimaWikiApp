@@ -94,7 +94,7 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H1 | Tooling: ESLint, Vitest, TS config (`allowJs`), `npm run lint/test` scripts | delegated (writer; 2+ non-trivial files) | [x] |
 | H2 | `supabase init`, auth config (magic link, Google provider via env), `.env.example` | inline (1 mechanical file) | [x] (env example deferred, see progress) |
 | H3 | Schema + RLS migrations (identity, campaigns, members, invites, all entity tables, DM-private data, notes, read state, calendar, games, maps, session screen, homebrew) + pgTAP RLS tests | delegated (writer; 2+ non-trivial files) | [x] |
-| H3b | Hide `visible_to` from players: column-level SELECT excludes it; DM reads it through a DM-only RPC; pgTAP proves players get 42501 and Realtime does not ship it | delegated (writer) | [x] |
+| H3b | Hide `visible_to` from players: column-level SELECT excludes it; DM reads it through a DM-only RPCs; pgTAP proves players get 42501 and local Realtime `apply_rls` strips it | delegated (writer) | [x] |
 | H11b | Modal close safety: shared `useBackdropClose` (close only when pointer-down AND click both land on the backdrop), applied to every modal backdrop; visible close button in every modal; tests | delegated (writer) | [ ] |
 | H4 | Typed data layer: Supabase client, repositories (create/update/remove), realtime subscription hook, schemas | delegated (writer) | [ ] |
 | H5 | Auth: provider, login page (magic link + Google), session, profile | delegated (writer) | [ ] |
@@ -216,6 +216,11 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   Adversarial sweep: no severe leak; fixed an owner equal-value UPDATE oracle on own
   `pjs.visible_to` (now privilege-denied for any value), discriminating test messages, RPC cap,
   default privileges. Checks: `supabase test db` **192/192 PASS** (re-run by parent), lint 0 errors.
+  Native review (`85052bd..116169e`): medium, granted → reliability → **approved**, acknowledged
+  (lineage `review-b33c5b9b3691b851`, burned). Follow-up tests added: DM writes pjs/mapas visibility
+  through the RPC (guard + map_points effect), observable `realtime.apply_rls` call proving the UPDATE
+  payload has no `visible_to` (local server only; recheck hosted), `pg_default_acl` closed.
+  `supabase test db` **205/205 PASS**.
 
 ## Product decisions (user, 2026-10-06)
 

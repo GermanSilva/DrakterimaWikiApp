@@ -3,7 +3,7 @@
 -- Self-contained fixture, rolled back at the end.
 begin;
 
-select plan(55);
+select plan(68);
 
 ------------------------------------------------------------------------------
 -- Inline helpers
@@ -152,6 +152,63 @@ select ok(
   and not has_function_privilege('public', 'public.get_entity_visibility(text, bigint[])', 'EXECUTE')
   and has_function_privilege('authenticated', 'public.get_entity_visibility(text, bigint[])', 'EXECUTE'),
   'only authenticated can execute get_entity_visibility');
+
+------------------------------------------------------------------------------
+-- Realtime: apply_rls (the function the Realtime server runs for every postgres_changes event)
+-- must not ship visible_to to a subscriber. Observable check with a synthetic wal2json record
+-- for an UPDATE on lugares 91003 (secreto, visible to p1's character), as p1's claims.
+------------------------------------------------------------------------------
+insert into realtime.subscription (subscription_id, entity, claims) values
+  ('cccccccc-0000-4000-8000-000000000001', 'public.lugares'::regclass,
+   '{"role":"authenticated","sub":"bbbbbbbb-0000-4000-8000-000000000002"}'::jsonb);
+
+create temp table rt_out as
+select * from realtime.apply_rls($${
+  "schema": "public", "table": "lugares", "action": "U",
+  "timestamp": "2026-01-01 00:00:00+00",
+  "columns": [
+    {"name": "id", "type": "int8", "typeoid": 20, "value": 91003},
+    {"name": "campaign_id", "type": "uuid", "typeoid": 2950, "value": "dddddddd-0000-4000-8000-00000000000a"},
+    {"name": "nombre", "type": "text", "typeoid": 25, "value": "renamed"},
+    {"name": "visible_to", "type": "_int8", "typeoid": 1016, "value": "{90001,90002}"}
+  ],
+  "identity": [{"name": "id", "type": "int8", "typeoid": 20, "value": 91003}],
+  "pk": [{"name": "id", "type": "int8", "typeoid": 20}]
+}$$::jsonb);
+
+select is(
+  (select subscription_ids from rt_out where wal is not null and subscription_ids <> '{}' limit 1),
+  array['cccccccc-0000-4000-8000-000000000001'::uuid],
+  'apply_rls delivers the update to the player who can see the row (the check is not vacuous)');
+
+select ok(
+  (select bool_and(wal -> 'record' ? 'nombre') from rt_out where subscription_ids <> '{}'),
+  'the delivered record carries the selectable columns');
+
+select ok(
+  (select bool_and(not (wal -> 'record' ? 'visible_to')) from rt_out where subscription_ids <> '{}'),
+  'the delivered record has no visible_to key');
+
+select ok(
+  (select bool_and(not (wal -> 'columns') @> '[{"name": "visible_to"}]'::jsonb)
+     from rt_out where subscription_ids <> '{}'),
+  'the delivered column list does not mention visible_to');
+
+------------------------------------------------------------------------------
+-- Default privileges: no default table / sequence grants to anon or authenticated
+------------------------------------------------------------------------------
+select is(
+  (select count(*)
+     from pg_default_acl d
+     join pg_namespace n on n.oid = d.defaclnamespace
+    where n.nspname = 'public'
+      and d.defaclrole = 'postgres'::regrole
+      and d.defaclobjtype in ('r', 'S')
+      and exists (
+        select 1 from aclexplode(d.defaclacl) a
+         where a.grantee in ('anon'::regrole, 'authenticated'::regrole))),
+  0::bigint,
+  'no default table or sequence privileges for anon/authenticated in schema public');
 
 ------------------------------------------------------------------------------
 -- Player p1 (player in A, owns 90001; DM in B)
@@ -323,6 +380,16 @@ select is(
   'DM reads pjs.visible_to through the RPC');
 
 select is(
+  public.set_entity_visibility('pjs', 90002, array[90001]),
+  array[90001]::bigint[],
+  'DM writes pjs.visible_to through the RPC (guard_pj_player_update does not block it)');
+
+select is(
+  (select visible_to from public.get_entity_visibility('pjs', array[90002])),
+  array[90001]::bigint[],
+  'get_entity_visibility reflects the pjs write');
+
+select is(
   (select count(*) from public.get_entity_visibility('lugares', null)),
   0::bigint,
   'null id list yields nothing');
@@ -420,6 +487,49 @@ select is(
      from public.lugares where campaign_id = 'dddddddd-0000-4000-8000-00000000000a'),
   array['A publicado', 'DM created'],
   'the player view follows the DM''s visible_to edits (91003 removed, the new row aimed at 90001 added)');
+
+-- Map scenario: DM turns a public map secreto, then shares it with p1's character and revokes it.
+select tests.as_user('bbbbbbbb-0000-4000-8000-000000000001');
+
+select is(
+  tests.affected($$update public.mapas set estado = 'secreto' where id = 92001$$),
+  1::bigint,
+  'DM sets the map to secreto through the table (estado is still writable)');
+
+select tests.as_user('bbbbbbbb-0000-4000-8000-000000000002');
+
+select is(
+  (select array_agg(id order by id) from public.map_points where map_id = 92001),
+  null::bigint[],
+  'p1 does not see the points of a secreto map that is not shared with them');
+
+select tests.as_user('bbbbbbbb-0000-4000-8000-000000000001');
+
+select is(
+  public.set_entity_visibility('mapas', 92001, array[90001]),
+  array[90001]::bigint[],
+  'DM shares the map with p1''s character through the RPC');
+
+select tests.as_user('bbbbbbbb-0000-4000-8000-000000000002');
+
+select is(
+  (select array_agg(id order by id) from public.map_points where map_id = 92001),
+  array[92102]::bigint[],
+  'p1 now sees the map''s publicado points');
+
+select tests.as_user('bbbbbbbb-0000-4000-8000-000000000001');
+
+select is(
+  public.set_entity_visibility('mapas', 92001, '{}'),
+  '{}'::bigint[],
+  'DM removes the character again');
+
+select tests.as_user('bbbbbbbb-0000-4000-8000-000000000002');
+
+select is(
+  (select array_agg(id order by id) from public.map_points where map_id = 92001),
+  null::bigint[],
+  'p1 no longer sees the points');
 
 select * from finish();
 rollback;
