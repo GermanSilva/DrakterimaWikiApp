@@ -18,8 +18,14 @@ export default tseslint.config(
     rules: {
       // Capitalized names are ignored because core no-unused-vars cannot see JSX usage.
       'no-unused-vars': ['warn', { varsIgnorePattern: '^[A-Z_]', argsIgnorePattern: '^_', caughtErrors: 'none' }],
+      // Downgrade the preset to warnings. Severity may be a string/number or the array form
+      // `['error', {...options}]`; both are rewritten, options are preserved.
       ...Object.fromEntries(
-        Object.entries(reactHooks.configs.recommended.rules).map(([k, v]) => [k, v === 'error' || v === 2 ? 'warn' : v]),
+        Object.entries(reactHooks.configs.recommended.rules).map(([k, v]) => {
+          const [severity, ...options] = Array.isArray(v) ? v : [v]
+          const downgraded = severity === 'error' || severity === 2 ? 'warn' : severity
+          return [k, Array.isArray(v) ? [downgraded, ...options] : downgraded]
+        }),
       ),
       // Real runtime bugs: keep these as errors even though the rest of the preset is downgraded.
       'react-hooks/rules-of-hooks': 'error',

@@ -93,7 +93,7 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H0 | Feature branch + this document + Engram mirror | inline | [x] |
 | H1 | Tooling: ESLint, Vitest, TS config (`allowJs`), `npm run lint/test` scripts | delegated (writer; 2+ non-trivial files) | [x] |
 | H2 | `supabase init`, auth config (magic link, Google provider via env), `.env.example` | inline (1 mechanical file) | [x] (env example deferred, see progress) |
-| H3 | Schema + RLS migrations (identity, campaigns, members, invites, all entity tables, DM-private data, notes, read state, calendar, games, maps, session screen, homebrew) + pgTAP RLS tests | delegated (writer) | [ ] |
+| H3 | Schema + RLS migrations (identity, campaigns, members, invites, all entity tables, DM-private data, notes, read state, calendar, games, maps, session screen, homebrew) + pgTAP RLS tests | delegated (writer; 2+ non-trivial files) | [~] written, DB-unverified |
 | H4 | Typed data layer: Supabase client, repositories (create/update/remove), realtime subscription hook, schemas | delegated (writer) | [ ] |
 | H5 | Auth: provider, login page (magic link + Google), session, profile | delegated (writer) | [ ] |
 | H6 | Router + hub shell: campaign list, `/c/:slug` layout, campaign context replacing App.jsx god-state, lazy pages | delegated (writer) | [ ] |
@@ -144,9 +144,32 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   acknowledged (lineage `review-3e6d2b2a66b1a959`, burned). New advisory carried into
   H3: eslint preset downgrade misses array-form severities (`['error', {...}]`).
 
+- H3 (draft, written while Docker was unavailable): 3 migrations
+  (`supabase/migrations/20261006120000_campaign_hub_core.sql`, `..._entities.sql`,
+  `..._security.sql`), `supabase/seed.sql`, 3 pgTAP files (135 assertions). 21 tables, RLS
+  on all; RPCs `create_campaign`, `accept_invite`, `play_loteria`,
+  `assign_pot_to_character`. Design: `campaign_config(key, value, visibility)` for
+  loteria/session_screen; DM-only fields in `entity_dm_notes`; type-specific fields in
+  `data jsonb`, filter/sort fields promoted; coins in `pjs.monedas` /
+  `pjs.monedas_guardado` columns; player PJ edits limited to identity fields by
+  `guard_pj_player_update`; `login_logs` dropped; ids global per table (single Firestore
+  import; future imports remap). eslint array-form downgrade fixed.
+  Adversarial sweep (independent read-only reviewer): no critical hole; 20 findings, all
+  actionable ones applied (map_points leak via hidden map, invite PJ-claim race, last-DM
+  lock + explicit account-deletion block, safe coin parsing + pot upsert, coins out of
+  `data`, entity_dm_notes out of realtime, campaign cap + reserved slugs, DM invites
+  single-use + 7d expiry, player_notes character check, immutable id/created_by,
+  handle_new_user caps, accept_invite return shape, default EXECUTE revoke, vacuous test
+  fixed, new tests).
+  **NOT RUN:** `supabase db reset`, `supabase test db` (no Docker). Stays `[~]` until green.
+  Open questions for the user: players can read `visible_to`; lottery roll is now
+  server-side (Dice3D animates to returned roll); no `delete_campaign` / add-member RPC;
+  sole-DM account deletion blocked by default (product default chosen by parent).
+
 ## Workflow rules (user, 2026-10-06)
 
-- Consent for all native reviews is granted for this session.
+- Consent for all native reviews is granted durably until the user revokes it
+  (Engram `workflow/review-consent-standing`); run the `granted` invocation without asking.
 - Every task gets an adversarial read-only sweep of its diff before the work-unit
   commit; confirmed findings are fixed first. Recorded per task below.
 
