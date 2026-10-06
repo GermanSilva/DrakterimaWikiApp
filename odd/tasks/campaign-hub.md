@@ -92,7 +92,7 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 |----|------|-------|--------|
 | H0 | Feature branch + this document + Engram mirror | inline | [x] |
 | H1 | Tooling: ESLint, Vitest, TS config (`allowJs`), `npm run lint/test` scripts | delegated (writer; 2+ non-trivial files) | [x] |
-| H2 | `supabase init`, auth config (magic link, Google provider via env), `.env.example` | inline | [ ] |
+| H2 | `supabase init`, auth config (magic link, Google provider via env), `.env.example` | inline (1 mechanical file) | [x] (env example deferred, see progress) |
 | H3 | Schema + RLS migrations (identity, campaigns, members, invites, all entity tables, DM-private data, notes, read state, calendar, games, maps, session screen, homebrew) + pgTAP RLS tests | delegated (writer) | [ ] |
 | H4 | Typed data layer: Supabase client, repositories (create/update/remove), realtime subscription hook, schemas | delegated (writer) | [ ] |
 | H5 | Auth: provider, login page (magic link + Google), session, profile | delegated (writer) | [ ] |
@@ -130,6 +130,17 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   `^[A-Z_]` unused-vars ignore (consider eslint-plugin-react jsx-uses-vars);
   `isVisible` tests lack string-vs-number id / unknown-estado cases (moot after RLS rewrite).
 
+- H2: commit `f60744d`. `supabase init`; `site_url` = `http://localhost:5173`, redirect
+  `/auth/callback` (localhost + 127.0.0.1); email magic link on (CLI default); Google
+  provider block present but `enabled = false` until credentials exist
+  (`SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` / `_SECRET` in `supabase/.env`, now gitignored).
+  Adversarial sweep: inline self-check (found `supabase/.env` not ignored → fixed).
+  `.env.example` could not be read (permission-protected) → env vars documented in H13
+  runbook instead: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`.
+  Native review on slice `c4cd3ea..f60744d`: medium, granted → approved, acknowledged
+  (lineage `review-984a98ae4b0fb96a`, burned); boundary → `f60744d`.
+  Carried into H3: add `supabase/seed.sql` (config seeds it); document Google env vars.
+
 ## Workflow rules (user, 2026-10-06)
 
 - Consent for all native reviews is granted for this session.
@@ -138,4 +149,5 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 
 ## Next step
 
-H2: `supabase init` + auth config. Blocker for verification of H3+: Docker Desktop.
+H3 (schema + RLS + pgTAP). Blocked on verification: user must install Docker Desktop
+so `supabase start` / `supabase test db` can run.
