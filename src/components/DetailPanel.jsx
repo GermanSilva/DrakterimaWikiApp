@@ -1,6 +1,7 @@
 import { useRef } from 'react'
 import { useApp } from '../AppContext'
 import useDialogFocus from '../hooks/useDialogFocus'
+import useBackdropClose from '../hooks/useBackdropClose'
 import { X } from 'lucide-react'
 
 const DETAIL_VIEWS = {}
@@ -9,13 +10,14 @@ export default function DetailPanel({ detail }) {
   const { db, closeDetail } = useApp()
   const dialogRef = useRef(null)
   useDialogFocus(dialogRef)
+  const backdropProps = useBackdropClose(closeDetail)
   const item = (db[detail.type] || []).find(x => x.id === detail.id)
   const DetailView = DETAIL_VIEWS[detail.type]
 
   return (
     <div
       className="fixed inset-0 bg-black/[.78] z-[200] backdrop-blur-[3px] flex items-start justify-end"
-      onClick={e => e.target.id === 'detail-overlay' && closeDetail()}
+      {...backdropProps}
       id="detail-overlay"
     >
       <div

@@ -1,5 +1,6 @@
 import { useState, useEffect, useId, useRef } from 'react'
 import useDialogFocus from '../hooks/useDialogFocus'
+import useBackdropClose from '../hooks/useBackdropClose'
 import { useApp } from '../AppContext'
 import { NotebookPen, Trash2, Search, X } from 'lucide-react'
 import { btnDanger, btnSecondary, btnPrimary } from '../constants'
@@ -113,6 +114,7 @@ function NoteCard({ note, db, onOpen, onDelete, textFilter }) {
 }
 
 function NoteDetailModal({ note, db, goToDetail, onClose }) {
+  const backdropProps = useBackdropClose(onClose)
   const dialogRef = useRef(null)
   const titleId = useId()
   useDialogFocus(dialogRef)
@@ -128,7 +130,7 @@ function NoteDetailModal({ note, db, goToDetail, onClose }) {
   return (
     <div
       className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4"
-      onClick={onClose}
+      {...backdropProps}
     >
       <div
         ref={dialogRef}
@@ -182,6 +184,7 @@ function PageHeader() {
 }
 
 function ConfirmModal({ note, db, onConfirm, onCancel }) {
+  const backdropProps = useBackdropClose(onCancel)
   const dialogRef = useRef(null)
   const titleId = useId()
   // Focus the safe action first so a stray Enter never deletes the note.
@@ -198,7 +201,7 @@ function ConfirmModal({ note, db, onConfirm, onCancel }) {
   return (
     <div
       className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center"
-      onClick={onCancel}
+      {...backdropProps}
     >
       <div
         ref={dialogRef}

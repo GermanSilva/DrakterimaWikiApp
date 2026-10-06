@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useApp } from '../AppContext'
 import PJForm from '../pages/pj/PJForm'
-import { Link } from 'lucide-react'
+import { Link, X } from 'lucide-react'
 import WikiLinkPicker from './WikiLinkPicker'
 import MapaForm from '../pages/MapaForm'
 import MapPointForm from '../pages/MapPointForm'
@@ -15,6 +15,7 @@ import LoreForm from './forms/LoreForm'
 import ItemForm from './forms/ItemForm'
 import HomeruleForm from './forms/HomeruleForm'
 import useDialogFocus from '../hooks/useDialogFocus'
+import useBackdropClose from '../hooks/useBackdropClose'
 import { btnSecondary } from '../constants'
 
 const FIRST_FIELD = 'input:not([type=hidden]), textarea, select'
@@ -56,6 +57,14 @@ export default function FormModal({ form }) {
   const collectionKey = form.type === 'avances' ? 'sesiones' : form.type
   const item = form.id !== null ? (db[collectionKey] || []).find(x => x.id === form.id) ?? null : null
   const FormComponent = FORM_COMPONENTS[form.type]
+
+  // Close request from the backdrop or the X button: confirm before discarding typed data.
+  function requestClose() {
+    const inputs = dialogRef.current?.querySelectorAll('input, textarea, select') ?? []
+    const hasData = [...inputs].some(el => el.value.trim())
+    if (!hasData || confirm('¿Descartar cambios?')) closeForm()
+  }
+  const backdropProps = useBackdropClose(requestClose)
   const isPJForm = form.type === 'pjs'
   const hasWikiLinkFields = form.type !== 'disponibilidad'
 
@@ -84,12 +93,7 @@ export default function FormModal({ form }) {
       <div
         className="fixed inset-0 bg-black/[.82] z-[1000] backdrop-blur-[4px] flex items-center justify-center"
         id="form-overlay"
-        onClick={e => {
-          if (e.target.id !== 'form-overlay') return
-          const inputs = e.currentTarget.querySelectorAll('input, textarea, select')
-          const hasData = [...inputs].some(el => el.value.trim())
-          if (!hasData || confirm('¿Descartar cambios?')) closeForm()
-        }}
+        {...backdropProps}
       >
         <div
           ref={dialogRef}
@@ -100,21 +104,43 @@ export default function FormModal({ form }) {
           tabIndex={-1}
           className="w-[min(640px,92vw)] max-h-[88vh] bg-bg-card border border-border-light overflow-y-auto animate-fade-in outline-none"
         >
+          {isPJForm && (
+            <div className="sticky top-0 z-[2] h-0 flex justify-end">
+              <button
+                type="button"
+                aria-label="Cerrar"
+                className="m-3 cursor-pointer text-txt-muted hover:text-accent-bright transition-colors bg-transparent border-none p-0"
+                onClick={requestClose}
+              >
+                <X size={20} />
+              </button>
+            </div>
+          )}
           {/* Extracted header for all non-PJForm types */}
           {!isPJForm && (
             <div className="font-exo text-[17px] font-bold text-txt-primary uppercase tracking-[0.06em] sticky top-0 z-[1] bg-bg-card px-8 pt-7 pb-5 border-b border-border-base flex items-center justify-between">
               <span id="form-modal-title">{title}</span>
-              {hasWikiLinkFields && (
+              <div className="flex items-center gap-3">
+                {hasWikiLinkFields && (
+                  <button
+                    type="button"
+                    className={`${btnSecondary} flex items-center gap-1.5`}
+                    onMouseDown={e => e.preventDefault()}
+                    onClick={() => setPickerOpen(true)}
+                  >
+                    <Link size={13} />
+                    Insertar enlace
+                  </button>
+                )}
                 <button
                   type="button"
-                  className={`${btnSecondary} flex items-center gap-1.5`}
-                  onMouseDown={e => e.preventDefault()}
-                  onClick={() => setPickerOpen(true)}
+                  aria-label="Cerrar"
+                  className="cursor-pointer text-txt-muted hover:text-accent-bright transition-colors bg-transparent border-none p-0"
+                  onClick={requestClose}
                 >
-                  <Link size={13} />
-                  Insertar enlace
+                  <X size={20} />
                 </button>
-              )}
+              </div>
             </div>
           )}
           {FormComponent

@@ -95,7 +95,7 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H2 | `supabase init`, auth config (magic link, Google provider via env), `.env.example` | inline (1 mechanical file) | [x] (env example deferred, see progress) |
 | H3 | Schema + RLS migrations (identity, campaigns, members, invites, all entity tables, DM-private data, notes, read state, calendar, games, maps, session screen, homebrew) + pgTAP RLS tests | delegated (writer; 2+ non-trivial files) | [x] |
 | H3b | Hide `visible_to` from players: column-level SELECT excludes it; DM reads it through a DM-only RPCs; pgTAP proves players get 42501 and local Realtime `apply_rls` strips it | delegated (writer) | [x] |
-| H11b | Modal close safety: shared `useBackdropClose` (close only when pointer-down AND click both land on the backdrop), applied to every modal backdrop; visible close button in every modal; tests | delegated (writer) | [ ] |
+| H11b | Modal close safety: shared `useBackdropClose` (close only when pointer-down AND click both land on the backdrop), applied to every modal backdrop; visible close button in every modal; tests | delegated (writer) | [x] |
 | H4 | Typed data layer: Supabase client, repositories (create/update/remove), realtime subscription hook, schemas | delegated (writer) | [ ] |
 | H5 | Auth: provider, login page (magic link + Google), session, profile | delegated (writer) | [ ] |
 | H6 | Router + hub shell: campaign list, `/c/:slug` layout, campaign context replacing App.jsx god-state, lazy pages | delegated (writer) | [ ] |
@@ -221,6 +221,17 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   through the RPC (guard + map_points effect), observable `realtime.apply_rls` call proving the UPDATE
   payload has no `visible_to` (local server only; recheck hosted), `pg_default_acl` closed.
   `supabase test db` **205/205 PASS**.
+
+- H11b: `useBackdropClose` (close only if pointerdown AND pointerup AND click are on the backdrop;
+  pointercancel resets) applied to 11 modals (AccessModal, DetailPanel, DisponibilidadDayModal,
+  FormModal via `requestClose()` keeping discard-confirm, ImageLightbox, WikiLinkPicker,
+  SessionCardPicker, SessionEditModal, SpellDetailModal, Notas detail + confirm); visible "Cerrar"
+  button added where missing (FormModal header / sticky for PJ forms, ImageLightbox,
+  WikiLinkPicker, SessionCardPicker). Skipped: MapPopup (popover, has ✕), mobile sidebar scrim.
+  Adversarial sweep: nothing severe; fixed press-on-backdrop/release-inside still closing
+  (onPointerUp) and stale flag after pointercancel (+3 tests). Checks: lint 0 errors / 60
+  warnings, typecheck clean, test 29/29, build OK. Visual check pending: PJ-form × overlaps
+  PJForm sticky header corner.
 
 ## Product decisions (user, 2026-10-06)
 

@@ -1,11 +1,13 @@
 import { useEffect, useId, useRef } from 'react'
 import useDialogFocus from '../../../hooks/useDialogFocus'
+import useBackdropClose from '../../../hooks/useBackdropClose'
 import { detailSectionCls, sectionTitleCls } from '../../../constants'
 
 export default function SpellDetailModal({ spell, onClose }) {
   const dialogRef = useRef(null)
   const titleId = useId()
   useDialogFocus(dialogRef)
+  const backdropProps = useBackdropClose(onClose)
   const levelLabel = Number(spell.nivel) === 0 ? 'Truco' : Number(spell.nivel) === 10 ? 'Habilidad' : `Nivel ${spell.nivel}`
 
   useEffect(() => {
@@ -17,7 +19,7 @@ export default function SpellDetailModal({ spell, onClose }) {
   return (
     <div
       className="fixed inset-0 z-[250] flex items-center justify-center bg-black/70"
-      onClick={onClose}
+      {...backdropProps}
     >
       <div
         ref={dialogRef}

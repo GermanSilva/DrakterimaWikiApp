@@ -1,6 +1,7 @@
 import { useEffect, useId, useRef } from 'react'
 import { useApp } from '../AppContext'
 import useDialogFocus from '../hooks/useDialogFocus'
+import useBackdropClose from '../hooks/useBackdropClose'
 import { X, Plus } from 'lucide-react'
 import { clipBlockToDay } from '../helpers/disponibilidadCalc'
 import { btnPrimary, btnDanger, btnSecondary, PLAYER_MARKERS } from '../constants'
@@ -77,6 +78,7 @@ export default function DisponibilidadDayModal({ fecha, onClose }) {
   const dialogRef = useRef(null)
   const titleId = useId()
   useDialogFocus(dialogRef)
+  const backdropProps = useBackdropClose(onClose)
   const bloques = db.disponibilidad || []
   const sesionBlocks = bloques.filter(b => b.tipo === 'sesion')
   const isPjUnavailable = pjId => bloques.some(b => b.tipo === 'no_disponible' && b.pj_id === pjId && b.fecha === fecha)
@@ -101,7 +103,7 @@ export default function DisponibilidadDayModal({ fecha, onClose }) {
   return (
     <div
       className="fixed inset-0 bg-black/[.82] z-[250] backdrop-blur-[4px] flex items-center justify-center"
-      onClick={onClose}
+      {...backdropProps}
     >
       <div
         ref={dialogRef}

@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import useDialogFocus from '../../hooks/useDialogFocus'
+import useBackdropClose from '../../hooks/useBackdropClose'
 import { useApp } from '../../AppContext'
 import { labelCls, inputCls, btnPrimary, btnSecondary, detailSectionCls } from '../../constants'
 import { ABILITY_SCORES } from '../pj/pjConstants'
@@ -23,6 +24,7 @@ export default function SessionEditModal({ pj, cardType, onClose }) {
   const dialogRef = useRef(null)
   const titleId = useId()
   useDialogFocus(dialogRef)
+  const backdropProps = useBackdropClose(onClose)
   const [draft, setDraft] = useState({ ...pj })
 
   // Re-seed the full draft whenever a different PJ/card is opened.
@@ -62,7 +64,7 @@ export default function SessionEditModal({ pj, cardType, onClose }) {
   return (
     <div
       className="fixed inset-0 z-[250] flex items-center justify-center bg-black/70"
-      onClick={onClose}
+      {...backdropProps}
     >
       <div
         ref={dialogRef}

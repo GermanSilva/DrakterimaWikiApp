@@ -3,8 +3,10 @@ import { useState, useRef, useEffect } from 'react'
 import { useApp } from '../AppContext'
 import { COLLECTION_LETTER, COLLECTION_DISPLAY } from './wikiHelpers'
 import { inputCls } from '../constants'
+import useBackdropClose from '../hooks/useBackdropClose'
 
 export default function WikiLinkPicker({ onInsert, onClose }) {
+  const backdropProps = useBackdropClose(onClose)
   const { db } = useApp()
   const [query, setQuery] = useState('')
   const inputRef = useRef(null)
@@ -36,7 +38,7 @@ export default function WikiLinkPicker({ onInsert, onClose }) {
   return (
     <div
       className="fixed inset-0 bg-black/[.75] z-[1001] flex items-center justify-center"
-      onClick={onClose}
+      {...backdropProps}
     >
       <div
         role="dialog"
@@ -46,7 +48,7 @@ export default function WikiLinkPicker({ onInsert, onClose }) {
         onClick={e => e.stopPropagation()}
       >
         {/* Search input */}
-        <div className="px-5 pt-5 pb-3 border-b border-border-base shrink-0">
+        <div className="px-5 pt-5 pb-3 border-b border-border-base shrink-0 flex items-center gap-3">
           <input
             ref={inputRef}
             className={inputCls}
@@ -55,6 +57,12 @@ export default function WikiLinkPicker({ onInsert, onClose }) {
             value={query}
             onChange={e => setQuery(e.target.value)}
           />
+          <button
+            type="button"
+            className="text-txt-muted hover:text-txt-primary text-xl leading-none shrink-0 border-none bg-transparent cursor-pointer"
+            onClick={onClose}
+            aria-label="Cerrar"
+          >×</button>
         </div>
 
         {/* Results */}

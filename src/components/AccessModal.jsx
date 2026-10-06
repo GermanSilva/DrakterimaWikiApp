@@ -1,5 +1,6 @@
 import { useRef, useState, useEffect, useId } from 'react'
 import DragonIcon from '../svgs/dragonIcon'
+import useBackdropClose from '../hooks/useBackdropClose'
 import { Eye, EyeOff } from 'lucide-react'
 
 function EyeToggle({ show, onToggle }) {
@@ -31,6 +32,8 @@ export default function AccessModal({ onClose, onAccess }) {
     return () => document.removeEventListener('keydown', onKey)
   }, [])
 
+  const backdropProps = useBackdropClose(onClose)
+
   function handleAccess() {
     const result = onAccess(pwd)
     if (!result.success) {
@@ -45,7 +48,7 @@ export default function AccessModal({ onClose, onAccess }) {
   return (
     <div
       className="fixed inset-0 bg-black/75 z-[300] flex items-center justify-center backdrop-blur-[2px]"
-      onClick={e => e.target === e.currentTarget && onClose()}
+      {...backdropProps}
     >
       <div
         role="dialog"
