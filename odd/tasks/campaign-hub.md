@@ -94,6 +94,8 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H1 | Tooling: ESLint, Vitest, TS config (`allowJs`), `npm run lint/test` scripts | delegated (writer; 2+ non-trivial files) | [x] |
 | H2 | `supabase init`, auth config (magic link, Google provider via env), `.env.example` | inline (1 mechanical file) | [x] (env example deferred, see progress) |
 | H3 | Schema + RLS migrations (identity, campaigns, members, invites, all entity tables, DM-private data, notes, read state, calendar, games, maps, session screen, homebrew) + pgTAP RLS tests | delegated (writer; 2+ non-trivial files) | [x] |
+| H3b | Hide `visible_to` from players: column-level SELECT excludes it; DM reads it through a DM-only RPC; pgTAP proves players get 42501 and Realtime does not ship it | delegated (writer) | [x] |
+| H11b | Modal close safety: shared `useBackdropClose` (close only when pointer-down AND click both land on the backdrop), applied to every modal backdrop; visible close button in every modal; tests | delegated (writer) | [ ] |
 | H4 | Typed data layer: Supabase client, repositories (create/update/remove), realtime subscription hook, schemas | delegated (writer) | [ ] |
 | H5 | Auth: provider, login page (magic link + Google), session, profile | delegated (writer) | [ ] |
 | H6 | Router + hub shell: campaign list, `/c/:slug` layout, campaign context replacing App.jsx god-state, lazy pages | delegated (writer) | [ ] |
@@ -201,6 +203,27 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 - Stop-hook whole-branch candidate (`4b12d60..cf25799`, 8457 lines): START → terminal
   `lens_context_budget_exceeded` (no authority created). Covered by the approved slice reviews
   (H1, H1-H2, H3, H11); no further action.
+
+- H3b: new migration `20261006130000_hide_visible_to.sql` + `04_visible_to_privacy.test.sql`. On the 10
+  entity tables, authenticated has column-level SELECT/INSERT/UPDATE on every column except
+  `visible_to` (table-level grants revoked). DM-only SECURITY DEFINER RPCs: `get_entity_visibility`
+  (read, max 1000 ids) and `set_entity_visibility` (write; same 42501 `dm_only` for not-DM and
+  missing row; validates ids are PJs of the same campaign). `can_see_map` helper for the map_points
+  policy. Default privileges revoke all on future tables/sequences from anon/authenticated.
+  Client contract (for H4): no `select *` / `returning *`, never send `visible_to` in
+  insert/update/upsert; use the RPCs. Realtime: local `realtime.apply_rls` honors
+  `has_column_privilege` → `visible_to` stripped from payloads (recheck on hosted project at cutover).
+  Adversarial sweep: no severe leak; fixed an owner equal-value UPDATE oracle on own
+  `pjs.visible_to` (now privilege-denied for any value), discriminating test messages, RPC cap,
+  default privileges. Checks: `supabase test db` **192/192 PASS** (re-run by parent), lint 0 errors.
+
+## Product decisions (user, 2026-10-06)
+
+- Sole-DM account deletion is blocked until the DM role is transferred or the campaign deleted — approved.
+- A failed save keeps the form open with an error toast — approved.
+- Opening a form focuses its first field — approved.
+- `visible_to` must NOT be readable by players (it reveals which other PCs share a secret) → H3b.
+- Accidental modal close (press inside, release on the backdrop) must not close; every modal gets a visible close button → H11b.
 
 ## Workflow rules (user, 2026-10-06)
 
