@@ -41,3 +41,43 @@ describe('ErrorBoundary', () => {
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })
+
+describe('ErrorBoundary chunk-load recovery', () => {
+  let errorSpy
+  let reloadSpy
+  let originalLocation
+
+  beforeEach(() => {
+    errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    reloadSpy = vi.fn()
+    originalLocation = window.location
+    // jsdom's location.reload is not configurable: replace the whole object for the test.
+    Object.defineProperty(window, 'location', { configurable: true, value: { ...originalLocation, reload: reloadSpy } })
+  })
+  afterEach(() => {
+    Object.defineProperty(window, 'location', { configurable: true, value: originalLocation })
+    errorSpy.mockRestore()
+  })
+
+  function Failing({ error }) {
+    throw error
+  }
+
+  it.each([
+    ['ChunkLoadError name', Object.assign(new Error('Loading chunk 3 failed'), { name: 'ChunkLoadError' })],
+    ['dynamic import message', new Error('Failed to fetch dynamically imported module: /assets/x.js')],
+    ['module script message', new Error('Importing a module script failed.')],
+  ])('reloads the page on Reintentar for a failed chunk (%s)', (_label, error) => {
+    render(<ErrorBoundary><Failing error={error} /></ErrorBoundary>)
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(reloadSpy).toHaveBeenCalledTimes(1)
+    // the boundary keeps its fallback: a reload is pending instead of a re-render
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+  })
+
+  it('does not reload for an ordinary render error', () => {
+    render(<ErrorBoundary><Failing error={new Error('boom')} /></ErrorBoundary>)
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(reloadSpy).not.toHaveBeenCalled()
+  })
+})

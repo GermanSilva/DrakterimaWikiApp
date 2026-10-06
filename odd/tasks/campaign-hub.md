@@ -96,7 +96,7 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H3 | Schema + RLS migrations (identity, campaigns, members, invites, all entity tables, DM-private data, notes, read state, calendar, games, maps, session screen, homebrew) + pgTAP RLS tests | delegated (writer; 2+ non-trivial files) | [x] |
 | H3b | Hide `visible_to` from players: column-level SELECT excludes it; DM reads it through a DM-only RPCs; pgTAP proves players get 42501 and local Realtime `apply_rls` strips it | delegated (writer) | [x] |
 | H11b | Modal close safety: shared `useBackdropClose` (close only when pointer-down AND click both land on the backdrop), applied to every modal backdrop; visible close button in every modal; tests | delegated (writer) | [x] |
-| H4 | Typed data layer: Supabase client, repositories (create/update/remove), realtime subscription hook, schemas | delegated (writer) | [ ] |
+| H4 | Typed data layer: Supabase client, repositories (create/update/remove), realtime subscription hook, schemas | delegated (writer) | [x] |
 | H5 | Auth: provider, login page (magic link + Google), session, profile | delegated (writer) | [ ] |
 | H6 | Router + hub shell: campaign list, `/c/:slug` layout, campaign context replacing App.jsx god-state, lazy pages | delegated (writer) | [ ] |
 | H7 | Port wiki entity pages + forms to the data layer (sesiones, pnjs, lugares, facciones, lore, items) | delegated (writer) | [ ] |
@@ -233,6 +233,23 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   warnings, typecheck clean, test 29/29, build OK. Visual check pending: PJ-form × overlaps
   PJForm sticky header corner.
 
+- H4: typed data layer in `src/data/` (additive; UI not wired yet). Generated `database.types.ts`
+  (`npm run db:types`), lazy injectable client, explicit column lists, row⇄flat mappers (data keys
+  spread; legacy/DM keys stripped both ways; `''`→null for nullable columns), repositories per table
+  + RPCs, `saveEntityWithDmNotes` helper (entity create/update reject DM fields), paged lists
+  (`.range()`, cap 20k), `DataError` kinds + stable `reason` codes, zero-row disambiguation
+  (permission vs not_found), `written_not_visible`, optimistic lock on `updated_at` for `data` and
+  whole-object jsonb columns (server data always re-read; base only supplies the version),
+  `useCampaignTable` (re-list on every SUBSCRIBED, buffered events, UPDATE merge, error statuses).
+  Integration tests (`npm run test:integration`, local stack, service key read at runtime only).
+  Adversarial sweep: no contract break; fixed partial-realtime-row data wipe, join/reconnect gaps,
+  `''` constraint errors, silent DM-note drop, error-kind ambiguity, PGRST116-after-write, zero-row
+  misclassification, jsonb lost updates, 1000-row truncation, legacy key leak; parent fixed a
+  flaky integration assertion (lottery writes read_state on a win). Carried test gaps closed
+  (ErrorBoundary chunk reload, useDialogFocus preferred, FormModal discard-confirm).
+  Checks: lint 0 errors / 60 warnings, typecheck clean, test 130/130, integration 11/11 (×3 writer,
+  ×2 parent), build OK.
+
 ## Product decisions (user, 2026-10-06)
 
 - Sole-DM account deletion is blocked until the DM role is transferred or the campaign deleted — approved.
@@ -250,4 +267,4 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 
 ## Next step
 
-H4: typed data layer on Supabase (local stack running). Pending user confirmations listed in H3/H11 notes.
+H5: auth (magic link + Google) on the H4 data layer. User must create `.env.local` with VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY (local values from `supabase status`).
