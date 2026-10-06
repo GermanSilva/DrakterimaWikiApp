@@ -100,8 +100,6 @@ export function createFakeClient() {
     calls,
     channels,
     removed,
-    /** True when every queued result was consumed (no step of a multi-step flow was skipped). */
-    drained: () => queue.length === 0,
     /** Throws if queued results were not consumed: the code under test did fewer requests than expected. */
     assertDrained() {
       if (queue.length > 0) throw new Error(`${queue.length} queued fake result(s) were never consumed`)

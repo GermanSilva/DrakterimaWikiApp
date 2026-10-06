@@ -2,13 +2,13 @@ import type { EntityTable } from './columns'
 import { unwrap } from './errors'
 import type { Db } from './types'
 
+/** Server-side limit of get_entity_visibility / set_entity_visibility. */
+export const MAX_IDS_PER_CALL = 1000
+
 /**
  * `visible_to` (character ids that may see a `secreto` row) is not readable or writable through
  * table access. The DM reads and writes it through two SECURITY DEFINER RPCs. Max 1000 ids per call.
  */
-/** Server-side limit of get_entity_visibility / set_entity_visibility. */
-export const MAX_IDS_PER_CALL = 1000
-
 export function createVisibilityRepository(client: Db) {
   return {
     /** DM only. Returns `{ [entityId]: characterIds }` for the ids found in campaigns the caller DMs. */

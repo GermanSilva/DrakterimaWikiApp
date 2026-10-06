@@ -72,11 +72,11 @@ describe('dm notes repository', () => {
     expect(opsNamed(fake.calls[2], 'delete')).toHaveLength(1)
     expect(opsNamed(fake.calls[2], 'select')).toEqual([['id']])
 
-    // zero rows: denied when the row is readable, not_found otherwise
+    // zero rows: denied when the note is still readable; already gone is success (idempotent, retry-safe)
     fake.enqueue({ data: [] }, { data: [{ entity_type: 'pnjs' }] })
     await expect(repo.remove('pnjs', 4)).rejects.toMatchObject({ kind: 'permission' })
     fake.enqueue({ data: [] }, { data: [] })
-    await expect(repo.remove('pnjs', 4)).rejects.toMatchObject({ kind: 'not_found' })
+    await expect(repo.remove('pnjs', 4)).resolves.toBeUndefined()
     fake.assertDrained()
   })
 })

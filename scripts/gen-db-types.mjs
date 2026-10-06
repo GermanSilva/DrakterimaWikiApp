@@ -14,7 +14,7 @@ try {
   // shell: true so `supabase` resolves through PATHEXT on Windows (supabase.cmd / .exe shims)
   const res = spawnSync('supabase gen types typescript --local', { shell: true, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
   if (res.error || res.status !== 0 || !res.stdout.includes('export type Database')) {
-    console.error(res.stderr || String(res.error) || 'supabase gen types produced no Database type')
+    console.error(res.stderr || (res.error ? String(res.error) : 'supabase gen types produced no Database type'))
     console.error('database.types.ts left untouched. Is the local stack running (`supabase start`)?')
     // exitCode (not process.exit) so the finally block still removes the temp dir
     process.exitCode = res.status || 1

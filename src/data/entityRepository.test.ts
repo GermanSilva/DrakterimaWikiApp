@@ -41,7 +41,7 @@ describe('entity repository', () => {
     expect(items[0]).toMatchObject({ id: 7, nombre: 'Aldric', rol: 'herrero', campaign_id: 'c1' })
   })
 
-  it('list: keeps paging until a short page (no silent truncation at 1000)', async () => {
+  it('list: keeps paging until an empty page (a short page is not the end; no silent truncation)', async () => {
     const { fake, repo } = setup()
     const full = Array.from({ length: PAGE_SIZE }, (_, i) => row({ id: i + 1 }))
     fake.enqueue({ data: full }, { data: [row({ id: PAGE_SIZE + 1 })] }, { data: [] })

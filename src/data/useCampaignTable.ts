@@ -61,7 +61,9 @@ export function useCampaignTable<T>(
     const db = client ?? getSupabase()
     let active = true
     let seq = 0 // id of the latest load started
-    let applied = 0 // id of the newest load whose result is on screen
+    // Stale-load watermark: a load result is accepted only if its id is > applied. It is the id of
+    // the newest load whose result is on screen, or of the newest load invalidated by a buffer overflow.
+    let applied = 0
     let inFlight = 0
     let hasData = false
     // ONE buffer per subscription: every change received while at least one load is in flight.
@@ -129,7 +131,10 @@ export function useCampaignTable<T>(
           if (!active) return
           if (mine > applied) {
             const error = e instanceof Error ? e : new Error(String(e))
-            const replay = hasData ? [] : buffer.slice(start) // nothing on screen yet: show what arrived
+            // nothing on screen yet: show what arrived, except merging UPDATEs (possibly partial rows)
+            const replay = hasData
+              ? []
+              : buffer.slice(start).filter((c) => !(c.type === 'upsert' && c.merge))
             patch((s) => ({ ...s, items: order(replay.reduce(apply, s.items)), loading: false, error }))
           }
           settle()

@@ -267,6 +267,14 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   typecheck clean, test 154/154, integration 14/14 (×5 writer, ×4 parent), build OK, `db:types`
   regenerates with no diff.
 
+- H4b native review (`0d5f5e6..ec010e0`): high, 4 lenses → **approved**, acknowledged (lineage
+  review-7e49d113eb36c2dc). Follow-ups fixed by parent: `dmNotes.remove` idempotent (already gone =
+  success, still present = permission), failed-load replay skips merging partial UPDATEs, overflow
+  test proves the invalidated load is discarded, script fallback message, JSDoc placement, test
+  title, watermark comment, unused `drained()` removed. Checks: test 155/155, integration 14/14,
+  lint 0 errors, typecheck clean. Accepted trade-offs (documented): one extra empty-page request per
+  list; a hung list() keeps buffering (bounded at 5000, then restarts) — no request timeout yet.
+
 ## Product decisions (user, 2026-10-06)
 
 - Sole-DM account deletion is blocked until the DM role is transferred or the campaign deleted — approved.

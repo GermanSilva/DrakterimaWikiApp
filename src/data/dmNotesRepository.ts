@@ -1,5 +1,5 @@
 import { DM_NOTES_COLUMNS, join, type DmNotesType } from './columns'
-import { unwrap, unwrapWrite } from './errors'
+import { DataError, unwrap, unwrapWrite } from './errors'
 import { fromTable } from './loose'
 import type { DmNotesFields } from './mappers'
 import { pagedList } from './pagedList'
@@ -56,13 +56,20 @@ export function createDmNotesRepository(client: Db) {
       )
     },
 
-    /** Throws `not_found` when no note exists; callers clearing notes idempotently must catch it. */
+    /**
+     * Idempotent: a note that is already gone (never existed, or a retried delete that the server had
+     * already committed) is success. A note that still exists but could not be deleted is `permission`.
+     */
     async remove(type: DmNotesType, entityId: number): Promise<void> {
       const rows = unwrap<unknown[]>(
         await fromTable(client, 'entity_dm_notes').delete().eq('entity_type', type).eq('entity_id', entityId).select('id'),
       )
-      if (rows.length === 0) {
+      if (rows.length > 0) return
+      try {
         await throwZeroRows(client, 'entity_dm_notes', { entity_type: type, entity_id: entityId }, `dm notes ${type}/${entityId}`)
+      } catch (e) {
+        if (e instanceof DataError && e.kind === 'not_found') return
+        throw e
       }
     },
   }

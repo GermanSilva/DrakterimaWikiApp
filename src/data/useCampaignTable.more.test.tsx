@@ -84,13 +84,32 @@ describe('useCampaignTable: reload, buffering and sorting', () => {
   it('restarts from a fresh list when buffered changes overflow', async () => {
     const fake = createFakeClient()
     const { source, list, pending } = deferredSource()
-    renderHook(() => useCampaignTable(source, 'c1', { client: fake.db }))
+    const { result } = renderHook(() => useCampaignTable(source, 'c1', { client: fake.db }))
     expect(list).toHaveBeenCalledTimes(1) // load #1 hangs
     act(() => {
       for (let i = 0; i <= 5000; i++) fake.channels[0].emit('INSERT', { new: item(100 + i) })
     })
     expect(list).toHaveBeenCalledTimes(2) // overflow invalidated #1 and started a fresh load
     expect(pending).toHaveLength(2)
+
+    await act(async () => pending[0].resolve([item(1)])) // invalidated: its result is ignored
+    expect(result.current.items).toEqual([])
+    await act(async () => pending[1].resolve([item(2)])) // the fresh load is applied
+    expect(result.current.items.map((i) => i.id)).toEqual([2])
+    expect(result.current.loading).toBe(false)
+  })
+
+  it('does not replay buffered partial UPDATEs when the first load fails', async () => {
+    const fake = createFakeClient()
+    const { source, pending } = deferredSource()
+    const { result } = renderHook(() => useCampaignTable(source, 'c1', { client: fake.db }))
+    act(() => {
+      fake.channels[0].emit('UPDATE', { new: { id: 9, campaign_id: 'c1' } }) // partial, buffered
+      fake.channels[0].emit('INSERT', { new: item(10) }) // full, buffered
+    })
+    await act(async () => pending[0].reject(new Error('boom')))
+    expect(result.current.error?.message).toBe('boom')
+    expect(result.current.items.map((i) => i.id)).toEqual([10])
   })
 
   it('shows buffered events and the error when the first load fails', async () => {
