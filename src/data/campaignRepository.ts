@@ -1,0 +1,150 @@
+import {
+  CAMPAIGN_COLUMNS,
+  CAMPAIGN_MEMBER_COLUMNS,
+  INVITE_COLUMNS,
+  INVITE_WRITE_COLUMNS,
+  join,
+} from './columns'
+import { unwrap, unwrapWrite } from './errors'
+import { fromTable } from './loose'
+import { pagedList } from './pagedList'
+import type { Profile } from './profileRepository'
+import type { Db } from './types'
+import { throwZeroRows } from './zeroRows'
+
+export type CampaignRole = 'dm' | 'player'
+
+export interface Campaign {
+  id: string
+  slug: string
+  name: string
+  system: string
+  branding: Record<string, unknown>
+  regions: unknown[]
+  character_custom_fields: unknown[]
+  settings: Record<string, unknown>
+  created_by: string | null
+  created_at: string
+  updated_at: string
+}
+
+export type CampaignWithRole = Campaign & { role: CampaignRole }
+
+export interface Member {
+  campaign_id: string
+  user_id: string
+  role: CampaignRole
+  created_at: string
+  updated_at: string
+  profile: Pick<Profile, 'id' | 'display_name' | 'avatar_url'> | null
+}
+
+export interface Invite {
+  id: string
+  campaign_id: string
+  code: string
+  role: CampaignRole
+  character_id: number | null
+  max_uses: number
+  uses: number
+  expires_at: string | null
+  created_by: string | null
+  created_at: string
+}
+
+export interface NewInvite {
+  campaign_id: string
+  role?: CampaignRole
+  character_id?: number | null
+  max_uses?: number
+  expires_at?: string | null
+}
+
+/** Return shape of the accept_invite RPC. */
+export interface AcceptInviteResult {
+  joined: boolean
+  claimed: boolean
+  campaign_id: string
+  slug: string
+  role: CampaignRole
+  character_id: number | null
+}
+
+const CAMPAIGN_SELECT = join(CAMPAIGN_COLUMNS)
+const PROFILE_EMBED = 'id, display_name, avatar_url'
+
+/** Campaigns, membership and invites. */
+export function createCampaignRepository(client: Db) {
+  return {
+    /** Campaigns the user belongs to, each with their role in it. */
+    async listMyCampaigns(userId: string): Promise<CampaignWithRole[]> {
+      const rows = await pagedList<{ role: CampaignRole; campaign: Campaign | null }>(
+        () =>
+          fromTable(client, 'campaign_members')
+            .select(`role, campaign:campaigns(${CAMPAIGN_SELECT})`)
+            .eq('user_id', userId)
+            .order('campaign_id', { ascending: true }),
+        'campaign_members',
+      )
+      return rows
+        .filter((r): r is { role: CampaignRole; campaign: Campaign } => r.campaign !== null)
+        .map((r) => ({ ...r.campaign, role: r.role }))
+        .sort((a, b) => a.name.localeCompare(b.name))
+    },
+
+    /** RLS only returns campaigns the caller belongs to, so a stranger's slug yields null. */
+    async getCampaignBySlug(slug: string): Promise<Campaign | null> {
+      return unwrap<Campaign | null>(
+        await fromTable(client, 'campaigns').select(CAMPAIGN_SELECT).eq('slug', slug).maybeSingle(),
+      )
+    },
+
+    /** RPC: creates the campaign and makes the caller its DM. Errors: reserved_slug, campaign_limit_reached. */
+    async createCampaign(slug: string, name: string): Promise<Campaign> {
+      return unwrap(await client.rpc('create_campaign', { p_slug: slug, p_name: name })) as unknown as Campaign
+    },
+
+    async listMembers(campaignId: string): Promise<Member[]> {
+      return pagedList<Member>(
+        () =>
+          fromTable(client, 'campaign_members')
+            .select(`${join(CAMPAIGN_MEMBER_COLUMNS)}, profile:profiles(${PROFILE_EMBED})`)
+            .eq('campaign_id', campaignId)
+            .order('created_at', { ascending: true })
+            .order('user_id', { ascending: true }),
+        'campaign_members',
+      )
+    },
+
+    /** DM only. The generated `code` is returned (it is a credential: show it once to the DM). */
+    async createInvite(invite: NewInvite): Promise<Invite> {
+      const payload = Object.fromEntries(
+        INVITE_WRITE_COLUMNS.filter((k) => invite[k] !== undefined).map((k) => [k, invite[k]]),
+      )
+      return unwrapWrite<Invite>(
+        await fromTable(client, 'campaign_invites').insert(payload).select(join(INVITE_COLUMNS)).single(),
+      )
+    },
+
+    /** RPC. Errors (kind 'business', message = reason): invite_not_found, invite_expired, invite_exhausted, character_already_claimed. */
+    async acceptInvite(code: string): Promise<AcceptInviteResult> {
+      return unwrap(await client.rpc('accept_invite', { p_code: code })) as unknown as AcceptInviteResult
+    },
+
+    /** A member removes themselves. The last DM cannot leave (23514 validation error). */
+    async leaveCampaign(campaignId: string, userId: string): Promise<void> {
+      const rows = unwrap<unknown[]>(
+        await fromTable(client, 'campaign_members')
+          .delete()
+          .eq('campaign_id', campaignId)
+          .eq('user_id', userId)
+          .select('user_id'),
+      )
+      if (rows.length === 0) {
+        await throwZeroRows(client, 'campaign_members', { campaign_id: campaignId, user_id: userId }, 'membership')
+      }
+    },
+  }
+}
+
+export type CampaignRepository = ReturnType<typeof createCampaignRepository>

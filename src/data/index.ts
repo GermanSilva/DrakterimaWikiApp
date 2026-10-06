@@ -1,0 +1,65 @@
+import { createCampaignRepository } from './campaignRepository'
+import type { EntityTable } from './columns'
+import { createConfigRepository } from './configRepository'
+import { createDisponibilidadRepository } from './disponibilidadRepository'
+import { createDmNotesRepository } from './dmNotesRepository'
+import { createEntityRepository, type EntityRepository } from './entityRepository'
+import { createGamesRepository } from './gamesRepository'
+import { createPlayerNotesRepository } from './playerNotesRepository'
+import { createProfileRepository } from './profileRepository'
+import { createReadStateRepository } from './readStateRepository'
+import { saveEntityWithDmNotes, type SaveEntityTarget } from './saveEntityWithDmNotes'
+import { getSupabase } from './supabaseClient'
+import type { Db } from './types'
+import { createVisibilityRepository } from './visibilityRepository'
+
+export * from './columns'
+export * from './errors'
+export * from './mappers'
+export * from './realtime'
+export * from './supabaseClient'
+export * from './types'
+export * from './useCampaignTable'
+export * from './campaignRepository'
+export * from './configRepository'
+export * from './disponibilidadRepository'
+export * from './dmNotesRepository'
+export * from './entityRepository'
+export * from './gamesRepository'
+export * from './playerNotesRepository'
+export * from './profileRepository'
+export * from './readStateRepository'
+export * from './visibilityRepository'
+export * from './saveEntityWithDmNotes'
+
+/** Every repository bound to one client (defaults to the shared one). */
+export function createDataLayer(client: Db = getSupabase()) {
+  const entityRepos = new Map<EntityTable, EntityRepository>()
+  const dmNotes = createDmNotesRepository(client)
+  const entity = (table: EntityTable): EntityRepository => {
+    let repo = entityRepos.get(table)
+    if (!repo) {
+      repo = createEntityRepository(client, table)
+      entityRepos.set(table, repo)
+    }
+    return repo
+  }
+  return {
+    client,
+    entity,
+    /** DM forms: entity row + DM-private fields (notas/secreto/ganchos), see saveEntityWithDmNotes. */
+    saveEntityWithDmNotes: (table: EntityTable, target: SaveEntityTarget, flat: Record<string, unknown>) =>
+      saveEntityWithDmNotes(entity(table), dmNotes, target, flat),
+    campaigns: createCampaignRepository(client),
+    profiles: createProfileRepository(client),
+    visibility: createVisibilityRepository(client),
+    dmNotes,
+    playerNotes: createPlayerNotesRepository(client),
+    readState: createReadStateRepository(client),
+    disponibilidad: createDisponibilidadRepository(client),
+    config: createConfigRepository(client),
+    games: createGamesRepository(client),
+  }
+}
+
+export type DataLayer = ReturnType<typeof createDataLayer>
