@@ -194,6 +194,14 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   build OK.
 
 
+- H11 native review (slice `c2a5f4e..cf25799`): medium, granted → reliability lens → **approved**,
+  acknowledged (lineage `review-43f258300d290b6c`, burned); boundary → `cf25799`. R3-001 (showToast not
+  in context) verified false: exposed at App.jsx ctx. Test gaps carried into H4: save/remove failure
+  behaviour (new data layer), ErrorBoundary chunk-reload branch, useDialogFocus preferred selector.
+- Stop-hook whole-branch candidate (`4b12d60..cf25799`, 8457 lines): START → terminal
+  `lens_context_budget_exceeded` (no authority created). Covered by the approved slice reviews
+  (H1, H1-H2, H3, H11); no further action.
+
 ## Workflow rules (user, 2026-10-06)
 
 - Consent for all native reviews is granted durably until the user revokes it
@@ -203,5 +211,4 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 
 ## Next step
 
-H3 (schema + RLS + pgTAP). Blocked on verification: user must install Docker Desktop
-so `supabase start` / `supabase test db` can run.
+H4: typed data layer on Supabase (local stack running). Pending user confirmations listed in H3/H11 notes.
