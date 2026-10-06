@@ -91,7 +91,7 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | ID | Task | Route | Status |
 |----|------|-------|--------|
 | H0 | Feature branch + this document + Engram mirror | inline | [x] |
-| H1 | Tooling: ESLint, Vitest, TS config (`allowJs`), `npm run lint/test` scripts | inline | [ ] |
+| H1 | Tooling: ESLint, Vitest, TS config (`allowJs`), `npm run lint/test` scripts | delegated (writer; 2+ non-trivial files) | [x] |
 | H2 | `supabase init`, auth config (magic link, Google provider via env), `.env.example` | inline | [ ] |
 | H3 | Schema + RLS migrations (identity, campaigns, members, invites, all entity tables, DM-private data, notes, read state, calendar, games, maps, session screen, homebrew) + pgTAP RLS tests | delegated (writer) | [ ] |
 | H4 | Typed data layer: Supabase client, repositories (create/update/remove), realtime subscription hook, schemas | delegated (writer) | [ ] |
@@ -118,8 +118,24 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 
 ## Progress / evidence
 
-- H0: branch `feat/campaign-hub` created from `4b12d60`; document created.
+- H0: branch `feat/campaign-hub` created from `4b12d60`; document created. Commit `ebae344`.
+  Review assess: passive (no review); boundary → `ebae344`.
+- H1: commits `c4cd3ea` (tooling) + `553da09` (keep `rules-of-hooks` as error, from
+  review advisory). Checks: `npm run lint` 0 errors / 59 warnings (pre-existing code),
+  `npm run typecheck` pass, `npm test` 5/5 pass (re-run by parent), `npm run build` pass.
+  vitest pinned ^3 (v5 incompatible with vite 5). Native review on `c4cd3ea`: medium,
+  **granted** → lens reliability → **approved**, acknowledged (lineage
+  `review-68da3125b8e3da0b`, burned); boundary → `c4cd3ea`. `553da09`: medium,
+  under_budget (pending in slice). Advisory follow-ups (non-blocking): broad
+  `^[A-Z_]` unused-vars ignore (consider eslint-plugin-react jsx-uses-vars);
+  `isVisible` tests lack string-vs-number id / unknown-estado cases (moot after RLS rewrite).
+
+## Workflow rules (user, 2026-10-06)
+
+- Consent for all native reviews is granted for this session.
+- Every task gets an adversarial read-only sweep of its diff before the work-unit
+  commit; confirmed findings are fixed first. Recorded per task below.
 
 ## Next step
 
-Resolve delivery chain strategy, then H1.
+H2: `supabase init` + auth config. Blocker for verification of H3+: Docker Desktop.
