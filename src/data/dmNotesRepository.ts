@@ -4,6 +4,7 @@ import { fromTable } from './loose'
 import type { DmNotesFields } from './mappers'
 import { pagedList } from './pagedList'
 import type { Db } from './types'
+import { throwZeroRows } from './zeroRows'
 
 export interface DmNotesRow {
   id: number
@@ -55,8 +56,14 @@ export function createDmNotesRepository(client: Db) {
       )
     },
 
+    /** Throws `not_found` when no note exists; callers clearing notes idempotently must catch it. */
     async remove(type: DmNotesType, entityId: number): Promise<void> {
-      unwrap(await fromTable(client, 'entity_dm_notes').delete().eq('entity_type', type).eq('entity_id', entityId))
+      const rows = unwrap<unknown[]>(
+        await fromTable(client, 'entity_dm_notes').delete().eq('entity_type', type).eq('entity_id', entityId).select('id'),
+      )
+      if (rows.length === 0) {
+        await throwZeroRows(client, 'entity_dm_notes', { entity_type: type, entity_id: entityId }, `dm notes ${type}/${entityId}`)
+      }
     },
   }
 }

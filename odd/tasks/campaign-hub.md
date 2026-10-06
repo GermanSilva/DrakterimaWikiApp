@@ -97,6 +97,7 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H3b | Hide `visible_to` from players: column-level SELECT excludes it; DM reads it through a DM-only RPCs; pgTAP proves players get 42501 and local Realtime `apply_rls` strips it | delegated (writer) | [x] |
 | H11b | Modal close safety: shared `useBackdropClose` (close only when pointer-down AND click both land on the backdrop), applied to every modal backdrop; visible close button in every modal; tests | delegated (writer) | [x] |
 | H4 | Typed data layer: Supabase client, repositories (create/update/remove), realtime subscription hook, schemas | delegated (writer) | [x] |
+| H4b | Fix native review warnings on H4 (paging, zero-row diagnosis, base-guarded updates, hook reload/buffering, integration teardown, safe db:types) | delegated (writer) | [x] |
 | H5 | Auth: provider, login page (magic link + Google), session, profile | delegated (writer) | [ ] |
 | H6 | Router + hub shell: campaign list, `/c/:slug` layout, campaign context replacing App.jsx god-state, lazy pages | delegated (writer) | [ ] |
 | H7 | Port wiki entity pages + forms to the data layer (sesiones, pnjs, lugares, facciones, lore, items) | delegated (writer) | [ ] |
@@ -249,6 +250,22 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   (ErrorBoundary chunk reload, useDialogFocus preferred, FormModal discard-confirm).
   Checks: lint 0 errors / 60 warnings, typecheck clean, test 130/130, integration 11/11 (×3 writer,
   ×2 parent), build OK.
+
+- H4 native review: the 5092-line slice exceeded the lens context budget, so H4 was split into 6
+  layered commits (e1963cc deps+types, 4acf202 core, 71cab26 entity, 1217b20 repositories, 5f72545
+  realtime, 0d5f5e6 integration+docs) and each was reviewed at its own commit (detached checkout):
+  all **approved** and acknowledged (lineages review-48147b4d6eedf4fb, review-7187815cc3fa5082,
+  review-417380ed6783cac2, review-9e57e4300fbd6438, review-1cefbc6608691d73, review-44185a35b33d48be;
+  the last one high-risk with 4 lenses). Real warnings fixed in H4b.
+- H4b: pagedList stops only on an empty page with an exact cap; zeroRows empty-match guard; base
+  always guards updates (plain columns too) with conflict/permission/not_found diagnosis;
+  dmNotes.remove zero-row check; getVisibility chunks by 1000; hook reload status + single buffer +
+  overflow restart (5000) + no partial UPDATE insert before the first list; idempotent integration
+  teardown, globalSetup timeout, split tests, realtime probe warm-up; `scripts/gen-db-types.mjs` (never
+  truncates on failure, no temp leftovers). Adversarial sweep: nothing severe; parent fixed the partial
+  UPDATE insert, buffer growth, script temp dir, contract comments (+2 tests). Checks: lint 0 errors,
+  typecheck clean, test 154/154, integration 14/14 (×5 writer, ×4 parent), build OK, `db:types`
+  regenerates with no diff.
 
 ## Product decisions (user, 2026-10-06)
 

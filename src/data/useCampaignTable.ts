@@ -3,6 +3,9 @@ import { applyDelete, applyUpsert, subscribeToTable, type RealtimeStatus, type T
 import { getSupabase } from './supabaseClient'
 import type { Db } from './types'
 
+/** Changes buffered while loads are in flight; beyond this the hook restarts from a fresh list. */
+const MAX_BUFFERED_CHANGES = 5000
+
 export interface UseCampaignTableOptions<T> {
   /** Defaults to the shared client from getSupabase(). Keep it stable between renders. */
   client?: Db
@@ -37,7 +40,9 @@ type Change<T> = { type: 'upsert'; item: T; merge: boolean } | { type: 'delete';
  * together with an initial load, and the list is loaded AGAIN on every SUBSCRIBED status
  * (initial join and each reconnect) so changes made between the snapshot and the join, or during
  * an outage, are not lost; this also drops rows that became invisible meanwhile. Changes that
- * arrive while a load is in flight are buffered and replayed over the loaded list. UPDATE rows
+ * arrive while a load is in flight stay in one buffer per subscription and are replayed over
+ * each load's rows (the newest completed load wins; a stale one is ignored). reload() resets
+ * the status to loading / 'connecting'. UPDATE rows
  * are merged onto the previous copy (they may omit unchanged large columns). It resubscribes when
  * `campaignId` changes and removes the channel on unmount.
  * See `subscribeToTable` for the Realtime caveats (privileged columns, DELETE payloads, hidden rows).
@@ -55,8 +60,13 @@ export function useCampaignTable<T>(
     if (!campaignId) return undefined
     const db = client ?? getSupabase()
     let active = true
-    let loadSeq = 0
-    let loading = false
+    let seq = 0 // id of the latest load started
+    let applied = 0 // id of the newest load whose result is on screen
+    let inFlight = 0
+    let hasData = false
+    // ONE buffer per subscription: every change received while at least one load is in flight.
+    // A load replays the part that arrived after it started (buffer.slice(startIndex)) on top of
+    // its rows; the buffer is dropped only when no load is in flight.
     let buffer: Change<T>[] = []
 
     const patch = (fn: (s: Snapshot<T>) => Snapshot<T>) =>
@@ -72,35 +82,57 @@ export function useCampaignTable<T>(
       change.type === 'upsert'
         ? applyUpsert(items, change.item, source, change.merge)
         : applyDelete(items, change.key, source)
+
     const onChange = (change: Change<T>) => {
       if (!active) return
-      if (loading) buffer.push(change)
-      else patch((s) => ({ ...s, items: order(apply(s.items, change)) }))
+      if (inFlight > 0) {
+        buffer.push(change)
+        if (buffer.length > MAX_BUFFERED_CHANGES) {
+          // Loads are hanging or overlapping endlessly: invalidate every in-flight load (their
+          // results become stale) and start over from a fresh list instead of growing forever.
+          buffer = []
+          applied = seq
+          load()
+          return
+        }
+      }
+      // Before the first successful load there is no list to apply to: the buffer is replayed later.
+      // A merging UPDATE without a loaded copy would insert a partial row (payloads may omit large
+      // unchanged columns), so it is skipped and the next re-list brings the full row.
+      const partialWithoutBase = !hasData && change.type === 'upsert' && change.merge
+      if ((hasData || inFlight === 0) && !partialWithoutBase) {
+        patch((s) => ({ ...s, items: order(apply(s.items, change)) }))
+      }
     }
 
-    // Every load restarts the buffer; a result is used only if it is still the latest load.
     const load = () => {
-      const seq = ++loadSeq
-      loading = true
-      buffer = []
+      const mine = ++seq
+      const start = buffer.length
+      inFlight++
+      const settle = () => {
+        inFlight--
+        if (inFlight === 0) buffer = []
+      }
       source
         .list(campaignId)
         .then((rows) => {
-          if (!active || seq !== loadSeq) return
-          loading = false
-          const merged = buffer.splice(0).reduce(apply, rows)
-          patch((s) => ({ ...s, items: order(merged), loading: false, error: null }))
+          if (!active) return
+          if (mine > applied) {
+            applied = mine
+            hasData = true
+            const merged = buffer.slice(start).reduce(apply, rows)
+            patch((s) => ({ ...s, items: order(merged), loading: false, error: null }))
+          } // else: a newer load is already on screen, this result is stale
+          settle()
         })
         .catch((e: unknown) => {
-          if (!active || seq !== loadSeq) return
-          loading = false
-          const replay = buffer.splice(0)
-          patch((s) => ({
-            ...s,
-            items: replay.length ? order(replay.reduce(apply, s.items)) : s.items,
-            loading: false,
-            error: e instanceof Error ? e : new Error(String(e)),
-          }))
+          if (!active) return
+          if (mine > applied) {
+            const error = e instanceof Error ? e : new Error(String(e))
+            const replay = hasData ? [] : buffer.slice(start) // nothing on screen yet: show what arrived
+            patch((s) => ({ ...s, items: order(replay.reduce(apply, s.items)), loading: false, error }))
+          }
+          settle()
         })
     }
 
@@ -121,7 +153,11 @@ export function useCampaignTable<T>(
     }
   }, [source, campaignId, client, sort, reloadToken])
 
-  const reload = useCallback(() => setReloadToken((n) => n + 1), [])
+  // The new subscription starts from 'connecting' / loading until its list and SUBSCRIBED arrive.
+  const reload = useCallback(() => {
+    setSnapshot((prev) => (prev ? { ...prev, loading: true, realtime: 'connecting' } : prev))
+    setReloadToken((n) => n + 1)
+  }, [])
 
   if (!campaignId) return { items: [], loading: false, error: null, realtime: 'connecting', reload }
   if (!snapshot || snapshot.campaignId !== campaignId) {

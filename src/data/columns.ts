@@ -208,25 +208,35 @@ export const GAME_POT_COLUMNS = ['campaign_id', 'cp', 'sp', 'ep', 'gp', 'pp', 'u
 
 export const join = (cols: readonly string[]): string => cols.join(', ')
 
-/** Every list above, for the guard test (no `*`, no `visible_to`). */
-export const ALL_COLUMN_LISTS: Record<string, readonly string[]> = {
-  ...Object.fromEntries(
-    ENTITY_TABLES.flatMap((t) => [
-      [`${t}.select`, entitySelectColumns(t)],
-      [`${t}.promoted`, PROMOTED_COLUMNS[t]],
-    ]),
-  ),
-  profiles: PROFILE_COLUMNS,
-  campaigns: CAMPAIGN_COLUMNS,
-  campaign_members: CAMPAIGN_MEMBER_COLUMNS,
-  campaign_invites: INVITE_COLUMNS,
-  campaign_invites_write: INVITE_WRITE_COLUMNS,
-  entity_dm_notes: DM_NOTES_COLUMNS,
-  player_notes: PLAYER_NOTE_COLUMNS,
-  read_state: READ_STATE_COLUMNS,
-  disponibilidad: DISPONIBILIDAD_COLUMNS,
-  disponibilidad_write: DISPONIBILIDAD_WRITE_COLUMNS,
-  campaign_config: CAMPAIGN_CONFIG_COLUMNS,
-  game_logs: GAME_LOG_COLUMNS,
-  game_pot: GAME_POT_COLUMNS,
+/** A column list together with the table it is selected from (checked against the real schema). */
+export interface ColumnListEntry {
+  name: string
+  table: string
+  columns: readonly string[]
 }
+
+/** Every list above with its table named explicitly, for the guard test and the schema check. */
+export const COLUMN_LIST_ENTRIES: readonly ColumnListEntry[] = [
+  ...ENTITY_TABLES.flatMap((t) => [
+    { name: `${t}.select`, table: t, columns: entitySelectColumns(t) },
+    { name: `${t}.promoted`, table: t, columns: PROMOTED_COLUMNS[t] },
+  ]),
+  { name: 'profiles', table: 'profiles', columns: PROFILE_COLUMNS },
+  { name: 'campaigns', table: 'campaigns', columns: CAMPAIGN_COLUMNS },
+  { name: 'campaign_members', table: 'campaign_members', columns: CAMPAIGN_MEMBER_COLUMNS },
+  { name: 'campaign_invites', table: 'campaign_invites', columns: INVITE_COLUMNS },
+  { name: 'campaign_invites_write', table: 'campaign_invites', columns: INVITE_WRITE_COLUMNS },
+  { name: 'entity_dm_notes', table: 'entity_dm_notes', columns: DM_NOTES_COLUMNS },
+  { name: 'player_notes', table: 'player_notes', columns: PLAYER_NOTE_COLUMNS },
+  { name: 'read_state', table: 'read_state', columns: READ_STATE_COLUMNS },
+  { name: 'disponibilidad', table: 'disponibilidad', columns: DISPONIBILIDAD_COLUMNS },
+  { name: 'disponibilidad_write', table: 'disponibilidad', columns: DISPONIBILIDAD_WRITE_COLUMNS },
+  { name: 'campaign_config', table: 'campaign_config', columns: CAMPAIGN_CONFIG_COLUMNS },
+  { name: 'game_logs', table: 'game_logs', columns: GAME_LOG_COLUMNS },
+  { name: 'game_pot', table: 'game_pot', columns: GAME_POT_COLUMNS },
+]
+
+/** Every list above by name, for the guard test (no `*`, no `visible_to`). */
+export const ALL_COLUMN_LISTS: Record<string, readonly string[]> = Object.fromEntries(
+  COLUMN_LIST_ENTRIES.map((e) => [e.name, e.columns]),
+)

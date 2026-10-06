@@ -44,10 +44,16 @@ describe('entity repository', () => {
   it('list: keeps paging until a short page (no silent truncation at 1000)', async () => {
     const { fake, repo } = setup()
     const full = Array.from({ length: PAGE_SIZE }, (_, i) => row({ id: i + 1 }))
-    fake.enqueue({ data: full }, { data: [row({ id: PAGE_SIZE + 1 })] })
+    fake.enqueue({ data: full }, { data: [row({ id: PAGE_SIZE + 1 })] }, { data: [] })
     const items = await repo.list('c1')
     expect(items).toHaveLength(PAGE_SIZE + 1)
-    expect(fake.calls.map((c) => opsNamed(c, 'range')[0])).toEqual([[0, PAGE_SIZE - 1], [PAGE_SIZE, 2 * PAGE_SIZE - 1]])
+    // a short page is not the end (server max_rows may be lower): only the empty page stops
+    expect(fake.calls.map((c) => opsNamed(c, 'range')[0])).toEqual([
+      [0, PAGE_SIZE - 1],
+      [PAGE_SIZE, 2 * PAGE_SIZE - 1],
+      [PAGE_SIZE + 1, 2 * PAGE_SIZE],
+    ])
+    fake.assertDrained()
   })
 
   it('get: returns null when the row is not visible', async () => {
@@ -141,6 +147,7 @@ describe('entity repository', () => {
     fake.enqueue(version('v2', { data: { a: 1, b: 2 } })) // retry re-reads the fresh data
     fake.enqueue({ data: row({ updated_at: 'v3' }) })
     await repo.update(7, { c: 3 })
+    fake.assertDrained()
     const writes = fake.calls.filter((c) => opsNamed(c, 'update').length > 0)
     expect(writes).toHaveLength(2)
     expect(opsNamed(writes[1], 'update')[0][0]).toEqual({ data: { a: 1, b: 2, c: 3 } })
@@ -159,6 +166,41 @@ describe('entity repository', () => {
     await expect(repo.update(7, { rol: 'x' })).rejects.toMatchObject({ kind: 'not_found' })
   })
 
+  it('base + plain-column patch is guarded by base.updated_at and conflicts when stale', async () => {
+    const { fake, repo } = setup()
+    fake.enqueue({ data: row({ nombre: 'Nuevo', updated_at: 'v2' }) })
+    await repo.update(7, { nombre: 'Nuevo' }, { base: { updated_at: 'v1' } })
+    expect(opsNamed(fake.calls[0], 'update')).toEqual([[{ nombre: 'Nuevo' }]])
+    expect(opsNamed(fake.calls[0], 'eq')).toEqual([['id', 7], ['updated_at', 'v1']])
+    expect(fake.calls).toHaveLength(1) // no pre-read needed
+
+    fake.enqueue({ data: null }, version('v9')) // stale: zero rows, then the version moved on
+    await expect(repo.update(7, { nombre: 'x' }, { base: { updated_at: 'v1' } })).rejects.toBeInstanceOf(ConflictError)
+    fake.enqueue({ data: null }, version('v1')) // same version but still no row: RLS denial
+    await expect(repo.update(7, { nombre: 'x' }, { base: { updated_at: 'v1' } })).rejects.toMatchObject({ kind: 'permission' })
+    fake.enqueue({ data: null }, { data: null })
+    await expect(repo.update(7, { nombre: 'x' }, { base: { updated_at: 'v1' } })).rejects.toMatchObject({ kind: 'not_found' })
+    fake.assertDrained()
+  })
+
+  it('retry exhaustion without a base ends in ConflictError', async () => {
+    const { fake, repo } = setup()
+    for (let i = 0; i < 3; i++) {
+      fake.enqueue(version(`a${i}`, { data: {} }), { data: null }, version(`b${i}`)) // read, lost write, moved on
+    }
+    await expect(repo.update(7, { rol: 'x' })).rejects.toBeInstanceOf(ConflictError)
+    fake.assertDrained()
+  })
+
+  it('a null / non-object value for a merged jsonb column still takes the guarded path, sent as is', async () => {
+    const { fake, repo } = setup('pjs')
+    fake.enqueue(version('v1', { monedas: { gp: 1 } }), { data: row({ updated_at: 'v2' }) })
+    await repo.update(7, { monedas: null })
+    expect(opsNamed(fake.calls[1], 'update')).toEqual([[{ monedas: null }]])
+    expect(opsNamed(fake.calls[1], 'eq')).toContainEqual(['updated_at', 'v1'])
+    fake.assertDrained()
+  })
+
   it('whole-object jsonb columns (pjs.monedas) are merged onto the server value under the version guard', async () => {
     const { fake, repo } = setup('pjs')
     fake.enqueue(version('v1', { monedas: { gp: 5, pp: 1 } }))
@@ -171,10 +213,11 @@ describe('entity repository', () => {
 
   it('zero-row column update: permission when the row exists, not_found when it does not', async () => {
     const { fake, repo } = setup()
-    fake.enqueue({ data: null }, { data: { id: 7 } })
+    fake.enqueue({ data: null }, { data: [{ id: 7 }] })
     await expect(repo.update(7, { nombre: 'x' })).rejects.toMatchObject({ kind: 'permission' })
-    fake.enqueue({ data: null }, { data: null })
+    fake.enqueue({ data: null }, { data: [] })
     await expect(repo.update(7, { nombre: 'x' })).rejects.toMatchObject({ kind: 'not_found' })
+    fake.assertDrained()
   })
 
   it('remove: deletes by id; zero rows is permission or not_found depending on existence', async () => {
@@ -182,10 +225,11 @@ describe('entity repository', () => {
     fake.enqueue({ data: [{ id: 7 }] })
     await repo.remove(7)
     expect(opsNamed(fake.calls[0], 'delete')).toHaveLength(1)
-    fake.enqueue({ data: [] }, { data: { id: 8 } })
+    fake.enqueue({ data: [] }, { data: [{ id: 8 }] })
     await expect(repo.remove(8)).rejects.toMatchObject({ kind: 'permission' })
-    fake.enqueue({ data: [] }, { data: null })
+    fake.enqueue({ data: [] }, { data: [] })
     await expect(repo.remove(9)).rejects.toMatchObject({ kind: 'not_found' })
+    fake.assertDrained()
   })
 
   it('surfaces database errors as typed DataError (never swallowed)', async () => {

@@ -34,6 +34,24 @@ describe('visibility repository', () => {
   })
 })
 
+describe('visibility chunking', () => {
+  it('splits getVisibility into calls of at most 1000 ids and merges the results', async () => {
+    const fake = createFakeClient()
+    const ids = Array.from({ length: 2500 }, (_, i) => i + 1)
+    fake.enqueue({ data: [{ id: 1, visible_to: [9] }] }, { data: [{ id: 1001, visible_to: [] }] }, { data: [{ id: 2500, visible_to: [8] }] })
+    const out = await createVisibilityRepository(fake.db).getVisibility('pnjs', ids)
+    expect(fake.calls.map((c) => (c.args as { p_ids: number[] }).p_ids.length)).toEqual([1000, 1000, 500])
+    expect(out).toEqual({ 1: [9], 1001: [], 2500: [8] })
+    fake.assertDrained()
+  })
+
+  it('makes no call for an empty id list', async () => {
+    const fake = createFakeClient()
+    expect(await createVisibilityRepository(fake.db).getVisibility('pnjs', [])).toEqual({})
+    expect(fake.calls).toHaveLength(0)
+  })
+})
+
 describe('dm notes repository', () => {
   it('get/upsert/remove use the entity_type + entity_id key and explicit columns', async () => {
     const fake = createFakeClient()
@@ -49,8 +67,17 @@ describe('dm notes repository', () => {
       [{ campaign_id: 'c1', entity_type: 'pnjs', entity_id: 4, notas: 'n' }, { onConflict: 'entity_type,entity_id' }],
     ])
 
+    fake.enqueue({ data: [{ id: 1 }] })
     await repo.remove('pnjs', 4)
     expect(opsNamed(fake.calls[2], 'delete')).toHaveLength(1)
+    expect(opsNamed(fake.calls[2], 'select')).toEqual([['id']])
+
+    // zero rows: denied when the row is readable, not_found otherwise
+    fake.enqueue({ data: [] }, { data: [{ entity_type: 'pnjs' }] })
+    await expect(repo.remove('pnjs', 4)).rejects.toMatchObject({ kind: 'permission' })
+    fake.enqueue({ data: [] }, { data: [] })
+    await expect(repo.remove('pnjs', 4)).rejects.toMatchObject({ kind: 'not_found' })
+    fake.assertDrained()
   })
 })
 
@@ -173,6 +200,34 @@ describe('config repository', () => {
     expect(opsNamed(fake.calls[1], 'insert')).toEqual([[{ campaign_id: 'c1', key: 'session_screen', value: { cards: [] }, visibility: 'dm' }]])
   })
 
+  it('patch re-reads and merges when the insert loses to a concurrent creator (23505)', async () => {
+    const fake = createFakeClient()
+    fake.enqueue(
+      { data: null }, // get: row missing
+      { error: { message: 'duplicate key', code: '23505' } }, // insert lost the race
+      { data: current }, // re-read finds the other writer's row
+      { data: { ...current, value: { a: 1, b: 2 }, updated_at: 'v2' } }, // guarded update
+    )
+    const out = await createConfigRepository(fake.db).patch('c1', 'loteria', { b: 2 })
+    expect(out.value).toEqual({ a: 1, b: 2 })
+    expect(opsNamed(fake.calls[3], 'update')).toEqual([[{ value: { a: 1, b: 2 } }]])
+    fake.assertDrained()
+  })
+
+  it('patch reports not_found when the row vanishes mid-update', async () => {
+    const fake = createFakeClient()
+    fake.enqueue({ data: current }, { data: null }, { data: null })
+    await expect(createConfigRepository(fake.db).patch('c1', 'loteria', { b: 2 })).rejects.toMatchObject({ kind: 'not_found' })
+    fake.assertDrained()
+  })
+
+  it('patch reports permission when the update matched nothing but the version is unchanged', async () => {
+    const fake = createFakeClient()
+    fake.enqueue({ data: current }, { data: null }, { data: current })
+    await expect(createConfigRepository(fake.db).patch('c1', 'loteria', { b: 2 })).rejects.toMatchObject({ kind: 'permission' })
+    fake.assertDrained()
+  })
+
   it('patch gives up with ConflictError when every attempt loses the race', async () => {
     const fake = createFakeClient()
     for (let i = 0; i < 3; i++) {
@@ -239,17 +294,17 @@ describe('disponibilidad coercion and zero-row handling', () => {
   it('update with zero rows is permission when the row exists, not_found otherwise', async () => {
     const fake = createFakeClient()
     const repo = createDisponibilidadRepository(fake.db)
-    fake.enqueue({ data: null }, { data: { id: 3 } })
+    fake.enqueue({ data: null }, { data: [{ id: 3 }] })
     await expect(repo.update(3, { fecha: '2026-01-01' })).rejects.toMatchObject({ kind: 'permission' })
-    fake.enqueue({ data: null }, { data: null })
+    fake.enqueue({ data: null }, { data: [] })
     await expect(repo.update(3, { fecha: '2026-01-01' })).rejects.toMatchObject({ kind: 'not_found' })
   })
 
   it('removeLog and leaveCampaign disambiguate zero rows too', async () => {
     const fake = createFakeClient()
-    fake.enqueue({ data: [] }, { data: { id: 1 } })
+    fake.enqueue({ data: [] }, { data: [{ id: 1 }] })
     await expect(createGamesRepository(fake.db).removeLog(1)).rejects.toMatchObject({ kind: 'permission' })
-    fake.enqueue({ data: [] }, { data: { user_id: 'u1' } })
+    fake.enqueue({ data: [] }, { data: [{ user_id: 'u1' }] })
     await expect(createCampaignRepository(fake.db).leaveCampaign('c1', 'u1')).rejects.toMatchObject({ kind: 'permission' })
   })
 
@@ -264,11 +319,12 @@ describe('disponibilidad coercion and zero-row handling', () => {
     await expect(createDmNotesRepository(fake.db).upsert('c1', 'pnjs', 1, { notas: 'n' })).rejects.toMatchObject({ kind: 'written_not_visible' })
   })
 
-  it('list functions page with range until a short page', async () => {
+  it('list functions page with range until an empty page', async () => {
     const fake = createFakeClient()
     fake.enqueue({ data: Array.from({ length: 1000 }, (_, i) => ({ id: i })) }, { data: [] })
     const out = await createDisponibilidadRepository(fake.db).list('c1')
     expect(out).toHaveLength(1000)
     expect(fake.calls.map((c) => opsNamed(c, 'range')[0])).toEqual([[0, 999], [1000, 1999]])
+    fake.assertDrained()
   })
 })

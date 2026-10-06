@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
-import { ALL_COLUMN_LISTS, ENTITY_TABLES } from '../columns'
+import { COLUMN_LIST_ENTRIES, ENTITY_TABLES } from '../columns'
 import { ConflictError, DataError } from '../errors'
 import { createDataLayer, type DataLayer } from '../index'
 import { entitySource, subscribeToTable } from '../realtime'
@@ -34,19 +34,30 @@ describe('data layer against the local Supabase stack', () => {
   let hidden: FlatEntity
   let draft: FlatEntity
 
+  /** An id that exists in no table (bigint identity ids start at 1 and never get this high here). */
+  const MISSING_ID = 2147483647
   const createdUsers: TestUser[] = []
 
-  /** Deletes the campaign and users; every error is logged and the first one is rethrown. */
+  /**
+   * Deletes the campaign and users. Idempotent: what was deleted is forgotten, so a second call
+   * (setup failure + afterAll) only retries leftovers; "user not found" counts as already deleted.
+   * Every other error is logged and the first one is rethrown.
+   */
   async function cleanup() {
     const admin = createAdminClient(env)
     const failures: string[] = []
     if (campaignId) {
       const { error } = await admin.from('campaigns').delete().eq('id', campaignId) // cascades to everything
       if (error) failures.push(`delete campaign ${campaignId}: ${error.message}`)
+      else campaignId = ''
     }
-    for (const u of createdUsers) {
+    for (const u of [...createdUsers]) {
       const { error } = await admin.auth.admin.deleteUser(u.id)
-      if (error) failures.push(`delete user ${u.email}: ${error.message}`)
+      if (error && error.status !== 404 && !/not found/i.test(error.message)) {
+        failures.push(`delete user ${u.email}: ${error.message}`)
+      } else {
+        createdUsers.splice(createdUsers.indexOf(u), 1)
+      }
     }
     if (failures.length > 0) {
       console.error(['INTEGRATION TEARDOWN FAILED, leftovers in the local DB:', ...failures].join('\n'))
@@ -185,7 +196,7 @@ describe('data layer against the local Supabase stack', () => {
     await expect(own.update(pj.id, { nivel: 20 })).rejects.toMatchObject({ kind: 'permission' })
   })
 
-  it('lottery is server-side and once per day; notes and read state are per user', async () => {
+  it('lottery is decided server-side and playable once per day per character', async () => {
     const result = await playerData.games.playLoteria(campaignId, pj.id)
     expect(result.roll).toBeGreaterThanOrEqual(1)
     expect(result.roll).toBeLessThanOrEqual(20)
@@ -193,7 +204,10 @@ describe('data layer against the local Supabase stack', () => {
       kind: 'business',
       reason: 'already_played_today',
     })
-    // reasons stay distinguishable even when raised with SQLSTATE 42501
+    expect((await playerData.games.listLogs(campaignId)).length).toBe(1)
+  })
+
+  it('RPC reasons stay distinguishable even when raised with SQLSTATE 42501', async () => {
     await expect(strangerData.games.playLoteria(campaignId, pj.id)).rejects.toMatchObject({
       kind: 'permission',
       reason: 'not_a_member',
@@ -202,8 +216,9 @@ describe('data layer against the local Supabase stack', () => {
       kind: 'permission',
       reason: 'dm_only',
     })
-    expect((await playerData.games.listLogs(campaignId)).length).toBe(1)
+  })
 
+  it('player notes and read state are per user', async () => {
     await playerData.playerNotes.upsert({ campaignId, entityType: 'pnjs', entityId: pub.id, text: 'mi nota', characterId: pj.id })
     expect((await playerData.playerNotes.list(campaignId)).map((n) => n.text)).toEqual(['mi nota'])
     expect(await strangerData.playerNotes.list(campaignId)).toEqual([])
@@ -217,20 +232,25 @@ describe('data layer against the local Supabase stack', () => {
     )
     expect(seen).toHaveLength(1)
     expect(await dmData.readState.list(campaignId)).toEqual([])
+  })
 
+  it('campaign config: members read loteria, the DM patches it and other keys survive', async () => {
     const loteria = await dmData.config.get(campaignId, 'loteria')
     expect(loteria?.visibility).toBe('members')
     const patched = await dmData.config.patch(campaignId, 'loteria', { commonMinRoll: 7 })
     expect(patched.value).toMatchObject({ commonMinRoll: 7 })
     expect(Object.keys(patched.value).length).toBeGreaterThan(1) // other keys kept
+    expect((await playerData.config.get(campaignId, 'loteria'))?.value).toMatchObject({ commonMinRoll: 7 })
+    await expect(playerData.config.patch(campaignId, 'loteria', { commonMinRoll: 1 })).rejects.toMatchObject({
+      kind: 'permission',
+    })
   })
 
   it('every select list executes against the real schema, and list()/get() work on every entity table (as DM)', async () => {
-    for (const [name, cols] of Object.entries(ALL_COLUMN_LISTS)) {
-      const table = name.split('.')[0].replace(/_write$/, '')
+    for (const { name, table, columns } of COLUMN_LIST_ENTRIES) {
       const { error } = await dm.client
         .from(table as never)
-        .select(cols.join(', '))
+        .select(columns.join(', '))
         .limit(1)
       expect(error, `${name} (${table}): ${error?.message}`).toBeNull()
     }
@@ -239,7 +259,7 @@ describe('data layer against the local Supabase stack', () => {
       const rows = await repo.list(campaignId)
       expect(Array.isArray(rows), table).toBe(true)
       if (rows.length > 0) expect(await repo.get(rows[0].id), table).toMatchObject({ id: rows[0].id })
-      expect(await repo.get(2147483647), table).toBeNull()
+      expect(await repo.get(MISSING_ID), table).toBeNull()
     }
   })
 
@@ -249,11 +269,11 @@ describe('data layer against the local Supabase stack', () => {
     const deletes: string[] = []
     let notify: () => void = () => undefined
     // resolves once `predicate` holds over what has been received so far
-    const until = (predicate: () => boolean) =>
+    const until = (predicate: () => boolean, ms?: number) =>
       waitFor<void>((done) => {
         notify = () => predicate() && done()
         notify()
-      })
+      }, ms)
 
     let unsubscribe: () => void = () => undefined
     const live = waitFor<void>((done) => {
@@ -270,8 +290,16 @@ describe('data layer against the local Supabase stack', () => {
       })
     })
     try {
-      await live // deterministic: nothing is done before the channel is SUBSCRIBED
+      await live // nothing is done before the channel is SUBSCRIBED
       const pnjs = dmData.entity('pnjs')
+
+      // SUBSCRIBED can precede the server-side change subscription being active, so the first event
+      // may be missed. Probe until one is delivered, then run the real assertions deterministically.
+      for (let attempt = 0; attempt < 5 && upserts.length === 0; attempt++) {
+        await pnjs.create(campaignId, { nombre: `Sonda ${attempt}` })
+        await until(() => upserts.length > 0, 2000).catch(() => undefined)
+      }
+      expect(upserts.length, 'realtime never delivered a probe event').toBeGreaterThan(0)
 
       const created = await pnjs.create(campaignId, { nombre: 'Tiempo real', rol: 'bardo', extra: 'k' })
       await until(() => upserts.some((u) => u.item.id === created.id))

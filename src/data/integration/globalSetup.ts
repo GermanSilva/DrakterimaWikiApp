@@ -21,11 +21,27 @@ declare module 'vitest' {
 export default function setup({ provide }: GlobalSetupContext) {
   let out: string
   try {
-    out = execSync('supabase status -o json', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
-  } catch {
-    throw new Error('Cannot read the local Supabase stack. Run `supabase start` first (Docker must be running).')
+    out = execSync('supabase status -o json', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      timeout: 30_000,
+    })
+  } catch (e) {
+    const timedOut = (e as { code?: string }).code === 'ETIMEDOUT'
+    throw new Error(
+      timedOut
+        ? '`supabase status` timed out after 30s. Is Docker running and the stack healthy?'
+        : 'Cannot read the local Supabase stack. Install the Supabase CLI, run `supabase start` and make sure Docker is running.',
+    )
   }
-  const status = JSON.parse(out.slice(out.indexOf('{'))) as Record<string, string>
+  const jsonStart = out.indexOf('{')
+  if (jsonStart < 0) throw new Error('`supabase status -o json` printed no JSON. Is the local stack running (`supabase start`)?')
+  let status: Record<string, string>
+  try {
+    status = JSON.parse(out.slice(jsonStart)) as Record<string, string>
+  } catch {
+    throw new Error('`supabase status -o json` printed invalid JSON. Is the local stack fully started?')
+  }
   const { API_URL: url, ANON_KEY: anonKey, SERVICE_ROLE_KEY: serviceKey } = status
   if (!url || !anonKey || !serviceKey) throw new Error('`supabase status -o json` did not return API_URL / ANON_KEY / SERVICE_ROLE_KEY')
   if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(url)) {

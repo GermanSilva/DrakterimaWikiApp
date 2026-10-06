@@ -44,6 +44,10 @@ type Version = { updated_at: string; current: Record<string, unknown> }
  *    `updated_at` (optimistic concurrency). A concurrent edit therefore surfaces as a retry (no
  *    `base`) or a ConflictError (with `base`), never as a silent loss. Plain-column patches are
  *    last-writer-wins per column.
+ *  - Shallow merge cannot remove a key of a whole-object column (sections_updated, monedas...):
+ *    none of today's use cases needs it, so no `replace` option exists. A null / non-object value
+ *    for such a column is sent as is (guarded) and rejected by the server's CHECK.
+ *  - With `options.base` EVERY update (plain columns included) is guarded by base.updated_at.
  *  - A patch key set to `undefined` is ignored; to clear a `data` key set it to `null`.
  *  - DM-private keys (`notas`, `secreto`, `ganchos`) are rejected with a validation error (use
  *    saveEntityWithDmNotes); `visible_to` is stripped (use the visibility RPCs).
@@ -86,21 +90,30 @@ export function createEntityRepository(client: Db, table: EntityTable): EntityRe
       assertNoDmNotes(patch)
       const { columns, data: dataPatch } = splitFlat(table, patch)
       const touchesData = Object.keys(dataPatch).length > 0
-      const mergedPatched = mergedColumns.filter((c) => isPlainObject(columns[c]))
-      const guarded = touchesData || mergedPatched.length > 0
+      // Any patch of a whole-object jsonb column is guarded, even null / a non-object value
+      // (assigned as is, the server's CHECK decides): only plain objects are shallow-merged.
+      const mergedPatched = mergedColumns.filter((c) => c in columns)
+      const needsMerge = touchesData || mergedPatched.length > 0
+      const callerVersion = typeof options.base?.updated_at === 'string' ? options.base.updated_at : null
 
-      if (!guarded) {
+      if (!needsMerge) {
         if (Object.keys(columns).length === 0) {
           const current = await repo.get(id)
           if (!current) throw new DataError('not_found', `${table}/${id}: not found`)
           return current
         }
-        const row = unwrap<unknown>(await fromTable(client, table).update(columns).eq('id', id).select(select).maybeSingle())
-        if (!row) return throwZeroRows(client, table, { id }, `${table}/${id}`)
-        return toFlat(row)
+        // With a base the version guard always applies (ConflictError on a stale base).
+        let query = fromTable(client, table).update(columns).eq('id', id)
+        if (callerVersion) query = query.eq('updated_at', callerVersion)
+        const row = unwrap<unknown>(await query.select(select).maybeSingle())
+        if (row) return toFlat(row)
+        if (!callerVersion) return throwZeroRows(client, table, { id }, `${table}/${id}`)
+        const after = await readVersion(id, [])
+        if (!after) throw new DataError('not_found', `${table}/${id}: not found`)
+        if (after.updated_at !== callerVersion) throw new ConflictError()
+        throw new DataError('permission', `${table}/${id}: update affected no rows (not permitted)`)
       }
 
-      const callerVersion = typeof options.base?.updated_at === 'string' ? options.base.updated_at : null
       const readCols = [...(touchesData ? ['data'] : []), ...mergedPatched]
 
       for (let attempt = 0; attempt < MAX_GUARDED_ATTEMPTS; attempt++) {
@@ -112,7 +125,8 @@ export function createEntityRepository(client: Db, table: EntityTable): EntityRe
         const payload: Record<string, unknown> = { ...columns }
         for (const col of mergedPatched) {
           const stored = server.current[col]
-          payload[col] = { ...(isPlainObject(stored) ? stored : {}), ...(columns[col] as Record<string, unknown>) }
+          const next = columns[col]
+          payload[col] = isPlainObject(next) ? { ...(isPlainObject(stored) ? stored : {}), ...next } : next
         }
         if (touchesData) {
           const stored = server.current.data
