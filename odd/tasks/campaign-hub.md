@@ -103,7 +103,7 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H6 | Router + hub shell: campaign list, `/c/:slug` layout, campaign context replacing App.jsx god-state, lazy pages | delegated (writer) | [x] |
 | H7a | Port infrastructure: per-entity data hooks (realtime list + actions incl. DM notes and visibility RPCs), campaign wiki-link index, data-agnostic shared components (WikiText/links, forms, unread, player notes) via injected adapters (legacy adapter keeps /legacy working), entity form host | delegated (writer) | [x] |
 | H7b | Port Sesiones + PNJs pages (list + detail via URL, forms, visibility, DM notes, unread, player notes) | delegated (writer) | [x] |
-| H7c | Port Lugares, Facciones, Lore, Items pages | delegated (writer) | [ ] |
+| H7c | Port Lugares, Facciones, Lore, Items pages | delegated (writer) | [x] |
 | H8 | Port PJs (ownership, player self-edit), session screen, maps | delegated (writer) | [ ] |
 | H9 | Port calendar, games, notes, homerules, unread state; DM zone → campaign settings | delegated (writer) | [ ] |
 | H10 | Campaign management: create campaign, branding, regions, custom fields, invites, members/roles | delegated (writer) | [ ] |
@@ -375,6 +375,18 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   follow legacy (players see Secreto on rows shared with them). Browser: DM sees draft + secreto with
   create buttons; player1 sees only allowed rows, no create buttons, hidden PNJ by URL → not found;
   filter survives detail → Volver. Checks: test 621/621, integration 20/20, lint 0 errors, typecheck.
+
+- H7b native reviews: slice 1 under budget; slices 2-3 **approved** (review-0eb32eb262c5797d,
+  review-33f62a0c3b116aa1). Warnings (view key per id, prev/next vs filter) fixed in H7c.
+- H7c: Lugares, Facciones, Lore, Items ported (Lore proof page removed) on shared
+  `EntitySectionRoute` (list/detail/invalid routing, loading/error-retry/not-found gate, view keyed by
+  entity.id) and `EntityUi`; PNJs/Sesiones refactored onto them. Sesiones prev/next walk the timeline
+  inside the active `?tipo=` (no neighbours outside it). Items use inline URL detail (legacy was inline
+  too). Lugares region pills from campaign regions; Lore category pills from visible rows only. Detail
+  timestamps kept (parent decision; consistent with H7b). Parent fixed sweep minors: own-property
+  region lookups, eyebrow without dangling separator, truthy Sintonía. Browser (player1): 4 sections
+  render allowed rows only, secreto lugar shared with Maisie shown with tag. Checks: test 671/671,
+  integration 20/20, lint 0 errors, typecheck clean.
 
 ## Product decisions (user, 2026-10-06)
 

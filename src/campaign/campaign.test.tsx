@@ -87,14 +87,14 @@ describe('role-based navigation', () => {
 
 describe('sections', () => {
   it('renders the placeholder (a not yet ported section) for a deep link with an id', async () => {
-    renderApp('/c/demo/lugares/3', { data: dataFor(dm) })
-    expect(await screen.findByRole('heading', { level: 1, name: 'Lugares' })).toBeInTheDocument()
+    renderApp('/c/demo/mapas/3', { data: dataFor(dm) })
+    expect(await screen.findByRole('heading', { level: 1, name: 'Mapas' })).toBeInTheDocument()
     expect(screen.getByText(/Esta sección se está migrando/)).toBeInTheDocument()
     expect(screen.getByText('3')).toBeInTheDocument()
   })
 
   it('renders the id as text, never as markup', async () => {
-    renderApp(`/c/demo/lugares/${encodeURIComponent('<img src=x onerror=alert(1)>')}`, { data: dataFor(dm) })
+    renderApp(`/c/demo/mapas/${encodeURIComponent('<img src=x onerror=alert(1)>')}`, { data: dataFor(dm) })
     expect(await screen.findByText('<img src=x onerror=alert(1)>')).toBeInTheDocument()
     expect(document.querySelector('main img')).toBeNull()
   })
@@ -109,9 +109,9 @@ describe('sections', () => {
     renderApp('/c/demo', { data: dataFor(dm) })
     await screen.findByRole('heading', { level: 1, name: 'Demo' })
     await act(async () => {
-      fireEvent.click(within(screen.getByRole('navigation', { name: 'Secciones de la campaña' })).getByRole('link', { name: /Lore/ }))
+      fireEvent.click(within(screen.getByRole('navigation', { name: 'Secciones de la campaña' })).getByRole('link', { name: /Mapas/ }))
     })
-    await screen.findByRole('heading', { level: 1, name: 'Lore' })
+    await screen.findByRole('heading', { level: 1, name: 'Mapas' })
     await waitFor(() => expect(document.getElementById('main-content')?.contains(document.activeElement)).toBe(true))
   })
 

@@ -26,8 +26,11 @@ export interface SectionDef {
   Component: ComponentType<SectionPageProps>
 }
 
-const LoreProof = lazy(() => import('./proof/LoreProofPage').then((m) => ({ default: m.LoreProofPage })))
 const Sesiones = lazy(() => import('./sections/SesionesPage').then((m) => ({ default: m.SesionesPage })))
+const Lugares = lazy(() => import('./sections/LugaresPage').then((m) => ({ default: m.LugaresPage })))
+const Facciones = lazy(() => import('./sections/FaccionesPage').then((m) => ({ default: m.FaccionesPage })))
+const Lore = lazy(() => import('./sections/LorePage').then((m) => ({ default: m.LorePage })))
+const Items = lazy(() => import('./sections/ItemsPage').then((m) => ({ default: m.ItemsPage })))
 const PNJs = lazy(() => import('./sections/PNJsPage').then((m) => ({ default: m.PNJsPage })))
 const Placeholder = lazy(() => import('./SectionPlaceholder').then((m) => ({ default: m.SectionPlaceholder })))
 
@@ -47,12 +50,11 @@ export const SECTIONS: readonly SectionDef[] = [
   section('pjs', 'Jugadores (PJ)', 'Personajes', Shield),
   section('pnjs', 'PNJs', 'Personajes', Users, { Component: PNJs }),
   section('mapas', 'Mapas', 'Mundo', Map),
-  section('lugares', 'Lugares', 'Mundo', Map),
-  section('facciones', 'Facciones', 'Mundo', Landmark),
-  // Minimal proof page for the H7a stack; H7c replaces it with the full port.
-  section('lore', 'Lore', 'Mundo', BookOpen, { Component: LoreProof }),
+  section('lugares', 'Lugares', 'Mundo', Map, { Component: Lugares }),
+  section('facciones', 'Facciones', 'Mundo', Landmark, { Component: Facciones }),
+  section('lore', 'Lore', 'Mundo', BookOpen, { Component: Lore }),
   section('homerules', 'Homerules', 'Homebrew', Hammer),
-  section('items', 'Ítems', 'Homebrew', Gem),
+  section('items', 'Ítems', 'Homebrew', Gem, { Component: Items }),
   section('juegos', 'Juegos', 'Homebrew', Dices),
   section('srd', 'SRD / Reglas', 'Referencia', BookMarked),
   section('ajustes', 'Ajustes', 'Administración', SlidersHorizontal, { dmOnly: true }),

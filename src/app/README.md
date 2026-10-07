@@ -59,16 +59,27 @@ a 404 for players, but RLS stays the real boundary. Routes, nav, role gating and
 
 ### Ported pages (`src/campaign/sections/`)
 
-Sesiones and PNJs (H7b) are the reference for the remaining entity pages: list and detail share one component driven by the
+Sesiones, PNJs (H7b), Lugares, Facciones, Lore and Items (H7c) are ported: list and detail share one component driven by the
 URL (`/c/:slug/<section>` and `/c/:slug/<section>/:id`), with no local `selectedId`. Conventions:
 
-- `parseEntityRoute(id)` turns the raw segment into `list | detail(id) | invalid`; only `^[0-9]{1,15}$` is an id, an invalid
-  segment renders "not found" and makes no request.
+- `EntitySectionRoute` (`EntitySectionRoute.tsx`) owns the route: `parseEntityRoute(id)` turns the raw segment into
+  `list | detail(id) | invalid` (only `^[0-9]{1,15}$` is an id; an invalid segment renders "not found" and makes no request) and
+  the detail gate (loading / load error with retry / not found or hidden draft). The view mounts only with a loaded entity and
+  is keyed by id, so local state (lightbox) never leaks across entities and `useStickyTitle` mounts together with the h1.
+  A page supplies only `List`, `View` and its Spanish labels.
+- Shared pieces live in `EntityUi.tsx` (`EntityCard`, `DetailHeading`, `TextSection`, `DmBlock`, `DmDetailActions`, `HeroImage`,
+  `RegionTag`, `EstadoTag`) and `format.ts` (`canSee`).
 - Reads: `useEntities` / `useEntity` (shared realtime list), `useDmNotes` (DM only, only for an entity that exists),
-  `useDmSecretIds` (DM list badges). Writes only through `useEntityForm().openForm` (DM only).
-- The loading/not-found/error gate and the loaded view are separate components, so `useStickyTitle` mounts with the h1.
+  `useDmSecretIds` (DM list badges, PNJs only: no other legacy list shows a lock). Writes only through `useEntityForm().openForm` (DM only).
+- DM-only fields per table (as the legacy forms): sesiones `ganchos`/`notas`, pnjs `secreto`/`notas`, lugares `notas`,
+  facciones `secreto`/`notas`, lore `notas` ("Secretos DM"). Items have none, so the Items page never touches the DM tables.
+- List filters live in the URL (`?rel=`, `?q=`, `?tipo=`, `?region=`, `?cat=`) and are kept by card links, "← Volver" and
+  browser back; an unknown value reads as "Todos". Sesiones prev/next walk the timeline inside the active `?tipo=` filter
+  (and keep the query); a row outside the filter has no neighbours.
+- Items use the same inline URL-driven detail as the others (the legacy Items page was already inline; `DetailPanel` has no
+  views registered), which gives deep links.
 - Players never get DM-only blocks or tags of drafts; `borrador` rows that reach a non-DM client are dropped (RLS is the real boundary).
-- Region labels/colors come from `campaign.regions` (`useRegionInfo`), falling back to the legacy names.
+- Region labels/colors come from `campaign.regions` (`useRegionInfo`, filter pills from `useRegionOptions`), falling back to the legacy names.
 
 ## `CampaignContext` contract
 
