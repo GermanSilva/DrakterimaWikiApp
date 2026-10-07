@@ -33,6 +33,12 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
     const row = options.dmNotes?.[`${type}:${id}`]
     return row ? { id: 1, campaign_id: 'c1', entity_type: type, entity_id: id, created_at: '', updated_at: '', ...row } : null
   })
+  const dmNotesList = vi.fn(async (_campaignId?: string, entityType?: string) =>
+    Object.entries(options.dmNotes ?? {}).filter(([key]) => !entityType || key.startsWith(`${entityType}:`)).map(([key, row]) => {
+      const [type, id] = key.split(':')
+      return { id: 1, campaign_id: 'c1', entity_type: type, entity_id: Number(id), created_at: '', updated_at: '', ...row }
+    }),
+  )
   const dmNotesUpsert = vi.fn(async (_c: string, type: string, id: number, fields: Record<string, string>) => ({
     id: 1, campaign_id: 'c1', entity_type: type, entity_id: id, notas: '', secreto: '', ganchos: '', created_at: '', updated_at: '', ...fields,
   }))
@@ -50,12 +56,12 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
     },
     wikiIndex: (table: string) => ({ table, list: () => indexList(table) }),
     saveEntityWithDmNotes,
-    dmNotes: { get: dmNotesGet, upsert: dmNotesUpsert },
+    dmNotes: { get: dmNotesGet, upsert: dmNotesUpsert, list: dmNotesList },
     visibility: { getVisibility, setVisibility },
     readState: { list: vi.fn(async () => []), markSeen: vi.fn(async () => undefined) },
     playerNotes: { list: vi.fn(async () => []), upsert: vi.fn(), update: vi.fn(), remove: vi.fn() },
   } as unknown as DataLayer
-  return { layer, fake, spies: { entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
+  return { layer, fake, spies: { entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
 }
 
 export const fakeUnread = (): UnreadPort & { markRead: ReturnType<typeof vi.fn> } => ({

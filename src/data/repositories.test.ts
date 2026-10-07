@@ -52,6 +52,20 @@ describe('visibility chunking', () => {
   })
 })
 
+describe('dm notes repository list', () => {
+  it('lists the campaign, optionally filtered by entity type, with explicit columns', async () => {
+    const fake = createFakeClient()
+    const repo = createDmNotesRepository(fake.db)
+    fake.enqueue({ data: [{ id: 1 }] }, { data: [] })
+    await repo.list('c1', 'pnjs')
+    expect(opsNamed(fake.calls[0], 'select')).toEqual([[join(DM_NOTES_COLUMNS)]])
+    expect(opsNamed(fake.calls[0], 'eq')).toEqual([['campaign_id', 'c1'], ['entity_type', 'pnjs']])
+    fake.enqueue({ data: [] })
+    await repo.list('c1')
+    expect(opsNamed(fake.calls[2], 'eq')).toEqual([['campaign_id', 'c1']])
+  })
+})
+
 describe('dm notes repository', () => {
   it('get/upsert/remove use the entity_type + entity_id key and explicit columns', async () => {
     const fake = createFakeClient()

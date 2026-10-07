@@ -26,9 +26,13 @@ const SELECT = join(DM_NOTES_COLUMNS)
  */
 export function createDmNotesRepository(client: Db) {
   return {
-    async list(campaignId: string): Promise<DmNotesRow[]> {
+    /** Every note of the campaign, or only those of one entity type (list badges need a single table). */
+    async list(campaignId: string, entityType?: DmNotesType): Promise<DmNotesRow[]> {
       return pagedList<DmNotesRow>(
-        () => fromTable(client, 'entity_dm_notes').select(SELECT).eq('campaign_id', campaignId).order('id', { ascending: true }),
+        () => {
+          const query = fromTable(client, 'entity_dm_notes').select(SELECT).eq('campaign_id', campaignId)
+          return (entityType ? query.eq('entity_type', entityType) : query).order('id', { ascending: true })
+        },
         'entity_dm_notes',
       )
     },

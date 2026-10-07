@@ -4,6 +4,13 @@ import { useCampaign } from '../CampaignContext'
 import { useCampaignServices } from './campaignServicesContext'
 import { useLoad, type LoadState } from './useLoad'
 
+/** Small stable number from a string, so a version (e.g. `updated_at`) can ride the numeric reload `signal`. */
+const hashOf = (value: string): number => {
+  let h = 0
+  for (let i = 0; i < value.length; i++) h = (h * 31 + value.charCodeAt(i)) | 0
+  return h
+}
+
 export const isDmNotesType = (t: EntityTable): t is DmNotesType => (DM_NOTES_TYPES as readonly string[]).includes(t)
 
 export interface DmNotesFieldsState {
@@ -39,7 +46,9 @@ export function useDmNotes(table: EntityTable, id: number | null, version?: stri
     () => (supported ? () => layer.dmNotes.get(table as DmNotesType, id as number) : null),
     [supported, layer, table, id],
   )
-  const state = useLoad<DmNotesRow | null>(load, `${table}:${id}:${version ?? ''}`, signal)
+  // The version is a reload SIGNAL, not part of the key: a new version re-reads while the previous
+  // notes stay on screen (a key change would blank them and make the DM blocks flicker).
+  const state = useLoad<DmNotesRow | null>(load, `${table}:${id}`, signal + hashOf(version ?? ''))
   const { refresh } = state
   const row = state.data
   return {
