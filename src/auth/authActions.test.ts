@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { requestMagicLink, startGoogleSignIn } from './authActions'
 import { callbackUrl, isGoogleEnabled } from './authConfig'
-import { AuthFlowError, normalizeEmail, toAuthFlowError } from './authErrors'
+import { AuthFlowError, normalizeEmail, toAuthFlowError, toOAuthFlowError } from './authErrors'
 import { createFakeAuth } from './testing/fakeAuth'
 
 const kindOf = async (p: Promise<unknown>) => {
@@ -37,16 +37,32 @@ describe('toAuthFlowError', () => {
     expect(toAuthFlowError({ status: 429, message: 'x' }).kind).toBe('rate_limited')
     expect(toAuthFlowError({ code: 'over_email_send_rate_limit', message: 'x' }).kind).toBe('rate_limited')
   })
-  it('maps 422 / email_address_invalid to invalid_email but not signup_disabled', () => {
-    expect(toAuthFlowError({ status: 422, message: 'x' }).kind).toBe('invalid_email')
+  it('maps only address-related 422 codes to invalid_email', () => {
     expect(toAuthFlowError({ code: 'email_address_invalid', message: 'x' }).kind).toBe('invalid_email')
+    expect(toAuthFlowError({ status: 422, code: 'validation_failed', message: 'x' }).kind).toBe('invalid_email')
+    expect(toAuthFlowError({ status: 422, message: 'x' }).kind).toBe('unknown')
     expect(toAuthFlowError({ status: 422, code: 'signup_disabled', message: 'x' }).kind).toBe('unknown')
+    expect(toAuthFlowError({ status: 422, code: 'email_provider_disabled', message: 'x' }).kind).toBe('unknown')
   })
   it('classifies a disabled provider, network failures and the rest', () => {
     expect(toAuthFlowError({ message: 'Unsupported provider: provider is not enabled' }).kind).toBe('provider_disabled')
     expect(toAuthFlowError({ name: 'AuthRetryableFetchError', message: 'x' }).kind).toBe('network')
     expect(toAuthFlowError(new Error('boom')).kind).toBe('unknown')
     expect(toAuthFlowError(null).kind).toBe('unknown')
+  })
+  it('counts only fetch-originated TypeErrors as network', () => {
+    expect(toAuthFlowError(new TypeError('Failed to fetch')).kind).toBe('network')
+    expect(toAuthFlowError(new TypeError('NetworkError when attempting to fetch resource.')).kind).toBe('network')
+    expect(toAuthFlowError(new TypeError('Load failed')).kind).toBe('network')
+    expect(toAuthFlowError(new TypeError("Cannot read properties of undefined (reading 'x')")).kind).toBe('unknown')
+    expect(toAuthFlowError({ message: 'network down' }).kind).toBe('unknown')
+  })
+  it('OAuth classifier: 422 is not invalid_email, 429 has its own message', () => {
+    expect(toOAuthFlowError({ status: 422, message: 'x' }).kind).toBe('unknown')
+    expect(toOAuthFlowError({ status: 429, message: 'x' }).kind).toBe('oauth_rate_limited')
+    expect(toOAuthFlowError({ status: 429, message: 'x' }).message).not.toMatch(/links/)
+    expect(toOAuthFlowError({ message: 'Unsupported provider: provider is not enabled' }).kind).toBe('provider_disabled')
+    expect(toOAuthFlowError(new TypeError('Failed to fetch')).kind).toBe('network')
   })
   it('never leaks the server message', () => {
     expect(toAuthFlowError({ message: 'secret internal detail' }).message).not.toContain('secret')
@@ -92,7 +108,11 @@ describe('startGoogleSignIn', () => {
       provider: 'google',
       options: { redirectTo: 'https://hub.test/auth/callback', skipBrowserRedirect: true },
     })
-    expect(fetchFn).toHaveBeenCalledWith('https://auth.test/authorize?provider=google', { redirect: 'manual', credentials: 'omit' })
+    expect(fetchFn).toHaveBeenCalledWith('https://auth.test/authorize?provider=google', {
+      redirect: 'manual',
+      credentials: 'omit',
+      signal: expect.any(AbortSignal),
+    })
     expect(navigate).toHaveBeenCalledWith('https://auth.test/authorize?provider=google')
   })
   it('turns a provider-disabled answer into a typed error and does not navigate', async () => {
@@ -112,6 +132,29 @@ describe('startGoogleSignIn', () => {
     }
     await startGoogleSignIn(client, { fetchFn: failing as never, navigate })
     expect(navigate).toHaveBeenCalledOnce()
+  })
+  it('navigates anyway when the probe times out, aborting the request', async () => {
+    const { client } = createFakeAuth()
+    const navigate = vi.fn()
+    let aborted = false
+    const hanging = (_url: string, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener('abort', () => {
+          aborted = true
+          reject(new DOMException('aborted', 'AbortError'))
+        })
+      })
+    await startGoogleSignIn(client, { fetchFn: hanging as never, navigate, probeTimeoutMs: 20 })
+    expect(aborted).toBe(true)
+    expect(navigate).toHaveBeenCalledOnce()
+  })
+  it('maps a 429 probe to the OAuth rate-limit error and never to invalid_email on 422', async () => {
+    const { client } = createFakeAuth()
+    const navigate = vi.fn()
+    const f = (status: number) => (async () => errorResponse(status, { msg: 'x' })) as never
+    expect(await kindOf(startGoogleSignIn(client, { fetchFn: f(429), navigate }))).toBe('oauth_rate_limited')
+    expect(await kindOf(startGoogleSignIn(client, { fetchFn: f(422), navigate }))).toBe('unknown')
+    expect(navigate).not.toHaveBeenCalled()
   })
   it('refuses a non-http(s) authorize URL', async () => {
     const { client, auth } = createFakeAuth()
