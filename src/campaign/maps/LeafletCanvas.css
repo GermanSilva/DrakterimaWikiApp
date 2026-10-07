@@ -1,0 +1,7 @@
+/* Add-point mode: Leaflet puts `cursor: grab` on the container with !important-free rules that also win over an
+   inline style (react-leaflet never updates the MapContainer style after mount), so the mode is a class on our wrapper. */
+.map-add-mode .leaflet-container,
+.map-add-mode .leaflet-grab,
+.map-add-mode .leaflet-dragging .leaflet-grab {
+  cursor: crosshair !important;
+}
