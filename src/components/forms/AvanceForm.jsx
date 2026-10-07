@@ -1,13 +1,14 @@
 import { useState } from 'react'
-import { useApp } from '../../AppContext'
+import { useFormActions, useFormPort } from '../../ports'
 import { calcularOrden } from '../../helpers'
 import PosicionField from './PosicionField'
 import { btnSecondary, btnDanger, btnPrimary, inputCls, labelCls } from '../../constants'
 import { FormGroup, EstadoField, LockIcon } from './formFields'
 
 export default function AvanceForm({ item }) {
-  const { db, save, remove, closeForm, activeFieldRef } = useApp()
-  const sortedAll = [...db.sesiones].sort((a, b) => (a.orden ?? a.numero * 100) - (b.orden ?? b.numero * 100))
+  const { save, remove, closeForm, activeFieldRef, saving } = useFormActions()
+  const { sesiones } = useFormPort()
+  const sortedAll = [...sesiones].sort((a, b) => (a.orden ?? a.numero * 100) - (b.orden ?? b.numero * 100))
   const itemOrden = item ? (item.orden ?? item.numero * 100) : null
   const defaultAfterId = item
     ? (sortedAll.filter(s => s.id !== item.id && (s.orden ?? s.numero * 100) < itemOrden).pop()?.id ?? null)
@@ -60,7 +61,7 @@ export default function AvanceForm({ item }) {
       <div className="flex gap-2.5 justify-end sticky bottom-0 z-[1] bg-bg-card px-8 py-4 pb-6 border-t border-border-base mt-3">
         {item && <button className={btnDanger} onClick={() => remove('sesiones', item.id)}>Eliminar</button>}
         <button className={btnSecondary} onClick={closeForm}>Cancelar</button>
-        <button className={btnPrimary} onClick={handleSave}>Guardar</button>
+        <button className={btnPrimary} disabled={saving} onClick={handleSave}>Guardar</button>
       </div>
     </div>
   )

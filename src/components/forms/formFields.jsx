@@ -1,5 +1,5 @@
 import { Lock } from 'lucide-react'
-import { useApp } from '../../AppContext'
+import { useFormPort } from '../../ports'
 import { inputCls, labelCls } from '../../constants'
 
 export function LockIcon() {
@@ -15,7 +15,7 @@ export function FormRow({ children }) {
 }
 
 export function EstadoField({ estado, visibilidad, setF }) {
-  const { db } = useApp()
+  const { characters } = useFormPort()
   return (
     <FormGroup>
       <label className={labelCls}>Visibilidad</label>
@@ -28,11 +28,11 @@ export function EstadoField({ estado, visibilidad, setF }) {
         <option value="secreto">Secreto (jugadores seleccionados)</option>
         <option value="borrador">Borrador (solo DM)</option>
       </select>
-      {estado === 'secreto' && db.pjs.length > 0 && (
+      {estado === 'secreto' && characters.length > 0 && (
         <div className="mt-2">
           <div className="text-[12px] text-txt-muted mb-1.5">Visible para:</div>
           <div className="flex flex-col gap-1.5">
-            {db.pjs.map(pj => (
+            {characters.map(pj => (
               <label key={pj.id} className="flex items-center gap-2 text-[13px] cursor-pointer text-txt-primary">
                 <input
                   type="checkbox"

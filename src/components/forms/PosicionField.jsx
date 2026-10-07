@@ -1,10 +1,10 @@
-import { useApp } from '../../AppContext'
+import { useFormPort } from '../../ports'
 import { inputCls, labelCls } from '../../constants'
 import { FormGroup } from './formFields'
 
 export default function PosicionField({ afterId, setAfterIdFn, currentId }) {
-  const { db } = useApp()
-  const sortedAll = [...db.sesiones]
+  const { sesiones } = useFormPort()
+  const sortedAll = [...sesiones]
     .sort((a, b) => (a.orden ?? a.numero * 100) - (b.orden ?? b.numero * 100))
     .filter(s => s.id !== currentId)
   return (

@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { useApp } from '../../AppContext'
+import { useFormActions } from '../../ports'
 
 import { btnSecondary, btnDanger, btnPrimary, inputCls, labelCls } from '../../constants'
 import { FormGroup, FormRow, EstadoField } from './formFields'
 
 export default function ItemForm({ item }) {
-  const { save, remove, closeForm, activeFieldRef } = useApp()
+  const { save, remove, closeForm, activeFieldRef, saving } = useFormActions()
   const tipoOpts = ['arma', 'armadura', 'objeto maravilloso', 'foco arcano', 'poción', 'pergamino', 'anillo', 'varita', 'bastón', 'otro']
   const rarezaOpts = ['común', 'infrecuente', 'raro', 'muy raro', 'legendario', 'artefacto']
   const [f, setF] = useState({
@@ -64,7 +64,7 @@ export default function ItemForm({ item }) {
       <div className="flex gap-2.5 justify-end sticky bottom-0 z-[1] bg-bg-card px-8 py-4 pb-6 border-t border-border-base mt-3">
         {item && <button className={btnDanger} onClick={() => remove('items', item.id)}>Eliminar</button>}
         <button className={btnSecondary} onClick={closeForm}>Cancelar</button>
-        <button className={btnPrimary} onClick={() => save('items', { ...f, id: item?.id })}>Guardar</button>
+        <button className={btnPrimary} disabled={saving} onClick={() => save('items', { ...f, id: item?.id })}>Guardar</button>
       </div>
     </div>
   )

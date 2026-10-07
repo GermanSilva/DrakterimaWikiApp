@@ -1,16 +1,16 @@
 import { useState } from 'react'
-import { useApp } from '../../AppContext'
-import { regionLabel, regionOptions } from '../../helpers'
+import { useFormActions, useFormPort } from '../../ports'
 import { btnSecondary, btnDanger, btnPrimary, inputCls, labelCls } from '../../constants'
 import { FormGroup, FormRow, EstadoField, LockIcon } from './formFields'
 
 export default function FaccionForm({ item }) {
-  const { save, remove, closeForm, activeFieldRef } = useApp()
+  const { save, remove, closeForm, activeFieldRef, saving } = useFormActions()
+  const { regions } = useFormPort()
   const tipoOpts = ['institución', 'militar', 'facción', 'gremio', 'culto', 'otro']
   const [f, setF] = useState({
     nombre: item?.nombre ?? '',
     tipo: item?.tipo ?? 'facción',
-    region: item?.region ?? 'magral',
+    region: item?.region ?? regions[0]?.key ?? '',
     relacion: item?.relacion ?? 'neutral',
     descripcion: item?.descripcion ?? '',
     secreto: item?.secreto ?? '',
@@ -36,7 +36,7 @@ export default function FaccionForm({ item }) {
         <div>
           <label className={labelCls}>Región base</label>
           <select className={inputCls} value={f.region} onChange={set('region')}>
-            {regionOptions.map(r => <option key={r} value={r}>{regionLabel[r]}</option>)}
+            {regions.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
           </select>
         </div>
         <div>
@@ -65,7 +65,7 @@ export default function FaccionForm({ item }) {
       <div className="flex gap-2.5 justify-end sticky bottom-0 z-[1] bg-bg-card px-8 py-4 pb-6 border-t border-border-base mt-3">
         {item && <button className={btnDanger} onClick={() => remove('facciones', item.id)}>Eliminar</button>}
         <button className={btnSecondary} onClick={closeForm}>Cancelar</button>
-        <button className={btnPrimary} onClick={() => save('facciones', { ...f, id: item?.id })}>Guardar</button>
+        <button className={btnPrimary} disabled={saving} onClick={() => save('facciones', { ...f, id: item?.id })}>Guardar</button>
       </div>
     </div>
   )

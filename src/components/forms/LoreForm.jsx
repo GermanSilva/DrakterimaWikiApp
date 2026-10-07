@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { useApp } from '../../AppContext'
+import { useFormActions } from '../../ports'
 
 import { btnSecondary, btnDanger, btnPrimary, inputCls, labelCls } from '../../constants'
 import { FormGroup, EstadoField, LockIcon } from './formFields'
 
 export default function LoreForm({ item }) {
-  const { save, remove, closeForm, activeFieldRef } = useApp()
+  const { save, remove, closeForm, activeFieldRef, saving } = useFormActions()
   const [f, setF] = useState({
     titulo: item?.titulo ?? '',
     categoria: item?.categoria ?? '',
@@ -31,7 +31,7 @@ export default function LoreForm({ item }) {
       <div className="flex gap-2.5 justify-end sticky bottom-0 z-[1] bg-bg-card px-8 py-4 pb-6 border-t border-border-base mt-3">
         {item && <button className={btnDanger} onClick={() => remove('lore', item.id)}>Eliminar</button>}
         <button className={btnSecondary} onClick={closeForm}>Cancelar</button>
-        <button className={btnPrimary} onClick={() => save('lore', { ...f, id: item?.id, categoria: f.categoria.toLowerCase() })}>Guardar</button>
+        <button className={btnPrimary} disabled={saving} onClick={() => save('lore', { ...f, id: item?.id, categoria: f.categoria.toLowerCase() })}>Guardar</button>
       </div>
     </div>
   )

@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { useApp } from '../../AppContext'
+import { useFormActions } from '../../ports'
 
 import { btnSecondary, btnDanger, btnPrimary, inputCls, labelCls } from '../../constants'
 import { FormGroup, EstadoField } from './formFields'
 
 export default function HomeruleForm({ item }) {
-  const { save, remove, closeForm, activeFieldRef } = useApp()
+  const { save, remove, closeForm, activeFieldRef, saving } = useFormActions()
   const [f, setF] = useState({
     nombre: item?.nombre ?? '',
     texto: item?.texto ?? '',
@@ -23,7 +23,7 @@ export default function HomeruleForm({ item }) {
       <div className="flex gap-2.5 justify-end sticky bottom-0 z-[1] bg-bg-card px-8 py-4 pb-6 border-t border-border-base mt-3">
         {item && <button className={btnDanger} onClick={() => remove('homebrew_rules', item.id)}>Eliminar</button>}
         <button className={btnSecondary} onClick={closeForm}>Cancelar</button>
-        <button className={btnPrimary} onClick={() => save('homebrew_rules', { ...f, id: item?.id })}>Guardar</button>
+        <button className={btnPrimary} disabled={saving} onClick={() => save('homebrew_rules', { ...f, id: item?.id })}>Guardar</button>
       </div>
     </div>
   )

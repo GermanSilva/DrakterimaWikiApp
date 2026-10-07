@@ -1,19 +1,20 @@
 import { useState } from 'react'
-import { useApp } from '../../AppContext'
+import { useFormActions, useFormPort } from '../../ports'
 import { calcularOrden } from '../../helpers'
 import PosicionField from './PosicionField'
 import { btnSecondary, btnDanger, btnPrimary, inputCls, labelCls } from '../../constants'
 import { FormGroup, FormRow, EstadoField, LockIcon } from './formFields'
 
 export default function SesionForm({ item }) {
-  const { db, save, remove, closeForm, activeFieldRef } = useApp()
-  const sortedAll = [...db.sesiones].sort((a, b) => (a.orden ?? a.numero * 100) - (b.orden ?? b.numero * 100))
+  const { save, remove, closeForm, activeFieldRef, saving } = useFormActions()
+  const { sesiones } = useFormPort()
+  const sortedAll = [...sesiones].sort((a, b) => (a.orden ?? a.numero * 100) - (b.orden ?? b.numero * 100))
   const itemOrden = item ? (item.orden ?? item.numero * 100) : null
   const defaultAfterId = item
     ? (sortedAll.filter(s => s.id !== item.id && (s.orden ?? s.numero * 100) < itemOrden).pop()?.id ?? null)
     : (sortedAll.length > 0 ? sortedAll[sortedAll.length - 1].id : null)
   const [f, setF] = useState({
-    numero: item?.numero ?? (db.sesiones.filter(s => s.tipo !== 'avance').length + 1),
+    numero: item?.numero ?? (sesiones.filter(s => s.tipo !== 'avance').length + 1),
     fecha: item?.fecha ?? '',
     titulo: item?.titulo ?? '',
     resumen: item?.resumen ?? '',
@@ -79,7 +80,7 @@ export default function SesionForm({ item }) {
       <div className="flex gap-2.5 justify-end sticky bottom-0 z-[1] bg-bg-card px-8 py-4 pb-6 border-t border-border-base mt-3">
         {item && <button className={btnDanger} onClick={() => remove('sesiones', item.id)}>Eliminar</button>}
         <button className={btnSecondary} onClick={closeForm}>Cancelar</button>
-        <button className={btnPrimary} onClick={handleSave}>Guardar</button>
+        <button className={btnPrimary} disabled={saving} onClick={handleSave}>Guardar</button>
       </div>
     </div>
   )
