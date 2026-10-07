@@ -100,7 +100,7 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H4b | Fix native review warnings on H4 (paging, zero-row diagnosis, base-guarded updates, hook reload/buffering, integration teardown, safe db:types) | delegated (writer) | [x] |
 | H5 | Auth: provider, login page (magic link + Google), session, profile | delegated (writer) | [x] |
 | H5b | Fix H5 native review warnings (callback error classification, probe timeout, provider read ordering, login/callback timeouts, fail-closed guard) | delegated (writer) | [x] |
-| H6 | Router + hub shell: campaign list, `/c/:slug` layout, campaign context replacing App.jsx god-state, lazy pages | delegated (writer) | [ ] |
+| H6 | Router + hub shell: campaign list, `/c/:slug` layout, campaign context replacing App.jsx god-state, lazy pages | delegated (writer) | [x] |
 | H7 | Port wiki entity pages + forms to the data layer (sesiones, pnjs, lugares, facciones, lore, items) | delegated (writer) | [ ] |
 | H8 | Port PJs (ownership, player self-edit), session screen, maps | delegated (writer) | [ ] |
 | H9 | Port calendar, games, notes, homerules, unread state; DM zone → campaign settings | delegated (writer) | [ ] |
@@ -318,6 +318,21 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   late Google failure of an attempt abandoned by a reset is now shown when no newer attempt started and
   the page is idle (late resolves stay ignored); +2 tests, outdated opposite test removed. test 293/293.
 
+- H6: react-router v7 data router; lazy routes; `/login` (safe `next`, re-validated after normalization),
+  `/auth/callback`, protected `/` (Mis campañas: list with roles, create campaign, join with code),
+  `/invite/:code`, `/profile`, `/c/:slug` (CampaignContext {campaign, role, isDM, myCharacterIds}, branding
+  with strict #rrggbb accent + https logo, sidebar SECTIONS registry, DM-only Ajustes, switcher),
+  `/c/:slug/:section/:id` placeholders for H7-H9, `/legacy/*` lazy Firebase app, 404. ConfigGate shows
+  "Falta configurar Supabase" when env is missing. vercel.json SPA rewrite + security headers
+  (no CSP yet). `base: /` (GitHub Pages retirement is a cutover item). Fixed H5 env leak
+  (`import.meta.env` whole-object inlined Firebase secrets into the entry chunk). Entry chunk free of
+  firebase/three/leaflet/secrets. Adversarial sweep: fixed SEVERE `next` open redirect via
+  dot-segments (verified by parent), invalid vercel.json, chunk-load auto-reload in route errors,
+  focus after lazy load, per-user campaign list. Real-browser check (parent): magic link PKCE login,
+  Mis campañas with DM/Jugador roles, /c/:slug nav (DM sees Ajustes), player 404 on /ajustes, deep
+  link placeholder, open-redirect payload lands on /. Checks: test 436/436, integration 16/16, lint 0
+  errors, typecheck clean, build OK.
+
 ## Product decisions (user, 2026-10-06)
 
 - Sole-DM account deletion is blocked until the DM role is transferred or the campaign deleted — approved.
@@ -335,4 +350,4 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 
 ## Next step
 
-H6: router + hub shell (AuthProvider, /auth/callback, campaign list, /c/:slug layout).
+H7: port wiki entity pages (sesiones, pnjs, lugares, facciones, lore, items) onto SECTIONS with the H4 data layer.
