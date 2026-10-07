@@ -100,8 +100,9 @@ characters, campaign character fields) and props for what differs (back link, bu
   and a section when its nav button is used or it stays mostly visible for 1.5 s. `sections_updated` is readable by every member,
   so the hub never writes a `dm` stamp (nor one for a visibility-only change): the DM-notes dot is derived from the DM-only
   `entity_dm_notes.updated_at`. Migration `20261007140000_pj_owner_hardening.sql` makes the guard reject, for non-DM writers,
-  unknown section keys, non-ISO / future (> now + 5 min) stamps, stamps going back or keys disappearing, and a `custom_fields`
-  that is not a small (8 KB) object of strings.
+  unknown section keys, non-ISO or impossible dates, stamps going back or keys disappearing, any change to the `dm` key, a
+  non-object `sections_updated`, and a `custom_fields` that is not a small (8 KB) object of strings. Future stamps (device clock
+  ahead) are not rejected: `20261007150000_pj_guard_followups.sql` clamps them to the server time.
 - **Derived defaults.** When `stat_hp` changes in a save, `stat_hp_current` is written explicitly (its seeded default derives from it).
 - **Legacy form change.** The legacy `PJForm` no longer carries the dead player-password UI (access is now Auth / magic link).
 - **Visibility.** The page shows an owner their own draft character (RLS lets them read it); other drafts are dropped for players.

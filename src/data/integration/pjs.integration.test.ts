@@ -119,7 +119,7 @@ describe('characters (pjs): owner, other players and DM against the local stack'
     await expect(ownerData.entity('pjs').create(campaignId, { nombre: 'Intruso' })).rejects.toMatchObject({ kind: 'permission' })
   })
 
-  it('hostile custom_fields / sections_updated from an owner are rejected; a stale client cannot move a stamp back', async () => {
+  it('hostile custom_fields / sections_updated from an owner are rejected; future stamps are clamped; a stale client cannot move a stamp back', async () => {
     const own = ownerData.entity('pjs')
     const future = new Date(Date.now() + 86_400_000).toISOString()
     for (const patch of [
@@ -128,12 +128,14 @@ describe('characters (pjs): owner, other players and DM against the local stack'
       { custom_fields: { a: 'x'.repeat(9000) } },
       { sections_updated: { inventado: new Date().toISOString() } },
       { sections_updated: { dm: new Date().toISOString() } },
-      { sections_updated: { stats: future } },
       { sections_updated: { stats: 'tomorrow' } },
       { sections_updated: { stats: 12345 } },
     ]) {
       await expect(own.update(mine.id, patch as Record<string, unknown>), JSON.stringify(patch).slice(0, 60)).rejects.toMatchObject({ kind: 'permission' })
     }
+    // a device clock that is ahead does not break the save: the future stamp is clamped to the server time
+    const ahead = await own.update(mine.id, { sections_updated: { habilidades: future } })
+    expect(Date.parse((ahead.sections_updated as Record<string, string>).habilidades)).toBeLessThanOrEqual(Date.now() + 1000)
     // per-key max merge on the client: an older stamp does not overwrite the stored one
     const stored = (await dmData.entity('pjs').get(mine.id))?.sections_updated as Record<string, string>
     const merged = await own.update(mine.id, { sections_updated: { narrativa: '2001-01-01T00:00:00.000Z', stats: new Date().toISOString() } })

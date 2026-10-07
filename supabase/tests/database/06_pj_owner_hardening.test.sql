@@ -2,7 +2,7 @@
 -- Self-contained fixture, rolled back at the end.
 begin;
 
-select plan(17);
+select plan(16);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -82,9 +82,6 @@ select throws_ok($$update public.pjs set sections_updated = sections_updated || 
   'an unknown section key is rejected');
 select throws_ok($$update public.pjs set sections_updated = '{"dm": "2026-05-01T00:00:00Z"}' where id = 91002$$, '42501', null,
   'an owner cannot create a dm stamp (it is derived from the DM notes)');
-select throws_ok(
-  format($$update public.pjs set sections_updated = sections_updated || '{"stats": "%s"}' where id = 91001$$, to_char((now() + interval '1 day') at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')), '42501', null,
-  'a future timestamp is rejected');
 select throws_ok($$update public.pjs set sections_updated = sections_updated || '{"stats": 12345}' where id = 91001$$, '42501', null,
   'a non-string value is rejected');
 select throws_ok($$update public.pjs set sections_updated = sections_updated || '{"stats": "tomorrow"}' where id = 91001$$, '42501', null,

@@ -405,6 +405,13 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   pgTAP 238/238, test 744/744, integration 29/29, lint 0 errors / 54 warnings, typecheck clean.
   Follow-ups: hardcoded "Motivación para unirse al Gremio" label; decimal prices truncated (legacy).
 
+- H8a native reviews: all **approved** (review-5fa69390440c92cd, review-46cbb3ba3d4461f5,
+  review-f9582d6bac65500c). Follow-ups: new migration `20261007150000_pj_guard_followups.sql` (non-DM
+  cannot touch `dm`; non-object sections_updated rejected; invalid ISO dates → 42501; future stamps
+  clamped to now() instead of rejected — device clock skew safe), PJIdentityTab picker uses latest
+  state, legacy unread section test, drift test scans for newest guard. Checks: pgTAP 249/249, test
+  748/748, integration 29/29, lint 0 errors, typecheck clean.
+
 ## Product decisions (user, 2026-10-06)
 
 - Sole-DM account deletion is blocked until the DM role is transferred or the campaign deleted — approved.

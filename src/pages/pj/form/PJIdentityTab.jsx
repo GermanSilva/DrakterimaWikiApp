@@ -106,7 +106,11 @@ export default function PJIdentityTab({ f, setF, isDM, isOwnPlayer }) {
         // The wiki-link picker writes `{ [key]: text }` through this setter: for a custom field it lands in custom_fields.
         const fieldSetter = field.flat
           ? setF
-          : updater => setF(p => ({ ...p, custom_fields: { ...p.custom_fields, [field.key]: updater({ [field.key]: value })[field.key] } }))
+          : updater =>
+              setF(p => ({
+                ...p,
+                custom_fields: { ...p.custom_fields, [field.key]: updater({ [field.key]: p.custom_fields?.[field.key] ?? '' })[field.key] },
+              }))
         return (
           <FormGroup key={field.key}>
             <label className={labelCls} htmlFor={`pj-field-${field.key}`}>{field.label}</label>

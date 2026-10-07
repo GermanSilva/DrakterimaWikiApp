@@ -46,10 +46,20 @@ describe('latest guard_pj_player_update (all migrations scanned)', () => {
   it('is bound to pjs by the trigger, and the latest definition is the hardened one', () => {
     expect(migrations().some((m) => /create trigger pjs_guard_player_update[\s\S]*?on public\.pjs[\s\S]*?execute function public\.guard_pj_player_update/.test(m.sql))).toBe(true)
     const { name, body } = latestGuard()
-    expect(name).toBe('20261007140000_pj_owner_hardening.sql')
-    for (const needle of ['pg_column_size', "jsonb_typeof(cf) <> 'object'", 'sections_updated timestamps cannot be in the future', "interval '5 minutes'"]) {
-      expect(body).toContain(needle)
+    // the newest migration that defines the guard (found by scanning, no filename pinned) carries every hardening rule
+    for (const needle of [
+      'pg_column_size',
+      "jsonb_typeof(cf) <> 'object'",
+      'sections_updated must be a JSON object',
+      'the dm section stamp cannot be changed',
+      'stamp_ts > now()',
+      'sections_updated contains an invalid date',
+    ]) {
+      expect(body, `${name} lacks "${needle}"`).toContain(needle)
     }
+    // and no later migration drops the function or the trigger
+    const later = migrations().filter((m) => m.name > name)
+    expect(later.some((m) => /drop (function|trigger)[^;]*(guard_pj_player_update|pjs_guard_player_update)/i.test(m.sql))).toBe(false)
   })
 
   it('the stampable sections are exactly the sections of the client (SECTION_FIELDS minus dm, plus general)', () => {
