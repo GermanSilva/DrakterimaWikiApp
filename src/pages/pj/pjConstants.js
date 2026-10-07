@@ -70,7 +70,7 @@ export const SECTION_FIELDS = {
   recursos: ['recursos'],
   equipo: ['equipo', 'monedas', 'monedas_guardado'],
   rasgos: ['rasgos_clase', 'otros_rasgos', 'idiomas', 'prof_armas', 'prof_armaduras', 'prof_herramientas'],
-  narrativa: ['trasfondo', 'motivo', 'magralita'],
+  narrativa: ['trasfondo', 'motivo', 'magralita', 'custom_fields'],
   apariencia: ['edad', 'altura', 'peso', 'ojos', 'piel', 'pelo', 'apariencia', 'personalidad', 'ideales', 'vinculos', 'defectos'],
   dm: ['notas'],
 }

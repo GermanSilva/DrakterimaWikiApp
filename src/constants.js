@@ -29,3 +29,6 @@ export const PLAYER_MARKERS = {
   5: { label: 'KN', color: '#7a2436' }, // Kaelen — granate
   6: { label: 'ÖL', color: '#f97316' }, // Öloon — naranja
 }
+/** Shell of a list card (legacy `div`, hub `Link`): same look in both apps. */
+export const entityCardCls =
+  "bg-bg-card border border-border-base p-[18px] cursor-pointer transition-all relative overflow-hidden animate-card-in before:absolute before:top-0 before:left-0 before:right-0 before:h-0.5 before:content-[''] before:bg-border-light before:transition-colors hover:bg-bg-card-hover hover:border-accent-dim hover:before:bg-accent"

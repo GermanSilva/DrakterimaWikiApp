@@ -1,6 +1,5 @@
 import { FormGroup, FormRow, EstadoField } from '../../../components/forms/formFields'
-import { regionOptions, regionLabel } from '../../../helpers'
-import { useApp } from '../../../AppContext'
+import { useFormActions, useFormPort } from '../../../ports'
 import { labelCls, inputCls } from '../../../constants'
 
 function Separator({ label }) {
@@ -11,9 +10,10 @@ function Separator({ label }) {
   )
 }
 
-export default function PJIdentityTab({ f, setF, isDM, item, isOwnPlayer, newPlayerPwd, setNewPlayerPwd, showPlayerPwd, setShowPlayerPwd, accessStatus, handleResetAccess }) {
+export default function PJIdentityTab({ f, setF, isDM, isOwnPlayer }) {
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
-  const { activeFieldRef } = useApp()
+  const { activeFieldRef } = useFormActions()
+  const { regions, characterFields = [] } = useFormPort()
 
   return (
     <div>
@@ -39,7 +39,8 @@ export default function PJIdentityTab({ f, setF, isDM, item, isOwnPlayer, newPla
         <div>
           <label className={labelCls}>Región de Origen</label>
           <select className={inputCls} value={f.region} onChange={set('region')}>
-            {regionOptions.map(r => <option key={r} value={r}>{regionLabel[r]}</option>)}
+            {f.region && !regions.some(r => r.key === f.region) && <option value={f.region}>{f.region}</option>}
+            {regions.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
           </select>
         </div>
       </FormRow>
@@ -98,8 +99,28 @@ export default function PJIdentityTab({ f, setF, isDM, item, isOwnPlayer, newPla
         onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'trasfondo' } }} /></FormGroup>
       <FormGroup><label className={labelCls}>Motivación para unirse al Gremio</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={2} value={f.motivo} onChange={set('motivo')}
         onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'motivo' } }} /></FormGroup>
-      <FormGroup><label className={labelCls}>Relación con la Magralita</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={2} value={f.magralita} onChange={set('magralita')}
-        onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'magralita' } }} /></FormGroup>
+      {characterFields.map(field => {
+        // legacy: flat key on the document; hub: a key of data.custom_fields
+        const value = field.flat ? (f[field.key] ?? '') : (f.custom_fields?.[field.key] ?? '')
+        const update = text => setF(p => (field.flat ? { ...p, [field.key]: text } : { ...p, custom_fields: { ...p.custom_fields, [field.key]: text } }))
+        // The wiki-link picker writes `{ [key]: text }` through this setter: for a custom field it lands in custom_fields.
+        const fieldSetter = field.flat
+          ? setF
+          : updater => setF(p => ({ ...p, custom_fields: { ...p.custom_fields, [field.key]: updater({ [field.key]: value })[field.key] } }))
+        return (
+          <FormGroup key={field.key}>
+            <label className={labelCls} htmlFor={`pj-field-${field.key}`}>{field.label}</label>
+            <textarea
+              id={`pj-field-${field.key}`}
+              className={`${inputCls} resize-y min-h-[70px]`}
+              rows={2}
+              value={value}
+              onChange={e => update(e.target.value)}
+              onFocus={e => { activeFieldRef.current = { el: e.target, setter: fieldSetter, key: field.key } }}
+            />
+          </FormGroup>
+        )
+      })}
       {isDM && <FormGroup><label className={labelCls}>Notas del DM (privadas 🔒)</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={3} value={f.notas} onChange={set('notas')}
         onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'notas' } }} /></FormGroup>}
 

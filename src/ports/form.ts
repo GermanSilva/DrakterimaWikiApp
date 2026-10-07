@@ -21,6 +21,13 @@ export interface SesionRef {
   titulo?: string
 }
 
+/** A campaign-defined character field (text). `flat`: the legacy app stores it directly on the document. */
+export interface CharacterField {
+  key: string
+  label: string
+  flat?: boolean
+}
+
 /**
  * Read-only data the entity forms need that is NOT part of the entity being edited. The host app
  * installs an adapter (legacy: db + helpers, hub: campaign regions + characters + sesiones).
@@ -31,6 +38,12 @@ export interface FormPort {
   /** Characters offered in the "visible para" checklist of EstadoField. */
   characters: CharacterRef[]
   sesiones: SesionRef[]
+  /** Characters the viewer owns (a player's own PJ): the PJ form shows only the identity tab for them. */
+  ownCharacterIds?: readonly number[]
+  /** Extra character fields to offer in the PJ form (default: none). */
+  characterFields?: readonly CharacterField[]
+  /** Legacy only: the password-based player access of the Firebase app (hub: false, replaced by Auth). */
+  playerAccess?: boolean
 }
 
 export const FormPortContext = createContext<FormPort | null>(null)

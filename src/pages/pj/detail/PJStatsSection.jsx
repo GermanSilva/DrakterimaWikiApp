@@ -36,7 +36,7 @@ export default function PJStatsSection({ pj, unread }) {
           ))}
         </div>
         <div className="flex flex-wrap gap-2">
-          {pj.stat_hp > 0 && <StatBadge label="HP (Hit Points)" value={`${pj.stat_hp_current}${pj.stat_hp_temp > 0 ? ` (+${pj.stat_hp_temp})` : ''} / ${pj.stat_hp}`} />}
+          {pj.stat_hp > 0 && <StatBadge label="HP (Hit Points)" value={`${pj.stat_hp_current ?? pj.stat_hp}${pj.stat_hp_temp > 0 ? ` (+${pj.stat_hp_temp})` : ''} / ${pj.stat_hp}`} />}
           {pj.stat_ac > 0 && <StatBadge label="AC (Armor Class)" value={`${pj.stat_ac}${pj.stat_ac_temp > 0 ? ` (+${pj.stat_ac_temp})` : ''}`} />}
         </div>
       </div>

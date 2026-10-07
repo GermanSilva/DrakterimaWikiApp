@@ -24,7 +24,7 @@ export default function LegacyPortsProvider({ children }) {
     () => createLegacyPlayerNotesPort({ db, isDM, currentPlayer, savePlayerNote, deletePlayerNote }),
     [db, isDM, currentPlayer, savePlayerNote, deletePlayerNote],
   )
-  const form = useMemo(() => createLegacyFormPort({ db, isDM }), [db, isDM])
+  const form = useMemo(() => createLegacyFormPort({ db, isDM, currentPlayer }), [db, isDM, currentPlayer])
   return (
     <WikiPortContext.Provider value={wiki}>
       <UnreadPortContext.Provider value={unread}>

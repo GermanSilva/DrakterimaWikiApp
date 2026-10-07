@@ -6,6 +6,7 @@ import FaccionForm from './FaccionForm'
 import LoreForm from './LoreForm'
 import ItemForm from './ItemForm'
 import HomeruleForm from './HomeruleForm'
+import PJForm from '../../pages/pj/PJForm'
 
 /**
  * Form components of the wiki entities whose only collaborators are the form ports
@@ -15,6 +16,7 @@ import HomeruleForm from './HomeruleForm'
 export const ENTITY_FORMS = {
   sesiones: SesionForm,
   avances: AvanceForm,
+  pjs: PJForm,
   pnjs: PNJForm,
   lugares: LugarForm,
   facciones: FaccionForm,
@@ -27,6 +29,7 @@ export const ENTITY_FORMS = {
 export const FORM_TITLES = {
   sesiones: ['Nueva Sesión', 'Editar Sesión'],
   avances: ['Nuevo Avance', 'Editar Avance'],
+  pjs: ['Nuevo Personaje Jugador', 'Editar PJ'],
   pnjs: ['Nuevo PNJ', 'Editar PNJ'],
   lugares: ['Nuevo Lugar', 'Editar Lugar'],
   facciones: ['Nueva Facción', 'Editar Facción'],

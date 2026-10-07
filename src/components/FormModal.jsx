@@ -1,5 +1,4 @@
 import { useApp } from '../AppContext'
-import PJForm from '../pages/pj/PJForm'
 import MapaForm from '../pages/MapaForm'
 import MapPointForm from '../pages/MapPointForm'
 import DisponibilidadForm from '../pages/DisponibilidadForm'
@@ -8,7 +7,6 @@ import FormShell from './FormShell'
 
 const FORM_COMPONENTS = {
   ...ENTITY_FORMS,
-  pjs: PJForm,
   mapas: MapaForm,
   map_points: MapPointForm,
   disponibilidad: DisponibilidadForm,

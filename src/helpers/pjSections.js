@@ -16,7 +16,25 @@ function canon(v) {
   return v === '' || v === null || v === false || v === 0 ? undefined : v
 }
 
-const sameValue = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b))
+export const sameValue = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b))
+
+/**
+ * The form values that really differ from the entity, with the same notion of "equal" as the section
+ * tracking: an untouched default (0, '', false, [], {}) equals a missing key, so opening and saving a
+ * character does not write every default into it.
+ *
+ * @param {Record<string, unknown>} entity
+ * @param {Record<string, unknown>} values
+ * @returns {Record<string, unknown>}
+ */
+export function changedPjFields(entity, values) {
+  /** @type {Record<string, unknown>} */
+  const patch = {}
+  for (const [key, value] of Object.entries(values)) {
+    if (!sameValue(entity[key], value)) patch[key] = value
+  }
+  return patch
+}
 
 export function changedPjSections(oldPj, newPj) {
   const changed = new Set()
@@ -28,9 +46,14 @@ export function changedPjSections(oldPj, newPj) {
   return [...changed]
 }
 
-function isSectionShown(pj, sectionKey, viewerId) {
-  if (sectionKey === 'dm') return viewerId === 'dm' && !!pj.notas
+/** `hasDmNotes`: the viewer is the DM and the character has DM notes (the only viewer of the 'dm' section). */
+function sectionShown(pj, sectionKey, hasDmNotes) {
+  if (sectionKey === 'dm') return hasDmNotes
   return SECTION_SHOW[sectionKey]?.(pj) ?? true
+}
+
+function isSectionShown(pj, sectionKey, viewerId) {
+  return sectionShown(pj, sectionKey, viewerId === 'dm' && !!pj.notas)
 }
 
 export function isSectionUnread(pj, sectionKey, viewerId, readState) {
@@ -43,4 +66,22 @@ export function isSectionUnread(pj, sectionKey, viewerId, readState) {
 
 export function isPjUnread(pj, viewerId, readState) {
   return Object.keys(pj.sections_updated ?? {}).some(k => isSectionUnread(pj, k, viewerId, readState))
+}
+
+/**
+ * Port-based variants (hub): `port.isUnread(type, id, updatedAt, section)` replaces the readState map,
+ * and `hasDmNotes` replaces the `pj.notas` lookup (the DM notes live outside the entity row there).
+ * `dmStamp` (hub): the time of the last DM-notes edit, read from the DM-only notes row; when it is given the
+ * 'dm' section ignores `sections_updated.dm` (legacy data), so nobody but the DM ever learns when notes changed.
+ */
+export function isSectionUnreadVia(port, pj, sectionKey, hasDmNotes, dmStamp) {
+  const updatedTs = sectionKey === 'dm' && dmStamp !== undefined ? dmStamp : pj.sections_updated?.[sectionKey]
+  if (!updatedTs || !sectionShown(pj, sectionKey, hasDmNotes)) return false
+  return port.isUnread('pjs', pj.id, updatedTs, sectionKey)
+}
+
+export function isPjUnreadVia(port, pj, hasDmNotes, dmStamp) {
+  const keys = new Set(Object.keys(pj.sections_updated ?? {}))
+  if (dmStamp !== undefined) keys.add('dm')
+  return [...keys].some(k => isSectionUnreadVia(port, pj, k, hasDmNotes, dmStamp))
 }

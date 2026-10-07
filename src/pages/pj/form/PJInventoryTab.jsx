@@ -1,6 +1,6 @@
 import { FormGroup } from '../../../components/forms/formFields'
 import { labelCls, inputCls } from '../../../constants'
-import { useApp } from '../../../AppContext'
+import { useFormActions } from '../../../ports'
 import AttacksCRUD from './AttacksCRUD'
 import SpellsCRUD from './SpellsCRUD'
 import EquipmentCRUD from './EquipmentCRUD'
@@ -16,7 +16,7 @@ function Separator({ label }) {
 
 export default function PJInventoryTab({ f, setF }) {
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
-  const { activeFieldRef } = useApp()
+  const { activeFieldRef } = useFormActions()
 
   return (
     <div>

@@ -2,6 +2,7 @@ import { getViewerId, readStateMap, regionLabel, regionOptions } from '../helper
 import { REGION_COLOR } from '../constants'
 import { COLLECTION_DISPLAY, COLLECTION_LETTER, LETTER_COLLECTION } from '../components/wikiHelpers'
 import { searchWikiItems } from '../ports/wikiSearch'
+import { LEGACY_CHARACTER_FIELDS } from '../helpers/pjCustomFields'
 
 const entityTitle = (e) => e.nombre ?? e.titulo ?? ''
 
@@ -77,9 +78,12 @@ export function createLegacyPlayerNotesPort({ db, isDM, currentPlayer, savePlaye
   }
 }
 
-export function createLegacyFormPort({ db, isDM }) {
+export function createLegacyFormPort({ db, isDM, currentPlayer = null }) {
   return {
     isDM,
+    ownCharacterIds: !isDM && currentPlayer ? [currentPlayer.id] : [],
+    characterFields: LEGACY_CHARACTER_FIELDS,
+    playerAccess: true,
     regions: regionOptions.map((key) => ({ key, label: regionLabel[key], color: REGION_COLOR[key] })),
     characters: (db.pjs || []).map((p) => ({ id: p.id, nombre: p.nombre, jugador: p.jugador })),
     sesiones: db.sesiones || [],

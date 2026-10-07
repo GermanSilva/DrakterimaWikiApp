@@ -1,5 +1,6 @@
 import { sectionTitleCls, detailSectionCls } from '../../../constants'
 import UnreadDot from '../../../components/UnreadDot'
+import { calcTotalCP, formatTotalCP } from '../../../helpers/pjInventory'
 
 const CURRENCY = [
   { key: 'pp', label: 'Platino' },
@@ -8,35 +9,6 @@ const CURRENCY = [
   { key: 'sp', label: 'Plata' },
   { key: 'cp', label: 'Bronce' },
 ]
-
-const TO_CP = { pp: 1000, gp: 100, ep: 50, sp: 10, cp: 1 }
-
-function calcTotalCP(equipo, ataques) {
-  return [...equipo, ...ataques].reduce((sum, item) => {
-    const precio = parseInt(item.precio) || 0
-    if (!precio) return sum
-    const cantidad = parseInt(item.cantidad) || 1
-    const rate = TO_CP[item.precio_moneda] ?? TO_CP.gp
-    return sum + precio * cantidad * rate
-  }, 0)
-}
-
-function formatTotalCP(totalCp) {
-  if (totalCp === 0) return null
-  const parts = []
-  let rem = totalCp
-  const denoms = [
-    { val: 1000, label: 'platino' },
-    { val: 100, label: 'oro' },
-    { val: 10, label: 'plata' },
-    { val: 1, label: 'bronce' },
-  ]
-  for (const d of denoms) {
-    const n = Math.floor(rem / d.val)
-    if (n > 0) { parts.push(`${n} ${d.label}`); rem -= n * d.val }
-  }
-  return parts.join(' ')
-}
 
 function MonedasDisplay({ label, monedas }) {
   const hasAny = CURRENCY.some(c => (monedas[c.key] ?? 0) > 0)

@@ -44,8 +44,8 @@ export default function EquipmentCRUD({
   const [editingId, setEditingId] = useState(null)
   const [draft, setDraft] = useState(EMPTY)
   const set = k => e => setDraft(p => ({ ...p, [k]: e.target.value }))
-  const setMoneda = k => e => onMonedasChange({ ...monedas, [k]: parseInt(e.target.value) || 0 })
-  const setMonedaGuardado = k => e => onMonedasGuardadoChange({ ...monedas_guardado, [k]: parseInt(e.target.value) || 0 })
+  const setMoneda = k => e => onMonedasChange({ ...monedas, [k]: Math.max(0, parseInt(e.target.value) || 0) })
+  const setMonedaGuardado = k => e => onMonedasGuardadoChange({ ...monedas_guardado, [k]: Math.max(0, parseInt(e.target.value) || 0) })
 
   function startAdd() { setDraft(EMPTY); setEditingId('new') }
   function startEdit(item) { setDraft({ ...EMPTY, ...item }); setEditingId(item.id) }
@@ -58,8 +58,8 @@ export default function EquipmentCRUD({
   function confirm() {
     const item = {
       ...draft,
-      cantidad: parseInt(draft.cantidad) || 1,
-      precio: parseInt(draft.precio) || 0,
+      cantidad: Math.max(1, parseInt(draft.cantidad) || 1),
+      precio: Math.max(0, parseInt(draft.precio) || 0),
     }
     if (editingId === 'new') {
       onEquipoChange([...equipo, { ...item, id: Date.now() }])

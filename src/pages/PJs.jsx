@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { useApp } from '../AppContext'
 import { isVisible, readStateMap, getViewerId } from '../helpers'
 import { isPjUnread } from '../helpers/pjSections'
-import { PageHeader, EmptyState } from '../components/Shared'
+import { PageHeader, EmptyState, RegionTag } from '../components/Shared'
+import { btnSecondary, REGION_COLOR } from '../constants'
 import { Shield } from 'lucide-react'
 import PJCard from './pj/PJCard'
 import PJDetail from './pj/PJDetail'
@@ -20,14 +21,29 @@ export default function PJs() {
 
   if (selectedId !== null) {
     const pj = db.pjs.find(p => p.id === selectedId)
-    if (pj) return (
-      <PJDetail
-        pj={pj}
-        onBack={() => setSelectedId(null)}
-        onEdit={() => openForm('pjs', pj.id)}
-        onDelete={() => { remove('pjs', pj.id); setSelectedId(null) }}
-      />
-    )
+    if (pj) {
+      const isOwnPlayer = !isDM && currentPlayer?.id === pj.id
+      return (
+        <PJDetail
+          pj={pj}
+          notas={pj.notas ?? ''}
+          isDM={isDM}
+          back={<button className={btnSecondary} onClick={() => setSelectedId(null)}>← Volver</button>}
+          actions={
+            isDM ? (
+              <>
+                <button className={btnSecondary} onClick={() => { remove('pjs', pj.id); setSelectedId(null) }}>Eliminar</button>
+                <button className={btnSecondary} onClick={() => openForm('pjs', pj.id)}>Editar</button>
+              </>
+            ) : isOwnPlayer ? (
+              <button className={btnSecondary} onClick={() => openForm('pjs', pj.id)}>Editar</button>
+            ) : null
+          }
+          regionTag={<RegionTag region={pj.region} />}
+          regionColor={REGION_COLOR[pj.region]}
+        />
+      )
+    }
   }
 
   const visible = db.pjs.filter(p => isVisible(p, isDM, currentPlayer))

@@ -18,7 +18,7 @@ export default function AttacksCRUD({ ataques = [], onChange }) {
   }
 
   function confirm() {
-    const item = { ...draft, precio: parseInt(draft.precio) || 0 }
+    const item = { ...draft, precio: Math.max(0, parseInt(draft.precio) || 0) }
     if (editingId === 'new') {
       onChange([...ataques, { ...item, id: Date.now() }])
     } else {
