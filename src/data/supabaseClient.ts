@@ -4,8 +4,15 @@ import type { Db } from './types'
 
 let instance: Db | null = null
 
-export function createSupabaseClient(url: string, anonKey: string): Db {
-  return createClient<Database>(url, anonKey)
+/**
+ * PKCE: magic links and OAuth return a one-time `?code=` that only the browser that started the
+ * sign-in can exchange (it holds the code verifier), so a link opened elsewhere, or a crafted
+ * `#access_token=` URL, cannot sign anyone in. `detectSessionInUrl` is off: src/auth's
+ * completeAuthCallback is the single owner of the callback URL (explicit exchange + URL cleanup).
+ * `auth` options can be overridden (integration tests inject an in-memory storage).
+ */
+export function createSupabaseClient(url: string, anonKey: string, auth: Record<string, unknown> = {}): Db {
+  return createClient<Database>(url, anonKey, { auth: { flowType: 'pkce', detectSessionInUrl: false, ...auth } })
 }
 
 /**
