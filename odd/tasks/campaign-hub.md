@@ -314,6 +314,10 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   suggestions tracked as follow-ups (not blocking): refresh superseding initial load can end in error
   until retried; hung onGoogle has no timeout; integration timeout constant coupling.
 
+- Review of 508bc99 (high, 4 lenses) → **approved** (review-0105cd89ba68e4ec). Parent fixed its warning: a
+  late Google failure of an attempt abandoned by a reset is now shown when no newer attempt started and
+  the page is idle (late resolves stay ignored); +2 tests, outdated opposite test removed. test 293/293.
+
 ## Product decisions (user, 2026-10-06)
 
 - Sole-DM account deletion is blocked until the DM role is transferred or the campaign deleted — approved.

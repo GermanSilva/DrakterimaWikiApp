@@ -76,6 +76,36 @@ describe('LoginPage single OAuth flow', () => {
     await userEvent.click(googleButton())
     expect(onGoogle).toHaveBeenCalledTimes(3)
   })
+
+  it('still shows a late failure of an attempt abandoned by a reset when nothing newer started', async () => {
+    const first = deferred()
+    render(<LoginPage onEmailSubmit={vi.fn()} onGoogle={() => first.promise} />)
+    await userEvent.click(googleButton())
+    act(() => {
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))
+    })
+    expect(googleButton()).toBeEnabled()
+    await act(async () => first.reject(new AuthFlowError('network')))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/conectarnos/)
+    expect(googleButton()).toBeEnabled()
+  })
+
+  it('a late failure does not override a magic-link send the user started after the reset', async () => {
+    const first = deferred()
+    const send = deferred()
+    render(<LoginPage onEmailSubmit={() => send.promise} onGoogle={() => first.promise} />)
+    await userEvent.click(googleButton())
+    act(() => {
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))
+    })
+    await userEvent.type(screen.getByLabelText(/email/i), 'a@b.test')
+    await act(async () => {
+      fireEvent.submit(screen.getByLabelText(/email/i).closest('form') as HTMLFormElement)
+    })
+    await act(async () => first.reject(new AuthFlowError('network')))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Enviando…' })).toBeInTheDocument()
+  })
 })
 
 const at = (suffix: string) => ({ href: `http://localhost/auth/callback${suffix}`, pathname: '/auth/callback' })
@@ -180,20 +210,6 @@ describe('AuthCallback single navigation', () => {
 })
 
 describe('LoginPage stale results after a reset', () => {
-  it('ignores an onGoogle reject that arrives after the pageshow reset', async () => {
-    const first = deferred()
-    const onGoogle = vi.fn().mockReturnValue(first.promise)
-    render(<LoginPage onEmailSubmit={vi.fn()} onGoogle={onGoogle} />)
-    await userEvent.click(googleButton())
-    act(() => {
-      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))
-    })
-    expect(googleButton()).toHaveTextContent('Continuar con Google')
-    await act(async () => first.reject(new AuthFlowError('provider_disabled')))
-    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
-    expect(googleButton()).toHaveTextContent('Continuar con Google')
-  })
-
   it('ignores a late resolve after the reset (does not re-enter the redirecting phase)', async () => {
     const first = deferred()
     render(<LoginPage onEmailSubmit={vi.fn()} onGoogle={() => first.promise} />)

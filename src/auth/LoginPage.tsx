@@ -39,6 +39,9 @@ export function LoginPage({ onEmailSubmit, onGoogle, googleEnabled = true }: Log
   // rejection from an earlier attempt must not override a newer phase.
   const inFlight = useRef(false)
   const attempt = useRef(0)
+  // lastStarted: the newest attempt started by a click (resets bump `attempt` but not this one), so a
+  // late failure of an attempt abandoned by a reset can still be shown when nothing newer started.
+  const lastStarted = useRef(0)
   useEffect(() => {
     if (!redirecting) return
     const reset = () => {
@@ -73,16 +76,24 @@ export function LoginPage({ onEmailSubmit, onGoogle, googleEnabled = true }: Log
     if (busy || inFlight.current) return
     inFlight.current = true
     const mine = ++attempt.current
+    lastStarted.current = mine
     setPhase({ name: 'redirecting', handedOff: false })
     try {
       await onGoogle()
       // The browser is navigating to Google; stay in 'redirecting' until the page unloads
-      // (or the effect above resets it).
+      // (or the effect above resets it). A late resolve after a reset is ignored.
       if (attempt.current === mine) setPhase({ name: 'redirecting', handedOff: true })
     } catch (err) {
-      if (attempt.current !== mine) return // stale: a newer attempt owns the state
+      if (lastStarted.current !== mine) return // stale: a newer attempt owns the state
       inFlight.current = false
-      setPhase({ name: 'error', message: messageOf(err) })
+      const error: Phase = { name: 'error', message: messageOf(err) }
+      if (attempt.current === mine) {
+        setPhase(error)
+      } else {
+        // Abandoned by a reset (timeout / bfcache) but nothing newer started: still surface the
+        // failure, unless the user already moved on (e.g. is sending a magic link).
+        setPhase((p) => (p.name === 'idle' ? error : p))
+      }
     }
   }
 
