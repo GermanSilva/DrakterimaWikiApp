@@ -1,4 +1,4 @@
-import { ENTITY_SELECT, MERGED_OBJECT_COLUMNS, type EntityTable } from './columns'
+import { ENTITY_SELECT, MAX_MERGE_COLUMNS, MERGED_OBJECT_COLUMNS, type EntityTable } from './columns'
 import { ConflictError, DataError, unwrap, unwrapWrite } from './errors'
 import { fromTable } from './loose'
 import { assertNoDmNotes, fromRow, splitFlat, toInsertRow, type EntityRow } from './mappers'
@@ -10,6 +10,22 @@ const MAX_GUARDED_ATTEMPTS = 3
 
 const isPlainObject = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v)
+
+/** Later of two timestamp values (ISO strings compare by time; anything unparsable loses to a parsable one). */
+function laterStamp(a: unknown, b: unknown): unknown {
+  const ta = typeof a === 'string' ? Date.parse(a) : NaN
+  const tb = typeof b === 'string' ? Date.parse(b) : NaN
+  if (Number.isNaN(ta)) return b
+  if (Number.isNaN(tb)) return a
+  return tb >= ta ? b : a
+}
+
+/** `stored` and `next` merged per key, keeping the later timestamp of each key. */
+function mergeMax(stored: Record<string, unknown>, next: Record<string, unknown>): Record<string, unknown> {
+  const out = { ...stored }
+  for (const [key, value] of Object.entries(next)) out[key] = key in out ? laterStamp(out[key], value) : value
+  return out
+}
 
 export interface UpdateOptions {
   /**
@@ -55,6 +71,7 @@ type Version = { updated_at: string; current: Record<string, unknown> }
 export function createEntityRepository(client: Db, table: EntityTable): EntityRepository {
   const select = ENTITY_SELECT[table]
   const mergedColumns = MERGED_OBJECT_COLUMNS[table] ?? []
+  const maxColumns = new Set(MAX_MERGE_COLUMNS[table] ?? [])
   const toFlat = (row: unknown) => fromRow(table, row as EntityRow)
 
   async function readVersion(id: number, columns: string[]): Promise<Version | null> {
@@ -126,7 +143,8 @@ export function createEntityRepository(client: Db, table: EntityTable): EntityRe
         for (const col of mergedPatched) {
           const stored = server.current[col]
           const next = columns[col]
-          payload[col] = isPlainObject(next) ? { ...(isPlainObject(stored) ? stored : {}), ...next } : next
+          const base = isPlainObject(stored) ? stored : {}
+          payload[col] = isPlainObject(next) ? (maxColumns.has(col) ? mergeMax(base, next) : { ...base, ...next }) : next
         }
         if (touchesData) {
           const stored = server.current.data

@@ -211,6 +211,16 @@ describe('entity repository', () => {
     expect(opsNamed(fake.calls[1], 'eq')).toContainEqual(['updated_at', 'v1'])
   })
 
+  it('timestamp maps (pjs.sections_updated) merge per key keeping the LATER stamp, never moving one back', async () => {
+    const { fake, repo } = setup('pjs')
+    fake.enqueue(version('v1', { sections_updated: { equipo: '2026-03-01T00:00:00Z', stats: '2026-01-01T00:00:00Z', dm: 'garbage' } }))
+    fake.enqueue({ data: row({ updated_at: 'v2' }) })
+    await repo.update(7, { sections_updated: { equipo: '2026-02-01T00:00:00Z', stats: '2026-04-01T00:00:00Z', narrativa: '2026-02-02T00:00:00Z', dm: '2026-05-01T00:00:00Z' } })
+    expect(opsNamed(fake.calls[1], 'update')).toEqual([
+      [{ sections_updated: { equipo: '2026-03-01T00:00:00Z', stats: '2026-04-01T00:00:00Z', dm: '2026-05-01T00:00:00Z', narrativa: '2026-02-02T00:00:00Z' } }],
+    ])
+  })
+
   it('zero-row column update: permission when the row exists, not_found when it does not', async () => {
     const { fake, repo } = setup()
     fake.enqueue({ data: null }, { data: [{ id: 7 }] })

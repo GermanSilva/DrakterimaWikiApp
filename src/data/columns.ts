@@ -91,6 +91,14 @@ export const MERGED_OBJECT_COLUMNS: Partial<Record<EntityTable, readonly string[
   pjs: ['sections_updated', 'monedas', 'monedas_guardado'],
 }
 
+/**
+ * Whole-object jsonb columns that hold `{ key: ISO timestamp }`: a patch merges per key keeping the LATER
+ * timestamp, so a stale client can never move a stamp back (the database guard rejects that for owners too).
+ */
+export const MAX_MERGE_COLUMNS: Partial<Record<EntityTable, readonly string[]>> = {
+  pjs: ['sections_updated'],
+}
+
 /** Read-only columns present on every entity row. */
 export const ENTITY_META_COLUMNS = ['id', 'campaign_id', 'created_by', 'created_at', 'updated_at'] as const
 
