@@ -194,3 +194,33 @@ describe('useCampaignTable resilience', () => {
     await waitFor(() => expect(source.list).toHaveBeenCalledTimes(3)) // initial + SUBSCRIBED + reload
   })
 })
+
+describe('useCampaignTable.refresh', () => {
+  it('re-lists in place: no loading flash, rows that became invisible disappear', async () => {
+    const fake = createFakeClient()
+    const source = makeSource([[item(1), item(2)], [item(1)], [item(1)]])
+    const { result } = renderHook(() => useCampaignTable(source, 'c1', { client: fake.db }))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.items).toHaveLength(2)
+    const seen: boolean[] = []
+    act(() => {
+      result.current.refresh()
+    })
+    seen.push(result.current.loading) // right after the call: still showing data
+    await waitFor(() => expect(result.current.items.map((i) => i.id)).toEqual([1]))
+    expect(seen).toEqual([false])
+    expect(result.current.loading).toBe(false)
+  })
+
+  it('is a no-op after unmount', async () => {
+    const fake = createFakeClient()
+    const source = makeSource([[item(1)]])
+    const { result, unmount } = renderHook(() => useCampaignTable(source, 'c1', { client: fake.db }))
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    const calls = source.list.mock.calls.length
+    const { refresh } = result.current
+    unmount()
+    refresh()
+    expect(source.list.mock.calls.length).toBe(calls)
+  })
+})

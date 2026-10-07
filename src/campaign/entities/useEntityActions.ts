@@ -130,8 +130,21 @@ export function useEntityActions(table: EntityTable): EntityActions {
     [isDM, layer, table, campaignId, store],
   )
 
+  /** DM notes for a table that has none would be silently dropped: refuse before writing anything. */
+  const rejectsDmNotes = useCallback(
+    (options: WriteOptions) => {
+      if (hasKeys(options.dmNotes) && !isDmNotesType(table)) {
+        showToast('Este tipo de registro no tiene notas del DM.', 'error')
+        return true
+      }
+      return false
+    },
+    [table, showToast],
+  )
+
   const create = useCallback<EntityActions['create']>(
     async (flat, options = {}) => {
+      if (rejectsDmNotes(options)) return null
       if (!isDM && (hasKeys(options.dmNotes) || options.visibleTo !== undefined)) {
         showToast('Solo el DM puede editar las notas y la visibilidad.', 'error')
         return null
@@ -155,11 +168,12 @@ export function useEntityActions(table: EntityTable): EntityActions {
       }
       return done
     },
-    [isDM, layer, table, campaignId, showToast, fail, followUps, markSeen],
+    [isDM, layer, table, campaignId, showToast, fail, followUps, markSeen, rejectsDmNotes],
   )
 
   const update = useCallback<EntityActions['update']>(
     async (id, patch, options = {}) => {
+      if (rejectsDmNotes(options)) return null
       if (!isDM && (hasKeys(options.dmNotes) || options.visibleTo !== undefined)) {
         showToast('Solo el DM puede editar las notas y la visibilidad.', 'error')
         return null
@@ -181,7 +195,7 @@ export function useEntityActions(table: EntityTable): EntityActions {
       }
       return done
     },
-    [isDM, layer, table, campaignId, showToast, fail, followUps, markSeen],
+    [isDM, layer, table, campaignId, showToast, fail, followUps, markSeen, rejectsDmNotes],
   )
 
   const remove = useCallback<EntityActions['remove']>(

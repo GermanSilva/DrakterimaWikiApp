@@ -49,12 +49,17 @@ export function HubPlayerNotesProvider({ children }: { children: ReactNode }) {
 
   const items = notes && notes.campaignId === campaignId ? notes.items : null
 
-  const upsertLocal = useCallback((note: PlayerNote) => {
-    setNotes((prev) => {
-      const rest = (prev?.items ?? []).filter((n) => !sameNote(n, note.user_id, note.entity_type, note.entity_id))
-      return { campaignId: note.campaign_id, items: [...rest, note] }
-    })
-  }, [])
+  const upsertLocal = useCallback(
+    (note: PlayerNote) => {
+      // a result that arrives after the campaign changed must not leak into this campaign's list
+      if (note.campaign_id !== campaignId) return
+      setNotes((prev) => {
+        const rest = (prev?.items ?? []).filter((n) => !sameNote(n, note.user_id, note.entity_type, note.entity_id))
+        return { campaignId: note.campaign_id, items: [...rest, note] }
+      })
+    },
+    [campaignId],
+  )
 
   const port = useMemo<PlayerNotesPort>(() => {
     const labelOf = (n: PlayerNote) =>

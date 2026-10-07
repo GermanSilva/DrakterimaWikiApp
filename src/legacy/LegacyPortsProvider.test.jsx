@@ -142,3 +142,13 @@ describe('pending links', () => {
     expect(screen.getByText('Lugar')).not.toHaveAttribute('title')
   })
 })
+
+describe('legacy player notes keep the original pj_id', () => {
+  it('a DM saving a note of a string pj id sends that exact id, not a Number() round trip', () => {
+    const odd = { ...db, player_notes: [{ id: 'abc_lore_2', pj_id: 'abc', type: 'lore', entity_id: 2, text: 'x' }], pjs: [] }
+    const ctx = renderLegacy(<PlayerNotes entityType="lore" entityId={2} />, { isDM: true, currentPlayer: null, db: odd })
+    fireEvent.change(screen.getByDisplayValue('x'), { target: { value: 'y' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar nota' }))
+    expect(ctx.savePlayerNote).toHaveBeenCalledWith('abc', 'lore', 2, 'y')
+  })
+})

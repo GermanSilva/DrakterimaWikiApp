@@ -358,6 +358,15 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   back to 60. Checks: test 530/530, pgTAP 221/221, integration 20/20, build OK, entry chunk clean.
   Browser: /legacy renders real Firestore data with no console errors.
 
+- H7a native reviews (7 slices 5cc2e85..38f13c0): all **approved** (review-22eb65d1852f0a22,
+  review-d31cd4074b39daa2, review-0920fa6e3781d625, review-6744250b174f3070, review-ad5809726a6f612a,
+  review-86842c60ed8a08d4, review-6d870d55b722aa9c). Follow-ups fixed: useEntity error vs notFound;
+  create with follow-up warnings continues as edit of the created row (no duplicate on retry); form
+  host keyed per request; DM notes on tables without notes rejected before writing; stale-campaign
+  player-note results ignored; region default falls back to "otro" in the hub (legacy "magral");
+  legacy note keys keep the original pj_id; tests for conflict toast, markRead, refresh, TableStore.
+  Checks: test 547/547, integration 20/20, lint 0 errors / 60 warnings, typecheck clean.
+
 ## Product decisions (user, 2026-10-06)
 
 - Sole-DM account deletion is blocked until the DM role is transferred or the campaign deleted — approved.

@@ -55,6 +55,8 @@ export function createLegacyUnreadPort({ db, isDM, currentPlayer, markRead, mark
 
 export function createLegacyPlayerNotesPort({ db, isDM, currentPlayer, savePlayerNote, deletePlayerNote }) {
   const notes = db.player_notes || []
+  // opaque author key -> the ORIGINAL pj_id (no Number()/String() round trip that could change it)
+  const pjIds = new Map(notes.map((n) => [String(n.pj_id), n.pj_id]))
   return {
     role: isDM ? 'dm' : currentPlayer ? 'player' : 'none',
     loading: false,
@@ -68,7 +70,7 @@ export function createLegacyPlayerNotesPort({ db, isDM, currentPlayer, savePlaye
         })),
     mine: (type, id) =>
       notes.find((n) => n.pj_id === currentPlayer?.id && n.type === type && n.entity_id === id)?.text || '',
-    save: (type, id, text, key) => savePlayerNote(isDM ? Number(key) : currentPlayer.id, type, id, text),
+    save: (type, id, text, key) => savePlayerNote(isDM ? (pjIds.get(key) ?? key) : currentPlayer.id, type, id, text),
     remove: (type, id, key) => deletePlayerNote(`${isDM ? key : currentPlayer.id}_${type}_${id}`),
   }
 }

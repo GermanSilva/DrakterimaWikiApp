@@ -36,32 +36,34 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
   const { showToast } = useToast()
   const table = tableOfForm(request.type)
   const id = request.id ?? null
-  const editing = id !== null
+  const [seed, setSeed] = useState<Seed | null>(null)
+  // a form that created an entity with failed follow-ups continues as an EDIT of that entity
+  const editing = id !== null || seed !== null
+  const openedAsEdit = id !== null
   const actions = useEntityActions(table)
 
-  const list = useEntities(table, { enabled: editing })
-  const entity = useMemo(() => (editing ? (list.items.find((e) => e.id === id) ?? null) : null), [editing, list.items, id])
+  const list = useEntities(table, { enabled: openedAsEdit })
+  const entity = useMemo(() => (openedAsEdit ? (list.items.find((e) => e.id === id) ?? null) : null), [openedAsEdit, list.items, id])
   const dm = useDmNotes(table, id)
-  const vis = useVisibility(table, editing ? [id] : [])
+  const vis = useVisibility(table, openedAsEdit ? [id] : [])
   const needsSesiones = table === 'sesiones'
   const sesionesList = useEntities('sesiones', { enabled: needsSesiones })
 
-  const dmReady = !isDM || !editing || dm.status === 'ready' || dm.status === 'idle'
-  const visReady = !isDM || !editing || vis.status === 'ready' || vis.status === 'idle'
+  const dmReady = !isDM || !openedAsEdit || dm.status === 'ready' || dm.status === 'idle'
+  const visReady = !isDM || !openedAsEdit || vis.status === 'ready' || vis.status === 'idle'
   const sesionesReady = !needsSesiones || !sesionesList.loading
-  const [seed, setSeed] = useState<Seed | null>(null)
   // Load problems only matter BEFORE the seed is latched: once the form is open, a transient re-list
   // error or a row that vanished from the list must not close it under the user's hands.
-  const loadFailed = !seed && editing && (dm.status === 'error' || vis.status === 'error' || !!list.error)
-  const missing = !seed && editing && !list.loading && !entity
+  const loadFailed = !seed && openedAsEdit && (dm.status === 'error' || vis.status === 'error' || !!list.error)
+  const missing = !seed && openedAsEdit && !list.loading && !entity
   const saving = useRef(false)
   const [isSaving, setIsSaving] = useState(false)
   useEffect(() => {
-    if (seed || !editing || !entity || !dmReady || !visReady) return
+    if (seed || !openedAsEdit || !entity || !dmReady || !visReady) return
     // Latches the form's initial values exactly once, after everything it seeds from has loaded.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setSeed({ entity, dm: dm.fields, visibleTo: vis.visibility[entity.id] ?? [] })
-  }, [seed, editing, entity, dmReady, visReady, dm.fields, vis.visibility])
+  }, [seed, openedAsEdit, entity, dmReady, visReady, dm.fields, vis.visibility])
 
   useEffect(() => {
     if (loadFailed) {
@@ -126,6 +128,19 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
         const filled = Object.fromEntries(Object.entries(notes).filter(([, v]) => v !== ''))
         const outcome = await actions.create(flat, { dmNotes: filled, visibleTo })
         saved = outcome?.entity ?? null
+        if (outcome && outcome.warnings.length > 0) {
+          // Created, but a follow-up failed: continue as an EDIT of the created row so a retry updates
+          // it (never creates a duplicate). What did not reach the server stays "to send".
+          setSeed({
+            entity: outcome.entity,
+            dm: outcome.dmNotes
+              ? { notas: outcome.dmNotes.notas, secreto: outcome.dmNotes.secreto, ganchos: outcome.dmNotes.ganchos }
+              : { notas: '', secreto: '', ganchos: '' },
+            visibleTo: [],
+          })
+          request.onSaved?.(outcome.entity)
+          return
+        }
       }
       if (saved) {
         request.onSaved?.(saved)
@@ -186,13 +201,15 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
 export function EntityFormProvider({ children }: { children: ReactNode }) {
   const { isDM } = useCampaign()
   const { campaignId } = useCampaignServices()
-  const [open, setOpen] = useState<{ campaignId: string; request: EntityFormRequest } | null>(null)
+  const [open, setOpen] = useState<{ campaignId: string; request: EntityFormRequest; nonce: number } | null>(null)
+  const nonce = useRef(0)
 
   const closeForm = useCallback(() => setOpen(null), [])
   const openForm = useCallback(
     (request: EntityFormRequest) => {
       if (!isDM) return
-      setOpen({ campaignId, request })
+      nonce.current += 1
+      setOpen({ campaignId, request, nonce: nonce.current })
     },
     [isDM, campaignId],
   )
@@ -207,11 +224,18 @@ export function EntityFormProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('keydown', onKey)
   }, [open])
 
-  const current = open && open.campaignId === campaignId ? open.request : null
+  const current = open && open.campaignId === campaignId ? open : null
   return (
     <EntityFormContext.Provider value={api}>
       {children}
-      {current && <EntityFormHost request={current} onClose={closeForm} />}
+      {/* keyed by table + id + request counter: a new openForm never inherits a previous seed or in-flight save */}
+      {current && (
+        <EntityFormHost
+          key={`${tableOfForm(current.request.type)}:${current.request.id ?? 'new'}:${current.nonce}`}
+          request={current.request}
+          onClose={closeForm}
+        />
+      )}
     </EntityFormContext.Provider>
   )
 }

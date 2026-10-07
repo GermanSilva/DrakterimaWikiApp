@@ -10,7 +10,7 @@ export default function LugarForm({ item }) {
   const [f, setF] = useState({
     nombre: item?.nombre ?? '',
     subtitulo: item?.subtitulo ?? '',
-    region: item?.region ?? regions[0]?.key ?? '',
+    region: item?.region ?? regions[0]?.key ?? 'otro', // never an empty region
     tipo: item?.tipo ?? 'ciudad',
     descripcion: item?.descripcion ?? '',
     notas: item?.notas ?? '',

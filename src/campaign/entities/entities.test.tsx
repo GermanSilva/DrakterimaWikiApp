@@ -1,4 +1,4 @@
-import { act, renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { ConflictError, DataError, type FlatEntity, type WikiIndexItem } from '../../data'
 import { CampaignTestProviders, createFakeLayer, fakeUnread } from '../testing/fakeLayer'
@@ -308,5 +308,42 @@ describe('refresh on focus / visibility', () => {
     } finally {
       vi.useRealTimers()
     }
+  })
+})
+
+describe('review follow-ups', () => {
+  it('useEntity: a failed list load is an error, never notFound', async () => {
+    const { wrapper, spies } = setup()
+    spies.entityList.mockRejectedValue(new Error('network'))
+    const { result } = renderHook(() => useEntity('pnjs', 7), { wrapper })
+    await waitFor(() => expect(result.current.error).not.toBeNull())
+    expect(result.current.notFound).toBe(false)
+  })
+
+  it('refuses DM notes for a table that has none, before writing anything', async () => {
+    const { wrapper, spies } = setup()
+    const { result } = renderHook(() => useEntityActions('homebrew_rules'), { wrapper })
+    let created: unknown = 'unset'
+    let updated: unknown = 'unset'
+    await act(async () => {
+      created = await result.current.create({ nombre: 'r' }, { dmNotes: { notas: 'x' } })
+      updated = await result.current.update(1, { nombre: 'r' }, { dmNotes: { notas: 'x' } })
+    })
+    expect(created).toBeNull()
+    expect(updated).toBeNull()
+    expect(spies.saveEntityWithDmNotes).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent('no tiene notas del DM')
+  })
+
+  it('shows the conflict toast text when the base is stale', async () => {
+    const { wrapper, spies } = setup()
+    spies.saveEntityWithDmNotes.mockRejectedValueOnce(new ConflictError())
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const { result } = renderHook(() => useEntityActions('pnjs'), { wrapper })
+    await act(async () => {
+      await result.current.update(1, { rol: 'x' }, { base: { updated_at: 'old' } })
+    })
+    expect(screen.getByRole('alert')).toHaveTextContent('Alguien más modificó este registro. Recargá y volvé a intentar.')
+    errorSpy.mockRestore()
   })
 })

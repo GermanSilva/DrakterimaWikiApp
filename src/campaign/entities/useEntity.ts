@@ -5,7 +5,7 @@ import { useEntities } from './useEntities'
 export interface EntityState {
   entity: FlatEntity | null
   loading: boolean
-  /** The list loaded and has no row with that id (never existed, deleted, or not visible to you). */
+  /** The list LOADED successfully and has no row with that id (never existed, deleted, or not visible to you). A failed load is `error`, never this. */
   notFound: boolean
   error: Error | null
 }
@@ -14,5 +14,5 @@ export interface EntityState {
 export function useEntity(table: EntityTable, id: number | null): EntityState {
   const { items, loading, error } = useEntities(table)
   const entity = useMemo(() => (id === null ? null : (items.find((e) => e.id === id) ?? null)), [items, id])
-  return { entity, loading: id !== null && loading && !entity, notFound: id !== null && !loading && !entity, error }
+  return { entity, loading: id !== null && loading && !entity, notFound: id !== null && !loading && !entity && !error, error }
 }

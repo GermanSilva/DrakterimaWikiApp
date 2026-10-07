@@ -10,7 +10,7 @@ export default function FaccionForm({ item }) {
   const [f, setF] = useState({
     nombre: item?.nombre ?? '',
     tipo: item?.tipo ?? 'facción',
-    region: item?.region ?? regions[0]?.key ?? '',
+    region: item?.region ?? regions[0]?.key ?? 'otro', // never an empty region
     relacion: item?.relacion ?? 'neutral',
     descripcion: item?.descripcion ?? '',
     secreto: item?.secreto ?? '',

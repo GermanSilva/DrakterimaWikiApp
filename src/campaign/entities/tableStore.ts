@@ -83,7 +83,8 @@ export class TableStore {
     return spec
   }
 
-  retain(spec: TableSpec): () => void {
+  retain<T>(specOfAnyRow: TableSpec<T>): () => void {
+    const spec = specOfAnyRow as TableSpec
     const count = this.counts.get(spec.key) ?? 0
     this.counts.set(spec.key, count + 1)
     if (count === 0) {

@@ -9,7 +9,7 @@ export default function PNJForm({ item }) {
   const [f, setF] = useState({
     nombre: item?.nombre ?? '',
     rol: item?.rol ?? '',
-    region: item?.region ?? regions[0]?.key ?? '',
+    region: item?.region ?? regions[0]?.key ?? 'otro', // never an empty region
     relacion: item?.relacion ?? 'neutral',
     faccion: item?.faccion ?? '',
     descripcion: item?.descripcion ?? '',
