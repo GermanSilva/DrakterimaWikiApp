@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { applyDelete, applyUpsert, subscribeToTable, type RealtimeStatus, type TableSource } from './realtime'
 import { getSupabase } from './supabaseClient'
 import type { Db } from './types'
@@ -20,6 +20,11 @@ export interface CampaignTableState<T> {
   /** 'live' once subscribed; 'error' after CHANNEL_ERROR / TIMED_OUT / CLOSED (data may be stale). */
   realtime: RealtimeStatus
   reload: () => void
+  /**
+   * Re-lists in place WITHOUT going back to loading (no flash): drops rows that became invisible and
+   * picks up changes missed while hidden. A no-op before the subscription exists.
+   */
+  refresh: () => void
 }
 
 interface Snapshot<T> {
@@ -55,6 +60,7 @@ export function useCampaignTable<T>(
   const { client, sort } = options
   const [snapshot, setSnapshot] = useState<Snapshot<T> | null>(null)
   const [reloadToken, setReloadToken] = useState(0)
+  const refreshRef = useRef<() => void>(() => undefined)
 
   useEffect(() => {
     if (!campaignId) return undefined
@@ -151,9 +157,11 @@ export function useCampaignTable<T>(
       },
     })
     load()
+    refreshRef.current = load
 
     return () => {
       active = false
+      refreshRef.current = () => undefined
       unsubscribe()
     }
   }, [source, campaignId, client, sort, reloadToken])
@@ -164,9 +172,10 @@ export function useCampaignTable<T>(
     setReloadToken((n) => n + 1)
   }, [])
 
-  if (!campaignId) return { items: [], loading: false, error: null, realtime: 'connecting', reload }
+  const refresh = useCallback(() => refreshRef.current(), [])
+  if (!campaignId) return { items: [], loading: false, error: null, realtime: 'connecting', reload, refresh }
   if (!snapshot || snapshot.campaignId !== campaignId) {
-    return { items: [], loading: true, error: null, realtime: 'connecting', reload }
+    return { items: [], loading: true, error: null, realtime: 'connecting', reload, refresh }
   }
-  return { items: snapshot.items, loading: snapshot.loading, error: snapshot.error, realtime: snapshot.realtime, reload }
+  return { items: snapshot.items, loading: snapshot.loading, error: snapshot.error, realtime: snapshot.realtime, reload, refresh }
 }

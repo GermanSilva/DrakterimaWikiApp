@@ -328,3 +328,25 @@ describe('disponibilidad coercion and zero-row handling', () => {
     fake.assertDrained()
   })
 })
+
+describe('player notes repository: update (DM correcting another user\'s note)', () => {
+  it('UPDATEs the existing row by its full key and never inserts', async () => {
+    const fake = createFakeClient()
+    fake.enqueue({ data: { text: 'nueva', user_id: 'u2' } })
+    const note = await createPlayerNotesRepository(fake.db).update('c1', 'u2', 'lore', 4, 'nueva')
+    expect(note).toMatchObject({ text: 'nueva' })
+    const ops = fake.calls[0].ops.map(([m]) => m)
+    expect(ops).toContain('update')
+    expect(ops).not.toContain('upsert')
+    expect(opsNamed(fake.calls[0], 'update')[0]).toEqual([{ text: 'nueva' }])
+    expect(opsNamed(fake.calls[0], 'match')[0]).toEqual([{ campaign_id: 'c1', user_id: 'u2', entity_type: 'lore', entity_id: 4 }])
+  })
+
+  it('zero rows is permission when the note is readable, not_found otherwise', async () => {
+    const fake = createFakeClient()
+    fake.enqueue({ data: null }, { data: [{ campaign_id: 'c1' }] })
+    await expect(createPlayerNotesRepository(fake.db).update('c1', 'u2', 'lore', 4, 'x')).rejects.toMatchObject({ kind: 'permission' })
+    fake.enqueue({ data: null }, { data: [] })
+    await expect(createPlayerNotesRepository(fake.db).update('c1', 'u2', 'lore', 4, 'x')).rejects.toMatchObject({ kind: 'not_found' })
+  })
+})

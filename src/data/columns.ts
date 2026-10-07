@@ -102,6 +102,54 @@ export const ENTITY_SELECT: Record<EntityTable, string> = Object.fromEntries(
   ENTITY_TABLES.map((t) => [t, entitySelectColumns(t).join(', ')]),
 ) as Record<EntityTable, string>
 
+/**
+ * Tables that wiki links can point at (letters S P N G F L I M H, see components/wikiHelpers.js).
+ * They are all entity tables with an `estado`; the index never needs more than the columns below.
+ */
+export const WIKI_INDEX_TABLES = [
+  'sesiones',
+  'pjs',
+  'pnjs',
+  'lugares',
+  'facciones',
+  'lore',
+  'items',
+  'mapas',
+  'homebrew_rules',
+] as const
+
+export type WikiIndexTable = (typeof WIKI_INDEX_TABLES)[number]
+
+/** The column that holds the display title of each wiki table. */
+export const WIKI_TITLE_COLUMN: Record<WikiIndexTable, 'nombre' | 'titulo'> = {
+  sesiones: 'titulo',
+  pjs: 'nombre',
+  pnjs: 'nombre',
+  lugares: 'nombre',
+  facciones: 'nombre',
+  lore: 'titulo',
+  items: 'nombre',
+  mapas: 'nombre',
+  homebrew_rules: 'nombre',
+}
+
+/**
+ * Lightweight select of the campaign wiki index (links, tooltips, picker): id, title, optional
+ * image and estado. Deliberately NO `data` column: neither long texts nor anything DM-private
+ * (that lives in entity_dm_notes anyway) travels with the index.
+ */
+export const WIKI_INDEX_COLUMNS: Record<WikiIndexTable, readonly string[]> = {
+  sesiones: ['id', 'titulo', 'imagen_url', 'estado'],
+  pjs: ['id', 'nombre', 'imagen_url', 'estado'],
+  pnjs: ['id', 'nombre', 'imagen_url', 'estado'],
+  lugares: ['id', 'nombre', 'imagen_url', 'estado'],
+  facciones: ['id', 'nombre', 'imagen_url', 'estado'],
+  lore: ['id', 'titulo', 'estado'],
+  items: ['id', 'nombre', 'imagen_url', 'estado'],
+  mapas: ['id', 'nombre', 'imagen_url', 'estado'],
+  homebrew_rules: ['id', 'nombre', 'estado'],
+}
+
 export const PROFILE_COLUMNS = ['id', 'display_name', 'avatar_url', 'created_at', 'updated_at'] as const
 
 export const CAMPAIGN_COLUMNS = [
@@ -221,6 +269,7 @@ export const COLUMN_LIST_ENTRIES: readonly ColumnListEntry[] = [
     { name: `${t}.select`, table: t, columns: entitySelectColumns(t) },
     { name: `${t}.promoted`, table: t, columns: PROMOTED_COLUMNS[t] },
   ]),
+  ...WIKI_INDEX_TABLES.map((t) => ({ name: `${t}.wiki_index`, table: t, columns: WIKI_INDEX_COLUMNS[t] })),
   { name: 'profiles', table: 'profiles', columns: PROFILE_COLUMNS },
   { name: 'campaigns', table: 'campaigns', columns: CAMPAIGN_COLUMNS },
   { name: 'campaign_members', table: 'campaign_members', columns: CAMPAIGN_MEMBER_COLUMNS },

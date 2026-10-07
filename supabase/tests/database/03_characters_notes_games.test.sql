@@ -3,7 +3,7 @@
 -- Self-contained fixture, rolled back at the end.
 begin;
 
-select plan(55);
+select plan(58);
 
 ------------------------------------------------------------------------------
 -- Inline helpers (no external dependencies)
@@ -255,6 +255,12 @@ select is(
   'a player cannot read another player''s notes');
 
 select is(
+  tests.affected($$update public.player_notes set text = 'overwritten by p2'
+    where campaign_id = 'dddddddd-0000-4000-8000-00000000000a' and user_id = 'bbbbbbbb-0000-4000-8000-000000000002'$$),
+  0::bigint,
+  'a player cannot update another player''s note (the UPDATE path, as the hub uses it)');
+
+select is(
   (select count(*) from public.read_state where campaign_id = 'dddddddd-0000-4000-8000-00000000000a'),
   0::bigint,
   'a player cannot read another user''s read state');
@@ -299,6 +305,18 @@ select is(
   (select count(*) from public.player_notes where campaign_id = 'dddddddd-0000-4000-8000-00000000000a'),
   1::bigint,
   'the DM reads the notes players wrote in their campaign');
+
+select is(
+  tests.affected($$update public.player_notes set text = 'corrected by the DM'
+    where campaign_id = 'dddddddd-0000-4000-8000-00000000000a' and user_id = 'bbbbbbbb-0000-4000-8000-000000000002'$$),
+  1::bigint,
+  'the DM can correct a player''s note with UPDATE');
+
+select is(
+  (select text from public.player_notes
+    where campaign_id = 'dddddddd-0000-4000-8000-00000000000a' and user_id = 'bbbbbbbb-0000-4000-8000-000000000002'),
+  'corrected by the DM',
+  'the DM correction is stored and the player''s overwrite attempt was not');
 
 select is(
   (select count(*) from public.read_state where campaign_id = 'dddddddd-0000-4000-8000-00000000000a'),

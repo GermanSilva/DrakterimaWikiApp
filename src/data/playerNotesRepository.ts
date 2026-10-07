@@ -25,7 +25,10 @@ export interface PlayerNoteInput {
   text: string
   /** PJ shown next to the note (must be one of the author's characters; informational). */
   characterId?: number | null
-  /** Author. Omit to write as the signed-in user; the DM passes it to correct a player's note. */
+  /**
+   * Only for the signed-in user's own row (omit it). The INSERT policy checks user_id = auth.uid()
+   * before ON CONFLICT, so an upsert can never write ANOTHER user's note: use `update` for that.
+   */
   userId?: string
 }
 
@@ -60,6 +63,19 @@ export function createPlayerNotesRepository(client: Db) {
       return unwrapWrite<PlayerNote>(
         await fromTable(client, 'player_notes').upsert(row, { onConflict: CONFLICT }).select(SELECT).single(),
       )
+    },
+
+    /**
+     * Corrects the text of an EXISTING note of `userId` (the DM correcting a player's note: the UPDATE
+     * policy allows the DM, the insert policy would not). Zero rows is `permission` when the note is
+     * readable and `not_found` otherwise; it never creates a row.
+     */
+    async update(campaignId: string, userId: string, entityType: PlayerNoteType, entityId: number, text: string): Promise<PlayerNote> {
+      const match = { campaign_id: campaignId, user_id: userId, entity_type: entityType, entity_id: entityId }
+      const row = unwrap<PlayerNote | null>(
+        await fromTable(client, 'player_notes').update({ text }).match(match).select(SELECT).maybeSingle(),
+      )
+      return row ?? (await throwZeroRows(client, 'player_notes', match, 'player note'))
     },
 
     async remove(campaignId: string, userId: string, entityType: PlayerNoteType, entityId: number): Promise<void> {

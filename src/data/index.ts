@@ -1,5 +1,5 @@
 import { createCampaignRepository } from './campaignRepository'
-import type { EntityTable } from './columns'
+import type { EntityTable, WikiIndexTable } from './columns'
 import { createConfigRepository } from './configRepository'
 import { createDisponibilidadRepository } from './disponibilidadRepository'
 import { createDmNotesRepository } from './dmNotesRepository'
@@ -12,6 +12,7 @@ import { saveEntityWithDmNotes, type SaveEntityTarget } from './saveEntityWithDm
 import { getSupabase } from './supabaseClient'
 import type { Db } from './types'
 import { createVisibilityRepository } from './visibilityRepository'
+import { createWikiIndexRepository, type WikiIndexRepository } from './wikiIndexRepository'
 
 export * from './columns'
 export * from './errors'
@@ -31,10 +32,12 @@ export * from './profileRepository'
 export * from './readStateRepository'
 export * from './visibilityRepository'
 export * from './saveEntityWithDmNotes'
+export * from './wikiIndexRepository'
 
 /** Every repository bound to one client (defaults to the shared one). */
 export function createDataLayer(client: Db = getSupabase()) {
   const entityRepos = new Map<EntityTable, EntityRepository>()
+  const wikiIndexRepos = new Map<WikiIndexTable, WikiIndexRepository>()
   const dmNotes = createDmNotesRepository(client)
   const entity = (table: EntityTable): EntityRepository => {
     let repo = entityRepos.get(table)
@@ -44,9 +47,19 @@ export function createDataLayer(client: Db = getSupabase()) {
     }
     return repo
   }
+  const wikiIndex = (table: WikiIndexTable): WikiIndexRepository => {
+    let repo = wikiIndexRepos.get(table)
+    if (!repo) {
+      repo = createWikiIndexRepository(client, table)
+      wikiIndexRepos.set(table, repo)
+    }
+    return repo
+  }
   return {
     client,
     entity,
+    /** Lightweight id/title/image/estado listing of a wiki table (links, tooltips, picker). */
+    wikiIndex,
     /** DM forms: entity row + DM-private fields (notas/secreto/ganchos), see saveEntityWithDmNotes. */
     saveEntityWithDmNotes: (table: EntityTable, target: SaveEntityTarget, flat: Record<string, unknown>) =>
       saveEntityWithDmNotes(entity(table), dmNotes, target, flat),
