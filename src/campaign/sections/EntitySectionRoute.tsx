@@ -2,7 +2,7 @@ import type { ComponentType } from 'react'
 import { useLocation } from 'react-router'
 import { btnSecondary } from '../../constants'
 import type { EntityTable, FlatEntity } from '../../data'
-import { useCampaign } from '../CampaignContext'
+import { useCampaign, type CampaignContextValue } from '../CampaignContext'
 import { useEntity } from '../entities/useEntity'
 import { entityPath } from '../navigation'
 import { DetailNotice, Loading } from './DetailNotice'
@@ -21,6 +21,11 @@ export interface EntityLabels {
   invalidText: string
 }
 
+/** Whether the viewer may be shown this row (defense in depth on top of RLS). Default: not a draft unless DM. */
+export type CanView = (entity: FlatEntity, viewer: CampaignContextValue) => boolean
+
+const defaultCanView: CanView = (entity, { isDM }) => canSee(entity, isDM)
+
 export interface EntityViewProps {
   entity: FlatEntity
   /** The list URL with its current query: "← Volver" keeps the filters. */
@@ -32,8 +37,21 @@ export interface EntityViewProps {
  * entity (so `useStickyTitle`, which observes the h1 once, mounts together with it) and is keyed by id,
  * so local state (lightbox, ...) never leaks from one entity to the next.
  */
-function EntityDetailGate({ table, id, labels, View }: { table: EntityTable; id: number; labels: EntityLabels; View: ComponentType<EntityViewProps> }) {
-  const { campaign, isDM } = useCampaign()
+function EntityDetailGate({
+  table,
+  id,
+  labels,
+  View,
+  canView,
+}: {
+  table: EntityTable
+  id: number
+  labels: EntityLabels
+  View: ComponentType<EntityViewProps>
+  canView: CanView
+}) {
+  const viewer = useCampaign()
+  const { campaign } = viewer
   const { entity, loading, notFound, error, reload } = useEntity(table, id)
   const { search } = useLocation()
   const listPath = withSearch(entityPath(campaign.slug, table), search)
@@ -55,7 +73,7 @@ function EntityDetailGate({ table, id, labels, View }: { table: EntityTable; id:
       </DetailNotice>
     )
   }
-  if (notFound || !entity || !canSee(entity, isDM)) {
+  if (notFound || !entity || !canView(entity, viewer)) {
     return (
       <DetailNotice title={labels.notFound} to={listPath}>
         {labels.notFoundText}
@@ -75,12 +93,15 @@ export function EntitySectionRoute({
   labels,
   List,
   View,
+  canView = defaultCanView,
 }: {
   id: string | undefined
   table: EntityTable
   labels: EntityLabels
   List: ComponentType
   View: ComponentType<EntityViewProps>
+  /** Rows the viewer may open by URL; a page widens it when RLS shows more (a player's own draft character). */
+  canView?: CanView
 }) {
   const route = parseEntityRoute(id)
   const { campaign } = useCampaign()
@@ -93,5 +114,5 @@ export function EntitySectionRoute({
       </DetailNotice>
     )
   }
-  return <EntityDetailGate table={table} id={route.id} labels={labels} View={View} />
+  return <EntityDetailGate table={table} id={route.id} labels={labels} View={View} canView={canView} />
 }

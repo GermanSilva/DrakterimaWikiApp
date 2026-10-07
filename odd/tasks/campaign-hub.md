@@ -104,7 +104,9 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H7a | Port infrastructure: per-entity data hooks (realtime list + actions incl. DM notes and visibility RPCs), campaign wiki-link index, data-agnostic shared components (WikiText/links, forms, unread, player notes) via injected adapters (legacy adapter keeps /legacy working), entity form host | delegated (writer) | [x] |
 | H7b | Port Sesiones + PNJs pages (list + detail via URL, forms, visibility, DM notes, unread, player notes) | delegated (writer) | [x] |
 | H7c | Port Lugares, Facciones, Lore, Items pages | delegated (writer) | [x] |
-| H8 | Port PJs (ownership, player self-edit), session screen, maps | delegated (writer) | [ ] |
+| H8a | Port PJs (list, detail with mechanics/inventory/spells/attacks/resources tabs, ownership; player self-edit of identity fields within the DB guard; DM full edit; coins via RPC/DM only) | delegated (writer) | [x] |
+| H8b | Port DM session screen (cards layout in campaign_config session_screen, combat tracker, homebrew rules card, per-PJ cards, edit modal) | delegated (writer) | [ ] |
+| H8c | Port maps (mapas + map_points with Leaflet, click-to-place, pin visibility, hierarchical navigation) | delegated (writer) | [ ] |
 | H9 | Port calendar, games, notes, homerules, unread state; DM zone → campaign settings | delegated (writer) | [ ] |
 | H10 | Campaign management: create campaign, branding, regions, custom fields, invites, members/roles | delegated (writer) | [ ] |
 | H11 | Refactors: `useStickyTitle`, split FormModal, error boundary + error toasts, a11y basics | delegated (writer; 2+ non-trivial files) | [x] |
@@ -387,6 +389,21 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   region lookups, eyebrow without dangling separator, truthy Sintonía. Browser (player1): 4 sections
   render allowed rows only, secreto lugar shared with Maisie shown with tag. Checks: test 671/671,
   integration 20/20, lint 0 errors, typecheck clean.
+
+- H7c native reviews: all **approved** (review-7b0f7a08af2a477e, review-eb4974cc37876526,
+  review-163358871e4085c1).
+- H8a: PJs ported. DM full create/edit/delete incl. coins; owner gets an identity-only form whose patch
+  is filtered by `pickOwnerPatch` (mirrors `guard_pj_player_update`; drift test scans all migrations);
+  other players read-only. Diff baseline = initial form state (no default writes); `stat_hp_current`
+  written when `stat_hp` changes. `custom_fields` (campaign.character_custom_fields) replaces magralita.
+  New migration `20261007140000_pj_owner_hardening.sql`: non-DM `custom_fields` must be an object of
+  strings ≤8KB; non-DM `sections_updated` only known sections, ISO ≤ now+5min, no regression; client
+  per-key max merge. DM-notes dot derived from entity_dm_notes.updated_at (no `dm` stamp leak to
+  players). Inventory: qty 0 counts 0, negatives clamped. Legacy: monedas_guardado no longer dropped on
+  save; dead player-password UI removed. Parent fixed HP "undefined / 8" (missing fallback). Browser:
+  player1 owner sees Editar only on own PJ, identity-only form, save passes hardened guard. Checks:
+  pgTAP 238/238, test 744/744, integration 29/29, lint 0 errors / 54 warnings, typecheck clean.
+  Follow-ups: hardcoded "Motivación para unirse al Gremio" label; decimal prices truncated (legacy).
 
 ## Product decisions (user, 2026-10-06)
 

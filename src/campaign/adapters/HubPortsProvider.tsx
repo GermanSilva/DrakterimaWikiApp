@@ -14,7 +14,7 @@ import { HubPlayerNotesProvider } from './HubPlayerNotesProvider'
 import { HubUnreadProvider } from './HubUnreadProvider'
 
 function HubWikiAndFormProviders({ children }: { children: ReactNode }) {
-  const { campaign, isDM } = useCampaign()
+  const { campaign, isDM, myCharacterIds } = useCampaign()
   const index = useWikiIndex()
   const navigate = useNavigate()
   const slug = campaign.slug
@@ -28,8 +28,15 @@ function HubWikiAndFormProviders({ children }: { children: ReactNode }) {
   )
   const wiki = useMemo(() => createHubWikiPort({ index, navigate: go }), [index, go])
   const form = useMemo(
-    () => createHubFormPort({ isDM, regions: campaign.regions, pjs: index.byTable.pjs }),
-    [isDM, campaign.regions, index.byTable.pjs],
+    () =>
+      createHubFormPort({
+        isDM,
+        regions: campaign.regions,
+        characterFields: campaign.character_custom_fields,
+        myCharacterIds,
+        pjs: index.byTable.pjs,
+      }),
+    [isDM, campaign.regions, campaign.character_custom_fields, myCharacterIds, index.byTable.pjs],
   )
   return (
     <WikiPortContext.Provider value={wiki}>

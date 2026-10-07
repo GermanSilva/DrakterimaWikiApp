@@ -7,7 +7,7 @@ import { Tag } from '../../components/Shared'
 import UnreadDot from '../../components/UnreadDot'
 import { COLLECTION_LETTER } from '../../components/wikiHelpers'
 import WikiText from '../../components/WikiText'
-import { btnSecondary, detailSectionCls, detailTextCls, dmSectionCls, dmTitleCls, sectionTitleCls } from '../../constants'
+import { btnSecondary, detailSectionCls, entityCardCls, detailTextCls, dmSectionCls, dmTitleCls, sectionTitleCls } from '../../constants'
 import type { EntityTable, FlatEntity } from '../../data'
 import { useEntityForm, type EntityFormType } from '../entityFormContext'
 import { entityPath } from '../navigation'
@@ -105,8 +105,7 @@ export function DmDetailActions({
   )
 }
 
-const CARD_CLS =
-  "block bg-bg-card border border-border-base p-[18px] cursor-pointer transition-all relative overflow-hidden animate-card-in before:absolute before:top-0 before:left-0 before:right-0 before:h-0.5 before:content-[''] before:bg-border-light before:transition-colors hover:bg-bg-card-hover hover:border-accent-dim hover:before:bg-accent"
+const CARD_CLS = `block ${entityCardCls}`
 
 /** Card of a list grid: a real link to the detail URL (keeps the list's query), unread dot, title, icon, tags. */
 export function EntityCard({

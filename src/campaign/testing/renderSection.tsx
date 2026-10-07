@@ -34,16 +34,18 @@ export interface RenderSectionOptions {
   regions?: unknown
   /** Characters the signed-in user owns (a player's own pjs). */
   characterIds?: number[]
+  /** `campaigns.character_custom_fields` jsonb. */
+  customFields?: unknown
 }
 
 /**
  * Renders the REAL router + campaign layout (shell, ports, form host) around a section page, with a
  * fake data layer and the viewer's role. `path` is the full URL, e.g. `/c/demo/sesiones/3`.
  */
-export function renderSection(path: string, { layer, isDM = true, regions = [], characterIds = [] }: RenderSectionOptions) {
+export function renderSection(path: string, { layer, isDM = true, regions = [], characterIds = [], customFields = [] }: RenderSectionOptions) {
   window.scrollTo = vi.fn() as typeof window.scrollTo
   installIntersectionObserver()
-  const campaign = makeCampaign({ role: isDM ? 'dm' : 'player', regions: regions as never })
+  const campaign = makeCampaign({ role: isDM ? 'dm' : 'player', regions: regions as never, character_custom_fields: customFields as never })
   const data = makeData({
     layer,
     listMyCampaigns: vi.fn(async () => [campaign]),

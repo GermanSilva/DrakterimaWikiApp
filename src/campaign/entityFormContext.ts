@@ -1,8 +1,8 @@
 import { createContext, useContext } from 'react'
 import type { FlatEntity } from '../data'
 
-/** Form types the hub host can open (the wiki entities; PJ, maps and calendar forms come with H8/H9). */
-export type EntityFormType = 'sesiones' | 'avances' | 'pnjs' | 'lugares' | 'facciones' | 'lore' | 'items' | 'homebrew_rules'
+/** Form types the hub host can open (the wiki entities and the characters; maps and calendar forms come with H8/H9). */
+export type EntityFormType = 'sesiones' | 'avances' | 'pjs' | 'pnjs' | 'lugares' | 'facciones' | 'lore' | 'items' | 'homebrew_rules'
 
 export interface EntityFormRequest {
   type: EntityFormType
@@ -15,7 +15,11 @@ export interface EntityFormRequest {
 }
 
 export interface EntityFormApi {
-  /** DM only (a player gets a no-op, like the legacy `openForm`): RLS stays the real boundary. */
+  /**
+   * DM only, except that a player may edit the character they own (a `pjs` form with an id of theirs;
+   * the form then shows and saves only the identity fields). Anyone else gets a no-op, like the legacy
+   * `openForm`: RLS and the PJ guard stay the real boundary.
+   */
   openForm(request: EntityFormRequest): void
   closeForm(): void
 }

@@ -81,6 +81,33 @@ URL (`/c/:slug/<section>` and `/c/:slug/<section>/:id`), with no local `selected
 - Players never get DM-only blocks or tags of drafts; `borrador` rows that reach a non-DM client are dropped (RLS is the real boundary).
 - Region labels/colors come from `campaign.regions` (`useRegionInfo`, filter pills from `useRegionOptions`), falling back to the legacy names.
 
+### Characters (`PJsPage.tsx`, H8a)
+
+`/c/:slug/pjs[/:id]` reuses the legacy sheet (`pages/pj/PJDetail`, `PJCardContent`, the detail sections and `PJForm` + tabs),
+which now read only ports: `UnreadPort` (per-section dots, `section` argument), `FormPort` / `FormActions` (regions, owned
+characters, campaign character fields) and props for what differs (back link, buttons, DM notes text, region tag).
+
+- **Who edits what.** DM: everything (all tabs, coins `monedas` / `monedas_guardado`, level, XP, estado, visibility, DM notes,
+  delete). The owner of a character (`myCharacterIds`) gets an "Editar" button and the identity-only form (one tab, no level / XP /
+  notes / visibility / delete / coins). Other players: read-only. `EntityFormProvider.openForm` refuses anything else.
+- **Owner payload.** `pjOwnerFields.ts` lists the columns and `data` keys `guard_pj_player_update()` allows (`pjOwnerFields.test.ts`
+  compares them with the migration); the host sends `pickOwnerPatch(changes)` only, never DM notes or visibility, so a form bug
+  cannot become a rejected save. Anything else is rejected by the database with 42501 (`pjs.integration.test.ts`).
+- **What counts as an edit.** The host diffs the form payload against the payload of the form's *initial* state
+  (`pjFormState.ts`), so defaults the row lacks (`stat_hp_current` seeded from `stat_hp`, ...) are never written.
+- **Unread per section.** Every save stamps `sections_updated[section]` (via `changedPjSections`; a jsonb column merged per key
+  keeping the LATER stamp, allowed for owners) and clears the saver's own dots in `read_state`; the sheet marks `general` on open
+  and a section when its nav button is used or it stays mostly visible for 1.5 s. `sections_updated` is readable by every member,
+  so the hub never writes a `dm` stamp (nor one for a visibility-only change): the DM-notes dot is derived from the DM-only
+  `entity_dm_notes.updated_at`. Migration `20261007140000_pj_owner_hardening.sql` makes the guard reject, for non-DM writers,
+  unknown section keys, non-ISO / future (> now + 5 min) stamps, stamps going back or keys disappearing, and a `custom_fields`
+  that is not a small (8 KB) object of strings.
+- **Derived defaults.** When `stat_hp` changes in a save, `stat_hp_current` is written explicitly (its seeded default derives from it).
+- **Legacy form change.** The legacy `PJForm` no longer carries the dead player-password UI (access is now Auth / magic link).
+- **Visibility.** The page shows an owner their own draft character (RLS lets them read it); other drafts are dropped for players.
+- **Campaign character fields** (`campaigns.character_custom_fields`, `[{ key, label }]`) replace the legacy `magralita` field:
+  values live in `data.custom_fields[key]`, are edited as text and merged with the keys the form does not know.
+
 ## `CampaignContext` contract
 
 `useCampaign()` (only inside `/c/:slug`, after the campaign loaded) returns:
