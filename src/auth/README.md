@@ -6,7 +6,7 @@ Additive (the Firebase app and its password modal are untouched). H6 mounts it i
 authConfig.ts          AUTH_CALLBACK_PATH, callbackUrl(), isGoogleEnabled()
 authErrors.ts          AuthFlowError (invalid_email | rate_limited | provider_disabled | network | unknown), normalizeEmail
 authActions.ts         requestMagicLink(client, email), startGoogleSignIn(client)   (pure, client injected)
-AuthProvider.tsx       <AuthProvider client? profiles?> + useAuth(): { status, session, user, profile, profileError,
+AuthProvider.tsx       <AuthProvider client? profiles?> + useAuth(): { status, session, user, profile, profileError, profileStatus,
                        signInWithEmail, signInWithGoogle, signOut, refreshProfile }
 completeAuthCallback.ts / AuthCallback.tsx   finish the sign-in at /auth/callback, then onDone('/')
 LoginPage / UserMenu / ProfileForm           presentational (props only); ConnectedLoginPage wires LoginPage to useAuth
@@ -24,8 +24,9 @@ at `/auth/callback`. The provider uses `getSupabase()` unless a client is passed
    `flowType: 'pkce'` and `detectSessionInUrl: false`, so `completeAuthCallback` is the single owner of the URL: it wipes
    query and fragment with `history.replaceState` before any await, then calls `exchangeCodeForSession(code)`. Success is
    reported only if that exchange returned a session (an existing session never vouches for a bad link). A fragment with
-   `access_token`/`refresh_token` is rejected, so a crafted token link cannot sign anyone in. Server error text is never
-   shown; the UI uses fixed Spanish messages.
+   `access_token`/`refresh_token` is rejected, so a crafted token link cannot sign anyone in. Exchange failures are classified (network/5xx, missing
+   verifier, invalid/expired/used) and logged as name/status/code only; the callback gives up after 15 s with a way out.
+   Server error text is never shown; the UI uses fixed Spanish messages.
 
    **Same-browser limitation:** the code verifier lives in the browser storage that requested the link, so the link must be
    opened in that same browser (the login screen says so). Opening it elsewhere fails with a friendly message.
@@ -57,8 +58,10 @@ at `/auth/callback`. The provider uses `getSupabase()` unless a client is passed
 ## Tests
 
 - Unit: `npm test` (fake auth client in `testing/fakeAuth.ts`).
+- Profile state: `profileStatus` is idle | loading | loaded | error. After a failed refresh `profile` keeps the last
+  known value while `profileError` explains the failure. Only the latest profile read may write state.
 - Integration: `npm run test:integration` (`src/data/integration/auth.integration.test.ts`) requests a real magic link,
-  reads it from Mailpit (URL from `supabase status`), follows it to `/auth/callback?code=`, proves another client cannot exchange it,
+  reads it from Mailpit (URL from `supabase status`), follows it (GoTrue answers 302 or 303; both accepted) to `/auth/callback?code=`, proves another client cannot exchange it,
   completes `completeAuthCallback` with the requesting client, checks the session and the profile row, rejects a crafted
   `#access_token` URL, then deletes the user and the emails.
 - Profile caps are enforced by the database too (migration `20261007120000_profile_caps`, pgTAP `05_profile_caps`).

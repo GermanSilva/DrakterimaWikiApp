@@ -1,5 +1,6 @@
 import { execSync } from 'node:child_process'
 import type { GlobalSetupContext } from 'vitest/node'
+import { assertLocal } from './assertLocal'
 
 export interface LocalSupabase {
   url: string
@@ -46,12 +47,8 @@ export default function setup({ provide }: GlobalSetupContext) {
   }
   const { API_URL: url, ANON_KEY: anonKey, SERVICE_ROLE_KEY: serviceKey } = status
   if (!url || !anonKey || !serviceKey) throw new Error('`supabase status -o json` did not return API_URL / ANON_KEY / SERVICE_ROLE_KEY')
-  if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(url)) {
-    throw new Error(`Refusing to run integration tests against a non-local API: ${url}`)
-  }
+  assertLocal('API', url)
   const mailUrl = status.MAILPIT_URL ?? status.INBUCKET_URL ?? 'http://127.0.0.1:54324'
-  if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(mailUrl)) {
-    throw new Error(`Refusing to use a non-local mail API: ${mailUrl}`)
-  }
+  assertLocal('mail API', mailUrl)
   provide('supabase', { url, anonKey, serviceKey, mailUrl: mailUrl.replace(/\/$/, '') })
 }

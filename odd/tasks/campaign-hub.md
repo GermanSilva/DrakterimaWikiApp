@@ -99,6 +99,7 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H4 | Typed data layer: Supabase client, repositories (create/update/remove), realtime subscription hook, schemas | delegated (writer) | [x] |
 | H4b | Fix native review warnings on H4 (paging, zero-row diagnosis, base-guarded updates, hook reload/buffering, integration teardown, safe db:types) | delegated (writer) | [x] |
 | H5 | Auth: provider, login page (magic link + Google), session, profile | delegated (writer) | [x] |
+| H5b | Fix H5 native review warnings (callback error classification, probe timeout, provider read ordering, login/callback timeouts, fail-closed guard) | delegated (writer) | [x] |
 | H6 | Router + hub shell: campaign list, `/c/:slug` layout, campaign context replacing App.jsx god-state, lazy pages | delegated (writer) | [ ] |
 | H7 | Port wiki entity pages + forms to the data layer (sesiones, pnjs, lugares, facciones, lore, items) | delegated (writer) | [ ] |
 | H8 | Port PJs (ownership, player self-edit), session screen, maps | delegated (writer) | [ ] |
@@ -290,6 +291,19 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   gaps. **Cutover TODO (F5):** open signup without captcha → captcha + SMTP limits + optional
   invite gate before production. Checks: supabase test db 218/218, test 235/235, integration
   16/16 ×2, lint 0 errors, typecheck clean, build OK.
+
+- H5 native reviews (5 layered commits a70db7e..b5f00dc): slice 1 under budget; slices 2-5 high, 4 lenses
+  each → **approved**, acknowledged (review-105adbec00cdee98, review-61abcda958a8401f,
+  review-8134548eeccc123f, review-8ba98093010c1195). Warnings fixed in H5b.
+- H5b: callback errors classified (network / wrong browser / expired / rate-limited / cancelled /
+  generic) with sanitized logging; Google probe 5s abort + OAuth-specific classifier; fetch-only
+  network detection; PKCE invariants spread last + tested; AuthProvider read tickets + sign-in
+  generation; LoginPage in-flight guard, attempt counter, redirecting phase, pageshow/10s reset after
+  hand-off; AuthCallback 15s timeout, single onDone, late success ignored after timeout;
+  ProfileForm onSaved isolated; RequireAuth fail-closed; integration assertLocal via URL hostname.
+  Adversarial sweep x2 (no severe; fixed double OAuth flow, 422/429 mapping, provider error
+  messages, callback idempotency). Checks: test 289/289, integration 16/16 x2, lint 0 errors,
+  typecheck clean, build OK.
 
 ## Product decisions (user, 2026-10-06)
 

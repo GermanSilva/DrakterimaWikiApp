@@ -48,6 +48,11 @@ function memoryStorage() {
 
 const newClient = () => createSupabaseClient(env.url, env.anonKey, { persistSession: true, autoRefreshToken: false, storage: memoryStorage() })
 
+/** GoTrue answers the verify link with a redirect; accept both common redirect statuses. */
+const REDIRECT_STATUSES = [302, 303]
+/** Per-test timeout: must exceed the mail poll deadline (waitForMessageIds, 15 s) plus the HTTP calls. */
+const TEST_TIMEOUT_MS = 45000
+
 const historyStub = () => ({ state: null, replaceState: () => {} }) as unknown as History
 
 describe('PKCE magic link sign-in against the local stack (GoTrue + Mailpit)', () => {
@@ -60,7 +65,8 @@ describe('PKCE magic link sign-in against the local stack (GoTrue + Mailpit)', (
     if (!userId) {
       // Sign-in never completed but OTP may have created the user: generateLink returns the existing
       // user's id for an email (no mail is sent, no listUsers pagination involved).
-      const { data } = await admin.auth.admin.generateLink({ type: 'magiclink', email })
+      const { data, error } = await admin.auth.admin.generateLink({ type: 'magiclink', email })
+      if (error) failures.push(`find user by generateLink: ${error.message}`)
       userId = data?.user?.id ?? ''
     }
     if (userId) {
@@ -85,7 +91,7 @@ describe('PKCE magic link sign-in against the local stack (GoTrue + Mailpit)', (
     if (failures.length > 0) throw new Error(failures.join('; '))
   })
 
-  it('emails a link whose code only the requesting client can exchange, then creates the profile', async () => {
+  it('emails a link whose code only the requesting client can exchange, then creates the profile', { timeout: TEST_TIMEOUT_MS }, async () => {
     const client = newClient()
     await requestMagicLink(client, email.toUpperCase(), ORIGIN)
 
@@ -98,14 +104,21 @@ describe('PKCE magic link sign-in against the local stack (GoTrue + Mailpit)', (
 
     // Follow the real link without following its redirect: PKCE answers with ?code= (no tokens).
     const res = await fetch(link!, { redirect: 'manual' })
-    expect([302, 303]).toContain(res.status)
+    expect(REDIRECT_STATUSES).toContain(res.status)
     const location = res.headers.get('location') ?? ''
     expect(location.startsWith(`${ORIGIN}/auth/callback?code=`)).toBe(true)
     expect(location).not.toContain('access_token')
 
-    // A different client (another browser) cannot exchange it: no code verifier.
-    const stranger = await completeAuthCallback(newClient(), { href: location, pathname: '/auth/callback' }, historyStub())
-    expect(stranger.ok).toBe(false)
+    // Another browser that has its own (different) code verifier cannot exchange it: the SERVER
+    // rejects the verifier mismatch (a client with no verifier would fail before any request).
+    const code = new URL(location).searchParams.get('code')!
+    const stranger = newClient()
+    await stranger.auth.signInWithOAuth({ provider: 'google', options: { skipBrowserRedirect: true } }) // stores a verifier locally, no request
+    const stolen = await stranger.auth.exchangeCodeForSession(code)
+    expect(stolen.error, 'exchange with a foreign verifier').toBeTruthy()
+    expect(stolen.error!.name).not.toBe('AuthPKCECodeVerifierMissingError')
+    expect(stolen.error!.status, 'server rejection').toBeGreaterThanOrEqual(400)
+    expect((await stranger.auth.getSession()).data.session).toBeNull()
 
     // The requesting client completes the real callback logic.
     const result = await completeAuthCallback(client, { href: location, pathname: '/auth/callback' }, historyStub())
