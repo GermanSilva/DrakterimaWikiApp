@@ -1,12 +1,13 @@
 import { useState } from 'react'
-import { useApp } from '../../../AppContext'
+import { useSessionScreenPort } from '../../../ports'
+import { exactEqual } from '../../../helpers/pjSections'
 import { btnSecondary } from '../../../constants'
 import SessionCardShell from './SessionCardShell'
 import PJSubsection from './PJSubsection'
 import EmptyPjsState from './EmptyPjsState'
 
 export default function SessionCardResources({ db, onEdit, onRemove }) {
-  const { save } = useApp()
+  const port = useSessionScreenPort()
   const pjs = db?.pjs ?? []
   const [collapsedIds, setCollapsedIds] = useState(() => new Set(pjs.map(pj => pj.id)))
   const allExpanded = pjs.length > 0 && pjs.every(pj => !collapsedIds.has(pj.id))
@@ -21,12 +22,17 @@ export default function SessionCardResources({ db, onEdit, onRemove }) {
     const recursos = (pj.recursos ?? []).map(r =>
       (kind === 'largo' || r.recuperacion === 'corto') ? { ...r, actual: r.maximo } : r
     )
-    const data = { ...pj, recursos }
+    // Only the fields a rest changes are written (never the whole character).
+    const patch = { recursos }
     if (kind === 'largo') {
-      data.spell_slots_current = { ...(pj.spell_slots ?? {}) }
-      data.stat_hp_current = pj.stat_hp
+      patch.spell_slots_current = { ...(pj.spell_slots ?? {}) }
+      patch.stat_hp_current = pj.stat_hp
     }
-    save('pjs', data)
+    // Skip what the rest does not change (a no-op rest writes nothing and does not stamp the sheet as updated).
+    const effective = { ...pj, stat_hp_current: pj.stat_hp_current ?? pj.stat_hp }
+    const changed = Object.fromEntries(Object.entries(patch).filter(([k, v]) => !exactEqual(effective[k], v)))
+    if (Object.keys(changed).length === 0) return
+    port.savePj(pj, changed)
   }
 
   return (

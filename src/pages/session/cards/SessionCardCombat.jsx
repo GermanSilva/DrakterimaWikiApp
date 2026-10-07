@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Trash2 } from 'lucide-react'
-import { useApp } from '../../../AppContext'
+import { useSessionScreenPort } from '../../../ports'
 import { labelCls, inputCls, btnPrimary, btnSecondary } from '../../../constants'
 import SessionCardShell from './SessionCardShell'
 
@@ -19,11 +19,11 @@ function borderColorCls(c) {
 }
 
 // `entry.combatants` lives on this card's own object inside `layout.cards[]`,
-// same pattern as SessionCardNotes' `entry.text` — no separate Firestore doc,
+// same pattern as SessionCardNotes' `entry.text` — no separate document,
 // no `db.pjs` mutation. Combatant fields are cached at add-time and never
 // re-synced with the source PJ afterwards (by design).
-export default function SessionCardCombat({ db, layout, entry, onRemove }) {
-  const { saveSessionScreen } = useApp()
+export default function SessionCardCombat({ db, entry, onRemove }) {
+  const port = useSessionScreenPort()
   const [combatants, setCombatants] = useState(entry?.combatants ?? [])
   const [selectedPjId, setSelectedPjId] = useState('')
   const [addingCustom, setAddingCustom] = useState(false)
@@ -31,10 +31,11 @@ export default function SessionCardCombat({ db, layout, entry, onRemove }) {
 
   useEffect(() => { setCombatants(entry?.combatants ?? []) }, [entry?.combatants])
 
+  // Blur handlers call this with the current state even when nothing changed: only a real change is written.
   function persist(next) {
-    if (!layout || !entry) return
-    const cards = (layout.cards ?? []).map(c => (c.id === entry.id ? { ...c, combatants: next } : c))
-    saveSessionScreen({ ...layout, cards })
+    if (!entry) return
+    if (JSON.stringify(next) === JSON.stringify(entry.combatants ?? [])) return
+    port.patchCard(entry.id, { combatants: next })
   }
 
   const pjs = db?.pjs ?? []

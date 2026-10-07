@@ -1,17 +1,18 @@
 import { useState } from 'react'
 import { Trash2 } from 'lucide-react'
-import { useApp } from '../../../AppContext'
+import { useSessionScreenPort } from '../../../ports'
 import { labelCls, inputCls, btnPrimary, btnSecondary } from '../../../constants'
 import SessionCardShell from './SessionCardShell'
 
 const EMPTY_FORM = { nombre: '', texto: '' }
 
 // Read/select/create/hard-delete only — no bespoke mutations, everything goes
-// through the generic `save`/`remove('homebrew_rules', ...)` path (design
-// decision). Duplicate rule names are explicitly allowed by spec, so no
-// uniqueness check is performed before creating.
+// through the host's `createRule` / `deleteRule` (design decision). Duplicate
+// rule names are explicitly allowed by spec, so no uniqueness check is
+// performed before creating. Deleting is permanent: the host asks for confirmation.
 export default function SessionCardRules({ db, onRemove }) {
-  const { save, remove } = useApp()
+  const port = useSessionScreenPort()
+  const [busy, setBusy] = useState(false)
   const rules = db?.homebrew_rules ?? []
   const [expandedIds, setExpandedIds] = useState(() => new Set())
   const [creating, setCreating] = useState(false)
@@ -25,16 +26,31 @@ export default function SessionCardRules({ db, onRemove }) {
     return next
   })
 
-  function submitCreate(e) {
+  async function submitCreate(e) {
     e.preventDefault()
-    if (!form.nombre.trim()) return
-    save('homebrew_rules', { nombre: form.nombre.trim(), texto: form.texto })
-    setForm(EMPTY_FORM)
-    setCreating(false)
+    if (busy || !form.nombre.trim()) return
+    setBusy(true)
+    try {
+      // The form stays open when the host could not save (its toast says why): nothing typed is lost.
+      if (await port.createRule({ nombre: form.nombre.trim(), texto: form.texto })) {
+        setForm(EMPTY_FORM)
+        setCreating(false)
+      }
+    } finally {
+      setBusy(false)
+    }
   }
 
-  function handleDelete(id) {
-    remove('homebrew_rules', id)
+  async function handleDelete(id) {
+    if (busy) return
+    setBusy(true)
+    let deleted
+    try {
+      deleted = await port.deleteRule(id)
+    } finally {
+      setBusy(false)
+    }
+    if (!deleted) return
     setExpandedIds(prev => {
       if (!prev.has(id)) return prev
       const next = new Set(prev)
@@ -99,7 +115,7 @@ export default function SessionCardRules({ db, onRemove }) {
             />
           </div>
           <div className="flex gap-2">
-            <button type="submit" className={btnPrimary}>Guardar regla</button>
+            <button type="submit" className={btnPrimary} disabled={busy}>Guardar regla</button>
             <button type="button" className={btnSecondary} onClick={() => { setCreating(false); setForm(EMPTY_FORM) }}>Cancelar</button>
           </div>
         </form>

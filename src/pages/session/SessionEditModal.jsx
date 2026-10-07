@@ -1,7 +1,8 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import useDialogFocus from '../../hooks/useDialogFocus'
 import useBackdropClose from '../../hooks/useBackdropClose'
-import { useApp } from '../../AppContext'
+import { useSessionScreenPort } from '../../ports'
+import { buildSessionPjPatch } from '../../helpers/pjWrites'
 import { labelCls, inputCls, btnPrimary, btnSecondary, detailSectionCls } from '../../constants'
 import { ABILITY_SCORES } from '../pj/pjConstants'
 import { abilityMod } from '../../helpers/pjCalc'
@@ -14,13 +15,14 @@ import { CARD_REGISTRY } from './cards/cardRegistry'
 
 // Scoped edit modal for a single card type on a single PJ.
 //
-// GOTCHA (see design doc): `save('pjs', data)` does a non-merge `setDoc` —
-// it overwrites the entire PJ document. `draft` MUST therefore always be a
-// full `{ ...pj }` copy (mirrors `PJForm`'s `f` state), even though this
-// modal only exposes inputs for one card's fields. Never build `draft` from
-// a partial field subset.
+// `draft` is always a full `{ ...pj }` copy (mirrors `PJForm`'s `f` state), even
+// though this modal only exposes inputs for one card's fields. What is SAVED is
+// not the draft: `buildSessionPjPatch` diffs it against the character as it was
+// opened and the host writes only the fields that changed, so a stale draft can
+// never overwrite what someone else changed in the other cards' fields.
 export default function SessionEditModal({ pj, cardType, onClose }) {
-  const { save } = useApp()
+  const port = useSessionScreenPort()
+  const [saving, setSaving] = useState(false)
   const dialogRef = useRef(null)
   const titleId = useId()
   useDialogFocus(dialogRef)
@@ -38,25 +40,21 @@ export default function SessionEditModal({ pj, cardType, onClose }) {
     return () => document.removeEventListener('keydown', onKey)
   }, [onClose])
 
-  function handleConfirm() {
-    const data = {
-      ...draft,
-      stat_str: parseInt(draft.stat_str) || 0,
-      stat_dex: parseInt(draft.stat_dex) || 0,
-      stat_con: parseInt(draft.stat_con) || 0,
-      stat_int: parseInt(draft.stat_int) || 0,
-      stat_wis: parseInt(draft.stat_wis) || 0,
-      stat_cha: parseInt(draft.stat_cha) || 0,
-      stat_hp: parseInt(draft.stat_hp) || 0,
-      stat_hp_current: parseInt(draft.stat_hp_current ?? draft.stat_hp) || 0,
-      stat_hp_temp: parseInt(draft.stat_hp_temp) || 0,
-      stat_ac: parseInt(draft.stat_ac) || 0,
-      stat_ac_temp: parseInt(draft.stat_ac_temp) || 0,
-      stat_speed: parseInt(draft.stat_speed) || 0,
-      stat_proficiency_bonus: parseInt(draft.stat_proficiency_bonus) || 0,
+  async function handleConfirm() {
+    if (saving) return
+    const patch = buildSessionPjPatch(pj, draft)
+    if (Object.keys(patch).length === 0) {
+      onClose() // nothing changed: nothing to write
+      return
     }
-    save('pjs', data)
-    onClose()
+    setSaving(true)
+    let saved = false
+    try {
+      saved = await port.savePj(pj, patch)
+    } finally {
+      setSaving(false)
+    }
+    if (saved) onClose() // else the host's toast says why and the edits stay in the modal
   }
 
   const cardLabel = CARD_REGISTRY[cardType]?.label ?? ''
@@ -266,7 +264,7 @@ export default function SessionEditModal({ pj, cardType, onClose }) {
 
         <div className="flex gap-2.5 justify-end sticky bottom-0 z-[1] bg-bg-card px-6 py-4 border-t border-border-base">
           <button type="button" className={btnSecondary} onClick={onClose}>Cancelar</button>
-          <button type="button" className={btnPrimary} onClick={handleConfirm}>Guardar</button>
+          <button type="button" className={btnPrimary} onClick={handleConfirm} disabled={saving}>Guardar</button>
         </div>
       </div>
     </div>
