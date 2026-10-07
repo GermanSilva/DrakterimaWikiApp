@@ -1,11 +1,11 @@
 import { useState, type ReactNode } from 'react'
-import { Outlet } from 'react-router'
+import { Outlet, useParams } from 'react-router'
 import { ConnectedUserMenu } from '../app/ConnectedUserMenu'
 import type { CampaignWithRole } from '../data'
 import { accentStyle, parseLogoUrl } from './branding'
 import { CampaignHeader } from './CampaignHeader'
 import { CampaignSidebar } from './CampaignSidebar'
-import { sectionsFor } from './sections'
+import { findSection, sectionsFor } from './sections'
 import type { CampaignContextValue } from './CampaignContext'
 
 export interface CampaignShellProps {
@@ -19,6 +19,8 @@ export interface CampaignShellProps {
 /** Header + sidebar + main frame with the campaign's branding applied to its subtree only. */
 export function CampaignShell({ campaign, isDM, campaigns, userMenu }: CampaignShellProps) {
   const [menuOpen, setMenuOpen] = useState(false)
+  const { section } = useParams()
+  const fullBleed = !!findSection(section)?.fullBleed && (isDM || !findSection(section)?.dmOnly)
   return (
     <div style={accentStyle(campaign.branding)} className="min-h-screen bg-bg-deep">
       <CampaignHeader
@@ -33,7 +35,7 @@ export function CampaignShell({ campaign, isDM, campaigns, userMenu }: CampaignS
       <CampaignSidebar slug={campaign.slug} sections={sectionsFor(isDM)} open={menuOpen} onNavigate={() => setMenuOpen(false)} />
       {menuOpen && <div className="fixed inset-0 z-[150] bg-black/50 md:hidden" onClick={() => setMenuOpen(false)} aria-hidden="true" />}
       <main id="main-content" tabIndex={-1} className="md:ml-[240px] pt-[60px] min-w-0 outline-none">
-        <div className="py-8 px-10 max-md:p-5 max-w-[1100px]">
+        <div className={fullBleed ? 'py-8' : 'py-8 px-10 max-md:p-5 max-w-[1100px]'}>
           <Outlet />
         </div>
       </main>

@@ -1,7 +1,7 @@
 import { lazy, type ComponentType } from 'react'
 import {
   BookMarked, BookOpen, CalendarDays, Dices, Gem, Hammer, Landmark, Map, NotebookPen, Scroll, Shield,
-  SlidersHorizontal, Users, type LucideIcon,
+  SlidersHorizontal, Swords, Users, type LucideIcon,
 } from 'lucide-react'
 
 export interface SectionPageProps {
@@ -17,6 +17,8 @@ export interface SectionDef {
   path: string
   group: string
   icon: LucideIcon
+  /** Rendered edge to edge (no page padding / max width), like the legacy maps and session screen. */
+  fullBleed?: boolean
   /** Hidden from the nav AND unreachable (404 in layout) for players. The DB stays the real boundary. */
   dmOnly?: boolean
   /**
@@ -33,6 +35,7 @@ const Lore = lazy(() => import('./sections/LorePage').then((m) => ({ default: m.
 const Items = lazy(() => import('./sections/ItemsPage').then((m) => ({ default: m.ItemsPage })))
 const PJs = lazy(() => import('./sections/PJsPage').then((m) => ({ default: m.PJsPage })))
 const PNJs = lazy(() => import('./sections/PNJsPage').then((m) => ({ default: m.PNJsPage })))
+const SesionEnVivo = lazy(() => import('./sections/SesionEnVivoPage').then((m) => ({ default: m.SesionEnVivoPage })))
 const Placeholder = lazy(() => import('./SectionPlaceholder').then((m) => ({ default: m.SectionPlaceholder })))
 
 const section = (
@@ -40,7 +43,7 @@ const section = (
   label: string,
   group: string,
   icon: LucideIcon,
-  extra: { dmOnly?: boolean; Component?: ComponentType<SectionPageProps> } = {},
+  extra: { dmOnly?: boolean; fullBleed?: boolean; Component?: ComponentType<SectionPageProps> } = {},
 ): SectionDef => ({ key, label, path: key, group, icon, Component: Placeholder, ...extra })
 
 /** Single registry of campaign sections: nav, routing and role gating all read it. */
@@ -58,6 +61,7 @@ export const SECTIONS: readonly SectionDef[] = [
   section('items', 'Ítems', 'Homebrew', Gem, { Component: Items }),
   section('juegos', 'Juegos', 'Homebrew', Dices),
   section('srd', 'SRD / Reglas', 'Referencia', BookMarked),
+  section('sesion-en-vivo', 'Sesión en vivo', 'Administración', Swords, { dmOnly: true, fullBleed: true, Component: SesionEnVivo }),
   section('ajustes', 'Ajustes', 'Administración', SlidersHorizontal, { dmOnly: true }),
 ]
 

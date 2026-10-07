@@ -105,7 +105,7 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H7b | Port Sesiones + PNJs pages (list + detail via URL, forms, visibility, DM notes, unread, player notes) | delegated (writer) | [x] |
 | H7c | Port Lugares, Facciones, Lore, Items pages | delegated (writer) | [x] |
 | H8a | Port PJs (list, detail with mechanics/inventory/spells/attacks/resources tabs, ownership; player self-edit of identity fields within the DB guard; DM full edit; coins via RPC/DM only) | delegated (writer) | [x] |
-| H8b | Port DM session screen (cards layout in campaign_config session_screen, combat tracker, homebrew rules card, per-PJ cards, edit modal) | delegated (writer) | [ ] |
+| H8b | Port DM session screen (cards layout in campaign_config session_screen, combat tracker, homebrew rules card, per-PJ cards, edit modal) | delegated (writer) | [x] |
 | H8c | Port maps (mapas + map_points with Leaflet, click-to-place, pin visibility, hierarchical navigation) | delegated (writer) | [ ] |
 | H9 | Port calendar, games, notes, homerules, unread state; DM zone → campaign settings | delegated (writer) | [ ] |
 | H10 | Campaign management: create campaign, branding, regions, custom fields, invites, members/roles | delegated (writer) | [ ] |
@@ -411,6 +411,19 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   clamped to now() instead of rejected — device clock skew safe), PJIdentityTab picker uses latest
   state, legacy unread section test, drift test scans for newest guard. Checks: pgTAP 249/249, test
   748/748, integration 29/29, lint 0 errors, typecheck clean.
+
+- H8b: DM session screen at `/c/:slug/sesion-en-vivo` (dmOnly, fullBleed) sharing `SessionScreenView` with
+  the legacy wrapper through a session-screen port. Layout in campaign_config `session_screen`
+  (visibility dm) via `configRepository.patch` with an explicit `base` guard; `useSessionLayout` drains
+  queued writes (also after unmount), retries non-conflict failures with backoff keeping local edits,
+  merges local card state after conflicts (notes drafts never overwritten), byte-measured 512KB cap
+  blocking only growth. PJ edits from the modal send only changed fields (exact nested equality;
+  shared fix also for the H8a form), stat_hp_current derived rule, base = opened when another writer
+  changed a patched key, own-write tracking avoids spurious conflicts; rests write only changes.
+  Legacy `save`/`remove` now return booleans. Browser (DM): empty state, picker adds Stats/Notas, row
+  created with visibility dm, debounced notes persisted. Checks: test 800/800, integration 30/30, lint
+  0 errors / 53 warnings, typecheck clean. Open: no realtime subscription on session_screen (second tab
+  learns on its next write).
 
 ## Product decisions (user, 2026-10-06)
 

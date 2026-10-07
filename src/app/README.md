@@ -109,6 +109,24 @@ characters, campaign character fields) and props for what differs (back link, bu
 - **Campaign character fields** (`campaigns.character_custom_fields`, `[{ key, label }]`) replace the legacy `magralita` field:
   values live in `data.custom_fields[key]`, are edited as text and merged with the keys the form does not know.
 
+### DM session screen (`SesionEnVivoPage.tsx`, H8b)
+
+`/c/:slug/sesion-en-vivo` (SECTIONS entry `dmOnly` + `fullBleed`: no page padding, like the legacy screen). The screen itself
+(`pages/session/SessionScreenView`, tabs / cards / dnd-kit / edit modal) reads nothing from `useApp()`: every write goes through a
+`SessionScreenPort` (`ports/sessionScreen.ts`: `setCards(updater)`, `patchCard`, `savePj(pj, patch)`, `createRule`, `deleteRule`). Legacy
+(`pages/SessionScreen.jsx`) builds the port over `saveSessionScreen` / `save` / `remove` (unchanged behaviour); the hub builds it over:
+
+- **Layout** = `campaign_config` key `session_screen` (visibility `dm`, so RLS keeps it from players). `useSessionLayout` keeps `cards[]` in a ref
+  (updaters apply to the LATEST list), serialises and coalesces writes, and sends each `config.patch(..., 'dm', base)` with the
+  `updated_at` the previous response returned. A stale base throws `ConflictError` WITHOUT writing (another tab changed the layout): toast,
+  reload of the stored layout, optimistic state discarded. No realtime subscription: the guard detects the other tab. Layouts above
+  512 KB (JSON) are refused; notes are capped at 50 000 characters.
+- **Card state** (notes text, combat) lives in the card's own entry. Notes are debounced (800 ms), flushed on blur and on unmount.
+- **Characters** are saved with the changed fields only (`buildSessionPjPatch`: the draft is diffed against the opened character after the same
+  coercion; a new `stat_hp` also writes `stat_hp_current`), `sections_updated` stamped like the PJ form (`pjStamps.ts`), version = latest row.
+- **Rules** (`homebrew_rules`) are created / hard-deleted (after a confirm) through `useEntityActions`.
+- **Access**: a player gets the in-layout 404 and the data hooks never mount, so `session_screen` is never requested.
+
 ## `CampaignContext` contract
 
 `useCampaign()` (only inside `/c/:slug`, after the campaign loaded) returns:
