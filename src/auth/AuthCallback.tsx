@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { btnSecondary } from '../constants'
 import { getSupabase, type Db } from '../data'
-import { completeAuthCallback } from './completeAuthCallback'
+import { CALLBACK_GENERIC, completeAuthCallback } from './completeAuthCallback'
+
+/** How long to wait for the code exchange before showing the error state with a way out. */
+export const CALLBACK_TIMEOUT_MS = 15000
+const CALLBACK_TIMEOUT_MESSAGE = 'Está tardando más de lo normal. Pedí un link nuevo o volvé a intentar en unos minutos.'
 
 export interface AuthCallbackProps {
   /**
@@ -19,10 +23,19 @@ export function AuthCallback({ onDone, client }: AuthCallbackProps) {
   const [error, setError] = useState<string | null>(null)
   const started = useRef(false)
   const mounted = useRef(false)
+  const settled = useRef(false)
+  const doneCalled = useRef(false)
   const onDoneRef = useRef(onDone)
   useEffect(() => {
     onDoneRef.current = onDone
   }, [onDone])
+
+  /** onDone fires at most once, whichever path (success or the back button) gets there first. */
+  const finish = () => {
+    if (doneCalled.current) return
+    doneCalled.current = true
+    onDoneRef.current('/')
+  }
 
   useEffect(() => {
     mounted.current = true
@@ -32,11 +45,18 @@ export function AuthCallback({ onDone, client }: AuthCallbackProps) {
       completeAuthCallback(client ?? getSupabase()).then(
         (result) => {
           if (!mounted.current) return
-          if (result.ok) onDoneRef.current('/')
+          // After the timeout error is shown the outcome is ignored: the screen stays put (a late
+          // success is reflected by the auth state; the back button goes home).
+          if (settled.current) return
+          settled.current = true
+          if (result.ok) finish()
           else setError(result.message)
         },
         () => {
-          if (mounted.current) setError('No pudimos completar el inicio de sesión. Pedí un link nuevo.')
+          if (mounted.current && !settled.current) {
+            settled.current = true
+            setError(CALLBACK_GENERIC)
+          }
         },
       )
     }
@@ -45,11 +65,21 @@ export function AuthCallback({ onDone, client }: AuthCallbackProps) {
     }
   }, [client])
 
+  // Separate effect so it is recreated (not lost) by a StrictMode remount.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (settled.current) return
+      settled.current = true
+      setError(CALLBACK_TIMEOUT_MESSAGE)
+    }, CALLBACK_TIMEOUT_MS)
+    return () => clearTimeout(timer)
+  }, [])
+
   if (error) {
     return (
       <div role="alert" className="max-w-sm mx-auto mt-24 px-4 text-center">
         <p className="text-sm text-txt-secondary mb-4">{error}</p>
-        <button type="button" className={btnSecondary} onClick={() => onDone('/')}>
+        <button type="button" className={btnSecondary} onClick={finish}>
           Volver al inicio
         </button>
       </div>

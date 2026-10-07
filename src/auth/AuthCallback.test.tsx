@@ -2,7 +2,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthCallback } from './AuthCallback'
-import { completeAuthCallback } from './completeAuthCallback'
+import { CALLBACK_WRONG_BROWSER, completeAuthCallback } from './completeAuthCallback'
 import { createFakeAuth, fakeSession } from './testing/fakeAuth'
 import { userEvent } from './testing/userEvent'
 
@@ -27,10 +27,13 @@ describe('completeAuthCallback', () => {
 
   it('fails when the exchange errors (e.g. link opened in another browser)', async () => {
     const { client, auth } = createFakeAuth()
-    auth.exchangeCodeForSession.mockResolvedValueOnce({ data: { session: null }, error: { message: 'verifier not found' } })
+    auth.exchangeCodeForSession.mockResolvedValueOnce({
+      data: { session: null },
+      error: { name: 'AuthPKCECodeVerifierMissingError', message: 'PKCE code verifier not found in storage' },
+    })
     goto('?code=abc')
     const result = await completeAuthCallback(client)
-    expect(result).toMatchObject({ ok: false, message: expect.stringContaining('mismo navegador') })
+    expect(result).toMatchObject({ ok: false, message: CALLBACK_WRONG_BROWSER })
   })
 
   it('does not treat a pre-existing session as success when the code is invalid', async () => {
@@ -122,13 +125,14 @@ describe('AuthCallback', () => {
     const { client, auth } = createFakeAuth()
     let release: () => void = () => {}
     auth.exchangeCodeForSession.mockImplementationOnce(
-      () => new Promise((r) => (release = () => r({ data: {}, error: null }))) as never,
+      () => new Promise((r) => (release = () => r({ data: { session: fakeSession() }, error: null }))) as never,
     )
     const onDone = vi.fn()
     goto('?code=abc')
     const { unmount } = render(<AuthCallback client={client} onDone={onDone} />)
+    await waitFor(() => expect(auth.exchangeCodeForSession).toHaveBeenCalledTimes(1))
     unmount()
-    release()
+    release() // a real, successful session resolves AFTER unmount
     await new Promise((r) => setTimeout(r, 0))
     expect(onDone).not.toHaveBeenCalled()
   })

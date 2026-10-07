@@ -27,8 +27,16 @@ export function AuthProvider({ children, client: clientProp, profiles: profilesP
   const [session, setSession] = useState<Session | null>(null)
   const [initialized, setInitialized] = useState(false)
   const [loaded, setLoaded] = useState<LoadedProfile | null>(null)
+  // Bumped on SIGNED_OUT and on a SIGNED_IN that changes who is signed in, so a batched
+  // same-user SIGNED_OUT + SIGNED_IN (userId unchanged for React) still reloads the profile.
+  // (supabase-js also emits SIGNED_IN for the same user on tab refocus: that must not refetch.)
+  const [generation, setGeneration] = useState(0)
   const userId = session?.user.id ?? null
   const userIdRef = useRef(userId)
+  const eventUserRef = useRef<string | null>(null)
+  // Every profile read takes a ticket; only the latest ticket may write state, so an older read
+  // (initial or refresh) can never override a newer one, and a late failure never beats a success.
+  const readSeq = useRef(0)
   useEffect(() => {
     userIdRef.current = userId
   }, [userId])
@@ -39,9 +47,14 @@ export function AuthProvider({ children, client: clientProp, profiles: profilesP
   useEffect(() => {
     let cancelled = false
     let sawEvent = false
-    const { data } = client.auth.onAuthStateChange((_event, next) => {
+    const { data } = client.auth.onAuthStateChange((event, next) => {
       sawEvent = true
       if (cancelled) return
+      const nextId = next?.user.id ?? null
+      if (event === 'SIGNED_OUT' || (event === 'SIGNED_IN' && nextId !== eventUserRef.current)) {
+        setGeneration((g) => g + 1)
+      }
+      eventUserRef.current = nextId
       setSession(next)
       // Forget the cached profile on sign-out so a same-user re-login never flashes stale data.
       if (!next) setLoaded(null)
@@ -51,6 +64,7 @@ export function AuthProvider({ children, client: clientProp, profiles: profilesP
       .getSession()
       .then(({ data: { session: current } }) => {
         if (cancelled || sawEvent) return
+        eventUserRef.current = current?.user.id ?? null
         setSession(current)
         setInitialized(true)
       })
@@ -65,33 +79,36 @@ export function AuthProvider({ children, client: clientProp, profiles: profilesP
     }
   }, [client])
 
-  // Profile follows the user id. A stale response (user switched or signed out meanwhile) is
-  // dropped by the cancel flag; the derived value below also ignores a profile of another user.
+  // Profile follows the user id and the sign-in generation. Cleanup invalidates the ticket, so a
+  // response for a previous user/sign-in is dropped; the derived value below also ignores a
+  // profile that belongs to another user.
   useEffect(() => {
     if (!userId) return
-    let cancelled = false
+    const seq = readSeq
+    const ticket = ++seq.current
     profiles.get(userId).then(
       (profile) => {
-        if (!cancelled) setLoaded({ userId, profile, error: null })
+        if (seq.current === ticket) setLoaded({ userId, profile, error: null })
       },
       (e: unknown) => {
-        if (!cancelled) setLoaded({ userId, profile: null, error: asError(e) })
+        if (seq.current === ticket) setLoaded({ userId, profile: null, error: asError(e) })
       },
     )
     return () => {
-      cancelled = true
+      seq.current++
     }
-  }, [userId, profiles])
+  }, [userId, generation, profiles])
 
   const refreshProfile = useCallback(async () => {
     const id = userIdRef.current
     if (!id) return
+    const ticket = ++readSeq.current
     try {
       const profile = await profiles.get(id)
-      if (userIdRef.current === id) setLoaded({ userId: id, profile, error: null })
+      if (readSeq.current === ticket && userIdRef.current === id) setLoaded({ userId: id, profile, error: null })
     } catch (e) {
       // Never rejects: callers fire-and-forget. Keep the last known profile, surface the error.
-      if (userIdRef.current === id) {
+      if (readSeq.current === ticket && userIdRef.current === id) {
         setLoaded((prev) => ({ userId: id, profile: prev?.userId === id ? prev.profile : null, error: asError(e) }))
       }
     }

@@ -1,6 +1,7 @@
 import { useId, useState, type FormEvent } from 'react'
 import { btnPrimary, inputCls, labelCls } from '../constants'
 import type { Profile, ProfileRepository } from '../data'
+import { sanitizeForLog } from './authErrors'
 import { AVATAR_URL_MAX, DISPLAY_NAME_MAX, validateProfile, type ProfileErrors } from './profileValidation'
 
 export interface ProfileFormProps {
@@ -30,14 +31,21 @@ export function ProfileForm({ profile, repository, onSaved }: ProfileFormProps) 
     }
     setErrors({})
     setSaving(true)
+    let saved: Profile
     try {
-      const saved = await repository.update(profile.id, result.value)
-      setStatus({ kind: 'saved' })
-      onSaved?.(saved)
+      saved = await repository.update(profile.id, result.value)
     } catch {
       setStatus({ kind: 'error', message: 'No pudimos guardar tu perfil. Volvé a intentar.' })
-    } finally {
       setSaving(false)
+      return
+    }
+    setSaving(false)
+    setStatus({ kind: 'saved' })
+    // Outside the try: a failing callback must not be reported as "could not save" (it was saved).
+    try {
+      onSaved?.(saved)
+    } catch (e) {
+      console.warn('profile form: onSaved callback failed', sanitizeForLog(e))
     }
   }
 

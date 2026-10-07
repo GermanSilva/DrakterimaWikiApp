@@ -8,7 +8,10 @@ export interface AuthValue {
   status: AuthStatus
   session: Session | null
   user: User | null
-  /** Null while loading, after a load failure (see profileError) or when signed out. */
+  /**
+   * Null while the first load runs, when signed out, or when the FIRST load failed. After a failed
+   * refresh it keeps the last known profile while profileError / profileStatus report the failure.
+   */
   profile: Profile | null
   profileError: Error | null
   /** idle: signed out; loading: first fetch for this user; loaded; error (profile may hold the last known value). */

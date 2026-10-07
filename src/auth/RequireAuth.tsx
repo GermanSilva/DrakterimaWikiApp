@@ -24,6 +24,7 @@ export function RequireAuth({ children, fallback, loading }: RequireAuthProps) {
       </>
     )
   }
-  if (status === 'signed_out') return <>{fallback ?? <ConnectedLoginPage />}</>
+  // Fail closed: children only for an explicit 'signed_in'; any other value shows the fallback.
+  if (status !== 'signed_in') return <>{fallback ?? <ConnectedLoginPage />}</>
   return <>{children}</>
 }
