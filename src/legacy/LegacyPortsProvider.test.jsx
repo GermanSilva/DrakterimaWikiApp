@@ -10,6 +10,7 @@ import { ENTITY_FORMS } from '../components/forms/entityForms'
 import { EstadoField } from '../components/forms/formFields'
 import { useFormActions, useWikiPort, WikiPortContext } from '../ports'
 import LegacyPortsProvider from './LegacyPortsProvider'
+import { createLegacyPlayerNotesPort } from './legacyPorts'
 
 const db = {
   lugares: [{ id: 3, nombre: 'Magrales del este', imagen_url: 'https://x/y.png' }],
@@ -150,5 +151,21 @@ describe('legacy player notes keep the original pj_id', () => {
     fireEvent.change(screen.getByDisplayValue('x'), { target: { value: 'y' } })
     fireEvent.click(screen.getByRole('button', { name: 'Guardar nota' }))
     expect(ctx.savePlayerNote).toHaveBeenCalledWith('abc', 'lore', 2, 'y')
+  })
+})
+
+describe('legacy player notes without an existing note for the key', () => {
+  it('keeps the numeric type of the pj id (looked up from db.pjs), never the string key', () => {
+    const savePlayerNote = vi.fn()
+    const port = createLegacyPlayerNotesPort({
+      db: { player_notes: [], pjs: [{ id: 5, nombre: 'Eldric' }] },
+      isDM: true,
+      currentPlayer: null,
+      savePlayerNote,
+      deletePlayerNote: vi.fn(),
+    })
+    port.save('lore', 2, 'nueva', '5')
+    expect(savePlayerNote).toHaveBeenCalledWith(5, 'lore', 2, 'nueva')
+    expect(typeof savePlayerNote.mock.calls[0][0]).toBe('number')
   })
 })

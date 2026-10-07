@@ -57,6 +57,19 @@ The page reads campaign data with `useCampaign()` and the data hooks (`useCampai
 `id` is the raw second URL segment (a string); parse it yourself. `dmOnly: true` hides the nav link AND makes the route
 a 404 for players, but RLS stays the real boundary. Routes, nav, role gating and the dashboard need no other change.
 
+### Ported pages (`src/campaign/sections/`)
+
+Sesiones and PNJs (H7b) are the reference for the remaining entity pages: list and detail share one component driven by the
+URL (`/c/:slug/<section>` and `/c/:slug/<section>/:id`), with no local `selectedId`. Conventions:
+
+- `parseEntityRoute(id)` turns the raw segment into `list | detail(id) | invalid`; only `^[0-9]{1,15}$` is an id, an invalid
+  segment renders "not found" and makes no request.
+- Reads: `useEntities` / `useEntity` (shared realtime list), `useDmNotes` (DM only, only for an entity that exists),
+  `useDmSecretIds` (DM list badges). Writes only through `useEntityForm().openForm` (DM only).
+- The loading/not-found/error gate and the loaded view are separate components, so `useStickyTitle` mounts with the h1.
+- Players never get DM-only blocks or tags of drafts; `borrador` rows that reach a non-DM client are dropped (RLS is the real boundary).
+- Region labels/colors come from `campaign.regions` (`useRegionInfo`), falling back to the legacy names.
+
 ## `CampaignContext` contract
 
 `useCampaign()` (only inside `/c/:slug`, after the campaign loaded) returns:

@@ -102,7 +102,7 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H5b | Fix H5 native review warnings (callback error classification, probe timeout, provider read ordering, login/callback timeouts, fail-closed guard) | delegated (writer) | [x] |
 | H6 | Router + hub shell: campaign list, `/c/:slug` layout, campaign context replacing App.jsx god-state, lazy pages | delegated (writer) | [x] |
 | H7a | Port infrastructure: per-entity data hooks (realtime list + actions incl. DM notes and visibility RPCs), campaign wiki-link index, data-agnostic shared components (WikiText/links, forms, unread, player notes) via injected adapters (legacy adapter keeps /legacy working), entity form host | delegated (writer) | [x] |
-| H7b | Port Sesiones + PNJs pages (list + detail via URL, forms, visibility, DM notes, unread, player notes) | delegated (writer) | [ ] |
+| H7b | Port Sesiones + PNJs pages (list + detail via URL, forms, visibility, DM notes, unread, player notes) | delegated (writer) | [x] |
 | H7c | Port Lugares, Facciones, Lore, Items pages | delegated (writer) | [ ] |
 | H8 | Port PJs (ownership, player self-edit), session screen, maps | delegated (writer) | [ ] |
 | H9 | Port calendar, games, notes, homerules, unread state; DM zone → campaign settings | delegated (writer) | [ ] |
@@ -366,6 +366,15 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   player-note results ignored; region default falls back to "otro" in the hub (legacy "magral");
   legacy note keys keep the original pj_id; tests for conflict toast, markRead, refresh, TableStore.
   Checks: test 547/547, integration 20/20, lint 0 errors / 60 warnings, typecheck clean.
+
+- H7b: Sesiones + PNJs ported to the hub with legacy parity: URL-driven list/detail (filters/search in
+  query params survive detail and back), sticky title (gate/view split fixes deep links), unread,
+  PlayerNotes, DM-only notas/secreto/ganchos via useDmNotes (no flicker; error notice with retry),
+  DM lock badges via `useDmSecretIds` (entity-type filtered, debounced), strict route ids, "ya no
+  existe" on not-found/hidden/deleted, separate load-error state, regions from campaign. Estado tags
+  follow legacy (players see Secreto on rows shared with them). Browser: DM sees draft + secreto with
+  create buttons; player1 sees only allowed rows, no create buttons, hidden PNJ by URL → not found;
+  filter survives detail → Volver. Checks: test 621/621, integration 20/20, lint 0 errors, typecheck.
 
 ## Product decisions (user, 2026-10-06)
 

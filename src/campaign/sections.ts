@@ -27,6 +27,8 @@ export interface SectionDef {
 }
 
 const LoreProof = lazy(() => import('./proof/LoreProofPage').then((m) => ({ default: m.LoreProofPage })))
+const Sesiones = lazy(() => import('./sections/SesionesPage').then((m) => ({ default: m.SesionesPage })))
+const PNJs = lazy(() => import('./sections/PNJsPage').then((m) => ({ default: m.PNJsPage })))
 const Placeholder = lazy(() => import('./SectionPlaceholder').then((m) => ({ default: m.SectionPlaceholder })))
 
 const section = (
@@ -40,10 +42,10 @@ const section = (
 /** Single registry of campaign sections: nav, routing and role gating all read it. */
 export const SECTIONS: readonly SectionDef[] = [
   section('notas', 'Notas', 'Principal', NotebookPen),
-  section('sesiones', 'Sesiones', 'Principal', Scroll),
+  section('sesiones', 'Sesiones', 'Principal', Scroll, { Component: Sesiones }),
   section('calendario', 'Calendario', 'Principal', CalendarDays),
   section('pjs', 'Jugadores (PJ)', 'Personajes', Shield),
-  section('pnjs', 'PNJs', 'Personajes', Users),
+  section('pnjs', 'PNJs', 'Personajes', Users, { Component: PNJs }),
   section('mapas', 'Mapas', 'Mundo', Map),
   section('lugares', 'Lugares', 'Mundo', Map),
   section('facciones', 'Facciones', 'Mundo', Landmark),

@@ -264,6 +264,30 @@ describe('EntityFormHost hardening', () => {
     errorSpy.mockRestore()
   })
 
+  it('a create whose visibility follow-up fails continues as an edit, and the retry resends the chosen visibility', async () => {
+    const { layer, spies } = createFakeLayer({ index: { pjs: [item(3, 'Eldric')] } })
+    spies.setVisibility.mockRejectedValueOnce(new Error('rpc down'))
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    renderHub({ layer, children: <OpenLoreForm /> })
+    fireEvent.click(screen.getByRole('button', { name: 'nuevo' }))
+    const dialog = await screen.findByRole('dialog')
+    fireEvent.change(within(dialog).getAllByRole('textbox')[0], { target: { value: 'Secreto' } })
+    fireEvent.change(within(dialog).getByRole('combobox', { name: 'Visibilidad' }), { target: { value: 'secreto' } })
+    fireEvent.click(await within(dialog).findByRole('checkbox', { name: 'Eldric' }))
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(spies.setVisibility).toHaveBeenCalledTimes(1))
+    expect(spies.setVisibility).toHaveBeenLastCalledWith('lore', 99, [3])
+    await waitFor(() => expect(within(dialog).getByRole('button', { name: 'Guardar' })).toBeEnabled())
+    expect(screen.getByRole('dialog')).toBeInTheDocument() // created, still open for the retry
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(spies.setVisibility).toHaveBeenCalledTimes(2))
+    expect(spies.setVisibility).toHaveBeenLastCalledWith('lore', 99, [3]) // the user's visibility was resent
+    expect(spies.saveEntityWithDmNotes).toHaveBeenCalledTimes(2)
+    expect(spies.saveEntityWithDmNotes.mock.calls[1][1]).toMatchObject({ id: 99 }) // an UPDATE, never a duplicate create
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    errorSpy.mockRestore()
+  })
+
   it('a transient re-list error while the form is open does not close it', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     try {

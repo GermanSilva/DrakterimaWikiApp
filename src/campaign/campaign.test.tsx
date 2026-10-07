@@ -86,15 +86,15 @@ describe('role-based navigation', () => {
 })
 
 describe('sections', () => {
-  it('renders the placeholder for a deep link with an id', async () => {
-    renderApp('/c/demo/pnjs/3', { data: dataFor(dm) })
-    expect(await screen.findByRole('heading', { level: 1, name: 'PNJs' })).toBeInTheDocument()
+  it('renders the placeholder (a not yet ported section) for a deep link with an id', async () => {
+    renderApp('/c/demo/lugares/3', { data: dataFor(dm) })
+    expect(await screen.findByRole('heading', { level: 1, name: 'Lugares' })).toBeInTheDocument()
     expect(screen.getByText(/Esta sección se está migrando/)).toBeInTheDocument()
     expect(screen.getByText('3')).toBeInTheDocument()
   })
 
   it('renders the id as text, never as markup', async () => {
-    renderApp(`/c/demo/pnjs/${encodeURIComponent('<img src=x onerror=alert(1)>')}`, { data: dataFor(dm) })
+    renderApp(`/c/demo/lugares/${encodeURIComponent('<img src=x onerror=alert(1)>')}`, { data: dataFor(dm) })
     expect(await screen.findByText('<img src=x onerror=alert(1)>')).toBeInTheDocument()
     expect(document.querySelector('main img')).toBeNull()
   })

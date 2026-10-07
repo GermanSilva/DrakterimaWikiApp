@@ -57,6 +57,8 @@ export function createLegacyPlayerNotesPort({ db, isDM, currentPlayer, savePlaye
   const notes = db.player_notes || []
   // opaque author key -> the ORIGINAL pj_id (no Number()/String() round trip that could change it)
   const pjIds = new Map(notes.map((n) => [String(n.pj_id), n.pj_id]))
+  // a key without any existing note: recover the numeric type from the PJ list (never send '5' for pj 5)
+  const pjIdOf = (key) => pjIds.get(key) ?? (db.pjs || []).find((p) => String(p.id) === key)?.id ?? key
   return {
     role: isDM ? 'dm' : currentPlayer ? 'player' : 'none',
     loading: false,
@@ -70,7 +72,7 @@ export function createLegacyPlayerNotesPort({ db, isDM, currentPlayer, savePlaye
         })),
     mine: (type, id) =>
       notes.find((n) => n.pj_id === currentPlayer?.id && n.type === type && n.entity_id === id)?.text || '',
-    save: (type, id, text, key) => savePlayerNote(isDM ? (pjIds.get(key) ?? key) : currentPlayer.id, type, id, text),
+    save: (type, id, text, key) => savePlayerNote(isDM ? pjIdOf(key) : currentPlayer.id, type, id, text),
     remove: (type, id, key) => deletePlayerNote(`${isDM ? key : currentPlayer.id}_${type}_${id}`),
   }
 }
