@@ -26,6 +26,7 @@ export interface SectionDef {
   Component: ComponentType<SectionPageProps>
 }
 
+const LoreProof = lazy(() => import('./proof/LoreProofPage').then((m) => ({ default: m.LoreProofPage })))
 const Placeholder = lazy(() => import('./SectionPlaceholder').then((m) => ({ default: m.SectionPlaceholder })))
 
 const section = (
@@ -33,7 +34,7 @@ const section = (
   label: string,
   group: string,
   icon: LucideIcon,
-  extra: { dmOnly?: boolean } = {},
+  extra: { dmOnly?: boolean; Component?: ComponentType<SectionPageProps> } = {},
 ): SectionDef => ({ key, label, path: key, group, icon, Component: Placeholder, ...extra })
 
 /** Single registry of campaign sections: nav, routing and role gating all read it. */
@@ -46,7 +47,8 @@ export const SECTIONS: readonly SectionDef[] = [
   section('mapas', 'Mapas', 'Mundo', Map),
   section('lugares', 'Lugares', 'Mundo', Map),
   section('facciones', 'Facciones', 'Mundo', Landmark),
-  section('lore', 'Lore', 'Mundo', BookOpen),
+  // Minimal proof page for the H7a stack; H7c replaces it with the full port.
+  section('lore', 'Lore', 'Mundo', BookOpen, { Component: LoreProof }),
   section('homerules', 'Homerules', 'Homebrew', Hammer),
   section('items', 'Ítems', 'Homebrew', Gem),
   section('juegos', 'Juegos', 'Homebrew', Dices),

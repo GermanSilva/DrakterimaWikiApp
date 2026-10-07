@@ -101,7 +101,9 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H5 | Auth: provider, login page (magic link + Google), session, profile | delegated (writer) | [x] |
 | H5b | Fix H5 native review warnings (callback error classification, probe timeout, provider read ordering, login/callback timeouts, fail-closed guard) | delegated (writer) | [x] |
 | H6 | Router + hub shell: campaign list, `/c/:slug` layout, campaign context replacing App.jsx god-state, lazy pages | delegated (writer) | [x] |
-| H7 | Port wiki entity pages + forms to the data layer (sesiones, pnjs, lugares, facciones, lore, items) | delegated (writer) | [ ] |
+| H7a | Port infrastructure: per-entity data hooks (realtime list + actions incl. DM notes and visibility RPCs), campaign wiki-link index, data-agnostic shared components (WikiText/links, forms, unread, player notes) via injected adapters (legacy adapter keeps /legacy working), entity form host | delegated (writer) | [x] |
+| H7b | Port Sesiones + PNJs pages (list + detail via URL, forms, visibility, DM notes, unread, player notes) | delegated (writer) | [ ] |
+| H7c | Port Lugares, Facciones, Lore, Items pages | delegated (writer) | [ ] |
 | H8 | Port PJs (ownership, player self-edit), session screen, maps | delegated (writer) | [ ] |
 | H9 | Port calendar, games, notes, homerules, unread state; DM zone → campaign settings | delegated (writer) | [ ] |
 | H10 | Campaign management: create campaign, branding, regions, custom fields, invites, members/roles | delegated (writer) | [ ] |
@@ -339,6 +341,22 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   reload really happens; chunkError unit tests; sign-out failure shows inline error (UserMenu); focus
   test made non-vacuous; useMyCampaigns user-switch/superseded-response tests; accent vars derived
   together (+ branding tests). Checks: test 469/469, lint 0 errors, typecheck clean, build OK.
+
+- H7a: ports & adapters (`src/ports`: Wiki/Unread/PlayerNotes/Form); shared components (WikiText,
+  WikiLink, WikiLinkPicker, UnreadDot, PlayerNotes, EstadoField, PosicionField, 8 forms) are
+  data-agnostic; `LegacyPortsProvider` keeps /legacy identical; FormModal split into generic
+  `FormShell` + legacy wrapper. Hub: refcounted TableStore (one realtime channel per table, re-list on
+  focus/visibility ≥30s), useEntities/useEntity/useEntityActions (entity row, then DM notes and
+  visibility as separate follow-ups with warnings; re-read after visibility RPC), useDmNotes/
+  useVisibility (DM only, refreshed after save), campaign wiki index (id/title/imagen/estado only),
+  hub unread (never lowers seen_at) and player notes (DM corrects others via UPDATE), EntityFormHost
+  (seed latch, changed-fields patch, in-flight guard, disabled Guardar). Lore proof page wired.
+  Sweep + browser: fixed DM-notes not refreshing after save (seen in browser, re-verified), DM
+  editing a player note blocked by INSERT policy (+3 pgTAP), false conflict after partial failure,
+  duplicate create on double click, form closing on transient re-list error, stale updated_at after
+  visibility RPC, hidden-row staleness, UnreadDot undefined semantics, per-table index status; lint
+  back to 60. Checks: test 530/530, pgTAP 221/221, integration 20/20, build OK, entry chunk clean.
+  Browser: /legacy renders real Firestore data with no console errors.
 
 ## Product decisions (user, 2026-10-06)
 

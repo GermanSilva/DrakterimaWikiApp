@@ -2,6 +2,7 @@ import { useMemo, type ReactNode } from 'react'
 import { Link, useParams } from 'react-router'
 import { LoadingScreen } from '../app/RouteStatus'
 import { btnSecondary } from '../constants'
+import { HubPortsProvider } from './adapters/HubPortsProvider'
 import { CampaignContext, type CampaignContextValue } from './CampaignContext'
 import { CampaignShell } from './CampaignShell'
 import { useCampaignLoader } from './useCampaignLoader'
@@ -59,7 +60,9 @@ export function CampaignLayout() {
   }
   return (
     <CampaignContext.Provider value={value}>
-      <CampaignShell campaign={ready.campaign} isDM={value.isDM} campaigns={ready.campaigns} />
+      <HubPortsProvider>
+        <CampaignShell campaign={ready.campaign} isDM={value.isDM} campaigns={ready.campaigns} />
+      </HubPortsProvider>
     </CampaignContext.Provider>
   )
 }

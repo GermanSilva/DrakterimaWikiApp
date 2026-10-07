@@ -4,7 +4,8 @@ import { vi } from 'vitest'
 import { createMemoryRouter, RouterProvider, type RouteObject } from 'react-router'
 import type { AuthValue } from '../../auth/AuthContext'
 import { AuthHost } from './AuthHost'
-import type { CampaignWithRole, Profile } from '../../data'
+import { createDataLayer, type CampaignWithRole, type Profile } from '../../data'
+import { createFakeClient } from '../../data/testing/fakeClient'
 import { DataContext } from '../DataContext'
 import type { HubData } from '../hubData'
 import { appRoutes } from '../routes'
@@ -56,6 +57,7 @@ export function makeAuth(over: Partial<AuthValue> = {}): AuthValue {
 
 export function makeData(over: Partial<HubData> = {}): HubData {
   return {
+    layer: createDataLayer(createFakeClient().db),
     listMyCampaigns: vi.fn(async () => [makeCampaign()]),
     createCampaign: vi.fn(async (slug: string, name: string) => makeCampaign({ slug, name })),
     acceptInvite: vi.fn(async () => ({
