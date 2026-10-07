@@ -450,6 +450,31 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   isolation), integration 30/30, lint 0 errors / 52 warnings, typecheck clean. Follow-ups: pin
   clustering for huge maps; atomic default via RPC.
 
+- H8c native reviews: slice 1 under budget; slices 2-3 **approved** (review-27ad1154eb362ab4,
+  review-8ed3729909081eef). **Pending follow-ups for the next session (non-blocking warnings):**
+  (1) LeafletCanvas Pin key should include the color so a link_type change re-adds the marker with its
+  aria-label; (2) pin keydown listener closes over the first render position (use a ref);
+  (3) document-level Escape in MapViewerPanel also clears the ghost while the point form is open;
+  (4) MapViewerPanel/MapPopup lack direct tests (link resolution, Escape priority, ghost across cancel);
+  (5) EntityFormHost.prepareMapSave useCallback deps miss mapsList.loading/error;
+  (6) MapPointForm keeps a stale link_id when link_type changes (clear it).
+  Also carried: session_screen realtime subscription; pin clustering; atomic default map RPC;
+  hardcoded "Motivación para unirse al Gremio" label; cutover items (captcha/SMTP, hosted Realtime
+  column check, GitHub Pages retirement, CSP).
+
+## Next session — start here
+
+1. Resume: `mem_context` → `mem_search odd/campaign-hub/tasks` → read this file. Branch
+   `feat/campaign-hub`, last reviewed boundary `cdd796a` (2b059ec under budget, covered).
+2. Fix the 6 H8c follow-ups above (small writer batch) → review.
+3. H9: calendar (disponibilidad), games (loteria RPCs + Dice3D animate to server roll), notes,
+   homerules page, unread; DM zone → campaign settings (Ajustes).
+4. H10 campaign management (create/branding/regions/custom fields/invites/members, owner_id
+   assignment), H12 Firestore import, H13 Vercel/docs/runbook, H14 cutover + Phase 2 analysis.
+5. Local env: Docker + `supabase start`; dev server via preview `vite-dev` (`.claude/launch.json`,
+   git-excluded, local env vars); if a module serves empty after edits, restart the dev server.
+   Test login: dm@example.test / player1@example.test magic links from Mailpit (:54324).
+
 ## Product decisions (user, 2026-10-06)
 
 - Sole-DM account deletion is blocked until the DM role is transferred or the campaign deleted — approved.
