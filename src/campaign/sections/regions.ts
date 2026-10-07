@@ -23,13 +23,21 @@ export function useRegionInfo(): (key: string | null | undefined) => RegionInfo 
     () => (key) => {
       const k = key ?? ''
       const found = regions.find((r) => r.key === k)
+      // Own-property lookups only: a data key like "constructor" must not resolve to Object.prototype.
       const legacy = LEGACY_LABEL as Record<string, string>
+      const colors = REGION_COLOR as Record<string, string>
       return {
-        label: found?.label ?? legacy[k] ?? k,
-        color: found?.color ?? (REGION_COLOR as Record<string, string>)[k],
+        label: found?.label ?? (Object.hasOwn(legacy, k) ? legacy[k] : undefined) ?? k,
+        color: found?.color ?? (Object.hasOwn(colors, k) ? colors[k] : undefined),
         tagClass: LEGACY_TAG.has(k) ? k : 'neutral',
       }
     },
     [regions],
   )
+}
+
+/** Regions of the campaign config (or the single fallback), for the region filter pills. */
+export function useRegionOptions(): Region[] {
+  const { campaign } = useCampaign()
+  return useMemo(() => parseRegions(campaign.regions), [campaign.regions])
 }

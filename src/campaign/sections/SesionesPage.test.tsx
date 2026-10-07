@@ -316,18 +316,20 @@ describe('Sesiones as a DM', () => {
 
 describe('Sesiones: list filters live in the URL', () => {
   it('?tipo= survives opening a detail, "← Volver", prev/next and the browser back button', async () => {
-    const { layer } = createFakeLayer({ entities: { sesiones: SESIONES } })
+    const { layer } = createFakeLayer({ entities: { sesiones: [...SESIONES, entity(5, { tipo: 'avance', orden: 350, titulo: 'Otro avance', texto: 'x' })] } })
     const { router } = renderSection('/c/demo/sesiones?tipo=avance', { layer })
-    await waitFor(() => expect(cardsText()).toHaveLength(1))
+    await waitFor(() => expect(cardsText()).toHaveLength(2))
     expect(screen.getByRole('button', { name: 'Avances' })).toHaveAttribute('aria-pressed', 'true')
     const card = main().getAllByRole('link').find((a) => a.getAttribute('href')?.includes('/sesiones/3'))
     expect(card).toHaveAttribute('href', '/c/demo/sesiones/3?tipo=avance')
     fireEvent.click(card as HTMLElement)
     await screen.findByRole('heading', { level: 1, name: 'Un avance' })
     expect(main().getByRole('link', { name: '← Volver' })).toHaveAttribute('href', '/c/demo/sesiones?tipo=avance')
-    expect(screen.getByRole('link', { name: '← Ant' })).toHaveAttribute('href', '/c/demo/sesiones/2?tipo=avance')
+    // prev/next stay inside the filtered list (avances only) and keep the query: Un avance is the first avance
+    expect(screen.queryByRole('link', { name: '← Ant' })).toBeNull()
+    expect(screen.getByRole('link', { name: 'Sig →' })).toHaveAttribute('href', '/c/demo/sesiones/5?tipo=avance')
     fireEvent.click(main().getByRole('link', { name: '← Volver' }))
-    await waitFor(() => expect(cardsText()).toHaveLength(1))
+    await waitFor(() => expect(cardsText()).toHaveLength(2))
     expect(screen.getByRole('button', { name: 'Avances' })).toHaveAttribute('aria-pressed', 'true')
     await act(async () => {
       await router.navigate(-1) // back to the detail
@@ -337,7 +339,32 @@ describe('Sesiones: list filters live in the URL', () => {
       await router.navigate(-1) // and back to the filtered list
     })
     await waitFor(() => expect(here(router)).toBe('/c/demo/sesiones?tipo=avance'))
-    await waitFor(() => expect(cardsText()).toHaveLength(1))
+    await waitFor(() => expect(cardsText()).toHaveLength(2))
+  })
+
+  it('without a filter prev/next cross kinds; a row outside the active filter has no neighbours', async () => {
+    const { layer } = createFakeLayer({ entities: { sesiones: SESIONES } })
+    const { router } = renderSection('/c/demo/sesiones/3', { layer })
+    await screen.findByRole('heading', { level: 1, name: 'Un avance' })
+    expect(screen.getByRole('link', { name: '← Ant' })).toHaveAttribute('href', '/c/demo/sesiones/2')
+    expect(screen.getByRole('link', { name: 'Sig →' })).toHaveAttribute('href', '/c/demo/sesiones/4')
+    await act(async () => {
+      await router.navigate('/c/demo/sesiones/2?tipo=avance') // a session opened under the "avances" filter
+    })
+    await screen.findByRole('heading', { level: 1, name: 'Sesión titulada 2' })
+    expect(screen.queryByRole('link', { name: '← Ant' })).toBeNull()
+    expect(screen.queryByRole('link', { name: 'Sig →' })).toBeNull()
+  })
+
+  it('the lightbox of one session does not leak into the next one (prev/next)', async () => {
+    const { layer } = createFakeLayer({ entities: { sesiones: [sesion(1, { orden: 100, imagen_url: 'https://img.test/a.png' }), sesion(2, { orden: 200, imagen_url: 'https://img.test/b.png' })] } })
+    renderSection('/c/demo/sesiones/1', { layer })
+    await screen.findByRole('heading', { level: 1, name: 'Sesión titulada 1' })
+    fireEvent.click(await screen.findByAltText('Sesión titulada 1'))
+    expect(await screen.findByRole('dialog')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('link', { name: 'Sig →' }))
+    await screen.findByRole('heading', { level: 1, name: 'Sesión titulada 2' })
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 
   it('changing the filter rewrites the URL (replace) and an unknown value reads as "Todos"', async () => {

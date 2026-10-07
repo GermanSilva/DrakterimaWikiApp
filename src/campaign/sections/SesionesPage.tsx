@@ -1,12 +1,9 @@
-import { useMemo, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router'
+import { useMemo } from 'react'
+import { Link, useLocation } from 'react-router'
 import { Scroll } from 'lucide-react'
-import ImageLightbox from '../../components/ImageLightbox'
-import LazyImg from '../../components/LazyImg'
 import PlayerNotes from '../../components/PlayerNotes'
-import { EmptyState, PageHeader, Tag } from '../../components/Shared'
+import { EmptyState, PageHeader } from '../../components/Shared'
 import UnreadDot from '../../components/UnreadDot'
-import { COLLECTION_LETTER } from '../../components/wikiHelpers'
 import WikiText from '../../components/WikiText'
 import { btnPrimary, btnSecondary, detailTextCls, dmSectionCls, dmTitleCls, sectionTitleCls } from '../../constants'
 import type { FlatEntity } from '../../data'
@@ -15,17 +12,17 @@ import { plainText } from '../../helpers'
 import { useCampaign } from '../CampaignContext'
 import { useDmNotes } from '../entities/useDmNotes'
 import { useEntities } from '../entities/useEntities'
-import { useEntity } from '../entities/useEntity'
 import { useEntityForm } from '../entityFormContext'
 import { entityPath } from '../navigation'
 import type { SectionPageProps } from '../sections'
 import { DetailBackBar } from './DetailBackBar'
 import { DmNotice } from './DmNotice'
 import { useUrlParam, withSearch } from './listParams'
-import { DetailNotice, Loading } from './DetailNotice'
+import { Loading } from './DetailNotice'
 import { EntityTimestamps } from './EntityTimestamps'
-import { parseEntityRoute } from './entityRoute'
-import { str } from './format'
+import { EntitySectionRoute, type EntityLabels, type EntityViewProps } from './EntitySectionRoute'
+import { DmDetailActions, EstadoTag, LightboxImage } from './EntityUi'
+import { canSee, str } from './format'
 import { useMarkRead } from './useMarkRead'
 
 const TIPO_FILTERS = [
@@ -34,94 +31,50 @@ const TIPO_FILTERS = [
   { value: 'avance', label: 'Avances' },
 ] as const
 
+const LABELS: EntityLabels = {
+  loadError: 'No pudimos cargar la sesión',
+  notFound: 'Sesión no encontrada',
+  notFoundText: 'Esa sesión ya no existe o no podés verla.',
+  invalidText: 'Esa dirección no corresponde a ninguna sesión.',
+}
+
 const isAvance = (s: FlatEntity) => s.tipo === 'avance'
+const matchesTipo = (s: FlatEntity, tipo: string) => tipo === 'todos' || String(s.tipo ?? 'sesion') === tipo
 /** A session without "momentos importantes" has not been played/written up yet. */
 const isPlanned = (s: FlatEntity) => !isAvance(s) && str(s.logros).trim() === ''
 const hasNumero = (s: FlatEntity) => s.numero !== null && s.numero !== undefined && s.numero !== ''
 const kindLabel = (s: FlatEntity) => (isAvance(s) ? 'Avance' : hasNumero(s) ? `Sesión ${String(s.numero)}` : 'Sesión')
 
 /**
- * Defense in depth: RLS already withholds drafts from players, but a draft that reached the client
- * (stale cache, misconfigured policy) is never rendered for a non-DM.
+ * Previous / next walk the timeline (oldest first, as the legacy buttons) inside the list the user came
+ * from: with a `?tipo=` filter active they stay within that kind and keep the query. An entity outside
+ * the active filter (a hand-edited link) has no neighbours.
  */
-const canSee = (s: FlatEntity, isDM: boolean) => isDM || s.estado !== 'borrador'
-
-function EstadoTag({ estado }: { estado: unknown }) {
-  if (estado === 'borrador') return <Tag cls="borrador" text="Borrador" />
-  if (estado === 'secreto') return <Tag cls="secreto" text="Secreto" />
-  return null
-}
-
-function SesionDetail({ id }: { id: number }) {
-  const { campaign, isDM } = useCampaign()
-  const { entity, loading, notFound, error, reload } = useEntity('sesiones', id)
+function useNeighbours(id: number): { prevId: number | null; nextId: number | null } {
+  const { isDM } = useCampaign()
   const { items } = useEntities('sesiones')
-  const { search } = useLocation()
-  const listPath = withSearch(entityPath(campaign.slug, 'sesiones'), search) // Volver keeps the list filters
-
-  const visible = useMemo(() => items.filter((s) => canSee(s, isDM)), [items, isDM])
-  const idx = visible.findIndex((s) => s.id === id)
-  const prevId = idx > 0 ? visible[idx - 1].id : null
-  const nextId = idx >= 0 && idx < visible.length - 1 ? visible[idx + 1].id : null
-
-  if (loading) return <Loading />
-  if (error && !entity) {
-    return (
-      <DetailNotice
-        title="No pudimos cargar la sesión"
-        to={listPath}
-        alert
-        action={
-          <button type="button" className={btnSecondary} onClick={reload}>
-            Reintentar
-          </button>
-        }
-      >
-        Hubo un problema de conexión. Volvé a intentar en unos segundos.
-      </DetailNotice>
-    )
-  }
-  if (notFound || !entity || !canSee(entity, isDM)) {
-    return (
-      <DetailNotice title="Sesión no encontrada" to={listPath}>
-        Esa sesión ya no existe o no podés verla.
-      </DetailNotice>
-    )
-  }
-
-  return <SesionView entity={entity} prevId={prevId} nextId={nextId} listPath={listPath} search={search} />
+  const [tipo] = useUrlParam('tipo', 'todos', TIPO_FILTERS.map((f) => f.value))
+  return useMemo(() => {
+    const visible = items.filter((s) => canSee(s, isDM) && matchesTipo(s, tipo))
+    const idx = visible.findIndex((s) => s.id === id)
+    return {
+      prevId: idx > 0 ? visible[idx - 1].id : null,
+      nextId: idx >= 0 && idx < visible.length - 1 ? visible[idx + 1].id : null,
+    }
+  }, [items, isDM, tipo, id])
 }
 
-/**
- * The loaded detail. Kept apart from the loading/not-found gate so `useStickyTitle` mounts together with
- * the title it observes (its effect runs once: a hook that mounted while the page still said
- * "Cargando…" would never see the h1).
- */
-function SesionView({
-  entity,
-  prevId,
-  nextId,
-  listPath,
-  search,
-}: {
-  entity: FlatEntity
-  prevId: number | null
-  nextId: number | null
-  listPath: string
-  search: string
-}) {
+function SesionView({ entity, listPath }: EntityViewProps) {
   const { campaign, isDM } = useCampaign()
-  const navigate = useNavigate()
+  const { search } = useLocation()
+  const { prevId, nextId } = useNeighbours(entity.id)
   const dm = useDmNotes('sesiones', entity.id, entity.updated_at)
-  const { openForm } = useEntityForm()
-  const [lightbox, setLightbox] = useState(false)
   const { backBarRef, nameRef, showNameInHeader } = useStickyTitle()
   useMarkRead('sesiones', entity)
 
   const avance = isAvance(entity)
   const planned = isPlanned(entity)
   const title = str(entity.titulo) || 'Sin título'
-  const imagen = str(entity.imagen_url)
   const texto = str(entity.texto)
   const resumen = str(entity.resumen)
   const logros = str(entity.logros)
@@ -133,22 +86,7 @@ function SesionView({
   return (
     <div>
       <DetailBackBar to={listPath} barRef={backBarRef} name={<>{icon}{title}</>} showName={showNameInHeader}>
-        {isDM && (
-          <>
-            <span className="font-mono text-[11px] text-txt-muted select-all cursor-text opacity-50" title="ID para wiki-link">
-              {`{${entity.id}${COLLECTION_LETTER.sesiones}}`}
-            </span>
-            <button
-              type="button"
-              className={btnSecondary}
-              onClick={() =>
-                openForm({ type: avance ? 'avances' : 'sesiones', id: entity.id, onRemoved: () => navigate(listPath) })
-              }
-            >
-              Editar
-            </button>
-          </>
-        )}
+        {isDM && <DmDetailActions table="sesiones" entity={entity} listPath={listPath} formType={avance ? 'avances' : 'sesiones'} />}
         {prevId !== null && (
           <Link className={btnSecondary} to={withSearch(entityPath(campaign.slug, 'sesiones', prevId), search)}>
             ← Ant
@@ -185,16 +123,12 @@ function SesionView({
           </div>
           <EntityTimestamps createdAt={entity.created_at} updatedAt={entity.updated_at} />
         </div>
-        {imagen && (
-          <LazyImg
-            src={imagen}
-            alt={str(entity.titulo)}
-            className="max-w-full max-h-[120px] rounded-lg object-cover border border-border-base cursor-zoom-in"
-            containerCls="my-1 shrink-0 max-w-[200px] h-[120px] flex items-center justify-center"
-            onClick={() => setLightbox(true)}
-          />
-        )}
-        {lightbox && <ImageLightbox src={imagen} alt={str(entity.titulo)} onClose={() => setLightbox(false)} />}
+        <LightboxImage
+          src={str(entity.imagen_url)}
+          alt={str(entity.titulo)}
+          className="max-w-full max-h-[120px] rounded-lg object-cover border border-border-base cursor-zoom-in"
+          containerCls="my-1 shrink-0 max-w-[200px] h-[120px] flex items-center justify-center"
+        />
       </div>
 
       {avance ? (
@@ -316,7 +250,7 @@ function SesionesList() {
     () =>
       items
         .filter((s) => canSee(s, isDM))
-        .filter((s) => tipoFilter === 'todos' || String(s.tipo ?? 'sesion') === tipoFilter)
+        .filter((s) => matchesTipo(s, tipoFilter))
         .reverse(),
     [items, isDM, tipoFilter],
   )
@@ -384,16 +318,5 @@ function SesionesList() {
 
 /** `/c/:slug/sesiones` (timeline) and `/c/:slug/sesiones/:id` (detail): the URL is the only navigation state. */
 export function SesionesPage({ id }: SectionPageProps) {
-  const route = parseEntityRoute(id)
-  const { campaign } = useCampaign()
-  const { search } = useLocation()
-  if (route.kind === 'list') return <SesionesList />
-  if (route.kind === 'invalid') {
-    return (
-      <DetailNotice title="Sesión no encontrada" to={withSearch(entityPath(campaign.slug, 'sesiones'), search)}>
-        Esa dirección no corresponde a ninguna sesión.
-      </DetailNotice>
-    )
-  }
-  return <SesionDetail id={route.id} />
+  return <EntitySectionRoute id={id} table="sesiones" labels={LABELS} List={SesionesList} View={SesionView} />
 }

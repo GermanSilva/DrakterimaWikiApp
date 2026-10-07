@@ -1,13 +1,9 @@
-import { useMemo, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router'
+import { useMemo } from 'react'
+import { useLocation } from 'react-router'
 import { Lock, Users } from 'lucide-react'
-import ImageLightbox from '../../components/ImageLightbox'
-import LazyImg from '../../components/LazyImg'
 import PlayerNotes from '../../components/PlayerNotes'
 import { EmptyState, FilterPills, PageHeader, RelacionTag, Tag } from '../../components/Shared'
-import UnreadDot from '../../components/UnreadDot'
-import WikiText from '../../components/WikiText'
-import { btnPrimary, btnSecondary, detailSectionCls, detailTextCls, dmSectionCls, dmTitleCls, sectionTitleCls } from '../../constants'
+import { btnPrimary, btnSecondary } from '../../constants'
 import type { FlatEntity } from '../../data'
 import useStickyTitle from '../../hooks/useStickyTitle'
 import { plainText } from '../../helpers'
@@ -15,17 +11,16 @@ import { useCampaign } from '../CampaignContext'
 import { useDmNotes } from '../entities/useDmNotes'
 import { useDmSecretIds } from '../entities/useDmSecretIds'
 import { useEntities } from '../entities/useEntities'
-import { useEntity } from '../entities/useEntity'
 import { useEntityForm } from '../entityFormContext'
-import { entityPath } from '../navigation'
 import type { SectionPageProps } from '../sections'
 import { DetailBackBar } from './DetailBackBar'
 import { DmNotice } from './DmNotice'
-import { useUrlParam, withSearch } from './listParams'
-import { DetailNotice, Loading } from './DetailNotice'
+import { Loading } from './DetailNotice'
+import { CardTeaser, DmBlock, DmDetailActions, EntityCard, EstadoTag, LightboxImage, RegionTag, TextSection } from './EntityUi'
+import { EntitySectionRoute, type EntityLabels, type EntityViewProps } from './EntitySectionRoute'
 import { EntityTimestamps } from './EntityTimestamps'
-import { parseEntityRoute } from './entityRoute'
-import { str } from './format'
+import { canSee, str } from './format'
+import { useUrlParam } from './listParams'
 import { useRegionInfo } from './regions'
 import { useMarkRead } from './useMarkRead'
 
@@ -36,17 +31,14 @@ const FILTROS = [
   { value: 'enemigo', label: 'Enemigos' },
 ]
 
-/** RLS already withholds drafts from players; a draft that reached the client is still never rendered for a non-DM. */
-const canSee = (p: FlatEntity, isDM: boolean) => isDM || p.estado !== 'borrador'
-
-function EstadoTag({ estado }: { estado: unknown }) {
-  if (estado === 'borrador') return <Tag cls="borrador" text="Borrador" />
-  if (estado === 'secreto') return <Tag cls="secreto" text="Secreto" />
-  return null
+const LABELS: EntityLabels = {
+  loadError: 'No pudimos cargar el PNJ',
+  notFound: 'PNJ no encontrado',
+  notFoundText: 'Ese PNJ ya no existe o no podés verlo.',
+  invalidText: 'Esa dirección no corresponde a ningún PNJ.',
 }
 
 function PnjTags({ p, withRol = false }: { p: FlatEntity; withRol?: boolean }) {
-  const regionInfo = useRegionInfo()
   const region = str(p.region)
   const relacion = str(p.relacion)
   const faccion = str(p.faccion)
@@ -54,7 +46,7 @@ function PnjTags({ p, withRol = false }: { p: FlatEntity; withRol?: boolean }) {
   return (
     <>
       {withRol && rol && <Tag cls="neutral" text={rol} />}
-      {region && <Tag cls={regionInfo(region).tagClass} text={regionInfo(region).label} />}
+      {region && <RegionTag region={region} />}
       {relacion && <RelacionTag relacion={relacion} />}
       {faccion && <Tag cls="orden" text={faccion} />}
       <EstadoTag estado={p.estado} />
@@ -62,75 +54,21 @@ function PnjTags({ p, withRol = false }: { p: FlatEntity; withRol?: boolean }) {
   )
 }
 
-function PnjDetail({ id }: { id: number }) {
-  const { campaign, isDM } = useCampaign()
-  const { entity, loading, notFound, error, reload } = useEntity('pnjs', id)
-  const { search } = useLocation()
-  const listPath = withSearch(entityPath(campaign.slug, 'pnjs'), search) // Volver keeps the list filters
-
-  if (loading) return <Loading />
-  if (error && !entity) {
-    return (
-      <DetailNotice
-        title="No pudimos cargar el PNJ"
-        to={listPath}
-        alert
-        action={
-          <button type="button" className={btnSecondary} onClick={reload}>
-            Reintentar
-          </button>
-        }
-      >
-        Hubo un problema de conexión. Volvé a intentar en unos segundos.
-      </DetailNotice>
-    )
-  }
-  if (notFound || !entity || !canSee(entity, isDM)) {
-    return (
-      <DetailNotice title="PNJ no encontrado" to={listPath}>
-        Ese PNJ ya no existe o no podés verlo.
-      </DetailNotice>
-    )
-  }
-
-  return <PnjView entity={entity} listPath={listPath} />
-}
-
-/**
- * The loaded detail. Kept apart from the loading/not-found gate so `useStickyTitle` mounts together with
- * the title it observes (its effect runs once: a hook that mounted while the page still said
- * "Cargando…" would never see the h1).
- */
-function PnjView({ entity, listPath }: { entity: FlatEntity; listPath: string }) {
+function PnjView({ entity, listPath }: EntityViewProps) {
   const { isDM } = useCampaign()
-  const navigate = useNavigate()
   const dm = useDmNotes('pnjs', entity.id, entity.updated_at)
   const regionInfo = useRegionInfo()
-  const { openForm } = useEntityForm()
-  const [lightbox, setLightbox] = useState(false)
   const { backBarRef, nameRef, showNameInHeader } = useStickyTitle()
   useMarkRead('pnjs', entity)
 
   const nombre = str(entity.nombre)
   const imagen = str(entity.imagen_url)
-  const descripcion = str(entity.descripcion)
-  const historia = str(entity.historia)
-  const secreto = isDM ? dm.fields.secreto : ''
-  const notas = isDM ? dm.fields.notas : ''
   const icon = <Users size={18} className="inline mr-1 text-accent-bright" />
 
   return (
     <div>
       <DetailBackBar to={listPath} barRef={backBarRef} name={<>{icon}{nombre}</>} showName={showNameInHeader}>
-        {isDM && (
-          <button
-            type="button"
-            className={btnSecondary}
-            onClick={() => openForm({ type: 'pnjs', id: entity.id, onRemoved: () => navigate(listPath) })}
-          >
-            Editar
-          </button>
-        )}
+        {isDM && <DmDetailActions table="pnjs" entity={entity} listPath={listPath} showWikiId={false} />}
       </DetailBackBar>
 
       <div className="flex w-full gap-4 max-sm:flex-col">
@@ -152,60 +90,22 @@ function PnjView({ entity, listPath }: { entity: FlatEntity; listPath: string })
           <EntityTimestamps createdAt={entity.created_at} updatedAt={entity.updated_at} />
         </div>
 
-        {imagen && (
-          <LazyImg
-            src={imagen}
-            alt={nombre}
-            className="w-full h-full rounded-lg object-contain border border-border-base cursor-zoom-in"
-            containerCls="h-[150px] min-w-[100px] max-w-fit flex items-center justify-center text-center"
-            onClick={() => setLightbox(true)}
-          />
-        )}
-        {lightbox && <ImageLightbox src={imagen} alt={nombre} onClose={() => setLightbox(false)} />}
+        <LightboxImage
+          src={imagen}
+          alt={nombre}
+          className="w-full h-full rounded-lg object-contain border border-border-base cursor-zoom-in"
+          containerCls="h-[150px] min-w-[100px] max-w-fit flex items-center justify-center text-center"
+        />
       </div>
 
       <div className="flex flex-col">
         <div>
-          {descripcion && (
-            <div className={detailSectionCls}>
-              <h2 className={sectionTitleCls}>Descripción</h2>
-              <div className={detailTextCls}>
-                <WikiText text={descripcion} />
-              </div>
-            </div>
-          )}
-          {historia && (
-            <div className={detailSectionCls}>
-              <h2 className={sectionTitleCls}>Historia</h2>
-              <div className={detailTextCls}>
-                <WikiText text={historia} />
-              </div>
-            </div>
-          )}
+          <TextSection title="Descripción" text={str(entity.descripcion)} />
+          <TextSection title="Historia" text={str(entity.historia)} />
         </div>
         <div>
-          {secreto && (
-            <div className={dmSectionCls}>
-              <h2 className={dmTitleCls}>
-                <Lock size={12} className="inline mr-1" aria-hidden="true" />
-                Motivaciones secretas
-              </h2>
-              <div className={detailTextCls}>
-                <WikiText text={secreto} />
-              </div>
-            </div>
-          )}
-          {notas && (
-            <div className={dmSectionCls}>
-              <h2 className={dmTitleCls}>
-                <Lock size={12} className="inline mr-1" aria-hidden="true" />
-                Notas DM
-              </h2>
-              <div className={detailTextCls}>
-                <WikiText text={notas} />
-              </div>
-            </div>
-          )}
+          <DmBlock title="Motivaciones secretas" text={isDM ? dm.fields.secreto : ''} />
+          <DmBlock title="Notas DM" text={isDM ? dm.fields.notas : ''} />
         </div>
       </div>
       {isDM && dm.status === 'error' && <DmNotice onRetry={dm.refresh}>No pudimos cargar las notas del DM.</DmNotice>}
@@ -216,29 +116,24 @@ function PnjView({ entity, listPath }: { entity: FlatEntity; listPath: string })
 
 function PnjCard({ p, slug, hasSecret, search }: { p: FlatEntity; slug: string; hasSecret: boolean; search: string }) {
   return (
-    <Link
-      to={withSearch(entityPath(slug, 'pnjs', p.id), search)}
-      className="block bg-bg-card border border-border-base p-[18px] cursor-pointer transition-all relative overflow-hidden animate-card-in before:absolute before:top-0 before:left-0 before:right-0 before:h-0.5 before:content-[''] before:bg-border-light before:transition-colors hover:bg-bg-card-hover hover:border-accent-dim hover:before:bg-accent"
+    <EntityCard
+      slug={slug}
+      table="pnjs"
+      entity={p}
+      search={search}
+      title={str(p.nombre)}
+      icon={<Users size={16} className="opacity-55" aria-hidden="true" />}
+      extra={
+        hasSecret && (
+          <span title="Tiene secreto DM" className="inline-flex">
+            <Lock size={10} className="opacity-45" aria-label="Tiene secreto DM" role="img" />
+          </span>
+        )
+      }
+      tags={<PnjTags p={p} withRol />}
     >
-      <UnreadDot type="pnjs" id={p.id} updatedAt={p.updated_at} className="absolute top-2 right-2" />
-      <div className="flex items-start justify-between gap-2 mb-2.5">
-        <div className="font-exo text-[13px] font-semibold text-txt-primary tracking-[0.03em]">{str(p.nombre)}</div>
-        <div className="flex items-center gap-1.5">
-          {hasSecret && (
-            <span title="Tiene secreto DM" className="inline-flex">
-              <Lock size={10} className="opacity-45" aria-label="Tiene secreto DM" role="img" />
-            </span>
-          )}
-          <Users size={16} className="opacity-55" aria-hidden="true" />
-        </div>
-      </div>
-      <div className="flex flex-wrap gap-[5px] mb-2.5">
-        <PnjTags p={p} withRol />
-      </div>
-      <div className="text-[13px] text-txt-secondary leading-relaxed italic line-clamp-3">
-        {plainText(str(p.descripcion)) || 'Sin descripción.'}
-      </div>
-    </Link>
+      <CardTeaser>{plainText(str(p.descripcion)) || 'Sin descripción.'}</CardTeaser>
+    </EntityCard>
   )
 }
 
@@ -312,16 +207,5 @@ function PnjList() {
 
 /** `/c/:slug/pnjs` (cards + filters) and `/c/:slug/pnjs/:id` (detail): the URL is the only navigation state. */
 export function PNJsPage({ id }: SectionPageProps) {
-  const route = parseEntityRoute(id)
-  const { campaign } = useCampaign()
-  const { search } = useLocation()
-  if (route.kind === 'list') return <PnjList />
-  if (route.kind === 'invalid') {
-    return (
-      <DetailNotice title="PNJ no encontrado" to={withSearch(entityPath(campaign.slug, 'pnjs'), search)}>
-        Esa dirección no corresponde a ningún PNJ.
-      </DetailNotice>
-    )
-  }
-  return <PnjDetail id={route.id} />
+  return <EntitySectionRoute id={id} table="pnjs" labels={LABELS} List={PnjList} View={PnjView} />
 }
