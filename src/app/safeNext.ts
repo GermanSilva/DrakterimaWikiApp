@@ -33,7 +33,8 @@ export function safeNextPath(raw: string | null | undefined, fallback = '/'): st
     return fallback
   }
   if (url.origin !== BASE) return fallback
-  if (LOOP_PATHS.has(url.pathname)) return fallback
+  // Case and trailing slashes do not make an auth page a different page (/Login/, /AUTH/CALLBACK/).
+  if (LOOP_PATHS.has(url.pathname.toLowerCase().replace(/\/+$/, ''))) return fallback
   const normalised = `${url.pathname}${url.search}${url.hash}`
   if (!normalised.startsWith('/') || isProtocolRelative(normalised)) return fallback
   if (/%5c/i.test(normalised) || hasControlOrBackslash(normalised)) return fallback

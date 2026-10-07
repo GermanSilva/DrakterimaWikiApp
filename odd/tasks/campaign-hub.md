@@ -333,6 +333,13 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   link placeholder, open-redirect payload lands on /. Checks: test 436/436, integration 16/16, lint 0
   errors, typecheck clean, build OK.
 
+- H6 native reviews (5 slices 1f5aeb9..a36ae53): all **approved** (review-db2e8f9268298523,
+  review-ad26a75494cf2036, review-fbedbcbbf29be6d3, review-6a3396057b8a406c, review-b09651b17b2712ab).
+  Follow-ups fixed: auth-path loop guard case/trailing-slash insensitive; "Actualizando…" only when a
+  reload really happens; chunkError unit tests; sign-out failure shows inline error (UserMenu); focus
+  test made non-vacuous; useMyCampaigns user-switch/superseded-response tests; accent vars derived
+  together (+ branding tests). Checks: test 469/469, lint 0 errors, typecheck clean, build OK.
+
 ## Product decisions (user, 2026-10-06)
 
 - Sole-DM account deletion is blocked until the DM role is transferred or the campaign deleted — approved.

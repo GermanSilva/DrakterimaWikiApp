@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { fireEvent, render, renderHook, screen, waitFor, within, act } from '@testing-library/react'
-import { createMemoryRouter, RouterProvider } from 'react-router'
+import { createMemoryRouter, Link, RouterProvider } from 'react-router'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext } from '../auth/AuthContext'
 import { deferred } from '../auth/testing/deferred'
@@ -8,6 +8,7 @@ import { useMyCampaigns } from '../hub/useMyCampaigns'
 import { CHUNK_RELOAD_KEY, isChunkLoadError, reloadOnceForChunkError } from './chunkError'
 import { ConfigGate } from './ConfigGate'
 import { DataContext } from './DataContext'
+import { RootLayout } from './RootLayout'
 import { RouteErrorScreen } from './RouteStatus'
 import { missingSupabaseEnv } from './supabaseConfig'
 import { makeAuth, makeCampaign, makeData, renderApp } from './testing/renderApp'
@@ -112,6 +113,20 @@ describe('chunk load errors', () => {
     expect(screen.getByRole('link', { name: 'Ir al inicio' })).toHaveAttribute('href', '/')
   })
 
+  it('route error screen falls through to the error UI when storage throws (no reload happened)', async () => {
+    const reload = vi.fn()
+    vi.stubGlobal('location', { ...window.location, reload })
+    vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota')
+    })
+    renderFailingRoute()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Algo salió mal' })).toBeInTheDocument()
+    expect(screen.queryByText('Actualizando…')).not.toBeInTheDocument()
+    expect(reload).not.toHaveBeenCalled()
+    vi.restoreAllMocks()
+  })
+
   it('route error screen shows the error UI for a non-chunk error, without reloading', async () => {
     const reload = vi.fn()
     vi.stubGlobal('location', { ...window.location, reload })
@@ -166,43 +181,136 @@ describe('focus management', () => {
     expect(document.activeElement).toBe(name)
   })
 
-  it('does not pull focus back once the user moved to another control while a section loaded', async () => {
-    renderApp('/c/demo', { auth, data: data() })
-    await screen.findByRole('heading', { level: 1, name: 'Demo' })
-    const nav = screen.getByRole('navigation', { name: 'Secciones de la campaña' })
+  it('does not pull focus back once the user moved to another control before the late heading appears', async () => {
+    const gate = deferred()
+    function Home() {
+      return (
+        <main id="main-content">
+          <h1>Home</h1>
+          <Link to="/slow">go</Link>
+        </main>
+      )
+    }
+    function Slow() {
+      const [ready, setReady] = useState(false)
+      useEffect(() => {
+        void gate.promise.then(() => setReady(true))
+      }, [])
+      return (
+        <main id="main-content">
+          {ready && <h1>Slow page</h1>}
+          <button type="button">other control</button>
+        </main>
+      )
+    }
+    const routes = [
+      {
+        element: <RootLayout />,
+        children: [
+          { path: '/', element: <Home /> },
+          { path: 'slow', element: <Slow /> },
+        ],
+      },
+    ]
+    renderApp('/', { auth, routes })
     await act(async () => {
-      fireEvent.click(within(nav).getByRole('link', { name: /Facciones/ }))
+      fireEvent.click(screen.getByRole('link', { name: 'go' }))
     })
-    const other = screen.getByRole('button', { name: 'Cerrar sesión' })
+    // navigated; the heading does not exist yet, so the landmark holds focus
+    expect(screen.queryByRole('heading', { name: 'Slow page' })).not.toBeInTheDocument()
+    expect(document.activeElement).toBe(document.getElementById('main-content'))
+    const other = screen.getByRole('button', { name: 'other control' })
     other.focus()
-    await screen.findByRole('heading', { level: 1, name: 'Facciones' })
+    await act(async () => gate.resolve())
+    expect(screen.getByRole('heading', { name: 'Slow page' })).toBeInTheDocument()
     expect(document.activeElement).toBe(other)
+  })
+
+  it('focuses the late heading when the user has not moved focus (control for the test above)', async () => {
+    const gate = deferred()
+    function Slow() {
+      const [ready, setReady] = useState(false)
+      useEffect(() => {
+        void gate.promise.then(() => setReady(true))
+      }, [])
+      return <main id="main-content">{ready && <h1>Slow page</h1>}</main>
+    }
+    const routes = [
+      {
+        element: <RootLayout />,
+        children: [
+          { path: '/', element: <Link to="/slow">go</Link> },
+          { path: 'slow', element: <Slow /> },
+        ],
+      },
+    ]
+    renderApp('/', { auth, routes })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('link', { name: 'go' }))
+    })
+    await act(async () => gate.resolve())
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('heading', { name: 'Slow page' })))
   })
 })
 
 describe('useMyCampaigns', () => {
-  it('drops the previous user list when the user changes', async () => {
-    const second = deferred<ReturnType<typeof makeCampaign>[]>()
-    const list = vi.fn((userId: string) =>
-      userId === 'user-1' ? Promise.resolve([makeCampaign({ name: 'Mine' })]) : second.promise,
-    )
-    const dataValue = makeData({ listMyCampaigns: list })
-    let current = makeAuth()
+  type Campaigns = ReturnType<typeof makeCampaign>[]
+  const names = (r: { current: { campaigns: Campaigns } }) => r.current.campaigns.map((c) => c.name)
+
+  function setup(list: (userId: string) => Promise<Campaigns>) {
+    const dataValue = makeData({ listMyCampaigns: vi.fn(list) })
+    const state = { auth: makeAuth() }
     const wrapper = ({ children }: { children: ReactNode }) => (
-      <AuthContext.Provider value={current}>
+      <AuthContext.Provider value={state.auth}>
         <DataContext.Provider value={dataValue}>{children}</DataContext.Provider>
       </AuthContext.Provider>
     )
-    const { result, rerender } = renderHook(() => useMyCampaigns(), { wrapper })
-    await waitFor(() => expect(result.current.status).toBe('ready'))
-    expect(result.current.campaigns.map((c) => c.name)).toEqual(['Mine'])
+    const hook = renderHook(() => useMyCampaigns(), { wrapper })
+    const switchTo = (id: string) => {
+      state.auth = makeAuth({ user: { id, email: `${id}@test.co` } as never })
+      hook.rerender()
+    }
+    return { ...hook, switchTo }
+  }
 
-    current = makeAuth({ user: { id: 'user-2', email: 'b@test.co' } as never })
-    rerender()
-    // same render pass that sees the new user: no stale list, back to loading
+  it('shows nothing from the previous user after a switch without unmount', async () => {
+    const second = deferred<Campaigns>()
+    const { result, switchTo } = setup((id) => (id === 'user-1' ? Promise.resolve([makeCampaign({ name: 'Mine' })]) : second.promise))
+    await waitFor(() => expect(result.current.status).toBe('ready'))
+    expect(names(result)).toEqual(['Mine'])
+
+    switchTo('user-2')
+    // the very render that sees the new user: no stale list
     expect(result.current.status).toBe('loading')
     expect(result.current.campaigns).toEqual([])
     await act(async () => second.resolve([makeCampaign({ name: 'Theirs' })]))
-    await waitFor(() => expect(result.current.campaigns.map((c) => c.name)).toEqual(['Theirs']))
+    await waitFor(() => expect(names(result)).toEqual(['Theirs']))
+  })
+
+  it('discards a late response of the previous user', async () => {
+    const first = deferred<Campaigns>()
+    const { result, switchTo } = setup((id) =>
+      id === 'user-1' ? first.promise : Promise.resolve([makeCampaign({ name: 'Theirs' })]),
+    )
+    switchTo('user-2')
+    await waitFor(() => expect(names(result)).toEqual(['Theirs']))
+    await act(async () => first.resolve([makeCampaign({ name: 'Stale' })]))
+    expect(names(result)).toEqual(['Theirs'])
+    expect(result.current.status).toBe('ready')
+  })
+
+  it('discards a superseded response after reload()', async () => {
+    const calls: ReturnType<typeof deferred<Campaigns>>[] = []
+    const { result } = setup(() => {
+      const d = deferred<Campaigns>()
+      calls.push(d)
+      return d.promise
+    })
+    await waitFor(() => expect(calls).toHaveLength(1))
+    act(() => result.current.reload())
+    await waitFor(() => expect(calls).toHaveLength(2))
+    await act(async () => calls[1].resolve([makeCampaign({ name: 'New' })]))
+    await act(async () => calls[0].resolve([makeCampaign({ name: 'Old' })]))
+    expect(names(result)).toEqual(['New'])
   })
 })

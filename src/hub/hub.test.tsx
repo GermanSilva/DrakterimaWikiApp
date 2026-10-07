@@ -170,4 +170,21 @@ describe('sign out', () => {
     // RequireAuth's redirect (with next) and the explicit navigation race; both land on /login.
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
   })
+
+  it('shows an inline error when signOut fails, stays put, and still redirects once the status flips', async () => {
+    const out = makeAuth({ status: 'signed_out', user: null, profile: null })
+    const auth = makeAuth({ signOut: vi.fn().mockRejectedValue(new Error('network')) })
+    const { router, setAuth } = renderApp('/', { auth })
+    await screen.findByRole('heading', { name: 'Mis campañas' })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
+    })
+    expect(await screen.findByText('No pudimos cerrar la sesión. Volvé a intentar.')).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/')
+    expect(screen.queryByText(/network/)).not.toBeInTheDocument()
+    // the session ended anyway (e.g. the token expired): RequireAuth takes over
+    await act(async () => setAuth(out))
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
+  })
 })
+

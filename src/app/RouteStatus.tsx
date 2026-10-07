@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link, isRouteErrorResponse, useRouteError } from 'react-router'
 import { btnSecondary } from '../constants'
 import { isChunkLoadError, reloadGuardTripped, reloadOnceForChunkError } from './chunkError'
@@ -22,14 +22,23 @@ export function LoadingScreen({ label = 'Cargando…' }: { label?: string }) {
  */
 export function RouteErrorScreen() {
   const error = useRouteError()
-  // Decided once from pure inputs; the effect only performs the side effect (storage guard + reload).
-  const [reloading] = useState(() => isChunkLoadError(error) && !reloadGuardTripped())
+  // Optimistic from pure inputs; the effect performs the side effect and reports whether a reload really started.
+  const [expectReload] = useState(() => isChunkLoadError(error) && !reloadGuardTripped())
+  const [reloadFailed, setReloadFailed] = useState(false)
+  const started = useRef(false) // StrictMode runs the effect twice; the second run must not misread the guard
   useEffect(() => {
-    if (reloading) reloadOnceForChunkError(error)
-  }, [reloading, error])
+    if (!expectReload || started.current) return
+    // Storage that throws or a tripped guard means no reload happened: fall through to the error screen.
+    if (reloadOnceForChunkError(error)) {
+      started.current = true
+      return
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setReloadFailed(true)
+  }, [expectReload, error])
 
   if (!isRouteErrorResponse(error)) console.error('route error', error instanceof Error ? error.name : 'unknown')
-  if (reloading) return <LoadingScreen label="Actualizando…" />
+  if (expectReload && !reloadFailed) return <LoadingScreen label="Actualizando…" />
   return (
     <main id="main-content" tabIndex={-1} className="max-w-sm mx-auto pt-24 px-4 text-center">
       <h1 className="font-exo text-lg font-semibold tracking-[0.15em] uppercase text-txt-primary mb-3">Algo salió mal</h1>
