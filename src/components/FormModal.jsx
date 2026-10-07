@@ -1,14 +1,10 @@
 import { useApp } from '../AppContext'
-import MapaForm from '../pages/MapaForm'
-import MapPointForm from '../pages/MapPointForm'
 import DisponibilidadForm from '../pages/DisponibilidadForm'
 import { ENTITY_FORMS, FORM_TITLES } from './forms/entityForms'
 import FormShell from './FormShell'
 
 const FORM_COMPONENTS = {
   ...ENTITY_FORMS,
-  mapas: MapaForm,
-  map_points: MapPointForm,
   disponibilidad: DisponibilidadForm,
 }
 

@@ -106,7 +106,7 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H7c | Port Lugares, Facciones, Lore, Items pages | delegated (writer) | [x] |
 | H8a | Port PJs (list, detail with mechanics/inventory/spells/attacks/resources tabs, ownership; player self-edit of identity fields within the DB guard; DM full edit; coins via RPC/DM only) | delegated (writer) | [x] |
 | H8b | Port DM session screen (cards layout in campaign_config session_screen, combat tracker, homebrew rules card, per-PJ cards, edit modal) | delegated (writer) | [x] |
-| H8c | Port maps (mapas + map_points with Leaflet, click-to-place, pin visibility, hierarchical navigation) | delegated (writer) | [ ] |
+| H8c | Port maps (mapas + map_points with Leaflet, click-to-place, pin visibility, hierarchical navigation) | delegated (writer) | [x] |
 | H9 | Port calendar, games, notes, homerules, unread state; DM zone → campaign settings | delegated (writer) | [ ] |
 | H10 | Campaign management: create campaign, branding, regions, custom fields, invites, members/roles | delegated (writer) | [ ] |
 | H11 | Refactors: `useStickyTitle`, split FormModal, error boundary + error toasts, a11y basics | delegated (writer; 2+ non-trivial files) | [x] |
@@ -433,6 +433,22 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   legacy wrapper keeps its optimistic layout across re-renders; untouched saves of legacy characters
   write/stamp nothing (form + all session modals); seen marks use server-clamped stamps. Checks: test
   813/813, integration 30/30, lint 0 errors / 52 warnings, typecheck clean.
+
+- H8b follow-up review (860b13f): **approved** (review-f1fe8b1ad3b804fb); its notes (inflight pruning,
+  banner assertion, stamp fallback assertion) fixed in H8c.
+- H8c: maps at `/c/:slug/mapas` (fullBleed): `/mapas` → replace-redirect to the visible default map,
+  `?todos=1` grid, `/mapas/:id?trail=…` breadcrumb trail (strict, deduped, cap 10, cycle-free), Leaflet
+  only in lazy `LeafletCanvas` (memoized per-color icons, stable aria-label, keyboard activation,
+  crosshair in add mode), image size with 15s timeout/abort, https-only map images (hub host), ghost
+  pin click-to-place → form prefill {map_id,x,y} (kept on cancel), DM pin opacity, popup links via the
+  wiki port, DM notes panel, default-map demotion guarded until the maps list is ready (two
+  non-atomic writes; safe failure = no default until retried). MapaForm/MapPointForm on ports (link
+  pair saved or both null; picker loading state). Browser (DM): redirect to default, Leaflet renders,
+  pins 1/0.4 opacity with aria-labels, click-to-place saved normalized coords, crosshair. NOTE: a
+  stale Vite transform cache served LeafletCanvas.jsx empty after edits — restarting the dev server
+  fixed it (not a code bug). Checks: test 912/912 (2 flaky timeouts under full-suite load passed in
+  isolation), integration 30/30, lint 0 errors / 52 warnings, typecheck clean. Follow-ups: pin
+  clustering for huge maps; atomic default via RPC.
 
 ## Product decisions (user, 2026-10-06)
 

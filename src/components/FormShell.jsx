@@ -22,7 +22,7 @@ export default function FormShell({
   title,
   FormComponent,
   item,
-  prefill = null,
+  prefill = /** @type {Record<string, unknown> | null} */ (null),
   isPJForm = false,
   showWikiLinks = true,
   saving = false,

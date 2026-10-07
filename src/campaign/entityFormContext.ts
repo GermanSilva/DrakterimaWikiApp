@@ -1,13 +1,26 @@
 import { createContext, useContext } from 'react'
 import type { FlatEntity } from '../data'
 
-/** Form types the hub host can open (the wiki entities and the characters; maps and calendar forms come with H8/H9). */
-export type EntityFormType = 'sesiones' | 'avances' | 'pjs' | 'pnjs' | 'lugares' | 'facciones' | 'lore' | 'items' | 'homebrew_rules'
+/** Form types the hub host can open (the wiki entities, the characters and the maps; the calendar form comes with H9). */
+export type EntityFormType =
+  | 'sesiones'
+  | 'avances'
+  | 'pjs'
+  | 'pnjs'
+  | 'lugares'
+  | 'facciones'
+  | 'lore'
+  | 'items'
+  | 'mapas'
+  | 'map_points'
+  | 'homebrew_rules'
 
 export interface EntityFormRequest {
   type: EntityFormType
   /** Entity to edit; omit / null to create. */
   id?: number | null
+  /** Initial values of a NEW record (a map point placed on the map: `{ map_id, x, y }`). Ignored when editing. */
+  prefill?: Record<string, unknown> | null
   /** Called with the saved entity after a successful create/update (before the form closes). */
   onSaved?: (entity: FlatEntity) => void
   /** Called after the entity was deleted from the form. */

@@ -6,9 +6,11 @@ import { changedPjFields } from '../helpers/pjSections'
 import { withDerivedDefaults } from '../helpers/pjWrites'
 import { buildPjFormState, toPjPayload } from '../pages/pj/pjFormState'
 import { FormPortContext, useFormPort, useUnreadPort, type FormPort, type SesionRef } from '../ports'
+import { parseHttpsUrl } from './branding'
 import { useCampaign } from './CampaignContext'
 import { EntityFormContext, tableOfForm, type EntityFormApi, type EntityFormRequest } from './entityFormContext'
 import { useCampaignServices } from './entities/campaignServicesContext'
+import { describeDataError } from './entities/errorMessages'
 import { sameIds, useEntityActions } from './entities/useEntityActions'
 import { useDmNotes, type DmNotesFieldsState } from './entities/useDmNotes'
 import { useEntities } from './entities/useEntities'
@@ -76,6 +78,9 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
   const vis = useVisibility(table, openedAsEdit ? [id] : [])
   const needsSesiones = table === 'sesiones'
   const sesionesList = useEntities('sesiones', { enabled: needsSesiones })
+  // maps: only one may be the default (unique index), so saving a new default first demotes the current one
+  const mapsList = useEntities('mapas', { enabled: table === 'mapas' })
+  const { layer, campaignId } = useCampaignServices()
 
   const dmReady = !isDM || !openedAsEdit || dm.status === 'ready' || dm.status === 'idle'
   const visReady = !isDM || !openedAsEdit || vis.status === 'ready' || vis.status === 'idle'
@@ -120,6 +125,42 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
     [basePort, needsSesiones, sesionesList.items],
   )
 
+  /**
+   * Map-only checks before the write. The background image must be https (it is rendered by every member's
+   * browser); the legacy app accepted anything, so an existing value is only re-validated when it is edited.
+   * Making a map the default demotes the previous default first (two writes, not atomic: if the second fails there is
+   * temporarily no default; the toast says the save failed and saving again restores it). False = nothing was written (a toast says why).
+   */
+  const prepareMapSave = useCallback(
+    async (flat: Record<string, unknown>, current: Seed | null): Promise<boolean> => {
+      const image = typeof flat.imagen_url === 'string' ? flat.imagen_url.trim() : ''
+      const edited = !current || flat.imagen_url !== current.entity.imagen_url
+      if (edited && image !== '' && !parseHttpsUrl(image)) {
+        showToast('La imagen del mapa debe ser una URL que empiece con https://', 'error')
+        return false
+      }
+      if (flat.is_default === true && !(current && current.entity.is_default === true)) {
+        // Without the list we cannot know which map to demote, and the unique index would reject the write.
+        if (mapsList.loading || mapsList.error) {
+          showToast('Esperá a que carguen los mapas para cambiar el mapa por defecto.', 'error')
+          return false
+        }
+        const previous = mapsList.items.filter((m) => m.is_default === true && m.id !== (current?.entity.id ?? id))
+        for (const other of previous) {
+          try {
+            await layer.saveEntityWithDmNotes('mapas', { campaignId, id: other.id, base: other }, { is_default: false })
+          } catch (err) {
+            console.error('No se pudo quitar el mapa por defecto anterior', err)
+            showToast(describeDataError(err, 'No se pudo cambiar el mapa por defecto. Intentá de nuevo.'), 'error')
+            return false
+          }
+        }
+      }
+      return true
+    },
+    [showToast, mapsList.items, layer, campaignId, id],
+  )
+
   const save = useCallback(
     async (data: Record<string, unknown>) => {
       const visibilidad = data.visibilidad
@@ -128,6 +169,7 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
       const notes: DmNotesFields = ownerMode ? {} : extractDmNotes(rest)
       const flat = withoutDmNotes(rest)
       const visibleTo = !ownerMode && Array.isArray(visibilidad) ? (visibilidad as number[]) : undefined
+      if (table === 'mapas' && !(await prepareMapSave(flat, seed))) return
       let saved: FlatEntity | null = null
       if (seed) {
         const dmChanged = Object.fromEntries(
@@ -185,7 +227,7 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
         onClose()
       } // else: the toast says why and the form stays open
     },
-    [seed, actions, request, onClose, isPj, ownerMode, unread, basePort],
+    [seed, actions, request, onClose, isPj, ownerMode, unread, basePort, table, prepareMapSave],
   )
 
   const onSave = useCallback(
@@ -227,6 +269,7 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
         title={seed ? titles[1] : titles[0]}
         FormComponent={ENTITY_FORMS[request.type]}
         item={item}
+        prefill={seed ? null : (request.prefill ?? null)}
         isPJForm={isPj}
         saving={isSaving}
         onSave={onSave}

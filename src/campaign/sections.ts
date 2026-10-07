@@ -35,6 +35,7 @@ const Lore = lazy(() => import('./sections/LorePage').then((m) => ({ default: m.
 const Items = lazy(() => import('./sections/ItemsPage').then((m) => ({ default: m.ItemsPage })))
 const PJs = lazy(() => import('./sections/PJsPage').then((m) => ({ default: m.PJsPage })))
 const PNJs = lazy(() => import('./sections/PNJsPage').then((m) => ({ default: m.PNJsPage })))
+const Mapas = lazy(() => import('./sections/MapasPage').then((m) => ({ default: m.MapasPage })))
 const SesionEnVivo = lazy(() => import('./sections/SesionEnVivoPage').then((m) => ({ default: m.SesionEnVivoPage })))
 const Placeholder = lazy(() => import('./SectionPlaceholder').then((m) => ({ default: m.SectionPlaceholder })))
 
@@ -53,7 +54,7 @@ export const SECTIONS: readonly SectionDef[] = [
   section('calendario', 'Calendario', 'Principal', CalendarDays),
   section('pjs', 'Jugadores (PJ)', 'Personajes', Shield, { Component: PJs }),
   section('pnjs', 'PNJs', 'Personajes', Users, { Component: PNJs }),
-  section('mapas', 'Mapas', 'Mundo', Map),
+  section('mapas', 'Mapas', 'Mundo', Map, { fullBleed: true, Component: Mapas }),
   section('lugares', 'Lugares', 'Mundo', Map, { Component: Lugares }),
   section('facciones', 'Facciones', 'Mundo', Landmark, { Component: Facciones }),
   section('lore', 'Lore', 'Mundo', BookOpen, { Component: Lore }),

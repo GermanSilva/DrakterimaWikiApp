@@ -9,7 +9,7 @@ export function parseAccentColor(value: unknown): string | null {
 }
 
 /** An absolute https URL, or null. http:, data:, javascript: and relative values are rejected. */
-export function parseLogoUrl(value: unknown): string | null {
+export function parseHttpsUrl(value: unknown): string | null {
   if (typeof value !== 'string' || value.length === 0 || value.length > 500) return null
   try {
     const url = new URL(value)
@@ -18,6 +18,9 @@ export function parseLogoUrl(value: unknown): string | null {
     return null
   }
 }
+
+/** The campaign logo: an https URL (the same rule applies to every external image the hub renders). */
+export const parseLogoUrl = parseHttpsUrl
 
 type Rgb = [number, number, number]
 

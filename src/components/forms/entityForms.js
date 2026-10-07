@@ -7,6 +7,8 @@ import LoreForm from './LoreForm'
 import ItemForm from './ItemForm'
 import HomeruleForm from './HomeruleForm'
 import PJForm from '../../pages/pj/PJForm'
+import MapaForm from '../../pages/MapaForm'
+import MapPointForm from '../../pages/MapPointForm'
 
 /**
  * Form components of the wiki entities whose only collaborators are the form ports
@@ -22,6 +24,8 @@ export const ENTITY_FORMS = {
   facciones: FaccionForm,
   lore: LoreForm,
   items: ItemForm,
+  mapas: MapaForm,
+  map_points: MapPointForm,
   homebrew_rules: HomeruleForm,
 }
 

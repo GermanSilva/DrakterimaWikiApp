@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { useApp } from '../AppContext'
+import { useFormActions, useWikiPort } from '../ports'
+import { COLLECTION_LETTER } from '../components/wikiHelpers'
 import { FormGroup, FormRow, EstadoField } from '../components/forms/formFields'
 import { inputCls, labelCls, btnPrimary, btnSecondary, btnDanger } from '../constants'
 
@@ -19,19 +20,24 @@ const COLL_MAP = {
   lore: 'lore', item: 'items', sesion: 'sesiones', mapa: 'mapas',
 }
 
-const LABEL_KEY = {
-  lugar: 'nombre', pnj: 'nombre', faccion: 'nombre',
-  lore: 'titulo', item: 'nombre', sesion: 'titulo', mapa: 'nombre',
+/** A stored / prefilled coordinate if it is a finite number (clamped to the image), else the centre. */
+const coord = (...candidates) => {
+  const v = candidates.find(c => typeof c === 'number' && Number.isFinite(c))
+  return v === undefined ? 0.5 : Math.min(1, Math.max(0, v))
 }
 
+/** A link needs both halves (the database rejects a type without a target and vice versa). */
+const linkFields = f => (f.link_type && f.link_id ? { link_type: f.link_type, link_id: f.link_id } : { link_type: null, link_id: null })
+
 export default function MapPointForm({ item, prefill }) {
-  const { db, save, remove, closeForm } = useApp()
+  const { save, remove, closeForm, saving } = useFormActions()
+  const wiki = useWikiPort()
   const [f, setF] = useState({
     map_id:      item?.map_id      ?? prefill?.map_id ?? null,
     nombre:      item?.nombre      ?? '',
     descripcion: item?.descripcion ?? '',
-    x:           item?.x           ?? prefill?.x ?? 0.5,
-    y:           item?.y           ?? prefill?.y ?? 0.5,
+    x:           coord(item?.x, prefill?.x),
+    y:           coord(item?.y, prefill?.y),
     link_type:   item?.link_type   ?? '',
     link_id:     item?.link_id     ?? null,
     estado:      item?.estado      ?? 'publicado',
@@ -39,9 +45,15 @@ export default function MapPointForm({ item, prefill }) {
   })
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
 
+  // The linkable entities come from the wiki port (what the viewer can see: legacy db, hub RLS-filtered index)
   const coll = COLL_MAP[f.link_type]
-  const entities = coll ? (db[coll] ?? []) : []
-  const labelKey = LABEL_KEY[f.link_type] ?? 'nombre'
+  const entities = coll ? wiki.search('').filter(e => e.table === coll) : []
+  const loadingTargets = !!coll && wiki.pending(COLLECTION_LETTER[coll])
+  // The stored target must stay selectable (and labelled) even before the index delivers it, or it is not there
+  // at all (hidden / deleted): otherwise the select would silently show "— elegir —" and a save would drop the link.
+  const stored = f.link_id && !entities.some(e => e.id === f.link_id)
+    ? { id: f.link_id, title: wiki.resolve(COLLECTION_LETTER[coll], f.link_id)?.title ?? '' }
+    : null
 
   return (
     <div>
@@ -70,8 +82,9 @@ export default function MapPointForm({ item, prefill }) {
           <div>
             <label className={labelCls}>Entidad vinculada</label>
             <select className={inputCls} value={f.link_id ?? ''} onChange={e => setF(p => ({ ...p, link_id: Number(e.target.value) || null }))}>
-              <option value="">— elegir —</option>
-              {entities.map(e => <option key={e.id} value={e.id}>{e[labelKey] || `(id ${e.id})`}</option>)}
+              <option value="">{loadingTargets ? 'Cargando…' : '— elegir —'}</option>
+              {stored && <option value={stored.id}>{stored.title || `(id ${stored.id})`}</option>}
+              {entities.map(e => <option key={e.id} value={e.id}>{e.title || `(id ${e.id})`}</option>)}
             </select>
           </div>
         )}
@@ -80,7 +93,7 @@ export default function MapPointForm({ item, prefill }) {
       <div className="flex gap-2.5 justify-end sticky bottom-0 z-[1] bg-bg-card px-8 py-4 pb-6 border-t border-border-base mt-3">
         {item && <button className={btnDanger} onClick={() => remove('map_points', item.id)}>Eliminar</button>}
         <button className={btnSecondary} onClick={closeForm}>Cancelar</button>
-        <button className={btnPrimary} onClick={() => save('map_points', { ...f, id: item?.id, link_type: f.link_type || null })}>Guardar</button>
+        <button className={btnPrimary} disabled={saving} onClick={() => save('map_points', { ...f, id: item?.id, ...linkFields(f) })}>Guardar</button>
       </div>
     </div>
   )

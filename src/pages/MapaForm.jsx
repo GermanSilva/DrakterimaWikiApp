@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { useApp } from '../AppContext'
-import { FormGroup, FormRow, EstadoField } from '../components/forms/formFields'
+import { useFormActions } from '../ports'
+import { FormGroup, EstadoField } from '../components/forms/formFields'
 import { inputCls, labelCls, btnPrimary, btnSecondary, btnDanger } from '../constants'
 
-export default function MapaForm({ item, prefill }) {
-  const { save, remove, closeForm } = useApp()
+export default function MapaForm({ item }) {
+  const { save, remove, closeForm, saving } = useFormActions()
   const [f, setF] = useState({
     nombre:     item?.nombre     ?? '',
     imagen_url: item?.imagen_url ?? '',
@@ -25,7 +25,7 @@ export default function MapaForm({ item, prefill }) {
       <FormGroup>
         <label className={labelCls}>URL de imagen del mapa</label>
         <input className={inputCls} type="url" placeholder="https://..." value={f.imagen_url} onChange={set('imagen_url')} />
-        {f.imagen_url && (
+        {/^https?:\/\//i.test(f.imagen_url.trim()) && (
           <img src={f.imagen_url} alt="preview" className="mt-2 max-w-full max-h-[120px] rounded object-cover" onError={e => e.target.style.display = 'none'} />
         )}
       </FormGroup>
@@ -51,7 +51,7 @@ export default function MapaForm({ item, prefill }) {
       <div className="flex gap-2.5 justify-end sticky bottom-0 z-[1] bg-bg-card px-8 py-4 pb-6 border-t border-border-base mt-3">
         {item && <button className={btnDanger} onClick={() => remove('mapas', item.id)}>Eliminar</button>}
         <button className={btnSecondary} onClick={closeForm}>Cancelar</button>
-        <button className={btnPrimary} onClick={() => save('mapas', { ...f, id: item?.id })}>Guardar</button>
+        <button className={btnPrimary} disabled={saving} onClick={() => save('mapas', { ...f, id: item?.id })}>Guardar</button>
       </div>
     </div>
   )

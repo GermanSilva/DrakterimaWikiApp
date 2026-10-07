@@ -161,9 +161,9 @@ describe('focus management', () => {
     await screen.findByRole('heading', { level: 1, name: 'Demo' })
     const nav = screen.getByRole('navigation', { name: 'Secciones de la campaña' })
     await act(async () => {
-      fireEvent.click(within(nav).getByRole('link', { name: /Mapas/ }))
+      fireEvent.click(within(nav).getByRole('link', { name: /Calendario/ }))
     })
-    const heading = await screen.findByRole('heading', { level: 1, name: 'Mapas' })
+    const heading = await screen.findByRole('heading', { level: 1, name: 'Calendario' })
     await waitFor(() => expect(document.activeElement).toBe(heading))
   })
 
