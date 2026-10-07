@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { AppContext } from './AppContext'
+import LegacyPortsProvider from './legacy/LegacyPortsProvider'
 import { defaultData, seedPJs, seedPNJs, seedSesiones } from './seed'
 import { nextId, isVisible, getViewerId } from './helpers'
 import { changedPjSections } from './helpers/pjSections'
@@ -556,6 +557,7 @@ export default function App() {
 
   return (
     <AppContext.Provider value={ctx}>
+      <LegacyPortsProvider>
       <Header />
       <div className="flex min-h-screen pt-[60px]">
         <Sidebar currentPage={page} counts={counts} />
@@ -577,6 +579,7 @@ export default function App() {
       {detail && <DetailPanel detail={detail} />}
       {form && <FormModal form={form} />}
       {toastMsg && <Toast message={toastMsg} variant={toastVariant} />}
+      </LegacyPortsProvider>
     </AppContext.Provider>
   )
 }

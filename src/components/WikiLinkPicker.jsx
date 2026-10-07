@@ -1,36 +1,23 @@
 // src/components/WikiLinkPicker.jsx
 import { useState, useRef, useEffect } from 'react'
-import { useApp } from '../AppContext'
+import { useWikiPort } from '../ports'
 import { COLLECTION_LETTER, COLLECTION_DISPLAY } from './wikiHelpers'
 import { inputCls } from '../constants'
 import useBackdropClose from '../hooks/useBackdropClose'
 
 export default function WikiLinkPicker({ onInsert, onClose }) {
   const backdropProps = useBackdropClose(onClose)
-  const { db } = useApp()
+  const { search } = useWikiPort()
   const [query, setQuery] = useState('')
   const inputRef = useRef(null)
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
-  // Flat list of all entities across all collections
-  const allItems = Object.keys(COLLECTION_LETTER).flatMap(coll =>
-    (db[coll] || []).map(entity => ({
-      entity,
-      collection: coll,
-      name: entity.nombre ?? entity.titulo ?? '',
-      letter: COLLECTION_LETTER[coll],
-    }))
-  )
-
-  const q = query.trim().toLowerCase()
-  const filtered = q
-    ? allItems.filter(item => item.name.toLowerCase().includes(q)).slice(0, 50)
-    : allItems
+  const filtered = search(query)
 
   // Group by collection preserving COLLECTION_LETTER order
   const grouped = Object.keys(COLLECTION_LETTER).reduce((acc, coll) => {
-    const items = filtered.filter(i => i.collection === coll)
+    const items = filtered.filter(i => i.table === coll)
     if (items.length) acc[coll] = items
     return acc
   }, {})
@@ -72,13 +59,13 @@ export default function WikiLinkPicker({ onInsert, onClose }) {
               <div className="px-5 py-1.5 font-exo text-[9px] font-semibold tracking-[0.2em] uppercase text-txt-muted bg-bg-mid border-b border-border-base">
                 {COLLECTION_DISPLAY[coll]}
               </div>
-              {items.map(({ entity, name, letter }) => (
+              {items.map(({ id, title: name, letter }) => (
                 <button
-                  key={entity.id}
+                  key={id}
                   type="button"
                   className="w-full text-left px-5 py-2.5 font-barlow text-sm text-txt-primary hover:bg-bg-mid transition-colors border-b border-border-base last:border-b-0 flex items-center gap-2.5"
                   onClick={() => {
-                    onInsert(`[[{${entity.id}${letter}}${name}]]`)
+                    onInsert(`[[{${id}${letter}}${name}]]`)
                     onClose()
                   }}
                 >

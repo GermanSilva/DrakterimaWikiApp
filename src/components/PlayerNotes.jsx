@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useApp } from '../AppContext'
+import { usePlayerNotesPort } from '../ports'
 import { NotebookPen } from 'lucide-react'
 
 function PlayerNoteEditor({ label, initialText, onSave }) {
@@ -30,14 +30,12 @@ function PlayerNoteEditor({ label, initialText, onSave }) {
 }
 
 export default function PlayerNotes({ entityType, entityId }) {
-  const { db, isDM, currentPlayer, savePlayerNote } = useApp()
+  const port = usePlayerNotesPort()
 
-  if (!isDM && !currentPlayer) return null
+  if (port.role === 'none' || port.loading) return null
 
-  if (isDM) {
-    const notes = (db.player_notes || []).filter(
-      n => n.type === entityType && n.entity_id === entityId
-    )
+  if (port.role === 'dm') {
+    const notes = port.entriesFor(entityType, entityId)
     if (notes.length === 0) return null
     return (
       <div className="mt-7 pt-5 border-t border-border-base">
@@ -45,24 +43,18 @@ export default function PlayerNotes({ entityType, entityId }) {
           <NotebookPen size={12} />
           Notas de jugadores
         </div>
-        {notes.map(note => {
-          const pj = (db.pjs || []).find(p => p.id === note.pj_id)
-          return (
-            <PlayerNoteEditor
-              key={note.pj_id}
-              label={pj?.nombre || 'Jugador'}
-              initialText={note.text}
-              onSave={text => savePlayerNote(note.pj_id, entityType, entityId, text)}
-            />
-          )
-        })}
+        {notes.map(note => (
+          <PlayerNoteEditor
+            key={note.key}
+            label={note.label}
+            initialText={note.text}
+            onSave={text => port.save(entityType, entityId, text, note.key)}
+          />
+        ))}
       </div>
     )
   }
 
-  const note = (db.player_notes || []).find(
-    n => n.pj_id === currentPlayer.id && n.type === entityType && n.entity_id === entityId
-  )
   return (
     <div className="mt-7 pt-5 border-t border-border-base">
       <div className="flex items-center gap-1.5 text-[10px] tracking-[0.12em] uppercase text-txt-muted font-exo mb-3">
@@ -71,8 +63,8 @@ export default function PlayerNotes({ entityType, entityId }) {
       </div>
       <PlayerNoteEditor
         label={null}
-        initialText={note?.text || ''}
-        onSave={text => savePlayerNote(currentPlayer.id, entityType, entityId, text)}
+        initialText={port.mine(entityType, entityId)}
+        onSave={text => port.save(entityType, entityId, text)}
       />
     </div>
   )

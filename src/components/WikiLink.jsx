@@ -1,30 +1,26 @@
 import Tooltip from './Tooltip'
-import { LETTER_COLLECTION, COLLECTION_DISPLAY } from './wikiHelpers'
 import { clickable } from '../helpers/a11y'
+import { useWikiPort } from '../ports'
 
 /**
  * Enlace individual de wiki-link con tooltip al hover.
  * Props:
  *   id          — id numérico del artículo
- *   letter      — letra de sección ('P', 'N', 'G', etc.)
  *   displayText — texto visible del enlace
- *   entity      — objeto de la entidad destino
- *   page        — nombre de la colección ('pjs', 'lugares', etc.)
- *   goToDetail  — función de navegación del contexto
+ *   target      — destino resuelto por el WikiPort ({ title, section, imagenUrl, table })
+ * La navegación sale del WikiPort: este componente no conoce la app anfitriona.
  */
-export default function WikiLink({ id, letter, displayText, entity, page, goToDetail }) {
-  const title = entity.nombre || entity.titulo || `#${id}`
-  const section = COLLECTION_DISPLAY[LETTER_COLLECTION[letter]] || letter
-
+export default function WikiLink({ id, displayText, target }) {
+  const { navigate } = useWikiPort()
   return (
     <span className="group relative inline-block">
       <span
         className="text-accent-bright cursor-pointer border-b border-dashed border-accent-dim hover:text-accent hover:border-b-solid transition-colors"
-        {...clickable(e => { e.stopPropagation(); goToDetail(page, id) })}
+        {...clickable(e => { e.stopPropagation(); navigate(target.table, id) })}
       >
         {displayText}
       </span>
-      <Tooltip title={title} section={section} imagenUrl={entity.imagen_url} />
+      <Tooltip title={target.title} section={target.section} imagenUrl={target.imagenUrl} />
     </span>
   )
 }

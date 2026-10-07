@@ -1,8 +1,7 @@
 import { Fragment } from 'react'
-import { useApp } from '../AppContext'
+import { useWikiPort } from '../ports'
 import WikiLink from './WikiLink'
 import WikiImage from './WikiImage'
-import { LETTER_COLLECTION } from './wikiHelpers'
 
 // Re-export so consumers (pages, Dashboard) can still import from WikiText
 export { COLLECTION_LETTER, LETTER_COLLECTION, findEntity } from './wikiHelpers'
@@ -137,7 +136,7 @@ function parseBlocks(text) {
   return blocks
 }
 
-function renderInlineNodes(inlineText, keyPrefix, db, goToDetail) {
+function renderInlineNodes(inlineText, keyPrefix, port) {
   return parseInline(inlineText).map((node, j) => {
     const key = `${keyPrefix}-${j}`
 
@@ -146,21 +145,19 @@ function renderInlineNodes(inlineText, keyPrefix, db, goToDetail) {
     }
 
     if (node.type === 'wikilink') {
-      const coll = LETTER_COLLECTION[node.letter]
-      const entity = coll ? (db[coll] || []).find(e => e.id === node.id) : null
-      if (entity) {
+      const target = port.resolve(node.letter, node.id)
+      if (target) {
         return (
           <WikiLink
             key={key}
             id={node.id}
             letter={node.letter}
             displayText={node.displayText}
-            entity={entity}
-            page={coll}
-            goToDetail={goToDetail}
+            target={target}
           />
         )
       }
+      if (port.pending(node.letter)) return <span key={key}>{node.displayText}</span>
       return (
         <span
           key={key}
@@ -199,7 +196,7 @@ function renderInlineNodes(inlineText, keyPrefix, db, goToDetail) {
  * Wiki-link syntax: [[{NL}Display text]]
  */
 export default function WikiText({ text }) {
-  const { db, goToDetail } = useApp()
+  const port = useWikiPort()
   if (!text) return null
 
   return (
@@ -209,19 +206,19 @@ export default function WikiText({ text }) {
           return <hr key={i} className="my-3 border-border-base" />
         }
         if (block.type === 'h1') {
-          return <h1 key={i} className="font-exo text-xl font-bold text-accent-dim mt-4 mb-2">{renderInlineNodes(block.content, `${i}`, db, goToDetail)}</h1>
+          return <h1 key={i} className="font-exo text-xl font-bold text-accent-dim mt-4 mb-2">{renderInlineNodes(block.content, `${i}`, port)}</h1>
         }
         if (block.type === 'h2') {
-          return <h2 key={i} className="font-exo text-lg font-semibold text-txt-primary mt-3 mb-1.5 border-b border-accent-dim">{renderInlineNodes(block.content, `${i}`, db, goToDetail)}</h2>
+          return <h2 key={i} className="font-exo text-lg font-semibold text-txt-primary mt-3 mb-1.5 border-b border-accent-dim">{renderInlineNodes(block.content, `${i}`, port)}</h2>
         }
         if (block.type === 'h3') {
-          return <h3 key={i} className="font-exo text-base font-semibold text-txt-primary mt-2 mb-1">{renderInlineNodes(block.content, `${i}`, db, goToDetail)}</h3>
+          return <h3 key={i} className="font-exo text-base font-semibold text-txt-primary mt-2 mb-1">{renderInlineNodes(block.content, `${i}`, port)}</h3>
         }
         if (block.type === 'ul') {
           return (
             <ul key={i} className="list-disc list-inside my-1.5 space-y-0.5">
               {block.items.map((item, j) => (
-                <li key={j}>{renderInlineNodes(item, `${i}-${j}`, db, goToDetail)}</li>
+                <li key={j}>{renderInlineNodes(item, `${i}-${j}`, port)}</li>
               ))}
             </ul>
           )
@@ -230,7 +227,7 @@ export default function WikiText({ text }) {
           return (
             <ol key={i} className="list-decimal list-inside my-1.5 space-y-0.5">
               {block.items.map((item, j) => (
-                <li key={j}>{renderInlineNodes(item, `${i}-${j}`, db, goToDetail)}</li>
+                <li key={j}>{renderInlineNodes(item, `${i}-${j}`, port)}</li>
               ))}
             </ol>
           )
@@ -240,7 +237,7 @@ export default function WikiText({ text }) {
           <p key={i} className="mb-2 last:mb-0">
             {block.lines.map((line, j) => (
               <Fragment key={j}>
-                {renderInlineNodes(line, `${i}-${j}`, db, goToDetail)}
+                {renderInlineNodes(line, `${i}-${j}`, port)}
                 {j < block.lines.length - 1 ? <br /> : null}
               </Fragment>
             ))}
