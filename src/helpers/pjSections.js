@@ -5,18 +5,26 @@ for (const [section, fields] of Object.entries(SECTION_FIELDS)) {
   for (const field of fields) (FIELD_SECTIONS[field] ??= []).push(section)
 }
 
-// Empty defaults (undefined/null/''/false/0/[]/{}) compare equal, so backfilled form defaults
-// on legacy docs don't count as edits. Keys are sorted to ignore ordering.
-function canon(v) {
-  if (Array.isArray(v)) return v.length ? v.map(canon) : undefined
+// Exact deep comparison (keys sorted, undefined leaves ignored): nested false / 0 / '' are REAL values, so
+// toggling `portando` to false or a quantity to 0 inside an array or object is a change.
+function exact(v) {
+  if (Array.isArray(v)) return v.map(exact)
   if (v && typeof v === 'object') {
-    const entries = Object.keys(v).sort().map(k => [k, canon(v[k])]).filter(([, x]) => x !== undefined)
-    return entries.length ? Object.fromEntries(entries) : undefined
+    return Object.fromEntries(Object.keys(v).sort().filter(k => v[k] !== undefined).map(k => [k, exact(v[k])]))
   }
-  return v === '' || v === null || v === false || v === 0 ? undefined : v
+  return v
 }
 
-export const sameValue = (a, b) => JSON.stringify(canon(a)) === JSON.stringify(canon(b))
+export const exactEqual = (a, b) => JSON.stringify(exact(a)) === JSON.stringify(exact(b))
+
+const isEmptyDefault = v =>
+  v === undefined || v === null || v === '' || v === false || v === 0 ||
+  (Array.isArray(v) && v.length === 0) ||
+  (typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length === 0)
+
+// Only at the TOP level are empty defaults (undefined/null/''/false/0/[]/{}) equal to each other, so backfilled
+// form defaults on legacy docs don't count as edits. Anything non-empty is compared exactly, nested leaves included.
+export const sameValue = (a, b) => (isEmptyDefault(a) && isEmptyDefault(b)) || exactEqual(a, b)
 
 /**
  * The form values that really differ from the entity, with the same notion of "equal" as the section

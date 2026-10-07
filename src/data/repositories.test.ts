@@ -242,6 +242,44 @@ describe('config repository', () => {
     fake.assertDrained()
   })
 
+  it('patch with a base writes only when the stored version is the base', async () => {
+    const fake = createFakeClient()
+    fake.enqueue({ data: current }, { data: { ...current, value: { a: 1, b: 2 }, updated_at: 'v2' } })
+    const out = await createConfigRepository(fake.db).patch('c1', 'loteria', { b: 2 }, 'members', 'v1')
+    expect(out.updated_at).toBe('v2')
+    expect(opsNamed(fake.calls[1], 'eq')).toEqual([['campaign_id', 'c1'], ['key', 'loteria'], ['updated_at', 'v1']])
+    fake.assertDrained()
+  })
+
+  it('patch with a stale base throws ConflictError without writing', async () => {
+    const fake = createFakeClient()
+    fake.enqueue({ data: { ...current, updated_at: 'v9' } })
+    await expect(createConfigRepository(fake.db).patch('c1', 'loteria', { b: 2 }, 'members', 'v1')).rejects.toBeInstanceOf(ConflictError)
+    expect(fake.calls).toHaveLength(1) // only the read
+    fake.assertDrained()
+  })
+
+  it('patch with base null conflicts when the row already exists, and creates it when it does not', async () => {
+    const exists = createFakeClient()
+    exists.enqueue({ data: current })
+    await expect(createConfigRepository(exists.db).patch('c1', 'session_screen', { cards: [] }, 'dm', null)).rejects.toBeInstanceOf(ConflictError)
+    const missing = createFakeClient()
+    missing.enqueue({ data: null }, { data: { ...current, key: 'session_screen', visibility: 'dm' } })
+    await createConfigRepository(missing.db).patch('c1', 'session_screen', { cards: [] }, 'dm', null)
+    expect(opsNamed(missing.calls[1], 'insert')).toHaveLength(1)
+  })
+
+  it('patch with a base does not retry when the insert or the update loses a race', async () => {
+    const insertRace = createFakeClient()
+    insertRace.enqueue({ data: null }, { error: { message: 'duplicate key', code: '23505' } })
+    await expect(createConfigRepository(insertRace.db).patch('c1', 'k', { a: 1 }, 'dm', null)).rejects.toBeInstanceOf(ConflictError)
+    insertRace.assertDrained()
+    const updateRace = createFakeClient()
+    updateRace.enqueue({ data: current }, { data: null }, { data: { ...current, updated_at: 'w1' } })
+    await expect(createConfigRepository(updateRace.db).patch('c1', 'loteria', { b: 2 }, 'members', 'v1')).rejects.toBeInstanceOf(ConflictError)
+    updateRace.assertDrained()
+  })
+
   it('patch gives up with ConflictError when every attempt loses the race', async () => {
     const fake = createFakeClient()
     for (let i = 0; i < 3; i++) {

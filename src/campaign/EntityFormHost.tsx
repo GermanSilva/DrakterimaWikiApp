@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import FormShell from '../components/FormShell'
 import { ENTITY_FORMS, FORM_TITLES } from '../components/forms/entityForms'
 import { extractDmNotes, withoutDmNotes, type DmNotesFields, type FlatEntity } from '../data'
-import { changedPjFields, changedPjSections } from '../helpers/pjSections'
+import { changedPjFields } from '../helpers/pjSections'
+import { withDerivedDefaults } from '../helpers/pjWrites'
 import { buildPjFormState, toPjPayload } from '../pages/pj/pjFormState'
 import { FormPortContext, useFormPort, useUnreadPort, type FormPort, type SesionRef } from '../ports'
 import { useCampaign } from './CampaignContext'
@@ -14,38 +15,10 @@ import { useEntities } from './entities/useEntities'
 import { useVisibility } from './entities/useVisibility'
 import { useToast } from './toastContext'
 import { changedFields } from './changedFields'
-import { pickOwnerPatch, STAMPABLE_SECTIONS } from './pjOwnerFields'
+import { pickOwnerPatch } from './pjOwnerFields'
+import { markSectionsSeen, pjSectionStamps, type SectionStamps } from './pjStamps'
 
 const NOTE_KEYS = ['notas', 'secreto', 'ganchos'] as const
-
-interface SectionStamps {
-  sections: string[]
-  /** `{ [section]: ISO time }`: merged into `pjs.sections_updated`. */
-  stamps: Record<string, string>
-}
-
-/**
- * Sections of a character a save changes, stamped with the time of the write. DM notes and visibility are
- * NOT stamped: `sections_updated` is readable by every member, so a "dm" stamp would tell players when the DM
- * edited a note (the hub derives that dot from the DM-only notes row), and a visibility change is no content change.
- */
-function pjSectionStamps(seed: Seed, patch: Record<string, unknown>): SectionStamps {
-  const sections = (changedPjSections(seed.entity, { ...seed.entity, ...patch }) as string[]).filter((k) => STAMPABLE_SECTIONS.includes(k))
-  const now = new Date().toISOString()
-  return { sections, stamps: Object.fromEntries(sections.map((k) => [k, now])) }
-}
-
-/**
- * Form values whose seeded default derives from another field. When the source changed in this save, the derived
- * value is written explicitly: the diff baseline is built from the OLD row, so it would otherwise treat the
- * (now stale) default as "unedited" and drop it. Today: the current HP defaults to the maximum.
- */
-function withDerivedDefaults(patch: Record<string, unknown>, flat: Record<string, unknown>): Record<string, unknown> {
-  if ('stat_hp' in patch && !('stat_hp_current' in patch) && flat.stat_hp_current !== undefined) {
-    return { ...patch, stat_hp_current: flat.stat_hp_current }
-  }
-  return patch
-}
 
 /** The payload the character form would produce from the untouched seed (what "no edits" looks like). */
 function pjBaseline(seed: Seed, port: FormPort): Record<string, unknown> {
@@ -59,17 +32,6 @@ function markDmSeen(unread: ReturnType<typeof useUnreadPort>, id: number, stamp:
     unread.markRead('pjs', id, stamp, 'dm')
   } catch (err) {
     console.error('No se pudo marcar como leído', err)
-  }
-}
-
-/** The saver has seen their own change: clear the dots of the sections it stamped. */
-function markSectionsSeen(unread: ReturnType<typeof useUnreadPort>, id: number, { sections, stamps }: SectionStamps): void {
-  for (const section of sections) {
-    try {
-      unread.markRead('pjs', id, stamps[section], section)
-    } catch (err) {
-      console.error('No se pudo marcar como leído', err)
-    }
   }
 }
 
@@ -180,7 +142,7 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
           onClose() // nothing to write
           return
         }
-        const stamped = isPj ? pjSectionStamps(seed, patch) : null
+        const stamped = isPj ? pjSectionStamps(seed.entity, patch) : null
         if (stamped && stamped.sections.length > 0) patch.sections_updated = stamped.stamps
         const outcome = await actions.update(seed.entity.id, patch, {
           base: seed.entity,

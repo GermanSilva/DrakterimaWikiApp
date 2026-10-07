@@ -450,23 +450,25 @@ export default function App() {
       await persist(type, data)
     } catch (err) {
       reportError('No se pudo guardar. Intentá de nuevo.', err)
-      return
+      return false
     }
     setForm(null)
     showToast('Guardado')
+    return true
   }
 
   async function remove(type, id) {
-    if (!confirm('¿Eliminar este registro?')) return
+    if (!confirm('¿Eliminar este registro?')) return false
     try {
       await deleteDoc(doc(firestore, type, String(id)))
     } catch (err) {
       reportError('No se pudo eliminar. Intentá de nuevo.', err)
-      return
+      return false
     }
     setForm(null)
     setDetail(null)
     showToast('Eliminado')
+    return true
   }
 
   function navigate(p) {

@@ -246,6 +246,19 @@ describe('data layer against the local Supabase stack', () => {
     })
   })
 
+  it('session_screen: DM-only, created with base null, then guarded by updated_at (a stale base conflicts)', async () => {
+    expect(await playerData.config.get(campaignId, 'session_screen')).toBeNull() // RLS hides a dm-visibility row
+    const first = await dmData.config.patch(campaignId, 'session_screen', { cards: [{ id: 1, tipo: 'notes', text: 'a' }] }, 'dm', null)
+    expect(first.visibility).toBe('dm')
+    expect(await playerData.config.get(campaignId, 'session_screen')).toBeNull()
+    await expect(dmData.config.patch(campaignId, 'session_screen', { cards: [] }, 'dm', null)).rejects.toMatchObject({ kind: 'conflict' })
+    const second = await dmData.config.patch(campaignId, 'session_screen', { cards: [{ id: 1, tipo: 'notes', text: 'b' }] }, 'dm', first.updated_at)
+    expect(second.updated_at).not.toBe(first.updated_at)
+    // the other tab still holds the first version
+    await expect(dmData.config.patch(campaignId, 'session_screen', { cards: [] }, 'dm', first.updated_at)).rejects.toMatchObject({ kind: 'conflict' })
+    expect((await dmData.config.get(campaignId, 'session_screen'))?.value).toEqual({ cards: [{ id: 1, tipo: 'notes', text: 'b' }] })
+  })
+
   it('every select list executes against the real schema, and list()/get() work on every entity table (as DM)', async () => {
     for (const { name, table, columns } of COLUMN_LIST_ENTRIES) {
       const { error } = await dm.client

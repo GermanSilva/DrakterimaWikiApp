@@ -310,3 +310,22 @@ describe('owner-editable field list', () => {
     }
   })
 })
+
+describe('PJ form: nested false / 0 values are real edits', () => {
+  it('toggling a legacy item (no portando) to stowed is saved, and stamps the equipment section', async () => {
+    const withGear = pj(2, { nombre: 'Kay', equipo: [{ id: 1, nombre: 'Soga', cantidad: 2 }] })
+    const { layer, spies } = createFakeLayer({ entities: { pjs: [withGear] }, dmNotes: {}, visibility: { 2: [] } })
+    renderSection('/c/demo/pjs/2', { layer })
+    await screen.findByRole('heading', { level: 1, name: 'Kay' })
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+    await screen.findByRole('dialog')
+    fireEvent.click(within(dialogEl()).getByRole('button', { name: 'Equipo & Rasgos' }))
+    const row = within(dialogEl()).getByText('Soga').parentElement as HTMLElement
+    fireEvent.click(within(row).getByRole('checkbox'))
+    fireEvent.click(within(dialogEl()).getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(spies.saveEntityWithDmNotes).toHaveBeenCalledTimes(1))
+    const [, , patch] = spies.saveEntityWithDmNotes.mock.calls[0] as unknown as [string, unknown, Record<string, unknown>]
+    expect((patch.equipo as { portando?: boolean }[])[0].portando).toBe(false)
+    expect(stampedSections(patch)).toEqual(['equipo'])
+  })
+})
