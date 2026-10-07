@@ -16,6 +16,28 @@ describe('markSectionsSeen', () => {
     expect(unread.markRead).toHaveBeenCalledWith('pjs', 3, '2099-01-01T00:00:00Z', 'general')
   })
 
+  it.each([
+    ['a number', 123],
+    ['null', null],
+    ['an object', { at: 'x' }],
+    ['a string (used as stored)', '2026-01-05T00:00:00Z'],
+  ])('uses the stored stamp only when it is a string: %s', (_label, server) => {
+    const unread = { isUnread: () => false, markRead: vi.fn() }
+    markSectionsSeen(unread, entity({ sections_updated: { equipo: server } }), { sections: ['equipo'], stamps: { equipo: 'CLIENT' } })
+    expect(unread.markRead).toHaveBeenCalledWith('pjs', 3, typeof server === 'string' ? server : 'CLIENT', 'equipo')
+  })
+
+  it.each([
+    ['a missing sections_updated', undefined],
+    ['a string container', 'x'],
+    ['null', null],
+    ['an array', ['2026-01-05T00:00:00Z']],
+  ])('falls back to the client stamp with %s', (_label, container) => {
+    const unread = { isUnread: () => false, markRead: vi.fn() }
+    markSectionsSeen(unread, entity({ sections_updated: container }), { sections: ['equipo'], stamps: { equipo: 'CLIENT' } })
+    expect(unread.markRead).toHaveBeenCalledWith('pjs', 3, 'CLIENT', 'equipo')
+  })
+
   it('tolerates a missing or malformed sections_updated', () => {
     const unread = { isUnread: () => false, markRead: vi.fn() }
     markSectionsSeen(unread, entity({ sections_updated: 'x' }), { sections: ['equipo'], stamps: { equipo: 'T' } })

@@ -8,6 +8,7 @@ import { buildSessionPjPatch, coerceSessionPj } from '../../helpers/pjWrites'
 import { SessionScreenPortContext, type SessionScreenPort } from '../../ports'
 import SessionScreen from '../SessionScreen'
 import SessionCardNotes, { NOTES_DEBOUNCE_MS } from './cards/SessionCardNotes'
+import { consumeEcho, INFLIGHT_MAX, INFLIGHT_TTL_MS, trackSent } from './cards/inflightEchoes'
 
 const makePort = (): SessionScreenPort & { patchCard: ReturnType<typeof vi.fn> } => ({
   setCards: vi.fn(),
@@ -295,6 +296,77 @@ describe('echoes of our own writes', () => {
     expect(name().value).toBe('Orco')
     fireEvent.blur(name()) // nothing new to send
     expect(port.patchCard).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('inflight echo bookkeeping is bounded', () => {
+  afterEach(() => vi.useRealTimers())
+  const view = (port: SessionScreenPort, text: string) => (
+    <SessionScreenPortContext.Provider value={port}>
+      <SessionCardNotes entry={{ id: 7, tipo: 'notes', text }} onRemove={() => undefined} />
+    </SessionScreenPortContext.Provider>
+  )
+  const box = () => screen.getByPlaceholderText('Notas de la sesión...') as HTMLTextAreaElement
+
+  it('trackSent / consumeEcho: confirmed sends are dropped, the list is capped and expires', () => {
+    let list: { value: string; at: number }[] = []
+    for (let i = 0; i < INFLIGHT_MAX + 5; i++) list = trackSent(list, 'v' + i, 1000)
+    expect(list).toHaveLength(INFLIGHT_MAX)
+    expect(list[0].value).toBe('v5') // the oldest were evicted
+    const hit = consumeEcho(list, 'v7', 1000)
+    expect(hit.echo).toBe(true)
+    expect(hit.rest.map((e: { value: string }) => e.value)).toEqual(['v8', 'v9', 'v10', 'v11', 'v12'])
+    expect(consumeEcho(list, 'v0', 1000).echo).toBe(false) // evicted
+    expect(consumeEcho(list, 'v12', 1000 + INFLIGHT_TTL_MS + 1)).toEqual({ echo: false, rest: [] }) // expired
+  })
+
+  it('notes: a send the host accepted but that never came back expires, so an equal foreign text is adopted later', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
+    const port = makePort()
+    const utils = render(view(port, ''))
+    fireEvent.change(box(), { target: { value: 'a' } })
+    fireEvent.blur(box()) // accepted, never echoed
+    fireEvent.change(box(), { target: { value: 'ab' } })
+    fireEvent.blur(box())
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z').getTime() + INFLIGHT_TTL_MS + 1000)
+    utils.rerender(view(port, 'a')) // someone else wrote exactly the old text: NOT our echo any more
+    expect(box().value).toBe('a')
+  })
+
+  it('notes: only the newest sends are remembered', () => {
+    const port = makePort()
+    const utils = render(view(port, ''))
+    for (let i = 1; i <= INFLIGHT_MAX + 2; i++) {
+      fireEvent.change(box(), { target: { value: 't' + i } })
+      fireEvent.blur(box())
+    }
+    expect(port.patchCard).toHaveBeenCalledTimes(INFLIGHT_MAX + 2)
+    utils.rerender(view(port, 't1')) // evicted long ago: foreign
+    expect(box().value).toBe('t1')
+  })
+
+  it('combat: an accepted send that is never echoed expires too', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'))
+    const { default: SessionCardCombat } = await import('./cards/SessionCardCombat')
+    const port = makePort()
+    const orc = { id: 1, tipo: 'custom', bando: 'enemigo', nombre: 'Orco', iniciativa: 3, hp_actual: 10, hp_max: 10, hp_temp: 0, ac: 12, ac_temp: 0, velocidad: 30 }
+    const combat = (nombre: string) => (
+      <SessionScreenPortContext.Provider value={port}>
+        <SessionCardCombat db={{ pjs: [] }} entry={{ id: 14, tipo: 'combat', combatants: [{ ...orc, nombre }] }} onRemove={() => undefined} />
+      </SessionScreenPortContext.Provider>
+    )
+    const utils = render(combat('Orco'))
+    const name = () => screen.getByDisplayValue(/Orco/) as HTMLInputElement
+    fireEvent.change(name(), { target: { value: 'Orco jefe' } })
+    fireEvent.blur(name()) // accepted, never echoed
+    expect(port.patchCard).toHaveBeenCalledTimes(1)
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z').getTime() + INFLIGHT_TTL_MS + 1000)
+    utils.rerender(combat('Orco jefe')) // an equal value from outside, long after: adopted, not swallowed as our echo
+    expect(name().value).toBe('Orco jefe')
+    utils.rerender(combat('Orco')) // and a different foreign value still replaces the state
+    expect(name().value).toBe('Orco')
   })
 })
 

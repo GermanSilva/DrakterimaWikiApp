@@ -3,6 +3,7 @@ import { Trash2 } from 'lucide-react'
 import { useSessionScreenPort } from '../../../ports'
 import { labelCls, inputCls, btnPrimary, btnSecondary } from '../../../constants'
 import SessionCardShell from './SessionCardShell'
+import { consumeEcho, trackSent } from './inflightEchoes'
 
 const EMPTY_CUSTOM = { nombre: '', iniciativa: 0, hp_max: 0, ac: 0, velocidad: 0, bando: 'enemigo' }
 const ALL_PJS_VALUE = '__all__'
@@ -37,11 +38,9 @@ export default function SessionCardCombat({ db, entry, onRemove }) {
 
   useEffect(() => {
     const incoming = JSON.stringify(entry?.combatants ?? [])
-    const echo = inflight.current.indexOf(incoming)
-    if (echo >= 0) {
-      inflight.current.splice(0, echo + 1)
-      return
-    }
+    const { echo, rest } = consumeEcho(inflight.current, incoming)
+    inflight.current = rest
+    if (echo) return
     if (incoming === sentJson.current) return
     sentJson.current = incoming
     inflight.current = []
@@ -55,7 +54,7 @@ export default function SessionCardCombat({ db, entry, onRemove }) {
     if (json === sentJson.current) return
     if (port.patchCard(entry.id, { combatants: next }) !== false) {
       sentJson.current = json
-      inflight.current.push(json)
+      inflight.current = trackSent(inflight.current, json)
     }
   }
 

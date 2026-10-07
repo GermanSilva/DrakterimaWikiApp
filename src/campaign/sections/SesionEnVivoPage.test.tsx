@@ -170,6 +170,10 @@ describe('session screen (hub): layout writes', () => {
     spies.configPatch.mockRejectedValue(new Error('offline'))
     act(() => dragEnd?.({ active: { id: 14 }, over: { id: 11 } }))
     expect((await screen.findAllByText(/se reintentan con el próximo cambio/)).length).toBeGreaterThan(0) // toast + persistent banner
+    // the persistent banner: an alert region that names the problem and offers the retry button (it outlives the toast)
+    const banner = (await screen.findAllByRole('alert')).find((el) => within(el).queryByRole('button', { name: 'Reintentar' }))
+    expect(banner).toBeDefined()
+    expect(banner).toHaveTextContent(/se reintentan con el próximo cambio/)
     expect(patchCalls(spies)).toHaveLength(4) // first try + 3 retries
     expect(cardIds()).toEqual([14, 11, 12, 13])
     spies.configPatch.mockReset()

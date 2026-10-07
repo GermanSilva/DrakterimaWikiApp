@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useSessionScreenPort } from '../../../ports'
 import { labelCls, inputCls } from '../../../constants'
 import SessionCardShell from './SessionCardShell'
+import { consumeEcho, trackSent } from './inflightEchoes'
 
 export const NOTES_DEBOUNCE_MS = 800
 export const NOTES_MAX_LENGTH = 50000
@@ -30,11 +31,9 @@ export default function SessionCardNotes({ entry, onRemove }) {
     const incoming = entry?.text ?? ''
     // The echo of one of OUR flushes (possibly an older one, when two went out before the first came back) never
     // touches the textarea: it would roll a newer draft back to an older text.
-    const echo = inflight.current.indexOf(incoming)
-    if (echo >= 0) {
-      inflight.current.splice(0, echo + 1)
-      return
-    }
+    const { echo, rest } = consumeEcho(inflight.current, incoming)
+    inflight.current = rest
+    if (echo) return
     if (incoming === sent.current) return
     const hasDraft = latest.current !== sent.current
     sent.current = incoming
@@ -52,7 +51,7 @@ export default function SessionCardNotes({ entry, onRemove }) {
     // A refused write (host not ready, over the size limit) leaves the text unsent: a later blur retries it.
     if (portRef.current.patchCard(entryId, { text: latest.current }) !== false) {
       sent.current = latest.current
-      inflight.current.push(latest.current)
+      inflight.current = trackSent(inflight.current, latest.current)
     }
   }
 
