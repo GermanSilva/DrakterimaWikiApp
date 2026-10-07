@@ -169,7 +169,7 @@ describe('session screen (hub): layout writes', () => {
     const { spies } = await open()
     spies.configPatch.mockRejectedValue(new Error('offline'))
     act(() => dragEnd?.({ active: { id: 14 }, over: { id: 11 } }))
-    expect(await screen.findByText(/se reintentan con el próximo cambio/)).toBeInTheDocument()
+    expect((await screen.findAllByText(/se reintentan con el próximo cambio/)).length).toBeGreaterThan(0) // toast + persistent banner
     expect(patchCalls(spies)).toHaveLength(4) // first try + 3 retries
     expect(cardIds()).toEqual([14, 11, 12, 13])
     spies.configPatch.mockReset()
@@ -514,5 +514,91 @@ describe('session screen (hub): character write bases', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Descanso Corto' }))
     await act(async () => {})
     expect(fake.spies.saveEntityWithDmNotes).not.toHaveBeenCalled()
+  })
+})
+
+describe('session screen (hub): untouched legacy characters', () => {
+  it('opening any edit modal and saving without touching anything writes nothing', async () => {
+    const legacy = pj(4, {
+      nombre: 'Vieja', stat_hp: 20,
+      equipo: [{ id: 1, nombre: 'Soga', cantidad: 2 }],
+      ataques: [{ id: 2, nombre: 'Daga', bono_ataque: '+3', dano: '1d4' }],
+      hechizos: [{ id: 3, nombre: 'Luz', nivel: 0 }],
+      recursos: [{ id: 4, nombre: 'Furia', actual: 1, maximo: 2 }],
+    })
+    const types = ['stats', 'skills', 'weapons', 'spells', 'inventory', 'resources', 'inspiration']
+    const fake = createFakeLayer({
+      entities: { pjs: [legacy], homebrew_rules: [] },
+      config: layout(types.map((tipo, i) => ({ id: 40 + i, tipo }))),
+    })
+    renderSection(PATH, { layer: fake.layer })
+    await screen.findByRole('button', { name: '+ Agregar pestaña' })
+    for (let i = 0; i < types.length; i++) {
+      const card = await waitFor(() => document.getElementById(`session-card-${40 + i}`) as HTMLElement)
+      fireEvent.click(within(card).getByRole('button', { name: 'Editar' }))
+      const dialog = await screen.findByRole('dialog')
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Guardar' }))
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    }
+    expect(fake.spies.saveEntityWithDmNotes).not.toHaveBeenCalled()
+  })
+
+})
+
+describe('session screen (hub): giving up never loses edits', () => {
+  it('after repeated conflicts the edits stay queued behind a persistent warning with Reintentar, and leaving is guarded', async () => {
+    const { spies, view } = await open()
+    const real = spies.configPatch.getMockImplementation() as never
+    spies.configPatch.mockRejectedValue(new ConflictError())
+    const box = screen.getByDisplayValue('Recordar la emboscada')
+    fireEvent.change(box, { target: { value: 'no se pierde' } })
+    fireEvent.blur(box)
+    const alert = await screen.findByText(/sigue cambiando desde otro lugar/)
+    expect(alert).toBeInTheDocument()
+    expect(screen.getByDisplayValue('no se pierde')).toBeInTheDocument()
+
+    // unload guard while edits are pending
+    const unload = new Event('beforeunload', { cancelable: true })
+    window.dispatchEvent(unload)
+    expect(unload.defaultPrevented).toBe(true)
+    // route-leave guard: refused, then accepted
+    vi.mocked(window.confirm).mockReturnValueOnce(false)
+    await act(async () => { await view.router.navigate('/c/demo/pjs') })
+    expect(view.router.state.location.pathname).toBe(PATH)
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining('sin guardar'))
+
+    // retry works once the layout stops moving
+    spies.configPatch.mockImplementation(real)
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    await waitFor(() => expect(screen.queryByText(/sigue cambiando desde otro lugar/)).toBeNull())
+    expect(cardsOf(patchCalls(spies).at(-1) as unknown[]).find((c) => c.id === 12)?.text).toBe('no se pierde')
+    await act(async () => { await view.router.navigate('/c/demo/pjs') })
+    expect(view.router.state.location.pathname).toBe('/c/demo/pjs') // nothing pending: no prompt
+  })
+
+  it('a failed reload after a conflict retries the READ (not a stale-base write) and keeps the edits', async () => {
+    const { spies } = await open()
+    spies.configPatch.mockRejectedValueOnce(new ConflictError())
+    spies.configRows.set('session_screen', {
+      value: { cards: [{ id: 12, tipo: 'notes', text: 'servidor' }] },
+      updated_at: 'v7',
+      visibility: 'dm',
+    })
+    const realGet = spies.configGet.getMockImplementation() as never
+    spies.configGet.mockRejectedValue(new Error('offline'))
+    const box = screen.getByDisplayValue('Recordar la emboscada')
+    fireEvent.change(box, { target: { value: 'sigue aquí' } })
+    fireEvent.blur(box)
+    expect(await screen.findByText(/No pudimos recargar la última versión/)).toBeInTheDocument()
+    expect(spies.configPatch).toHaveBeenCalledTimes(1) // never resent with the stale base
+    expect(spies.configGet).toHaveBeenCalledTimes(1 + 4) // initial load + first try + 3 backoff retries
+    expect(screen.getByDisplayValue('sigue aquí')).toBeInTheDocument()
+
+    spies.configGet.mockImplementation(realGet)
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    await waitFor(() => expect(spies.configPatch).toHaveBeenCalledTimes(3)) // stale base conflicts once more, then the merged write
+    expect(patchCalls(spies).at(-1)?.[4]).toBe('v7')
+    expect(cardsOf(patchCalls(spies).at(-1) as unknown[]).find((c) => c.id === 12)?.text).toBe('sigue aquí')
+    await waitFor(() => expect(screen.queryByText(/No pudimos recargar/)).toBeNull())
   })
 })

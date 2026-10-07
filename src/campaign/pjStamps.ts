@@ -20,11 +20,17 @@ export function pjSectionStamps(entity: FlatEntity, patch: Record<string, unknow
   return { sections, stamps: Object.fromEntries(sections.map((k) => [k, now])) }
 }
 
-/** The saver has seen their own change: clear the dots of the sections it stamped. */
-export function markSectionsSeen(unread: UnreadPort, id: number, { sections, stamps }: SectionStamps): void {
+/**
+ * The saver has seen their own change: clear the dots of the sections it stamped. The stamp the SERVER stored wins
+ * over the one the client sent (the database clamps future stamps to its own clock), otherwise a clamped stamp would
+ * stay newer than the "seen" mark and the saver would see a dot on their own change.
+ */
+export function markSectionsSeen(unread: UnreadPort, saved: FlatEntity, { sections, stamps }: SectionStamps): void {
+  const stored = saved.sections_updated
   for (const section of sections) {
+    const server = stored && typeof stored === 'object' ? (stored as Record<string, unknown>)[section] : undefined
     try {
-      unread.markRead('pjs', id, stamps[section], section)
+      unread.markRead('pjs', saved.id, typeof server === 'string' ? server : stamps[section], section)
     } catch (err) {
       console.error('No se pudo marcar como leído', err)
     }

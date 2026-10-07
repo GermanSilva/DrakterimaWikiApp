@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Trash2 } from 'lucide-react'
 import { useSessionScreenPort } from '../../../ports'
 import { labelCls, inputCls, btnPrimary, btnSecondary } from '../../../constants'
@@ -29,13 +29,34 @@ export default function SessionCardCombat({ db, entry, onRemove }) {
   const [addingCustom, setAddingCustom] = useState(false)
   const [customForm, setCustomForm] = useState(EMPTY_CUSTOM)
 
-  useEffect(() => { setCombatants(entry?.combatants ?? []) }, [entry?.combatants])
+  // What was last handed to the host (JSON), and what is still on its way back: a write is skipped only when it equals
+  // the last SENT value (a revert sent before the echo must go out), and the echo of an older send never rolls the
+  // local state back.
+  const sentJson = useRef(JSON.stringify(entry?.combatants ?? []))
+  const inflight = useRef([])
+
+  useEffect(() => {
+    const incoming = JSON.stringify(entry?.combatants ?? [])
+    const echo = inflight.current.indexOf(incoming)
+    if (echo >= 0) {
+      inflight.current.splice(0, echo + 1)
+      return
+    }
+    if (incoming === sentJson.current) return
+    sentJson.current = incoming
+    inflight.current = []
+    setCombatants(entry?.combatants ?? [])
+  }, [entry?.combatants])
 
   // Blur handlers call this with the current state even when nothing changed: only a real change is written.
   function persist(next) {
     if (!entry) return
-    if (JSON.stringify(next) === JSON.stringify(entry.combatants ?? [])) return
-    port.patchCard(entry.id, { combatants: next })
+    const json = JSON.stringify(next)
+    if (json === sentJson.current) return
+    if (port.patchCard(entry.id, { combatants: next }) !== false) {
+      sentJson.current = json
+      inflight.current.push(json)
+    }
   }
 
   const pjs = db?.pjs ?? []

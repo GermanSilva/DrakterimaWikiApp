@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useApp } from '../AppContext'
 import SessionScreenView from './session/SessionScreenView'
 
@@ -10,9 +10,13 @@ export default function SessionScreen() {
   const layout = (db.game_config || []).find(c => c.id === 'session_screen')
   const cards = useMemo(() => layout?.cards ?? [], [layout])
 
-  // The port always reads the LATEST layout, so two quick actions compose even before the snapshot echoes back.
+  // The port always reads the LATEST layout, so two quick actions compose even before the snapshot echoes back. The
+  // optimistic copy is replaced by the props only when the persisted layout itself changed (a new snapshot): a plain
+  // re-render with the old layout must not roll it back.
   const latest = useRef({ layout, cards })
-  latest.current = { layout, cards }
+  useEffect(() => {
+    latest.current = { layout, cards }
+  }, [layout, cards])
 
   const port = useMemo(() => {
     const write = (nextCards) => {

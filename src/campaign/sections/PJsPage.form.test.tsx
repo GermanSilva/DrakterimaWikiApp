@@ -329,3 +329,37 @@ describe('PJ form: nested false / 0 values are real edits', () => {
     expect(stampedSections(patch)).toEqual(['equipo'])
   })
 })
+
+describe('PJ form: untouched legacy characters', () => {
+  const LEGACY = pj(4, {
+    nombre: 'Vieja', stat_hp: 20,
+    equipo: [{ id: 1, nombre: 'Soga', cantidad: 2 }], // no portando / precio
+    ataques: [{ id: 2, nombre: 'Daga', bono_ataque: '+3', dano: '1d4' }], // no portando / precio
+    hechizos: [{ id: 3, nombre: 'Luz', nivel: 0 }], // none of the newer spell fields
+    recursos: [{ id: 4, nombre: 'Furia', actual: 1, maximo: 2 }],
+  })
+
+  it('saving without touching anything writes nothing and stamps nothing', async () => {
+    const { layer, spies } = createFakeLayer({ entities: { pjs: [LEGACY] }, dmNotes: {}, visibility: { 4: [] } })
+    renderSection('/c/demo/pjs/4', { layer })
+    await screen.findByRole('heading', { level: 1, name: 'Vieja' })
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+    await screen.findByRole('dialog')
+    fireEvent.click(within(dialogEl()).getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+    expect(spies.saveEntityWithDmNotes).not.toHaveBeenCalled()
+  })
+
+  it('editing one unrelated field does not drag the normalized nested rows into the patch', async () => {
+    const { layer, spies } = createFakeLayer({ entities: { pjs: [LEGACY] }, dmNotes: {}, visibility: { 4: [] } })
+    renderSection('/c/demo/pjs/4', { layer })
+    await screen.findByRole('heading', { level: 1, name: 'Vieja' })
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+    await screen.findByRole('dialog')
+    fireEvent.change(within(dialogEl()).getByDisplayValue('Vieja'), { target: { value: 'Vieja II' } })
+    fireEvent.click(within(dialogEl()).getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(spies.saveEntityWithDmNotes).toHaveBeenCalledTimes(1))
+    const [, , patch] = spies.saveEntityWithDmNotes.mock.calls[0] as unknown as [string, unknown, Record<string, unknown>]
+    expect(Object.keys(patch).sort()).toEqual(['nombre', 'sections_updated'])
+  })
+})

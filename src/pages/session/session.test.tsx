@@ -252,3 +252,99 @@ describe('useSessionLayout before the layout is loaded', () => {
     await waitFor(() => expect(result.current.status).toBe('ready'))
   })
 })
+
+describe('echoes of our own writes', () => {
+  const withPort = (port: SessionScreenPort, node: React.ReactNode) => <SessionScreenPortContext.Provider value={port}>{node}</SessionScreenPortContext.Provider>
+
+  it('notes: the echo of an OLDER flush never replaces a newer draft; a foreign text still does', () => {
+    const port = makePort()
+    const view = (text: string) => withPort(port, <SessionCardNotes entry={{ id: 7, tipo: 'notes', text }} onRemove={() => undefined} />)
+    const utils = render(view(''))
+    const box = () => screen.getByPlaceholderText('Notas de la sesión...') as HTMLTextAreaElement
+    fireEvent.change(box(), { target: { value: 'a' } })
+    fireEvent.blur(box()) // flush 1
+    fireEvent.change(box(), { target: { value: 'ab' } })
+    fireEvent.blur(box()) // flush 2, before any echo
+    fireEvent.change(box(), { target: { value: 'abc' } }) // newer draft, not flushed
+    expect(port.patchCard).toHaveBeenCalledTimes(2)
+    utils.rerender(view('a')) // echo of flush 1 arrives late
+    expect(box().value).toBe('abc')
+    utils.rerender(view('ab')) // echo of flush 2
+    expect(box().value).toBe('abc')
+    fireEvent.blur(box())
+    expect(port.patchCard).toHaveBeenLastCalledWith(7, { text: 'abc' })
+    utils.rerender(view('de otra pestaña'))
+    expect(box().value).toBe('de otra pestaña') // nothing unsent any more: a foreign text is adopted
+  })
+
+  it('combat: a revert sent before the echo is written, and an older echo does not roll the state back', async () => {
+    const { default: SessionCardCombat } = await import('./cards/SessionCardCombat')
+    const port = makePort()
+    const orc = { id: 1, tipo: 'custom', bando: 'enemigo', nombre: 'Orco', iniciativa: 3, hp_actual: 10, hp_max: 10, hp_temp: 0, ac: 12, ac_temp: 0, velocidad: 30 }
+    const view = (nombre: string) =>
+      withPort(port, <SessionCardCombat db={{ pjs: [] }} entry={{ id: 14, tipo: 'combat', combatants: [{ ...orc, nombre }] }} onRemove={() => undefined} />)
+    const utils = render(view('Orco'))
+    const name = () => screen.getByDisplayValue(/Orco/) as HTMLInputElement
+    fireEvent.change(name(), { target: { value: 'Orco jefe' } })
+    fireEvent.blur(name())
+    fireEvent.change(name(), { target: { value: 'Orco' } }) // back to the confirmed value, before the echo
+    fireEvent.blur(name())
+    expect(port.patchCard).toHaveBeenCalledTimes(2)
+    expect((port.patchCard.mock.calls[1][1] as { combatants: { nombre: string }[] }).combatants[0].nombre).toBe('Orco')
+    utils.rerender(view('Orco jefe')) // late echo of the first send
+    expect(name().value).toBe('Orco')
+    fireEvent.blur(name()) // nothing new to send
+    expect(port.patchCard).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('coerceSessionPj / buildSessionPjPatch (direct)', () => {
+  it('coerces numeric inputs, defaults the current HP to the maximum and does not mutate its input', () => {
+    const draft = { stat_str: '16', stat_dex: 'x', stat_hp: '40', stat_hp_temp: '', stat_proficiency_bonus: '3', nombre: 'A' }
+    const out = coerceSessionPj(draft)
+    expect(out).toMatchObject({ stat_str: 16, stat_dex: 0, stat_hp: 40, stat_hp_current: 40, stat_hp_temp: 0, stat_proficiency_bonus: 3, nombre: 'A' })
+    expect(draft.stat_str).toBe('16')
+    expect(coerceSessionPj({ stat_hp: '40', stat_hp_current: '7' }).stat_hp_current).toBe(7)
+    expect(coerceSessionPj({ stat_hp: 40, stat_hp_current: 0 }).stat_hp_current).toBe(0)
+  })
+
+  it('an untouched legacy character (rows without the newer defaults) produces an empty patch', () => {
+    const pj = {
+      id: 4, nombre: 'Vieja', stat_hp: 20,
+      equipo: [{ id: 1, nombre: 'Soga', cantidad: 2 }],
+      ataques: [{ id: 2, nombre: 'Daga' }],
+      hechizos: [{ id: 3, nombre: 'Luz', nivel: 0 }],
+      recursos: [{ id: 4, nombre: 'Furia', actual: 1, maximo: 2 }],
+    }
+    expect(buildSessionPjPatch(pj, { ...pj })).toEqual({})
+    expect(buildSessionPjPatch(pj, structuredClone(pj))).toEqual({})
+  })
+})
+
+describe('legacy host keeps its optimistic layout between renders', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('two quick additions compose even though the component re-renders in between (props unchanged)', async () => {
+    vi.stubGlobal('IntersectionObserver', class { observe() {} disconnect() {} unobserve() {} takeRecords() { return [] } })
+    window.scrollTo = vi.fn() as typeof window.scrollTo
+    const app = {
+      db: { pjs: [], homebrew_rules: [], game_config: [{ id: 'session_screen', cards: [{ id: 1, tipo: 'inspiration' }] }] },
+      isDM: true,
+      saveSessionScreen: vi.fn(async () => undefined),
+      save: vi.fn(),
+      remove: vi.fn(),
+    }
+    render(
+      <AppContext.Provider value={app as never}>
+        <SessionScreen />
+      </AppContext.Provider>,
+    )
+    fireEvent.click(screen.getByRole('button', { name: '+ Agregar pestaña' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Notas' }))
+    fireEvent.click(screen.getByRole('button', { name: '+ Agregar pestaña' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Combate' }))
+    expect(app.saveSessionScreen).toHaveBeenCalledTimes(2)
+    const second = (app.saveSessionScreen.mock.calls[1] as unknown[])[0] as { cards: { tipo: string }[] }
+    expect(second.cards.map((c) => c.tipo)).toEqual(['inspiration', 'notes', 'combat'])
+  })
+})

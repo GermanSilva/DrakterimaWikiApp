@@ -16,6 +16,7 @@ export default function SessionCardNotes({ entry, onRemove }) {
   const port = useSessionScreenPort()
   const [text, setText] = useState(entry?.text ?? '')
   const sent = useRef(entry?.text ?? '') // last text handed to the host
+  const inflight = useRef([]) // texts handed to the host whose echo (the layout carrying them) has not been seen yet
   const latest = useRef(text)
   const timer = useRef(null)
   const portRef = useRef(port)
@@ -27,9 +28,17 @@ export default function SessionCardNotes({ entry, onRemove }) {
   // is written on top of whatever arrived.
   useEffect(() => {
     const incoming = entry?.text ?? ''
+    // The echo of one of OUR flushes (possibly an older one, when two went out before the first came back) never
+    // touches the textarea: it would roll a newer draft back to an older text.
+    const echo = inflight.current.indexOf(incoming)
+    if (echo >= 0) {
+      inflight.current.splice(0, echo + 1)
+      return
+    }
     if (incoming === sent.current) return
     const hasDraft = latest.current !== sent.current
     sent.current = incoming
+    inflight.current = []
     if (!hasDraft) {
       latest.current = incoming
       setText(incoming)
@@ -41,7 +50,10 @@ export default function SessionCardNotes({ entry, onRemove }) {
     timer.current = null
     if (entryId == null || latest.current === sent.current) return
     // A refused write (host not ready, over the size limit) leaves the text unsent: a later blur retries it.
-    if (portRef.current.patchCard(entryId, { text: latest.current }) !== false) sent.current = latest.current
+    if (portRef.current.patchCard(entryId, { text: latest.current }) !== false) {
+      sent.current = latest.current
+      inflight.current.push(latest.current)
+    }
   }
 
   // Unmounting (tab closed, card removed) must not drop the last keystrokes.

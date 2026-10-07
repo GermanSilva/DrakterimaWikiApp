@@ -25,6 +25,12 @@ export interface SessionLayout {
    */
   update(updater: (cards: SessionCardEntry[]) => SessionCardEntry[]): boolean
   reload(): void
+  /** True while edits are queued or being written: leaving the page now would lose them. */
+  pending: boolean
+  /** Set when the write loop gave up (edits stay on screen and queued): the page shows it with a retry. */
+  problem: string | null
+  /** Starts the write loop again for the queued edits. */
+  retry(): void
 }
 
 /** Entries that cannot be rendered or reordered (no numeric id / string type) are dropped at read time. */
@@ -79,6 +85,14 @@ export function useSessionLayout(enabled: boolean): SessionLayout {
   const flushing = useRef(false)
   const loadGen = useRef(0) // only invalidates answers of an older explicit (re)load
   const alive = useRef(true)
+  const [pending, setPending] = useState(false)
+  const [problem, setProblemState] = useState<string | null>(null)
+  const setProblem = useCallback((message: string | null) => {
+    if (alive.current) setProblemState(message)
+  }, [])
+  const syncPending = useCallback(() => {
+    if (alive.current) setPending(dirty.current || flushing.current)
+  }, [])
 
   useEffect(() => {
     alive.current = true
@@ -106,6 +120,8 @@ export function useSessionLayout(enabled: boolean): SessionLayout {
       baseRef.current = row?.updated_at ?? null
       syncedRef.current = parseCards(row?.value)
       dirty.current = false
+      syncPending()
+      setProblem(null)
       publish(syncedRef.current)
       setLive('ready')
     } catch (err) {
@@ -113,7 +129,7 @@ export function useSessionLayout(enabled: boolean): SessionLayout {
       console.error('No se pudo cargar la pantalla de sesión', err)
       setLive('error')
     }
-  }, [layer, campaignId, setLive, publish])
+  }, [layer, campaignId, setLive, publish, syncPending, setProblem])
 
   useEffect(() => {
     if (!enabled) return undefined
@@ -142,6 +158,21 @@ export function useSessionLayout(enabled: boolean): SessionLayout {
     dirty.current = !same(merged, server) // only a kept local card state is worth writing again
   }, [layer, campaignId, publish])
 
+  /** Reloads after a conflict, retrying the READ with the backoff. False when it never succeeded. */
+  const reloadAfterConflict = useCallback(async () => {
+    for (let attempt = 0; ; attempt++) {
+      try {
+        await resolveConflict()
+        return true
+      } catch (err) {
+        console.error('No se pudo recargar la pantalla de sesión', err)
+        const delay = retryPolicy.delays[attempt]
+        if (delay === undefined) return false
+        await sleep(delay)
+      }
+    }
+  }, [resolveConflict])
+
   const flush = useCallback(async () => {
     if (flushing.current) return
     flushing.current = true
@@ -157,39 +188,44 @@ export function useSessionLayout(enabled: boolean): SessionLayout {
           syncedRef.current = snapshot
           failures = 0
           conflicts = 0
+          setProblem(null)
         } catch (err) {
           dirty.current = true // nothing is lost: the newest list is sent again
           if (err instanceof ConflictError) {
             conflicts += 1
             if (conflicts > MAX_CONFLICTS) {
-              dirty.current = false
-              notify('La pantalla de sesión sigue cambiando desde otro lugar. Recargá la página y repetí tu cambio.')
+              // Giving up must not lose anything: the edits stay queued and on screen until the DM retries.
+              setProblem('La pantalla de sesión sigue cambiando desde otro lugar y no pudimos guardar tus últimos cambios.')
               return
             }
             notify('La pantalla de sesión cambió en otra pestaña o dispositivo. La recargamos y conservamos tus notas y combate; repetí los demás cambios.')
-            try {
-              await resolveConflict()
-            } catch (reloadErr) {
-              console.error('No se pudo recargar la pantalla de sesión', reloadErr)
+            // A failed reload is a connectivity problem, not another conflict: sending again with the stale base could
+            // only conflict, so the reload itself is retried and the edits wait.
+            if (!(await reloadAfterConflict())) {
               dirty.current = true
-              await sleep(retryPolicy.delays[0] ?? 0)
+              setProblem('No pudimos recargar la última versión de la pantalla de sesión. Tus cambios siguen pendientes.')
+              return
             }
+            setProblem(null)
             continue
           }
           console.error('No se pudo guardar la pantalla de sesión', err)
           const delay = retryPolicy.delays[failures]
           failures += 1
           if (delay === undefined) {
-            notify(`${describeDataError(err, 'No se pudo guardar la pantalla de sesión.')} Tus cambios siguen en pantalla: se reintentan con el próximo cambio.`)
-            return // `dirty` stays true: the next update() starts the loop again
+            const message = `${describeDataError(err, 'No se pudo guardar la pantalla de sesión.')} Tus cambios siguen en pantalla: se reintentan con el próximo cambio.`
+            notify(message)
+            setProblem(message)
+            return // `dirty` stays true: the next update() (or the retry button) starts the loop again
           }
           await sleep(delay)
         }
       }
     } finally {
       flushing.current = false
+      syncPending()
     }
-  }, [layer, campaignId, notify, resolveConflict])
+  }, [layer, campaignId, notify, reloadAfterConflict, setProblem, syncPending])
 
   const update = useCallback<SessionLayout['update']>(
     (updater) => {
@@ -207,12 +243,17 @@ export function useSessionLayout(enabled: boolean): SessionLayout {
       }
       publish(next)
       dirty.current = true
+      syncPending()
       void flush()
       return true
     },
-    [flush, notify, publish],
+    [flush, notify, publish, syncPending],
   )
 
   const reload = useCallback(() => void load(), [load])
-  return useMemo(() => ({ status, cards, update, reload }), [status, cards, update, reload])
+  const retry = useCallback(() => {
+    setProblem(null)
+    void flush()
+  }, [flush, setProblem])
+  return useMemo(() => ({ status, cards, update, reload, pending, problem, retry }), [status, cards, update, reload, pending, problem, retry])
 }

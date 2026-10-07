@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
+import { useBlocker } from 'react-router'
 import { exactEqual } from '../../helpers/pjSections'
 import { btnSecondary } from '../../constants'
 import type { FlatEntity } from '../../data'
@@ -50,7 +51,24 @@ function SessionScreenHost() {
       return own && Date.parse(own.updated_at ?? '') > Date.parse(p.updated_at ?? '') ? own : p
     })
   })
-  const { update } = layout
+  const { update, pending } = layout
+
+  // Unsaved edits (queued, in flight, or kept after a failure) must not be lost silently by leaving the page.
+  const blocker = useBlocker(pending)
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return
+    if (window.confirm('Hay cambios de la pantalla de sesión sin guardar. Si salís ahora se pierden. ¿Salir igual?')) blocker.proceed()
+    else blocker.reset()
+  }, [blocker])
+  useEffect(() => {
+    if (!pending) return undefined
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault()
+      e.returnValue = ''
+    }
+    window.addEventListener('beforeunload', onBeforeUnload)
+    return () => window.removeEventListener('beforeunload', onBeforeUnload)
+  }, [pending])
 
   const port = useMemo<SessionScreenPort>(
     () => ({
@@ -75,7 +93,7 @@ function SessionScreenHost() {
         if (!outcome) return false
         ownWrites.current.set(opened.id, outcome.entity)
         pjsRef.current = pjsRef.current.map((p) => (p.id === opened.id ? outcome.entity : p))
-        markSectionsSeen(unread, outcome.entity.id, stamped)
+        markSectionsSeen(unread, outcome.entity, stamped)
         return true
       },
       async createRule(rule) {
@@ -94,7 +112,19 @@ function SessionScreenHost() {
   if (layout.status === 'error') return <LoadFailed onRetry={layout.reload} />
   if (layout.status === 'loading' || pjs.loading || rules.loading) return <div className="px-10 max-md:px-5"><Loading /></div>
   if (pjs.error || rules.error) return <LoadFailed onRetry={() => { pjs.reload(); rules.reload() }} />
-  return <SessionScreenView db={db} cards={layout.cards} port={port} />
+  return (
+    <>
+      {layout.problem && (
+        <div role="alert" className="mx-10 max-md:mx-5 mb-3 flex flex-wrap items-center gap-3 border border-accent-dim bg-bg-card px-4 py-3 text-sm text-txt-secondary">
+          <span className="flex-1">{layout.problem}</span>
+          <button type="button" className={btnSecondary} onClick={layout.retry}>
+            Reintentar
+          </button>
+        </div>
+      )}
+      <SessionScreenView db={db} cards={layout.cards} port={port} />
+    </>
+  )
 }
 
 /** `/c/:slug/sesion-en-vivo`: DM only (also a 404 for a player here, besides the registry's `dmOnly`). */

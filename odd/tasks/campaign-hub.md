@@ -425,6 +425,15 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   0 errors / 53 warnings, typecheck clean. Open: no realtime subscription on session_screen (second tab
   learns on its next write).
 
+- H8b native reviews: all **approved** (review-7d232c51fae89f9d, review-5a0a3b81108745c2,
+  review-0a397f43dbf252c3). Follow-ups: combat skips only writes equal to the last SENT value and
+  ignores stale echoes; after MAX_CONFLICTS edits stay pending with a persistent banner + Reintentar,
+  beforeunload and route-leave (useBlocker) guards; notes track in-flight texts so older echoes never
+  replace newer drafts; a failed reload after conflict retries the reload (no stale-base resend);
+  legacy wrapper keeps its optimistic layout across re-renders; untouched saves of legacy characters
+  write/stamp nothing (form + all session modals); seen marks use server-clamped stamps. Checks: test
+  813/813, integration 30/30, lint 0 errors / 52 warnings, typecheck clean.
+
 ## Product decisions (user, 2026-10-06)
 
 - Sole-DM account deletion is blocked until the DM role is transferred or the campaign deleted — approved.

@@ -151,7 +151,7 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
           currentVisibleTo: seed.visibleTo,
         })
         saved = outcome?.entity ?? null
-        if (outcome && stamped) markSectionsSeen(unread, outcome.entity.id, stamped)
+        if (outcome && stamped) markSectionsSeen(unread, outcome.entity, stamped)
         if (outcome && isPj && outcome.dmNotes && Object.keys(dmChanged).length > 0) markDmSeen(unread, outcome.entity.id, outcome.dmNotes.updated_at)
         if (outcome && outcome.warnings.length > 0) {
           // The row IS saved but a follow-up failed: keep the form open for a retry, re-based on the
@@ -165,7 +165,7 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
         const created: SectionStamps | null = isPj ? { sections: ['general'], stamps: { general: new Date().toISOString() } } : null
         const outcome = await actions.create(created ? { ...flat, sections_updated: created.stamps } : flat, { dmNotes: filled, visibleTo })
         saved = outcome?.entity ?? null
-        if (outcome && created) markSectionsSeen(unread, outcome.entity.id, created)
+        if (outcome && created) markSectionsSeen(unread, outcome.entity, created)
         if (outcome && outcome.warnings.length > 0) {
           // Created, but a follow-up failed: continue as an EDIT of the created row so a retry updates
           // it (never creates a duplicate). What did not reach the server stays "to send".
