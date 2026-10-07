@@ -24,8 +24,12 @@ at `/auth/callback`. The provider uses `getSupabase()` unless a client is passed
    `flowType: 'pkce'` and `detectSessionInUrl: false`, so `completeAuthCallback` is the single owner of the URL: it wipes
    query and fragment with `history.replaceState` before any await, then calls `exchangeCodeForSession(code)`. Success is
    reported only if that exchange returned a session (an existing session never vouches for a bad link). A fragment with
-   `access_token`/`refresh_token` is rejected, so a crafted token link cannot sign anyone in. Exchange failures are classified (network/5xx, missing
-   verifier, invalid/expired/used) and logged as name/status/code only; the callback gives up after 15 s with a way out.
+   `access_token`/`refresh_token` is rejected, so a crafted token link cannot sign anyone in. Callback outcomes (same classifier for returned and thrown
+   exchange errors; logged as name/status/code only): **network** (fetch failure or 5xx), **wrong browser** (missing code verifier),
+   **expired** (invalid/expired/used code, or a provider error of that kind), **rate-limited** (429), **cancelled** (provider
+   access_denied), **generic** (anything else, incl. a fragment with tokens or a URL that cannot be cleaned), **timeout** (15 s,
+   error screen with a way out) and **late success** (exchange finished after the timeout: "Ya iniciaste sesión" with a Continuar
+   button, never an automatic navigation).
    Server error text is never shown; the UI uses fixed Spanish messages.
 
    **Same-browser limitation:** the code verifier lives in the browser storage that requested the link, so the link must be

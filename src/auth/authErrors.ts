@@ -33,15 +33,22 @@ interface ErrorLike {
   name?: unknown
 }
 
-const asLike = (error: unknown): ErrorLike => (error ?? {}) as ErrorLike
-const messageOf = (e: ErrorLike) => (typeof e.message === 'string' ? e.message : '')
-const codeOf = (e: ErrorLike) => (typeof e.code === 'string' ? e.code : '')
+export const asLike = (error: unknown): ErrorLike => (error ?? {}) as ErrorLike
+export const messageOf = (e: ErrorLike) => (typeof e.message === 'string' ? e.message : '')
+export const codeOf = (e: ErrorLike) => (typeof e.code === 'string' ? e.code : '')
+
+/** The ONE rate-limit predicate (HTTP 429, a *rate_limit* code, or a rate-limit message). */
+export function isRateLimited(error: unknown): boolean {
+  const e = asLike(error)
+  return e.status === 429 || /rate_limit/i.test(codeOf(e)) || /rate limit|too many/i.test(messageOf(e))
+}
 
 /**
- * True only for failures that originate in fetch itself (offline, DNS, CORS, aborted): supabase-js'
+ * True only for failures that originate in fetch itself (offline, DNS, CORS): supabase-js'
  * AuthRetryableFetchError, or a TypeError carrying a browser fetch message (Chrome 'Failed to
  * fetch', Firefox 'NetworkError ...', Safari 'Load failed'). Any other TypeError is a bug, not
- * a network problem.
+ * a network problem. An aborted request (AbortError) is deliberately NOT classified here: callers that
+ * abort on purpose (the Google probe timeout) handle it themselves.
  */
 export function isNetworkFailure(error: unknown): boolean {
   const e = asLike(error)
@@ -71,11 +78,8 @@ const isProviderDisabled = (e: ErrorLike) =>
 export function toAuthFlowError(error: unknown): AuthFlowError {
   if (error instanceof AuthFlowError) return error
   const e = asLike(error)
-  const message = messageOf(e)
   const code = codeOf(e)
-  if (e.status === 429 || /rate_limit/i.test(code) || /rate limit|too many/i.test(message)) {
-    return new AuthFlowError('rate_limited', { cause: error })
-  }
+  if (isRateLimited(error)) return new AuthFlowError('rate_limited', { cause: error })
   if (code === 'email_address_invalid' || (e.status === 422 && code === 'validation_failed')) {
     return new AuthFlowError('invalid_email', { cause: error })
   }
@@ -90,11 +94,8 @@ export function toAuthFlowError(error: unknown): AuthFlowError {
  */
 export function toOAuthFlowError(error: unknown): AuthFlowError {
   if (error instanceof AuthFlowError) return error
+  if (isRateLimited(error)) return new AuthFlowError('oauth_rate_limited', { cause: error })
   const e = asLike(error)
-  const code = codeOf(e)
-  if (e.status === 429 || /rate_limit/i.test(code) || /rate limit|too many/i.test(messageOf(e))) {
-    return new AuthFlowError('oauth_rate_limited', { cause: error })
-  }
   if (isProviderDisabled(e)) return new AuthFlowError('provider_disabled', { cause: error })
   if (isNetworkFailure(error)) return new AuthFlowError('network', { cause: error })
   return new AuthFlowError('unknown', { cause: error })

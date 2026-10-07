@@ -1,5 +1,5 @@
 import type { Db } from '../data'
-import { isNetworkFailure, sanitizeForLog } from './authErrors'
+import { asLike, isNetworkFailure, isRateLimited, messageOf, sanitizeForLog } from './authErrors'
 
 export type CallbackResult = { ok: true } | { ok: false; message: string }
 
@@ -23,14 +23,17 @@ function messageForProviderError(params: URLSearchParams): string {
   return CALLBACK_GENERIC
 }
 
-function messageForExchangeError(error: unknown): string {
-  const e = (error ?? {}) as { name?: unknown; status?: unknown; message?: unknown; code?: unknown }
-  if (e.status === 429 || e.code === 'over_request_rate_limit') return CALLBACK_RATE_LIMITED
+/**
+ * Shared by returned and thrown exchange errors. `fallback` is the verdict for an error we cannot
+ * classify: EXPIRED for a returned 400/401/403/404/422 (invalid, expired or used code), GENERIC for
+ * a throw (which says nothing about the code).
+ */
+function messageForExchangeError(error: unknown, fallback: string): string {
+  const e = asLike(error)
+  if (isRateLimited(error)) return CALLBACK_RATE_LIMITED
   if (isNetworkFailure(error) || (typeof e.status === 'number' && e.status >= 500)) return CALLBACK_NETWORK
-  if (e.name === 'AuthPKCECodeVerifierMissingError' || /code verifier/i.test(String(e.message ?? ''))) {
-    return CALLBACK_WRONG_BROWSER
-  }
-  return CALLBACK_EXPIRED // 400/401/403/404/422: invalid, expired or already used code
+  if (e.name === 'AuthPKCECodeVerifierMissingError' || /code verifier/i.test(messageOf(e))) return CALLBACK_WRONG_BROWSER
+  return fallback
 }
 
 /**
@@ -77,7 +80,7 @@ export async function completeAuthCallback(
     const { data, error } = await client.auth.exchangeCodeForSession(code)
     if (error) {
       console.warn('auth callback: code exchange failed', sanitizeForLog(error))
-      return { ok: false, message: messageForExchangeError(error) }
+      return { ok: false, message: messageForExchangeError(error, CALLBACK_EXPIRED) }
     }
     if (!data?.session) {
       console.warn('auth callback: code exchange returned no session')
@@ -86,7 +89,6 @@ export async function completeAuthCallback(
     return { ok: true }
   } catch (e) {
     console.warn('auth callback: code exchange threw', sanitizeForLog(e))
-    // A throw is not a server verdict on the code: only a fetch failure is classified, the rest is generic.
-    return { ok: false, message: isNetworkFailure(e) ? CALLBACK_NETWORK : CALLBACK_GENERIC }
+    return { ok: false, message: messageForExchangeError(e, CALLBACK_GENERIC) }
   }
 }

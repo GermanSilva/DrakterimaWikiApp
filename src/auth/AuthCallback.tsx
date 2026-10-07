@@ -5,7 +5,7 @@ import { CALLBACK_GENERIC, completeAuthCallback } from './completeAuthCallback'
 
 /** How long to wait for the code exchange before showing the error state with a way out. */
 export const CALLBACK_TIMEOUT_MS = 15000
-const CALLBACK_TIMEOUT_MESSAGE = 'Está tardando más de lo normal. Pedí un link nuevo o volvé a intentar en unos minutos.'
+export const CALLBACK_TIMEOUT_MESSAGE = 'Está tardando más de lo normal. Pedí un link nuevo o volvé a intentar en unos minutos.'
 
 export interface AuthCallbackProps {
   /**
@@ -21,6 +21,8 @@ export interface AuthCallbackProps {
 /** Mounted at /auth/callback by the router (H6). Safe under React StrictMode (single execution). */
 export function AuthCallback({ onDone, client }: AuthCallbackProps) {
   const [error, setError] = useState<string | null>(null)
+  // The exchange succeeded only after the timeout error was shown.
+  const [lateSuccess, setLateSuccess] = useState(false)
   const started = useRef(false)
   const mounted = useRef(false)
   const settled = useRef(false)
@@ -45,9 +47,12 @@ export function AuthCallback({ onDone, client }: AuthCallbackProps) {
       completeAuthCallback(client ?? getSupabase()).then(
         (result) => {
           if (!mounted.current) return
-          // After the timeout error is shown the outcome is ignored: the screen stays put (a late
-          // success is reflected by the auth state; the back button goes home).
-          if (settled.current) return
+          // After the timeout error is shown there is no automatic navigation: a late success
+          // swaps the error for a "you are signed in" state with an explicit button.
+          if (settled.current) {
+            if (result.ok) setLateSuccess(true)
+            return
+          }
           settled.current = true
           if (result.ok) finish()
           else setError(result.message)
@@ -75,6 +80,16 @@ export function AuthCallback({ onDone, client }: AuthCallbackProps) {
     return () => clearTimeout(timer)
   }, [])
 
+  if (lateSuccess) {
+    return (
+      <div role="status" className="max-w-sm mx-auto mt-24 px-4 text-center">
+        <p className="text-sm text-txt-secondary mb-4">Ya iniciaste sesión.</p>
+        <button type="button" className={btnSecondary} onClick={finish}>
+          Continuar
+        </button>
+      </div>
+    )
+  }
   if (error) {
     return (
       <div role="alert" className="max-w-sm mx-auto mt-24 px-4 text-center">

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import { StrictMode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthCallback } from './AuthCallback'
@@ -117,6 +117,9 @@ describe('AuthCallback', () => {
       </StrictMode>,
     )
     await waitFor(() => expect(onDone).toHaveBeenCalled())
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0)) // flush pending work, then re-assert
+    })
     expect(auth.exchangeCodeForSession).toHaveBeenCalledTimes(1)
     expect(onDone).toHaveBeenCalledTimes(1)
   })

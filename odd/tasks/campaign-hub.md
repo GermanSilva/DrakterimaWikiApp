@@ -305,6 +305,15 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   messages, callback idempotency). Checks: test 289/289, integration 16/16 x2, lint 0 errors,
   typecheck clean, build OK.
 
+- H5b native reviews (85ec1ef, 138a3ef, 929ee46): high, 4 lenses each → **approved**, acknowledged
+  (review-c03a5841d32767f7, review-ea8badfc0f16f73e, review-b24318a53c175dd7). Final batch: one shared
+  exchange-error classifier for returned and thrown errors + single `isRateLimited`; pageshow/10s resets
+  invalidate pending Google attempts; late success after the callback timeout shows "Ya iniciaste
+  sesión" + Continuar; descriptive test names, shared `deferred` helper; README taxonomy aligned.
+  Checks: test 292/292, integration 16/16, lint 0 errors, typecheck clean, build OK. Remaining review
+  suggestions tracked as follow-ups (not blocking): refresh superseding initial load can end in error
+  until retried; hung onGoogle has no timeout; integration timeout constant coupling.
+
 ## Product decisions (user, 2026-10-06)
 
 - Sole-DM account deletion is blocked until the DM role is transferred or the campaign deleted — approved.

@@ -4,18 +4,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { AuthProvider } from './AuthProvider'
 import { createFakeAuth, fakeSession, profileRow } from './testing/fakeAuth'
 import { useAuth } from './useAuth'
+import { deferred } from './testing/deferred'
 
 type Row = ReturnType<typeof profileRow>
-
-function deferred<T>() {
-  let resolve!: (v: T) => void
-  let reject!: (e: unknown) => void
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res
-    reject = rej
-  })
-  return { promise, resolve, reject }
-}
 
 function setup(initial: ReturnType<typeof fakeSession> | null, get: (id: string) => Promise<Row | null>) {
   const fake = createFakeAuth(initial)

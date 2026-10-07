@@ -42,6 +42,7 @@ export function LoginPage({ onEmailSubmit, onGoogle, googleEnabled = true }: Log
   useEffect(() => {
     if (!redirecting) return
     const reset = () => {
+      attempt.current++ // anything the abandoned attempt reports later is stale
       inFlight.current = false
       setPhase({ name: 'idle' })
     }

@@ -1,32 +1,25 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { AuthCallback, CALLBACK_TIMEOUT_MS } from './AuthCallback'
+import { AuthCallback, CALLBACK_TIMEOUT_MESSAGE, CALLBACK_TIMEOUT_MS } from './AuthCallback'
 import { AuthFlowError } from './authErrors'
 import {
   CALLBACK_EXPIRED,
   CALLBACK_GENERIC,
+  CALLBACK_NETWORK,
   CALLBACK_RATE_LIMITED,
+  CALLBACK_WRONG_BROWSER,
   completeAuthCallback,
 } from './completeAuthCallback'
 import { LoginPage, REDIRECT_RESET_MS } from './LoginPage'
 import { ProfileForm } from './ProfileForm'
 import { createFakeAuth, fakeSession, profileRow } from './testing/fakeAuth'
 import { userEvent } from './testing/userEvent'
+import { deferred } from './testing/deferred'
 
 afterEach(() => {
   vi.useRealTimers()
   vi.restoreAllMocks()
 })
-
-function deferred<T = void>() {
-  let resolve!: (v: T) => void
-  let reject!: (e: unknown) => void
-  const promise = new Promise<T>((res, rej) => {
-    resolve = res
-    reject = rej
-  })
-  return { promise, resolve, reject }
-}
 
 const googleButton = () => screen.getByRole('button', { name: /Google/ })
 
@@ -117,6 +110,20 @@ describe('completeAuthCallback rate limits and provider errors', () => {
     })
   })
 
+  it('classifies THROWN exchange errors like returned ones', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const thrown = async (error: unknown) => {
+      const { client, auth } = createFakeAuth()
+      auth.exchangeCodeForSession.mockRejectedValueOnce(error)
+      return completeAuthCallback(client, at('?code=c'), noopHistory)
+    }
+    expect(await thrown({ status: 429, message: 'x' })).toEqual({ ok: false, message: CALLBACK_RATE_LIMITED })
+    expect(await thrown({ name: 'AuthPKCECodeVerifierMissingError', message: 'x' })).toEqual({ ok: false, message: CALLBACK_WRONG_BROWSER })
+    expect(await thrown({ status: 502, message: 'x' })).toEqual({ ok: false, message: CALLBACK_NETWORK })
+    expect(await thrown(new TypeError('Failed to fetch'))).toEqual({ ok: false, message: CALLBACK_NETWORK })
+    expect(await thrown(new Error('who knows'))).toEqual({ ok: false, message: CALLBACK_GENERIC })
+  })
+
   it('rejects without exchanging when replaceState throws', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => {})
     const { client, auth } = createFakeAuth()
@@ -132,7 +139,7 @@ describe('completeAuthCallback rate limits and provider errors', () => {
 })
 
 describe('AuthCallback single navigation', () => {
-  it('after the timeout error a late success does not navigate; the back button fires onDone once', async () => {
+  it('after the timeout error a late success shows "Ya iniciaste sesión" and navigates only via Continuar, once', async () => {
     vi.useFakeTimers()
     const { client, auth } = createFakeAuth()
     let release: () => void = () => {}
@@ -146,12 +153,14 @@ describe('AuthCallback single navigation', () => {
       vi.advanceTimersByTime(CALLBACK_TIMEOUT_MS + 1)
     })
     expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent(CALLBACK_TIMEOUT_MESSAGE)
     await act(async () => release())
-    expect(onDone).not.toHaveBeenCalled()
-    expect(screen.getByRole('alert')).toBeInTheDocument()
-    const back = screen.getByRole('button', { name: /volver/i })
-    fireEvent.click(back)
-    fireEvent.click(back)
+    expect(onDone).not.toHaveBeenCalled() // no automatic navigation
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByText('Ya iniciaste sesión.')).toBeInTheDocument()
+    const next = screen.getByRole('button', { name: 'Continuar' })
+    fireEvent.click(next)
+    fireEvent.click(next)
     expect(onDone).toHaveBeenCalledTimes(1)
     expect(onDone).toHaveBeenCalledWith('/')
   })
@@ -162,6 +171,38 @@ describe('AuthCallback single navigation', () => {
     const onDone = vi.fn()
     render(<AuthCallback client={client} onDone={onDone} />)
     await waitFor(() => expect(onDone).toHaveBeenCalledTimes(1))
+    // flush any pending work and re-assert: nothing fires a second time
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0))
+    })
+    expect(onDone).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('LoginPage stale results after a reset', () => {
+  it('ignores an onGoogle reject that arrives after the pageshow reset', async () => {
+    const first = deferred()
+    const onGoogle = vi.fn().mockReturnValue(first.promise)
+    render(<LoginPage onEmailSubmit={vi.fn()} onGoogle={onGoogle} />)
+    await userEvent.click(googleButton())
+    act(() => {
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))
+    })
+    expect(googleButton()).toHaveTextContent('Continuar con Google')
+    await act(async () => first.reject(new AuthFlowError('provider_disabled')))
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(googleButton()).toHaveTextContent('Continuar con Google')
+  })
+
+  it('ignores a late resolve after the reset (does not re-enter the redirecting phase)', async () => {
+    const first = deferred()
+    render(<LoginPage onEmailSubmit={vi.fn()} onGoogle={() => first.promise} />)
+    await userEvent.click(googleButton())
+    act(() => {
+      window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))
+    })
+    await act(async () => first.resolve())
+    expect(googleButton()).toHaveTextContent('Continuar con Google')
   })
 })
 

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { assertLocal } from './integration/assertLocal'
 
+// Lives in the unit run (not src/data/integration/**, which the default vitest config excludes) so it
+// executes in `npm test` without needing the local Supabase stack.
 describe('assertLocal', () => {
   it.each(['http://127.0.0.1:54321', 'http://localhost:54324', 'http://127.0.0.1', 'https://localhost/'])('accepts %s', (url) => {
     expect(() => assertLocal('API', url)).not.toThrow()
