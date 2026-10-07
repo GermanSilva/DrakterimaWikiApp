@@ -1,4 +1,4 @@
-export default function DragonIcon({ width = 233.5, height = 238, fill = 'currentColor', className, style }) {
+export default function DragonIcon({ width = 233.5, height = 238, fill = 'currentColor', className = '', style = {} }) {
   return (
     <svg
       version="1.1"

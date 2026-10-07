@@ -1,6 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./index.html', './src/**/*.{js,jsx}'],
+  content: ['./index.html', './src/**/*.{js,jsx,ts,tsx}'],
   theme: {
     extend: {
       colors: {
@@ -10,10 +10,10 @@ export default {
         'bg-card-hover':  '#171717',
         'border-base':    '#1e1e1e',
         'border-light':   '#282828',
-        accent:           '#dc2626',
-        'accent-bright':  '#ef4444',
-        'accent-dim':     '#991b1b',
-        'accent-subtle':  '#450a0a',
+        accent:           'rgb(var(--accent-rgb) / <alpha-value>)',
+        'accent-bright':  'rgb(var(--accent-bright-rgb) / <alpha-value>)',
+        'accent-dim':     'rgb(var(--accent-dim-rgb) / <alpha-value>)',
+        'accent-subtle':  'rgb(var(--accent-subtle-rgb) / <alpha-value>)',
         'txt-primary':    '#ececec',
         'txt-secondary':  '#888888',
         'txt-muted':      '#6e6e6e',

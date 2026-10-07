@@ -5,6 +5,15 @@
 @tailwind utilities;
 
 @layer base {
+  /* Accent palette as RGB triplets so Tailwind opacity modifiers keep working. A campaign overrides these on its shell wrapper (src/campaign/branding.ts). */
+  :root {
+    --accent: #dc2626;
+    --accent-rgb: 220 38 38;
+    --accent-bright-rgb: 239 68 68;
+    --accent-dim-rgb: 153 27 27;
+    --accent-subtle-rgb: 69 10 10;
+  }
+
   * { box-sizing: border-box; margin: 0; padding: 0; }
 
   body {
