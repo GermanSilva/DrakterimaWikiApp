@@ -1,3 +1,4 @@
+import { useId } from 'react'
 import { Lock } from 'lucide-react'
 import { useFormPort } from '../../ports'
 import { inputCls, labelCls } from '../../constants'
@@ -16,10 +17,12 @@ export function FormRow({ children }) {
 
 export function EstadoField({ estado, visibilidad, setF }) {
   const { characters } = useFormPort()
+  const selectId = useId()
   return (
     <FormGroup>
-      <label className={labelCls}>Visibilidad</label>
+      <label className={labelCls} htmlFor={selectId}>Visibilidad</label>
       <select
+        id={selectId}
         className={inputCls}
         value={estado}
         onChange={e => setF(p => ({ ...p, estado: e.target.value }))}

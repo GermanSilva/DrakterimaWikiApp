@@ -54,6 +54,7 @@ export function FilterPills({ options, value, onChange }) {
       {options.map(opt => (
         <button
           key={opt.value}
+          aria-pressed={value === opt.value}
           className={[
             'font-exo text-[9px] font-semibold tracking-[0.15em] uppercase px-3 py-1 border cursor-pointer transition-all bg-transparent',
             value === opt.value
@@ -69,16 +70,17 @@ export function FilterPills({ options, value, onChange }) {
   )
 }
 
-export function PageHeader({ eyebrow, title, subtitle, children }) {
+export function PageHeader({ eyebrow, title, subtitle = '', children, titleAs = 'div' }) {
+  const Title = titleAs
   return (
     <div className="mb-7 pb-5 border-b border-border-base flex items-end justify-between gap-4">
       <div>
         <div className="font-exo text-[10px] tracking-[0.3em] text-txt-muted uppercase mb-1 font-medium">
           {eyebrow}
         </div>
-        <div className="font-exo text-[26px] font-bold text-txt-primary tracking-[0.04em] uppercase max-md:text-[20px]">
+        <Title className="font-exo text-[26px] font-bold text-txt-primary tracking-[0.04em] uppercase max-md:text-[20px]">
           {title}
-        </div>
+        </Title>
         {subtitle && (
           <div className="text-sm text-txt-secondary italic mt-1">{subtitle}</div>
         )}
