@@ -98,7 +98,7 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H11b | Modal close safety: shared `useBackdropClose` (close only when pointer-down AND click both land on the backdrop), applied to every modal backdrop; visible close button in every modal; tests | delegated (writer) | [x] |
 | H4 | Typed data layer: Supabase client, repositories (create/update/remove), realtime subscription hook, schemas | delegated (writer) | [x] |
 | H4b | Fix native review warnings on H4 (paging, zero-row diagnosis, base-guarded updates, hook reload/buffering, integration teardown, safe db:types) | delegated (writer) | [x] |
-| H5 | Auth: provider, login page (magic link + Google), session, profile | delegated (writer) | [ ] |
+| H5 | Auth: provider, login page (magic link + Google), session, profile | delegated (writer) | [x] |
 | H6 | Router + hub shell: campaign list, `/c/:slug` layout, campaign context replacing App.jsx god-state, lazy pages | delegated (writer) | [ ] |
 | H7 | Port wiki entity pages + forms to the data layer (sesiones, pnjs, lugares, facciones, lore, items) | delegated (writer) | [ ] |
 | H8 | Port PJs (ownership, player self-edit), session screen, maps | delegated (writer) | [ ] |
@@ -275,6 +275,22 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
   lint 0 errors, typecheck clean. Accepted trade-offs (documented): one extra empty-page request per
   list; a hung list() keeps buffering (bounded at 5000, then restarts) — no request timeout yet.
 
+- H5: `src/auth/` (AuthProvider/useAuth with profileStatus, magic link + Google with a disabled-provider
+  probe, AuthCallback, LoginPage, UserMenu, ProfileForm, RequireAuth), additive (not wired until H6).
+  **PKCE** (user decision 2026-10-07): client `flowType: pkce`, `detectSessionInUrl: false`;
+  `completeAuthCallback` is the single URL owner (replaceState before exchange), rejects
+  `#access_token` fragments (no login CSRF), ok only when THIS exchange yields a session. Magic
+  link must be opened in the same browser. signOut scope local. DB: migration
+  `20261007120000_profile_caps.sql` (display_name 1..80 code points, avatar https ≤500 no
+  whitespace; handle_new_user fallback) + pgTAP `05_profile_caps`. Integration: real magic link via
+  Mailpit → 302 `/auth/callback?code=` → PKCE exchange with the requesting client; forged fragment
+  rejected. Adversarial sweep: fixed client-only profile caps, implicit-flow token/CSRF exposure,
+  global sign-out, code-unit length counting, URL validation, unhandled refreshProfile rejection,
+  stale profile flash, callback success with a pre-existing session, raw error rendering, teardown
+  gaps. **Cutover TODO (F5):** open signup without captcha → captcha + SMTP limits + optional
+  invite gate before production. Checks: supabase test db 218/218, test 235/235, integration
+  16/16 ×2, lint 0 errors, typecheck clean, build OK.
+
 ## Product decisions (user, 2026-10-06)
 
 - Sole-DM account deletion is blocked until the DM role is transferred or the campaign deleted — approved.
@@ -292,4 +308,4 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 
 ## Next step
 
-H5: auth (magic link + Google) on the H4 data layer. User must create `.env.local` with VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY (local values from `supabase status`).
+H6: router + hub shell (AuthProvider, /auth/callback, campaign list, /c/:slug layout).

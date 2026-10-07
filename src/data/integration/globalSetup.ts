@@ -6,6 +6,8 @@ export interface LocalSupabase {
   anonKey: string
   /** Local stack only. Used exclusively by test setup/teardown to create and delete throwaway users. */
   serviceKey: string
+  /** Local Mailpit/Inbucket HTTP API (magic-link emails). */
+  mailUrl: string
 }
 
 declare module 'vitest' {
@@ -47,5 +49,9 @@ export default function setup({ provide }: GlobalSetupContext) {
   if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(url)) {
     throw new Error(`Refusing to run integration tests against a non-local API: ${url}`)
   }
-  provide('supabase', { url, anonKey, serviceKey })
+  const mailUrl = status.MAILPIT_URL ?? status.INBUCKET_URL ?? 'http://127.0.0.1:54324'
+  if (!/^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(mailUrl)) {
+    throw new Error(`Refusing to use a non-local mail API: ${mailUrl}`)
+  }
+  provide('supabase', { url, anonKey, serviceKey, mailUrl: mailUrl.replace(/\/$/, '') })
 }
