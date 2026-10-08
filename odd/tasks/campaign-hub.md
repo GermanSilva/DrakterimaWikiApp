@@ -108,7 +108,7 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H8b | Port DM session screen (cards layout in campaign_config session_screen, combat tracker, homebrew rules card, per-PJ cards, edit modal) | delegated (writer) | [x] |
 | H8c | Port maps (mapas + map_points with Leaflet, click-to-place, pin visibility, hierarchical navigation) | delegated (writer) | [x] |
 | H9 | Port calendar, games, notes, homerules, unread state; DM zone → campaign settings (split below; mapper report 2026-10-07) | delegated (writer) | [ ] |
-| H9a | Infra (generic TableStore specs: disponibilidad/game_pot, hooks, fakeLayer extensions) + HomerulesPage (template ItemsPage) | delegated (writer) | [ ] |
+| H9a | Infra (generic TableStore specs: disponibilidad/game_pot, hooks, fakeLayer extensions) + HomerulesPage (template ItemsPage) | delegated (writer) | [x] |
 | H9b | Calendar: TS disponibilidadCalc (character_id), generic member colors/initials, CalendarioPage + day modal + local availability form, unread dots | delegated (writer) | [ ] |
 | H9c | Notes: PlayerNotesPort.all() (+legacy/hub adapters), NotasPage (search syntax, DM grouping by character) | delegated (writer) | [ ] |
 | H9d | Games: JuegosPage (config/pot/own log, owned-PJ selector, UTC-day messaging), Dice3D target roll, coins helpers | delegated (writer) | [ ] |
@@ -509,3 +509,5 @@ H7: port wiki entity pages (sesiones, pnjs, lugares, facciones, lore, items) ont
 5. game_logs / player_notes / read_state not in the realtime publication: acceptable (refresh on focus)?
 
 Route per task: delegated writer (writer trigger: 2+ non-trivial files). TDD: not configured; ordinary functional checks.
+
+- H9a done (1580a9e): TableStore specs `dispo`/`pot`, `useDisponibilidad`/`useGamePot`, fakeLayer extensions, HomerulesPage. Native review of slice cdd796a..1580a9e **approved** (review-7285ddba952b5235, burned); reviewed boundary → `1580a9e`. Checks: vitest 948/949 (1 load timeout, passed alone), lint 0 errors, tsc clean. Advisory (non-blocking): global timeouts mask slow suites; MapPopup "constructor" own-key guard lacks a direct assertion (assert default icon); mapForms stale-link test covers behavior already present. Unverified: `game_pot`/`disponibilidad` in the realtime publication.
