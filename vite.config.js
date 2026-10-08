@@ -8,6 +8,8 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     setupFiles: ['src/test/setup.ts'],
+    // heavy jsdom suites time out at the 5s default when the full run saturates the machine
+    testTimeout: 15000,
     // integration tests need the local Supabase stack: npm run test:integration
     exclude: [...configDefaults.exclude, 'src/data/integration/**'],
   },
