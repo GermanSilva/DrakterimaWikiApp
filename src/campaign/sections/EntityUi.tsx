@@ -117,6 +117,7 @@ export function EntityCard({
   icon,
   extra,
   tags,
+  unread = true,
   children,
 }: {
   slug: string
@@ -128,11 +129,13 @@ export function EntityCard({
   /** Rendered next to the icon (the lock of a DM secret). */
   extra?: ReactNode
   tags: ReactNode
+  /** False for tables without read tracking (homebrew_rules): no unread dot. */
+  unread?: boolean
   children: ReactNode
 }) {
   return (
     <Link to={withSearch(entityPath(slug, table, entity.id), search)} className={CARD_CLS}>
-      <UnreadDot type={table} id={entity.id} updatedAt={entity.updated_at} className="absolute top-2 right-2" />
+      {unread && <UnreadDot type={table} id={entity.id} updatedAt={entity.updated_at} className="absolute top-2 right-2" />}
       <div className="flex items-start justify-between gap-2 mb-2.5">
         <div className="font-exo text-[13px] font-semibold text-txt-primary tracking-[0.03em]">{title}</div>
         <div className="flex items-center gap-1.5">

@@ -1,4 +1,5 @@
 import { createDisponibilidadRepository, type Disponibilidad } from './disponibilidadRepository'
+import type { GamePot, GamesRepository } from './gamesRepository'
 import type { EntityRepository } from './entityRepository'
 import { fromRow, type EntityRow } from './mappers'
 import type { Db, FlatEntity } from './types'
@@ -35,14 +36,34 @@ export function entitySource(repo: EntityRepository): TableSource<FlatEntity> {
   }
 }
 
-export function disponibilidadSource(client: Db): TableSource<Disponibilidad> {
-  const repo = createDisponibilidadRepository(client)
+export function disponibilidadRepoSource(repo: { list(campaignId: string): Promise<Disponibilidad[]> }): TableSource<Disponibilidad> {
   return {
     table: 'disponibilidad',
     list: (campaignId) => repo.list(campaignId),
     fromRow: (row) => row as unknown as Disponibilidad,
     keyOfItem: (item) => String(item.id),
     keyOfRow: (row) => String(row.id),
+  }
+}
+
+export function disponibilidadSource(client: Db): TableSource<Disponibilidad> {
+  return disponibilidadRepoSource(createDisponibilidadRepository(client))
+}
+
+/**
+ * The campaign's coin pot: a table with ONE row per campaign keyed by `campaign_id` (no `id`), so the
+ * list is `[pot]` (or `[]` before the first prize) and realtime keys rows by campaign.
+ */
+export function gamePotSource(repo: Pick<GamesRepository, 'getPot'>): TableSource<GamePot> {
+  return {
+    table: 'game_pot',
+    list: async (campaignId) => {
+      const pot = await repo.getPot(campaignId)
+      return pot ? [pot] : []
+    },
+    fromRow: (row) => row as unknown as GamePot,
+    keyOfItem: (item) => item.campaign_id,
+    keyOfRow: (row) => String(row.campaign_id),
   }
 }
 

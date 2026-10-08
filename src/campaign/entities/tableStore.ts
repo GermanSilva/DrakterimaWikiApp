@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import {
+  disponibilidadRepoSource,
   entitySource,
+  gamePotSource,
   wikiIndexSource,
   WIKI_INDEX_TABLES,
   type CampaignTableState,
   type DataLayer,
+  type Disponibilidad,
   type EntityTable,
   type FlatEntity,
+  type GamePot,
   type TableSource,
   type WikiIndexItem,
   type WikiIndexTable,
@@ -17,7 +21,7 @@ import { ENTITY_SORT } from './sort'
 export type TableSnapshot<T> = CampaignTableState<T>
 
 export interface TableSpec<T = unknown> {
-  /** Unique key of the subscription: `entity:<table>` or `index:<table>`. */
+  /** Unique key of the subscription: `entity:<table>`, `index:<table>`, `dispo` or `pot`. */
   key: string
   source: TableSource<T>
   sort?: (a: T, b: T) => number
@@ -50,6 +54,8 @@ export class TableStore {
   private listeners = new Set<() => void>()
   private entitySpecs = new Map<EntityTable, TableSpec<FlatEntity>>()
   private indexSpecs = new Map<WikiIndexTable, TableSpec<WikiIndexItem>>()
+  private dispoSpec: TableSpec<Disponibilidad> | null = null
+  private potSpec: TableSpec<GamePot> | null = null
   /** Stable array of the index specs of every wiki table. */
   readonly allIndexSpecs: readonly TableSpec<WikiIndexItem>[]
 
@@ -81,6 +87,22 @@ export class TableStore {
       this.indexSpecs.set(table, spec)
     }
     return spec
+  }
+
+  /** Referentially stable spec of the campaign's availability rows (key `dispo`, id order). */
+  disponibilidadSpec(): TableSpec<Disponibilidad> {
+    this.dispoSpec ??= {
+      key: 'dispo',
+      source: disponibilidadRepoSource(this.layer.disponibilidad),
+      sort: (a, b) => a.id - b.id,
+    }
+    return this.dispoSpec
+  }
+
+  /** Referentially stable spec of the single-row coin pot (key `pot`). */
+  gamePotSpec(): TableSpec<GamePot> {
+    this.potSpec ??= { key: 'pot', source: gamePotSource(this.layer.games) }
+    return this.potSpec
   }
 
   retain<T>(specOfAnyRow: TableSpec<T>): () => void {

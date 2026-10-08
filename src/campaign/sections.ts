@@ -33,6 +33,7 @@ const Lugares = lazy(() => import('./sections/LugaresPage').then((m) => ({ defau
 const Facciones = lazy(() => import('./sections/FaccionesPage').then((m) => ({ default: m.FaccionesPage })))
 const Lore = lazy(() => import('./sections/LorePage').then((m) => ({ default: m.LorePage })))
 const Items = lazy(() => import('./sections/ItemsPage').then((m) => ({ default: m.ItemsPage })))
+const Homerules = lazy(() => import('./sections/HomerulesPage').then((m) => ({ default: m.HomerulesPage })))
 const PJs = lazy(() => import('./sections/PJsPage').then((m) => ({ default: m.PJsPage })))
 const PNJs = lazy(() => import('./sections/PNJsPage').then((m) => ({ default: m.PNJsPage })))
 const Mapas = lazy(() => import('./sections/MapasPage').then((m) => ({ default: m.MapasPage })))
@@ -58,7 +59,7 @@ export const SECTIONS: readonly SectionDef[] = [
   section('lugares', 'Lugares', 'Mundo', Map, { Component: Lugares }),
   section('facciones', 'Facciones', 'Mundo', Landmark, { Component: Facciones }),
   section('lore', 'Lore', 'Mundo', BookOpen, { Component: Lore }),
-  section('homerules', 'Homerules', 'Homebrew', Hammer),
+  section('homerules', 'Homerules', 'Homebrew', Hammer, { Component: Homerules }),
   section('items', 'Ítems', 'Homebrew', Gem, { Component: Items }),
   section('juegos', 'Juegos', 'Homebrew', Dices),
   section('srd', 'SRD / Reglas', 'Referencia', BookMarked),

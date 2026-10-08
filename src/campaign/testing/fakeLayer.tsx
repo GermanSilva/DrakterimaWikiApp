@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { vi } from 'vitest'
 import { AuthContext } from '../../auth/AuthContext'
 import { makeAuth, makeCampaign } from '../../app/testing/renderApp'
-import { ConflictError, type DataLayer, type FlatEntity, type WikiIndexItem } from '../../data'
+import { ConflictError, type DataLayer, type Disponibilidad, type FlatEntity, type GameLog, type GamePot, type PlayerNote, type WikiIndexItem } from '../../data'
 import { createFakeClient } from '../../data/testing/fakeClient'
 import { UnreadPortContext, type UnreadPort } from '../../ports'
 import { CampaignContext, type CampaignContextValue } from '../CampaignContext'
@@ -15,6 +15,11 @@ export interface FakeLayerOptions {
   index?: Record<string, WikiIndexItem[]>
   dmNotes?: Record<string, { notas: string; secreto: string; ganchos: string }>
   visibility?: Record<number, number[]>
+  disponibilidad?: Disponibilidad[]
+  /** The campaign pot row (null/undefined = no prize yet). */
+  pot?: GamePot | null
+  gameLogs?: GameLog[]
+  playerNotes?: PlayerNote[]
   /** `campaign_config` rows by key (value + the `updated_at` version the guarded patch compares). */
   config?: Record<string, { value: Record<string, unknown>; updated_at?: string; visibility?: 'members' | 'dm' }>
 }
@@ -63,6 +68,10 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
     configRows.set(key, { value: { ...(current?.value ?? {}), ...patch }, updated_at: `v${configVersion}`, visibility: current?.visibility ?? visibility })
     return rowOf(key)
   })
+  const disponibilidadList = vi.fn(async () => options.disponibilidad ?? [])
+  const potGet = vi.fn(async () => options.pot ?? null)
+  const gameLogsList = vi.fn(async () => options.gameLogs ?? [])
+  const playerNotesList = vi.fn(async () => options.playerNotes ?? [])
   const layer = {
     client: fake.db,
     entity: (table: string) => {
@@ -77,9 +86,11 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
     visibility: { getVisibility, setVisibility },
     readState: { list: vi.fn(async () => []), markSeen: vi.fn(async () => undefined) },
     config: { get: configGet, patch: configPatch },
-    playerNotes: { list: vi.fn(async () => []), upsert: vi.fn(), update: vi.fn(), remove: vi.fn() },
+    disponibilidad: { list: disponibilidadList, create: vi.fn(), update: vi.fn(), remove: vi.fn(async () => undefined) },
+    games: { getPot: potGet, listLogs: gameLogsList, playLoteria: vi.fn(), assignPotToCharacter: vi.fn(), removeLog: vi.fn(async () => undefined) },
+    playerNotes: { list: playerNotesList, upsert: vi.fn(), update: vi.fn(), remove: vi.fn() },
   } as unknown as DataLayer
-  return { layer, fake, spies: { configGet, configPatch, configRows, entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
+  return { layer, fake, spies: { disponibilidadList, potGet, gameLogsList, playerNotesList, configGet, configPatch, configRows, entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
 }
 
 export const fakeUnread = (): UnreadPort & { markRead: ReturnType<typeof vi.fn> } => ({
