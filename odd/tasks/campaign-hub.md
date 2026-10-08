@@ -107,7 +107,13 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H8a | Port PJs (list, detail with mechanics/inventory/spells/attacks/resources tabs, ownership; player self-edit of identity fields within the DB guard; DM full edit; coins via RPC/DM only) | delegated (writer) | [x] |
 | H8b | Port DM session screen (cards layout in campaign_config session_screen, combat tracker, homebrew rules card, per-PJ cards, edit modal) | delegated (writer) | [x] |
 | H8c | Port maps (mapas + map_points with Leaflet, click-to-place, pin visibility, hierarchical navigation) | delegated (writer) | [x] |
-| H9 | Port calendar, games, notes, homerules, unread state; DM zone → campaign settings | delegated (writer) | [ ] |
+| H9 | Port calendar, games, notes, homerules, unread state; DM zone → campaign settings (split below; mapper report 2026-10-07) | delegated (writer) | [ ] |
+| H9a | Infra (generic TableStore specs: disponibilidad/game_pot, hooks, fakeLayer extensions) + HomerulesPage (template ItemsPage) | delegated (writer) | [ ] |
+| H9b | Calendar: TS disponibilidadCalc (character_id), generic member colors/initials, CalendarioPage + day modal + local availability form, unread dots | delegated (writer) | [ ] |
+| H9c | Notes: PlayerNotesPort.all() (+legacy/hub adapters), NotasPage (search syntax, DM grouping by character) | delegated (writer) | [ ] |
+| H9d | Games: JuegosPage (config/pot/own log, owned-PJ selector, UTC-day messaging), Dice3D target roll, coins helpers | delegated (writer) | [ ] |
+| H9e | Ajustes: games config, pot transfer, log management, session-screen link; extensible container for H10 | delegated (writer) | [ ] |
+| H9f | Unread sweep + browser check (DM and player1) + adversarial sweep | delegated + parent | [ ] |
 | H10 | Campaign management: create campaign, branding, regions, custom fields, invites, members/roles | delegated (writer) | [ ] |
 | H11 | Refactors: `useStickyTitle`, split FormModal, error boundary + error toasts, a11y basics | delegated (writer; 2+ non-trivial files) | [x] |
 | H12 | Firestore → Supabase import script (Drakterima campaign, id preservation, character claim via invites) | delegated (writer) | [ ] |
@@ -493,3 +499,13 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 ## Next step
 
 H7: port wiki entity pages (sesiones, pnjs, lugares, facciones, lore, items) onto SECTIONS with the H4 data layer.
+
+## H9 open product questions (pending user)
+
+1. Dice3D: spin-then-reveal the server roll vs land on the real face (H9d).
+2. Games day boundary: server uses UTC; show the UTC reset time instead of local midnight (proposed).
+3. Player with several PJs: selector vs first owned (games, availability).
+4. Ajustes: drop login logs / backfill / JSON import (H12 covers migration)? Keep export-only? Bulk log delete: one request per row vs new RPC.
+5. game_logs / player_notes / read_state not in the realtime publication: acceptable (refresh on focus)?
+
+Route per task: delegated writer (writer trigger: 2+ non-trivial files). TDD: not configured; ordinary functional checks.
