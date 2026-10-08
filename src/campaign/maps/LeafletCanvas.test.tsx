@@ -36,6 +36,11 @@ vi.mock('react-leaflet', async () => {
         p.eventHandlers.add?.({ target: { getElement: () => ref.current } })
         // eslint-disable-next-line react-hooks/exhaustive-deps
       }, [])
+      // Leaflet replaces the marker element when the icon changes (setIcon): the aria-label set on "add" is lost
+      const firstIcon = useRef(p.icon)
+      useEffect(() => {
+        if (firstIcon.current !== p.icon) ref.current?.removeAttribute('aria-label')
+      }, [p.icon])
       return h(
         'div',
         {
@@ -166,6 +171,27 @@ describe('LeafletCanvas', () => {
     const { rerender } = render(<LeafletCanvas {...props} />)
     rerender(<LeafletCanvas {...props} points={[{ ...props.points[0], nombre: 'Faro viejo' }, props.points[1]]} />)
     expect(screen.getAllByTestId('pin')[0]).toHaveAttribute('aria-label', 'Faro viejo')
+  })
+
+  it('a re-linked pin (new colour) is a new marker, so it keeps its accessible name', () => {
+    const props = base()
+    const { rerender } = render(<LeafletCanvas {...props} />)
+    rerender(<LeafletCanvas {...props} points={[{ ...props.points[0], color: '#22c55e' }, props.points[1]]} />)
+    const pin = screen.getAllByTestId('pin')[0]
+    expect(pin.getAttribute('data-html')).toContain('background:#22c55e')
+    expect(pin).toHaveAttribute('aria-label', 'Faro')
+  })
+
+  it('Space on a pin that moved opens it at its current position, not the one it was first drawn at', () => {
+    const props = base()
+    const { rerender } = render(<LeafletCanvas {...props} />)
+    const pin = screen.getAllByTestId('pin')[0]
+    // same id / name / colour: the marker element is kept, only its position changes
+    rerender(<LeafletCanvas {...props} points={[{ ...props.points[0], x: 0.5, y: 0.1 }, props.points[1]]} />)
+    expect(screen.getAllByTestId('pin')[0]).toBe(pin)
+    fireEvent.keyDown(pin, { key: ' ' })
+    // [lat, lng] = [(1 - 0.1) * 500, 0.5 * 1000] = [450, 500] -> the double maps lat/lng / 10
+    expect(props.onPointClick).toHaveBeenLastCalledWith(1, { x: 50, y: 45 })
   })
 
   it('Space and Enter on a focused pin open it, using the pin position when there is no containerPoint', () => {

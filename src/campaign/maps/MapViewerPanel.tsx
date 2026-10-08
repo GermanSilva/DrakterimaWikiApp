@@ -94,10 +94,12 @@ export function MapViewerPanel({ map, points, pointsError, onRetryPoints, maps, 
   const closePopup = useCallback(() => setPopup(null), [])
   const openPopup = useCallback((pointId: number, at: { x: number; y: number }) => setPopup({ pointId, ...at }), [])
 
-  // Escape: popup first, then the ghost pin, then add mode
+  // Escape: popup first, then the ghost pin, then add mode. While a modal (the point form) is open, Escape belongs
+  // to it: cancelling the form must return to the confirm step with the ghost pin still in place.
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key !== 'Escape') return
+      if (document.querySelector('[aria-modal="true"]')) return
       if (popup) setPopup(null)
       else if (ghost) setGhost(null)
       else if (addMode) setAddMode(false)

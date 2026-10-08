@@ -31,7 +31,9 @@ export function MapPopup({
   onEdit: () => void
   onClose: () => void
 }) {
-  const icon = TYPE_ICON[str(point.link_type)] ?? '📍'
+  const linkType = str(point.link_type)
+  // own keys only: a stored "constructor" must not resolve to Object.prototype.constructor
+  const icon = (Object.prototype.hasOwnProperty.call(TYPE_ICON, linkType) ? TYPE_ICON[linkType] : undefined) ?? '📍'
   const nombre = str(point.nombre)
   const descripcion = str(point.descripcion)
   const image = link?.kind === 'article' ? parseHttpsUrl(link.imageUrl) : null

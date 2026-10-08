@@ -62,6 +62,14 @@ describe('MapPointForm (port based, shared by legacy and hub)', () => {
     expect(actions.save).toHaveBeenLastCalledWith('map_points', expect.objectContaining({ link_type: 'mapa', link_id: 2 }))
   })
 
+  it('changing the link type clears the previous target instead of saving a type with a foreign id', () => {
+    const actions = setup(<MapPointForm item={{ id: 4, map_id: 3, nombre: 'P', x: 0.1, y: 0.2, link_type: 'lugar', link_id: 5 }} prefill={null} />)
+    fireEvent.change(screen.getByDisplayValue('Lugar'), { target: { value: 'pnj' } })
+    expect(screen.getByRole('option', { name: /elegir/ })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(actions.save).toHaveBeenLastCalledWith('map_points', expect.objectContaining({ link_type: null, link_id: null }))
+  })
+
   it.each([
     [{ x: 7, y: -3 }, 'x: 1.000 · y: 0.000'],
     [{ x: Number.NaN, y: 'abc' }, 'x: 0.500 · y: 0.500'],

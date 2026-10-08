@@ -1,6 +1,6 @@
 import 'leaflet/dist/leaflet.css'
 import './LeafletCanvas.css'
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import L from 'leaflet'
 import { ImageOverlay, MapContainer, Marker, Tooltip, useMap, useMapEvents } from 'react-leaflet'
 import { fromLeaflet, PIN_DEFAULT_COLOR, toLeaflet } from './mapGeometry'
@@ -57,11 +57,18 @@ function MapEvents({ size, addMode, hasGhost, onBackgroundClick, onPlace }) {
 function Pin({ pt, size, onPointClick }) {
   const map = useMap()
   const position = toLeaflet(size, pt.x, pt.y)
+  // The keydown listener is attached once, when the marker element is added: it reads the CURRENT point through a
+  // ref instead of closing over the first render's position.
+  const latest = useRef({ id: pt.id, position, onPointClick })
+  useEffect(() => {
+    latest.current = { id: pt.id, position, onPointClick }
+  })
   const handlers = useMemo(() => {
     // A keyboard activation carries no containerPoint: derive it from the pin's own position.
     const open = (e) => {
-      const at = e?.containerPoint ?? map.latLngToContainerPoint(position)
-      onPointClick(pt.id, { x: at.x, y: at.y })
+      const { id, position: current, onPointClick: report } = latest.current
+      const at = e?.containerPoint ?? map.latLngToContainerPoint(current)
+      report(id, { x: at.x, y: at.y })
     }
     return {
       add: (e) => {
@@ -81,9 +88,7 @@ function Pin({ pt, size, onPointClick }) {
         open(e)
       },
     }
-    // position is derived from x / y / size
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, pt.id, pt.x, pt.y, pt.nombre, size, onPointClick])
+  }, [map, pt.nombre])
   return (
     <Marker position={position} icon={pinIcon(pt.color)} opacity={pt.opacity} eventHandlers={handlers}>
       <Tooltip direction="top" offset={[0, -34]} opacity={0.9}>
@@ -110,8 +115,9 @@ export default function LeafletCanvas({ imageUrl, size, points, addMode, ghost, 
         {imageUrl && <ImageOverlay url={imageUrl} bounds={bounds} />}
         <MapEvents size={size} addMode={addMode} hasGhost={!!ghost} onBackgroundClick={onBackgroundClick} onPlace={onPlace} />
         {points.map((pt) => (
-          // the name is part of the key: a renamed pin is a new marker, so its aria-label is set again
-          <Pin key={`${pt.id}:${pt.nombre}`} pt={pt} size={size} onPointClick={onPointClick} />
+          // name and colour are part of the key: a renamed or re-linked pin is a new marker, because a changed icon
+          // makes Leaflet replace the marker element, which would drop the aria-label set on "add"
+          <Pin key={`${pt.id}:${pt.nombre}:${pt.color}`} pt={pt} size={size} onPointClick={onPointClick} />
         ))}
         {ghost && (
           <Marker

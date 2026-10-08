@@ -158,7 +158,7 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
       }
       return true
     },
-    [showToast, mapsList.items, layer, campaignId, id],
+    [showToast, mapsList.items, mapsList.loading, mapsList.error, layer, campaignId, id],
   )
 
   const save = useCallback(
