@@ -1,13 +1,15 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
 import { btnSecondary, inputCls } from '../../../constants'
 import type { DataLayer } from '../../../data'
-import { parseRegions } from '../../adapters/hubFormPort'
+import { parseRegions, readRegions } from '../../adapters/hubFormPort'
 import { useCampaignServices } from '../../entities/campaignServicesContext'
 import { useLoad } from '../../entities/useLoad'
+import { UnreadableNotice } from './UnreadableNotice'
 import { ListEditor, type RemovalPolicy } from './ListEditor'
 import { countRegionUsage, describeUsage, REGION_TABLES, type RegionUsage } from './regionUsage'
 import { MAX_REGIONS, newRegionDraft, regionDrafts, REGION_LABEL_MAX, validateRegions, type RegionDraft, type RegionRowErrors } from './regionsForm'
 import { KEY_MAX } from './fieldKey'
+import { mergeRegions, unreadableRegions } from './storedMerge'
 import { useCampaignSave } from './useCampaignSave'
 
 const labelCls = 'block font-exo text-[10px] font-medium tracking-[0.2em] uppercase text-txt-muted mb-1.5'
@@ -116,8 +118,8 @@ function RegionsForm({ initial, usageText, usageState, onSave }: {
   const [saving, setSaving] = useState(false)
 
   const removal = (row: RegionDraft): RemovalPolicy => {
-    if (!row.persisted) return {}
     if (rows.length <= 1) return { blocked: 'Tiene que quedar al menos una región.' }
+    if (!row.persisted) return {}
     if (usageState === 'loading') return { blocked: 'Verificando si la región está en uso…' }
     if (usageState === 'error') return { blocked: 'No pudimos verificar si la región está en uso, así que no se puede quitar ahora.' }
     const used = usageText(row.key)
@@ -179,6 +181,9 @@ export function RegionsSettings() {
   const usage = useLoad(() => fetchRegionUsage(layer, campaignId), `region-usage:${campaignId}:${saves}`)
 
   const stored = parseRegions(campaign.regions)
+  // With no readable region the list shows a synthetic "otro": it is only a draft until the DM saves the list.
+  const synthetic = readRegions(campaign.regions).regions.length === 0
+  const unreadable = unreadableRegions(campaign.regions)
 
   async function onSave(rows: RegionDraft[]) {
     setNotice(null)
@@ -203,7 +208,7 @@ export function RegionsSettings() {
         return null
       }
     }
-    await save({ regions: result.regions }, 'Regiones guardadas.', 'No se pudieron guardar las regiones. Intentá de nuevo.')
+    await save({ regions: mergeRegions(campaign.regions, result.regions) }, 'Regiones guardadas.', 'No se pudieron guardar las regiones. Intentá de nuevo.')
     return null
   }
 
@@ -217,7 +222,8 @@ export function RegionsSettings() {
       <p className="text-[12px] text-txt-secondary">
         Las regiones clasifican lugares, PNJs, personajes y facciones. La clave es interna y no cambia; el nombre y el color sí.
       </p>
-      <RegionsForm key={formKey} initial={regionDrafts(stored)} usageText={usageText} usageState={usageState} onSave={onSave} />
+      {unreadable > 0 && <UnreadableNotice count={unreadable} />}
+      <RegionsForm key={formKey} initial={regionDrafts(stored, !synthetic)} usageText={usageText} usageState={usageState} onSave={onSave} />
       {notice && (
         <p role={notice.kind === 'error' ? 'alert' : 'status'} className={notice.kind === 'error' ? 'text-[13px] text-red-400' : 'text-[13px] text-accent-bright'}>
           {notice.text}

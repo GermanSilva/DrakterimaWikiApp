@@ -4,6 +4,8 @@ import { parseCharacterFields } from '../../adapters/hubFormPort'
 import { FIELD_LABEL_MAX, fieldDrafts, MAX_CUSTOM_FIELDS, newFieldDraft, validateCustomFields, type FieldDraft, type FieldRowErrors } from './customFieldsForm'
 import { KEY_MAX } from './fieldKey'
 import { ListEditor } from './ListEditor'
+import { mergeCharacterFields, unreadableCharacterFields } from './storedMerge'
+import { UnreadableNotice } from './UnreadableNotice'
 import { useCampaignSave } from './useCampaignSave'
 
 const labelCls = 'block font-exo text-[10px] font-medium tracking-[0.2em] uppercase text-txt-muted mb-1.5'
@@ -122,6 +124,7 @@ function CustomFieldsForm({ initial, onSave }: { initial: FieldDraft[]; onSave: 
 export function CustomFieldsSettings() {
   const { campaign, notice, setNotice, saves, save } = useCampaignSave()
   const stored = parseCharacterFields(campaign.character_custom_fields)
+  const unreadable = unreadableCharacterFields(campaign.character_custom_fields)
 
   async function onSave(rows: FieldDraft[]) {
     setNotice(null)
@@ -130,7 +133,7 @@ export function CustomFieldsSettings() {
       setNotice({ kind: 'error', text: 'Revisá los campos marcados.' })
       return { errors: result.errors, list: result.list }
     }
-    await save({ character_custom_fields: result.fields }, 'Campos guardados.', 'No se pudieron guardar los campos. Intentá de nuevo.')
+    await save({ character_custom_fields: mergeCharacterFields(campaign.character_custom_fields, result.fields) }, 'Campos guardados.', 'No se pudieron guardar los campos. Intentá de nuevo.')
     return null
   }
 
@@ -141,6 +144,7 @@ export function CustomFieldsSettings() {
       <p className="text-[12px] text-txt-secondary">
         Campos de texto extra para la ficha de los personajes (por ejemplo "Relación con la Magralita"). Se muestran en el formulario y en el detalle del personaje.
       </p>
+      {unreadable > 0 && <UnreadableNotice count={unreadable} />}
       <CustomFieldsForm key={formKey} initial={fieldDrafts(stored)} onSave={onSave} />
       {notice && (
         <p role={notice.kind === 'error' ? 'alert' : 'status'} className={notice.kind === 'error' ? 'text-[13px] text-red-400' : 'text-[13px] text-accent-bright'}>

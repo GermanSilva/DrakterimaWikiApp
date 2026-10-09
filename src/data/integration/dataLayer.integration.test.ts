@@ -305,6 +305,20 @@ describe('data layer against the local Supabase stack', () => {
     await expect(playerData.campaigns.updateCampaign(campaignId, { regions: [] })).rejects.toMatchObject({ kind: 'permission' })
     await expect(playerData.campaigns.updateCampaign(campaignId, { character_custom_fields: [] })).rejects.toMatchObject({ kind: 'permission' })
     expect((await dmData.campaigns.getCampaignBySlug(slug))?.regions).toEqual(regions)
+
+    // a patch with only one array leaves the other untouched, and a non-array is rejected before any write
+    const afterRegions = (await dmData.campaigns.getCampaignBySlug(slug))!
+    const onlyFields = await dmData.campaigns.updateCampaign(campaignId, { character_custom_fields: [] }, afterRegions.updated_at)
+    expect(onlyFields.regions).toEqual(regions)
+    expect(onlyFields.character_custom_fields).toEqual([])
+    await expect(dmData.campaigns.updateCampaign(campaignId, { regions: 'x' as never })).rejects.toMatchObject({ kind: 'validation' })
+    expect((await dmData.campaigns.getCampaignBySlug(slug))?.regions).toEqual(regions)
+
+    // jsonb keeps unknown properties and unreadable entries exactly as the Ajustes editors write them back
+    const lossless = [{ key: 'norte', label: 'Norte', icon: 'snow', meta: { a: [1] } }, { key: 'sin-nombre' }, 'texto', null]
+    const kept = await dmData.campaigns.updateCampaign(campaignId, { regions: lossless, character_custom_fields: [{ key: 'nivel', label: 'Nivel', type: 'number', min: 1 }] })
+    expect(kept.regions).toEqual(lossless)
+    expect(kept.character_custom_fields).toEqual([{ key: 'nivel', label: 'Nivel', type: 'number', min: 1 }])
     // restore the defaults for the tests that follow
     await dmData.campaigns.updateCampaign(campaignId, { regions: before.regions, character_custom_fields: before.character_custom_fields })
   })

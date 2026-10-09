@@ -198,4 +198,50 @@ describe('Ajustes: regions section', () => {
     await waitFor(() => expect(spies.updateCampaign).toHaveBeenCalledTimes(2))
     expect(spies.updateCampaign.mock.calls[1][2]).toBe('u1')
   })
+
+  describe('lossless round trip of what the editor does not own', () => {
+    it('keeps unknown properties of a stored region when another one is renamed', async () => {
+      const stored = [{ key: 'norte', label: 'Norte', color: '#112233', icon: 'snow', meta: { a: 1 } }, { key: 'sur', label: 'Sur', icon: 'sun' }]
+      const { spies } = setup({ regions: stored })
+      type(within(await row('Sur')).getByLabelText('Nombre'), 'Sur nuevo')
+      await save()
+      await waitFor(() => expect(spies.updateCampaign).toHaveBeenCalledTimes(1))
+      expect(spies.updateCampaign.mock.calls[0][1]).toEqual({
+        regions: [{ key: 'norte', label: 'Norte', color: '#112233', icon: 'snow', meta: { a: 1 } }, { key: 'sur', label: 'Sur nuevo', icon: 'sun' }],
+      })
+    })
+
+    it('drops the colour of a region only when the DM clears it', async () => {
+      const { spies } = setup({ regions: [{ key: 'norte', label: 'Norte', color: '#112233', icon: 'snow' }] })
+      type(within(await row('Norte')).getByLabelText('Color (opcional)'), '')
+      await save()
+      await waitFor(() => expect(spies.updateCampaign).toHaveBeenCalledTimes(1))
+      expect(spies.updateCampaign.mock.calls[0][1]).toEqual({ regions: [{ key: 'norte', label: 'Norte', icon: 'snow' }] })
+    })
+
+    it('keeps unreadable stored entries verbatim at the end and says so', async () => {
+      const bad = [{ key: 'sin-nombre' }, 'texto', null, { key: 'norte', label: 'Duplicada' }]
+      const { spies } = setup({ regions: [{ key: 'norte', label: 'Norte' }, ...bad] })
+      expect(await within(await section()).findByText(/Hay 4 entradas guardadas que no se pueden leer/)).toBeInTheDocument()
+      type(within(await row('Norte')).getByLabelText('Nombre'), 'Norte 2')
+      await save()
+      await waitFor(() => expect(spies.updateCampaign).toHaveBeenCalledTimes(1))
+      expect(spies.updateCampaign.mock.calls[0][1]).toEqual({ regions: [{ key: 'norte', label: 'Norte 2' }, ...bad] })
+    })
+
+    it('does not persist the synthetic "otro" of an empty list when the DM replaces it', async () => {
+      const { spies } = setup({ regions: [] })
+      await click('Agregar región')
+      const fresh = await row('región nueva')
+      type(within(fresh).getByLabelText('Clave'), 'norte')
+      type(within(fresh).getByLabelText('Nombre'), 'Norte')
+      const otro = await row('Otro')
+      expect(within(otro).getByLabelText('Clave')).not.toHaveAttribute('readonly')
+      fireEvent.click(within(otro).getByRole('button', { name: 'Quitar Otro' }))
+      fireEvent.click(within(within(otro).getByRole('group', { name: 'Confirmar quitar Otro' })).getByRole('button', { name: 'Quitar' }))
+      await save()
+      await waitFor(() => expect(spies.updateCampaign).toHaveBeenCalledTimes(1))
+      expect(spies.updateCampaign.mock.calls[0][1]).toEqual({ regions: [{ key: 'norte', label: 'Norte' }] })
+    })
+  })
 })

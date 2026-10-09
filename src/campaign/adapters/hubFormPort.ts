@@ -6,26 +6,75 @@ export const FALLBACK_REGIONS: Region[] = [{ key: 'otro', label: 'Otro' }]
 
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/
 
+type RawEntry = Record<string, unknown>
+
+export interface ReadRegions {
+  /** Valid regions, in stored order (empty when none is valid: no synthetic fallback here). */
+  regions: Region[]
+  /** The stored object of each valid region, by key. */
+  raw: Map<string, RawEntry>
+  /** Stored entries the parser rejected (malformed or duplicate key), verbatim. */
+  rejected: unknown[]
+}
+
+/** Parses `campaigns.regions` without the synthetic fallback and reports what it could not read. */
+export function readRegions(raw: unknown): ReadRegions {
+  const out: ReadRegions = { regions: [], raw: new Map(), rejected: [] }
+  if (!Array.isArray(raw)) return out
+  for (const entry of raw) {
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+      out.rejected.push(entry)
+      continue
+    }
+    const { key, label, color } = entry as RawEntry
+    if (typeof key !== 'string' || key.trim() === '' || typeof label !== 'string' || label.trim() === '' || out.raw.has(key)) {
+      out.rejected.push(entry)
+      continue
+    }
+    out.raw.set(key, entry as RawEntry)
+    out.regions.push({ key, label, ...(typeof color === 'string' && HEX_COLOR.test(color) ? { color } : {}) })
+  }
+  return out
+}
+
 /**
  * `campaigns.regions` is jsonb written by the DM: only entries with a non-empty string key and label
  * survive, a color only when it is exactly `#rrggbb` (it ends up in inline styles), keys are unique.
  */
 export function parseRegions(raw: unknown): Region[] {
-  if (!Array.isArray(raw)) return FALLBACK_REGIONS
-  const seen = new Set<string>()
-  const regions: Region[] = []
-  for (const entry of raw) {
-    if (typeof entry !== 'object' || entry === null) continue
-    const { key, label, color } = entry as Record<string, unknown>
-    if (typeof key !== 'string' || key.trim() === '' || typeof label !== 'string' || label.trim() === '') continue
-    if (seen.has(key)) continue
-    seen.add(key)
-    regions.push({ key, label, ...(typeof color === 'string' && HEX_COLOR.test(color) ? { color } : {}) })
-  }
+  const { regions } = readRegions(raw)
   return regions.length > 0 ? regions : FALLBACK_REGIONS
 }
 
 const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
+
+export interface ReadCharacterFields {
+  fields: CharacterField[]
+  /** The stored object of each valid field, by key. */
+  raw: Map<string, RawEntry>
+  /** Stored entries the parser rejected (malformed, unsafe or duplicate key), verbatim. */
+  rejected: unknown[]
+}
+
+/** Parses `campaigns.character_custom_fields` and reports what it could not read. */
+export function readCharacterFields(raw: unknown): ReadCharacterFields {
+  const out: ReadCharacterFields = { fields: [], raw: new Map(), rejected: [] }
+  if (!Array.isArray(raw)) return out
+  for (const entry of raw) {
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) {
+      out.rejected.push(entry)
+      continue
+    }
+    const { key, label } = entry as RawEntry
+    if (typeof key !== 'string' || key.trim() === '' || UNSAFE_KEYS.has(key) || out.raw.has(key)) {
+      out.rejected.push(entry)
+      continue
+    }
+    out.raw.set(key, entry as RawEntry)
+    out.fields.push({ key, label: typeof label === 'string' && label.trim() !== '' ? label : key })
+  }
+  return out
+}
 
 /**
  * `campaigns.character_custom_fields` is jsonb written by the DM: `[{ key, label, type }]`. Only entries with
@@ -33,17 +82,7 @@ const UNSAFE_KEYS = new Set(['__proto__', 'constructor', 'prototype'])
  * Every field is edited as text.
  */
 export function parseCharacterFields(raw: unknown): CharacterField[] {
-  if (!Array.isArray(raw)) return []
-  const seen = new Set<string>()
-  const fields: CharacterField[] = []
-  for (const entry of raw) {
-    if (typeof entry !== 'object' || entry === null) continue
-    const { key, label } = entry as Record<string, unknown>
-    if (typeof key !== 'string' || key.trim() === '' || UNSAFE_KEYS.has(key) || seen.has(key)) continue
-    seen.add(key)
-    fields.push({ key, label: typeof label === 'string' && label.trim() !== '' ? label : key })
-  }
-  return fields
+  return readCharacterFields(raw).fields
 }
 
 export interface HubFormPortDeps {

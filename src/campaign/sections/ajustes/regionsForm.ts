@@ -24,8 +24,9 @@ export type RegionsResult = { ok: true; regions: Region[] } | { ok: false; error
 
 export const nextUid = (rows: readonly { uid: number }[]): number => rows.reduce((max, r) => Math.max(max, r.uid), -1) + 1
 
-export function regionDrafts(regions: readonly Region[]): RegionDraft[] {
-  return regions.map((r, uid) => ({ uid, key: r.key, label: r.label, color: r.color ?? '', persisted: true }))
+/** Drafts of the stored regions. `persisted: false` marks rows that are not stored yet (the synthetic fallback). */
+export function regionDrafts(regions: readonly Region[], persisted = true): RegionDraft[] {
+  return regions.map((r, uid) => ({ uid, key: r.key, label: r.label, color: r.color ?? '', persisted }))
 }
 
 export const newRegionDraft = (rows: readonly RegionDraft[]): RegionDraft => ({ uid: nextUid(rows), key: '', label: '', color: '', persisted: false })

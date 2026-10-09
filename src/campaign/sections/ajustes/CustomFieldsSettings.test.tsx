@@ -110,4 +110,38 @@ describe('Ajustes: custom character fields section', () => {
     expect(await row('Lema de otro DM')).toBeInTheDocument()
     expect(spies.updateCampaign).toHaveBeenCalledTimes(1)
   })
+
+  describe('lossless round trip of what the editor does not own', () => {
+    it('keeps unknown properties and a non-text type of a stored field', async () => {
+      const stored = [{ key: 'nivel', label: 'Nivel', type: 'number', min: 1, hint: 'x' }, { key: 'lema', label: 'Lema', type: 'text', help: 'y' }]
+      const { spies } = setup({ fields: stored })
+      type(within(await row('Lema')).getByLabelText('Nombre del campo'), 'Lema 2')
+      await save()
+      await waitFor(() => expect(spies.updateCampaign).toHaveBeenCalledTimes(1))
+      expect(spies.updateCampaign.mock.calls[0][1]).toEqual({
+        character_custom_fields: [{ key: 'nivel', label: 'Nivel', type: 'number', min: 1, hint: 'x' }, { key: 'lema', label: 'Lema 2', type: 'text', help: 'y' }],
+      })
+    })
+
+    it('keeps unreadable stored entries verbatim at the end and says so', async () => {
+      const bad = [{ label: 'sin clave' }, 42, { key: '__proto__', label: 'x' }, { key: 'lema', label: 'Duplicado' }]
+      const { spies } = setup({ fields: [FIELDS[1], ...bad] })
+      expect(await within(await section()).findByText(/Hay 4 entradas guardadas que no se pueden leer/)).toBeInTheDocument()
+      type(within(await row('Lema')).getByLabelText('Nombre del campo'), 'Lema 2')
+      await save()
+      await waitFor(() => expect(spies.updateCampaign).toHaveBeenCalledTimes(1))
+      expect(spies.updateCampaign.mock.calls[0][1]).toEqual({ character_custom_fields: [{ key: 'lema', label: 'Lema 2', type: 'text' }, ...bad] })
+    })
+
+    it('an empty stored list plus a new field writes only the new field', async () => {
+      const { spies } = setup({ fields: [] })
+      await click('Agregar campo')
+      const fresh = await row('campo nuevo')
+      type(within(fresh).getByLabelText('Clave'), 'nuevo')
+      type(within(fresh).getByLabelText('Nombre del campo'), 'Nuevo')
+      await save()
+      await waitFor(() => expect(spies.updateCampaign).toHaveBeenCalledTimes(1))
+      expect(spies.updateCampaign.mock.calls[0][1]).toEqual({ character_custom_fields: [{ key: 'nuevo', label: 'Nuevo', type: 'text' }] })
+    })
+  })
 })
