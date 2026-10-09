@@ -1,4 +1,5 @@
 import { createDisponibilidadRepository, type Disponibilidad } from './disponibilidadRepository'
+import { createPlayerAvailabilityRepository, type PlayerAvailability } from './playerAvailabilityRepository'
 import type { GamePot, GamesRepository } from './gamesRepository'
 import type { EntityRepository } from './entityRepository'
 import { fromRow, type EntityRow } from './mappers'
@@ -15,6 +16,14 @@ export interface TableSource<T> {
   fromRow(row: Record<string, unknown>): T
   keyOfItem(item: T): string
   keyOfRow(row: Record<string, unknown>): string
+  /**
+   * Set when rows are not keyed by a plain `campaign_id` column match (player_availability has NULL =
+   * general rows, which a `campaign_id=eq.` filter can never match): INSERT/UPDATE are then
+   * subscribed WITHOUT a server-side filter (RLS still limits what arrives) and `belongsTo` drops
+   * rows that are not part of this campaign's list.
+   */
+  unfiltered?: boolean
+  belongsTo?(item: T, campaignId: string): boolean
 }
 
 export type RealtimeStatus = 'connecting' | 'live' | 'error'
@@ -48,6 +57,25 @@ export function disponibilidadRepoSource(repo: { list(campaignId: string): Promi
 
 export function disponibilidadSource(client: Db): TableSource<Disponibilidad> {
   return disponibilidadRepoSource(createDisponibilidadRepository(client))
+}
+
+export function playerAvailabilityRepoSource(repo: {
+  list(campaignId: string): Promise<PlayerAvailability[]>
+}): TableSource<PlayerAvailability> {
+  return {
+    table: 'player_availability',
+    list: (campaignId) => repo.list(campaignId),
+    fromRow: (row) => row as unknown as PlayerAvailability,
+    keyOfItem: (item) => String(item.id),
+    keyOfRow: (row) => String(row.id),
+    unfiltered: true,
+    // general rows (campaign_id null; a partial payload without it is kept) belong to every campaign's list; pinned ones to their own
+    belongsTo: (item, campaignId) => item.campaign_id == null || item.campaign_id === campaignId,
+  }
+}
+
+export function playerAvailabilitySource(client: Db): TableSource<PlayerAvailability> {
+  return playerAvailabilityRepoSource(createPlayerAvailabilityRepository(client))
 }
 
 /**
@@ -89,15 +117,23 @@ export function subscribeToTable<T>(
   campaignId: string,
   handlers: TableHandlers<T>,
 ): () => void {
-  const filter = `campaign_id=eq.${campaignId}`
+  const filter = source.unfiltered ? undefined : `campaign_id=eq.${campaignId}`
+  const filterOf = filter ? { filter } : {}
   const base = { schema: 'public', table: source.table } as const
-  const upsert = (event: 'INSERT' | 'UPDATE') => (payload: { new: Record<string, unknown> }) =>
-    handlers.onUpsert(source.fromRow(payload.new), event)
+  const upsert = (event: 'INSERT' | 'UPDATE') => (payload: { new: Record<string, unknown> }) => {
+    const item = source.fromRow(payload.new)
+    if (source.belongsTo && !source.belongsTo(item, campaignId)) {
+      // an UPDATE can move a row out of this campaign's list (re-pinned elsewhere): drop the stale copy
+      if (event === 'UPDATE') handlers.onDelete(source.keyOfItem(item))
+      return
+    }
+    handlers.onUpsert(item, event)
+  }
 
   const channel = client
     .channel(`campaign:${source.table}:${campaignId}:${++channelCounter}`)
-    .on('postgres_changes', { ...base, event: 'INSERT', filter }, upsert('INSERT'))
-    .on('postgres_changes', { ...base, event: 'UPDATE', filter }, upsert('UPDATE'))
+    .on('postgres_changes', { ...base, event: 'INSERT', ...filterOf }, upsert('INSERT'))
+    .on('postgres_changes', { ...base, event: 'UPDATE', ...filterOf }, upsert('UPDATE'))
     .on('postgres_changes', { ...base, event: 'DELETE' }, (payload: { old: Record<string, unknown> }) =>
       handlers.onDelete(source.keyOfRow(payload.old)),
     )

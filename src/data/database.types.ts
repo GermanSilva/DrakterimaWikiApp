@@ -219,10 +219,8 @@ export type Database = {
       disponibilidad: {
         Row: {
           campaign_id: string
-          character_id: number | null
           created_at: string
           created_by: string | null
-          fecha: string | null
           fecha_fin: string | null
           fecha_inicio: string | null
           hora_fin: string | null
@@ -233,10 +231,8 @@ export type Database = {
         }
         Insert: {
           campaign_id: string
-          character_id?: number | null
           created_at?: string
           created_by?: string | null
-          fecha?: string | null
           fecha_fin?: string | null
           fecha_inicio?: string | null
           hora_fin?: string | null
@@ -247,10 +243,8 @@ export type Database = {
         }
         Update: {
           campaign_id?: string
-          character_id?: number | null
           created_at?: string
           created_by?: string | null
-          fecha?: string | null
           fecha_fin?: string | null
           fecha_inicio?: string | null
           hora_fin?: string | null
@@ -266,13 +260,6 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "campaigns"
             referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "disponibilidad_character_fk"
-            columns: ["character_id", "campaign_id"]
-            isOneToOne: false
-            referencedRelation: "pjs"
-            referencedColumns: ["id", "campaign_id"]
           },
           {
             foreignKeyName: "disponibilidad_created_by_fkey"
@@ -928,6 +915,63 @@ export type Database = {
           },
         ]
       }
+      player_availability: {
+        Row: {
+          campaign_id: string | null
+          created_at: string
+          fecha: string | null
+          fecha_fin: string | null
+          fecha_inicio: string | null
+          hora_fin: string | null
+          hora_inicio: string | null
+          id: number
+          tipo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string
+          fecha?: string | null
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
+          hora_fin?: string | null
+          hora_inicio?: string | null
+          id?: number
+          tipo: string
+          updated_at?: string
+          user_id?: string
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string
+          fecha?: string | null
+          fecha_fin?: string | null
+          fecha_inicio?: string | null
+          hora_fin?: string | null
+          hora_inicio?: string | null
+          id?: number
+          tipo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "player_availability_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "player_availability_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       player_notes: {
         Row: {
           campaign_id: string
@@ -1184,6 +1228,20 @@ export type Database = {
       assign_pot_to_character: {
         Args: { p_campaign_id: string; p_character_id: number; p_coins: Json }
         Returns: Json
+      }
+      campaign_busy_slots: {
+        Args: { p_campaign_id: string }
+        Returns: {
+          fecha_fin: string
+          fecha_inicio: string
+          hora_fin: string
+          hora_inicio: string
+          user_id: string
+        }[]
+      }
+      campaign_has_member: {
+        Args: { cid: string; uid: string }
+        Returns: boolean
       }
       can_see_entity: {
         Args: { cid: string; estado: string; visible_to: number[] }

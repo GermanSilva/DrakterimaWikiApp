@@ -1,7 +1,7 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { createEntityRepository } from './entityRepository'
-import { disponibilidadSource, entitySource, type TableSource } from './realtime'
+import { disponibilidadSource, entitySource, playerAvailabilitySource, type TableSource } from './realtime'
 import { createFakeClient } from './testing/fakeClient'
 import { useCampaignTable } from './useCampaignTable'
 
@@ -182,5 +182,16 @@ describe('sources', () => {
     expect(source.keyOfRow({ id: 12 })).toBe('12')
     expect(source.keyOfItem({ id: 12 } as never)).toBe('12')
     expect(source.fromRow({ id: 12, tipo: 'sesion' })).toMatchObject({ id: 12, tipo: 'sesion' })
+  })
+
+  it('playerAvailabilitySource keeps general rows and rows pinned to the campaign, nothing else', () => {
+    const source = playerAvailabilitySource(createFakeClient().db)
+    expect(source.table).toBe('player_availability')
+    expect(source.unfiltered).toBe(true)
+    expect(source.keyOfRow({ id: 12 })).toBe('12')
+    const item = (campaign_id: string | null) => ({ id: 1, campaign_id }) as never
+    expect(source.belongsTo!(item(null), 'c1')).toBe(true)
+    expect(source.belongsTo!(item('c1'), 'c1')).toBe(true)
+    expect(source.belongsTo!(item('c2'), 'c1')).toBe(false)
   })
 })

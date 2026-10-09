@@ -38,7 +38,7 @@ UI code should call `createDataLayer()` / the hook, never `supabase.from(...)` d
   `updated_at`, `created_by` (read-only). `id`, server-managed fields, `visible_to` and the legacy
   `visibilidad` are dropped when writing. `''` is written as NULL for the nullable promoted columns
   (`NULLABLE_COLUMNS`: sesiones.numero/fecha, pjs.owner_id, map_points.link_type/link_id; disponibilidad
-  date/time/character columns); `sesiones.fecha` reads back as `''`.
+  and player_availability date/time columns); `sesiones.fecha` reads back as `''`.
 - Errors: `DataError.kind` follows the SQLSTATE; `DataError.reason` carries the stable code of our own
   functions (`KNOWN_REASONS`: invite_expired, not_a_member, not_your_character, dm_only,
   already_played_today, ...) whether it arrived as P0001, 42501 or 23514. A write whose
@@ -75,7 +75,9 @@ every `SUBSCRIBED` (initial join and each reconnect), so changes between snapsho
 outage, are not lost and rows that became invisible meanwhile disappear. Changes arriving during a load are
 buffered and replayed; only the latest load wins. `CHANNEL_ERROR` / `TIMED_OUT` / `CLOSED` set
 `realtime: 'error'` (data may be stale until the next SUBSCRIBED); `reload()` forces a re-list. `source`,
-`client` and `sort` must be referentially stable. Sources: `entitySource(repo)`, `disponibilidadSource(client)`.
+`client` and `sort` must be referentially stable. Sources: `entitySource(repo)`, `disponibilidadSource(client)` (session slots only),
+`playerAvailabilitySource(client)` (per-user availability; `unfiltered` + `belongsTo`: general rows have
+`campaign_id` NULL, which a `campaign_id=eq.` Realtime filter can never match, so RLS limits what arrives).
 
 - UPDATE payloads are MERGED onto the previous copy (large unchanged columns may be omitted by Realtime);
   INSERT replaces.

@@ -221,8 +221,6 @@ export const DISPONIBILIDAD_COLUMNS = [
   'id',
   'campaign_id',
   'tipo',
-  'character_id',
-  'fecha',
   'fecha_inicio',
   'fecha_fin',
   'hora_inicio',
@@ -233,11 +231,31 @@ export const DISPONIBILIDAD_COLUMNS = [
 ] as const
 
 /** Nullable columns of disponibilidad ('' is written as NULL). */
-export const DISPONIBILIDAD_NULLABLE = ['character_id', 'fecha', 'fecha_inicio', 'fecha_fin', 'hora_inicio', 'hora_fin'] as const
+export const DISPONIBILIDAD_NULLABLE = ['fecha_inicio', 'fecha_fin', 'hora_inicio', 'hora_fin'] as const
 
-export const DISPONIBILIDAD_WRITE_COLUMNS = [
+export const DISPONIBILIDAD_WRITE_COLUMNS = ['tipo', 'fecha_inicio', 'fecha_fin', 'hora_inicio', 'hora_fin'] as const
+
+export const PLAYER_AVAILABILITY_COLUMNS = [
+  'id',
+  'user_id',
+  'campaign_id',
   'tipo',
-  'character_id',
+  'fecha',
+  'fecha_inicio',
+  'fecha_fin',
+  'hora_inicio',
+  'hora_fin',
+  'created_at',
+  'updated_at',
+] as const
+
+/** Nullable columns of player_availability ('' is written as NULL; campaign_id NULL = general). */
+export const PLAYER_AVAILABILITY_NULLABLE = ['campaign_id', 'fecha', 'fecha_inicio', 'fecha_fin', 'hora_inicio', 'hora_fin'] as const
+
+/** user_id is never writable: the server fills it with the caller. */
+export const PLAYER_AVAILABILITY_WRITE_COLUMNS = [
+  'campaign_id',
+  'tipo',
   'fecha',
   'fecha_inicio',
   'fecha_fin',
@@ -288,6 +306,8 @@ export const COLUMN_LIST_ENTRIES: readonly ColumnListEntry[] = [
   { name: 'read_state', table: 'read_state', columns: READ_STATE_COLUMNS },
   { name: 'disponibilidad', table: 'disponibilidad', columns: DISPONIBILIDAD_COLUMNS },
   { name: 'disponibilidad_write', table: 'disponibilidad', columns: DISPONIBILIDAD_WRITE_COLUMNS },
+  { name: 'player_availability', table: 'player_availability', columns: PLAYER_AVAILABILITY_COLUMNS },
+  { name: 'player_availability_write', table: 'player_availability', columns: PLAYER_AVAILABILITY_WRITE_COLUMNS },
   { name: 'campaign_config', table: 'campaign_config', columns: CAMPAIGN_CONFIG_COLUMNS },
   { name: 'game_logs', table: 'game_logs', columns: GAME_LOG_COLUMNS },
   { name: 'game_pot', table: 'game_pot', columns: GAME_POT_COLUMNS },

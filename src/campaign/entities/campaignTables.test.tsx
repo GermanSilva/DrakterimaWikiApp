@@ -1,14 +1,19 @@
 import { act, renderHook, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { Disponibilidad, GamePot } from '../../data'
+import type { Disponibilidad, GamePot, PlayerAvailability } from '../../data'
 import { CampaignTestProviders, createFakeLayer } from '../testing/fakeLayer'
 import { TableStore } from './tableStore'
 import { useDisponibilidad } from './useDisponibilidad'
 import { useGamePot } from './useGamePot'
+import { usePlayerAvailability } from './usePlayerAvailability'
 
 const dispo = (id: number, over: Partial<Disponibilidad> = {}): Disponibilidad => ({
-  id, campaign_id: 'c1', tipo: 'personal', character_id: 1, fecha: '2026-03-01', fecha_inicio: null, fecha_fin: null,
-  hora_inicio: null, hora_fin: null, created_by: null, created_at: '', updated_at: '', ...over,
+  id, campaign_id: 'c1', tipo: 'sesion', fecha_inicio: '2026-03-01', fecha_fin: '2026-03-01',
+  hora_inicio: '18:00', hora_fin: '22:00', created_by: null, created_at: '', updated_at: '', ...over,
+})
+const avail = (id: number, over: Partial<PlayerAvailability> = {}): PlayerAvailability => ({
+  id, user_id: 'u1', campaign_id: null, tipo: 'no_disponible', fecha: '2026-03-01', fecha_inicio: null, fecha_fin: null,
+  hora_inicio: null, hora_fin: null, created_at: '', updated_at: '', ...over,
 })
 const POT: GamePot = { campaign_id: 'c1', cp: 5, sp: 0, ep: 0, gp: 12, pp: 0, updated_at: '2026-01-01T00:00:00Z' }
 
@@ -33,8 +38,8 @@ describe('useDisponibilidad', () => {
     const channel = channelOf(fake, 'disponibilidad')
     act(() => channel.emit('INSERT', { new: dispo(2) }))
     expect(result.current.items.map((d) => d.id)).toEqual([1, 2, 3])
-    act(() => channel.emit('UPDATE', { new: dispo(2, { tipo: 'no_disponible' }) }))
-    expect(result.current.items.find((d) => d.id === 2)?.tipo).toBe('no_disponible')
+    act(() => channel.emit('UPDATE', { new: dispo(2, { hora_fin: '23:00' }) }))
+    expect(result.current.items.find((d) => d.id === 2)?.hora_fin).toBe('23:00')
     act(() => channel.emit('DELETE', { old: { id: 1 } }))
     expect(result.current.items.map((d) => d.id)).toEqual([2, 3])
   })
@@ -67,6 +72,44 @@ describe('useDisponibilidad', () => {
     const { wrapper, fake } = setup()
     renderHook(() => useDisponibilidad({ enabled: false }), { wrapper })
     expect(fake.channels).toHaveLength(0)
+  })
+})
+
+describe('usePlayerAvailability', () => {
+  it('lists general and pinned rows in id order and follows realtime changes of this campaign only', async () => {
+    const { wrapper, fake } = setup({ playerAvailability: [avail(3), avail(1, { campaign_id: 'c1' })] })
+    const { result } = renderHook(() => usePlayerAvailability(), { wrapper })
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.items.map((d) => d.id)).toEqual([1, 3])
+
+    const channel = channelOf(fake, 'player_availability')
+    // INSERT / UPDATE are subscribed without a campaign filter: a general row (NULL) can never match one
+    const configs = channel.listeners.filter((l) => l.filter.event !== 'DELETE').map((l) => l.filter)
+    expect(configs).toHaveLength(2)
+    for (const c of configs) expect(c).not.toHaveProperty('filter')
+
+    act(() => channel.emit('INSERT', { new: avail(2) }))
+    act(() => channel.emit('INSERT', { new: avail(7, { campaign_id: 'other' }) }))
+    expect(result.current.items.map((d) => d.id)).toEqual([1, 2, 3])
+    act(() => channel.emit('UPDATE', { new: avail(2, { campaign_id: 'c1', fecha: '2026-04-01' }) }))
+    expect(result.current.items.find((d) => d.id === 2)?.fecha).toBe('2026-04-01')
+    // re-pinned to another campaign: it leaves this campaign's list
+    act(() => channel.emit('UPDATE', { new: avail(2, { campaign_id: 'other' }) }))
+    expect(result.current.items.map((d) => d.id)).toEqual([1, 3])
+    act(() => channel.emit('DELETE', { old: { id: 1 } }))
+    expect(result.current.items.map((d) => d.id)).toEqual([3])
+  })
+
+  it('shares one channel between readers and does not subscribe when disabled', async () => {
+    const { wrapper, fake, spies } = setup({ playerAvailability: [avail(1)] })
+    const { result } = renderHook(() => ({ a: usePlayerAvailability(), b: usePlayerAvailability() }), { wrapper })
+    await waitFor(() => expect(result.current.a.loading).toBe(false))
+    expect(fake.channels.filter((c) => c.name.startsWith('campaign:player_availability:'))).toHaveLength(1)
+    expect(spies.playerAvailabilityList).toHaveBeenCalledTimes(1)
+
+    const off = setup()
+    renderHook(() => usePlayerAvailability({ enabled: false }), { wrapper: off.wrapper })
+    expect(off.fake.channels).toHaveLength(0)
   })
 })
 
@@ -105,14 +148,17 @@ describe('useGamePot', () => {
 })
 
 describe('TableStore generic specs', () => {
-  it('are referentially stable, keyed dispo / pot, and separate subscriptions', () => {
+  it('are referentially stable, keyed dispo / pavail / pot, and separate subscriptions', () => {
     const store = new TableStore(createFakeLayer().layer, 'c1')
     expect(store.disponibilidadSpec()).toBe(store.disponibilidadSpec())
     expect(store.gamePotSpec()).toBe(store.gamePotSpec())
     expect(store.disponibilidadSpec().key).toBe('dispo')
     expect(store.gamePotSpec().key).toBe('pot')
+    expect(store.playerAvailabilitySpec()).toBe(store.playerAvailabilitySpec())
+    expect(store.playerAvailabilitySpec().key).toBe('pavail')
     store.retain(store.disponibilidadSpec())
     store.retain(store.gamePotSpec())
-    expect(store.activeCount).toBe(2)
+    store.retain(store.playerAvailabilitySpec())
+    expect(store.activeCount).toBe(3)
   })
 })

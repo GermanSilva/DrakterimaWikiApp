@@ -9,8 +9,9 @@ export interface UseDisponibilidadOptions {
 }
 
 /**
- * Realtime list of the campaign's availability rows (id order). All callers share ONE channel; RLS
- * decides what each member receives, nothing is filtered here.
+ * Realtime list of the campaign's SESSION slots (`disponibilidad`, id order). Personal availability
+ * is per player: see `usePlayerAvailability`. All callers share ONE channel; RLS decides what each
+ * member receives, nothing is filtered here.
  */
 export function useDisponibilidad(options: UseDisponibilidadOptions = {}): TableSnapshot<Disponibilidad> {
   const { store } = useCampaignServices()

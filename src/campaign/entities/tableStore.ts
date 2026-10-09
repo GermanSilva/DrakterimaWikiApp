@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import {
   disponibilidadRepoSource,
+  playerAvailabilityRepoSource,
   entitySource,
   gamePotSource,
   wikiIndexSource,
@@ -8,6 +9,7 @@ import {
   type CampaignTableState,
   type DataLayer,
   type Disponibilidad,
+  type PlayerAvailability,
   type EntityTable,
   type FlatEntity,
   type GamePot,
@@ -21,7 +23,7 @@ import { ENTITY_SORT } from './sort'
 export type TableSnapshot<T> = CampaignTableState<T>
 
 export interface TableSpec<T = unknown> {
-  /** Unique key of the subscription: `entity:<table>`, `index:<table>`, `dispo` or `pot`. */
+  /** Unique key of the subscription: `entity:<table>`, `index:<table>`, `dispo`, `pavail` or `pot`. */
   key: string
   source: TableSource<T>
   sort?: (a: T, b: T) => number
@@ -55,6 +57,7 @@ export class TableStore {
   private entitySpecs = new Map<EntityTable, TableSpec<FlatEntity>>()
   private indexSpecs = new Map<WikiIndexTable, TableSpec<WikiIndexItem>>()
   private dispoSpec: TableSpec<Disponibilidad> | null = null
+  private playerAvailSpec: TableSpec<PlayerAvailability> | null = null
   private potSpec: TableSpec<GamePot> | null = null
   /** Stable array of the index specs of every wiki table. */
   readonly allIndexSpecs: readonly TableSpec<WikiIndexItem>[]
@@ -89,7 +92,7 @@ export class TableStore {
     return spec
   }
 
-  /** Referentially stable spec of the campaign's availability rows (key `dispo`, id order). */
+  /** Referentially stable spec of the campaign's session slots (key `dispo`, id order). */
   disponibilidadSpec(): TableSpec<Disponibilidad> {
     this.dispoSpec ??= {
       key: 'dispo',
@@ -97,6 +100,19 @@ export class TableStore {
       sort: (a, b) => a.id - b.id,
     }
     return this.dispoSpec
+  }
+
+  /**
+   * Referentially stable spec of the player availability visible in this campaign: the caller's own
+   * and campaign mates' rows, general (campaign_id null) plus pinned to this campaign (key `pavail`).
+   */
+  playerAvailabilitySpec(): TableSpec<PlayerAvailability> {
+    this.playerAvailSpec ??= {
+      key: 'pavail',
+      source: playerAvailabilityRepoSource(this.layer.playerAvailability),
+      sort: (a, b) => a.id - b.id,
+    }
+    return this.playerAvailSpec
   }
 
   /** Referentially stable spec of the single-row coin pot (key `pot`). */

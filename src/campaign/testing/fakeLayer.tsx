@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { vi } from 'vitest'
 import { AuthContext } from '../../auth/AuthContext'
 import { makeAuth, makeCampaign } from '../../app/testing/renderApp'
-import { ConflictError, type DataLayer, type Disponibilidad, type FlatEntity, type GameLog, type GamePot, type PlayerNote, type WikiIndexItem } from '../../data'
+import { ConflictError, type DataLayer, type Disponibilidad, type FlatEntity, type GameLog, type GamePot, type PlayerAvailability, type PlayerNote, type WikiIndexItem } from '../../data'
 import { createFakeClient } from '../../data/testing/fakeClient'
 import { UnreadPortContext, type UnreadPort } from '../../ports'
 import { CampaignContext, type CampaignContextValue } from '../CampaignContext'
@@ -15,7 +15,10 @@ export interface FakeLayerOptions {
   index?: Record<string, WikiIndexItem[]>
   dmNotes?: Record<string, { notas: string; secreto: string; ganchos: string }>
   visibility?: Record<number, number[]>
+  /** Session slots. */
   disponibilidad?: Disponibilidad[]
+  /** Player availability rows as the server would return them for the campaign. */
+  playerAvailability?: PlayerAvailability[]
   /** The campaign pot row (null/undefined = no prize yet). */
   pot?: GamePot | null
   gameLogs?: GameLog[]
@@ -69,6 +72,7 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
     return rowOf(key)
   })
   const disponibilidadList = vi.fn(async () => options.disponibilidad ?? [])
+  const playerAvailabilityList = vi.fn(async () => options.playerAvailability ?? [])
   const potGet = vi.fn(async () => options.pot ?? null)
   const gameLogsList = vi.fn(async () => options.gameLogs ?? [])
   const playerNotesList = vi.fn(async () => options.playerNotes ?? [])
@@ -87,10 +91,17 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
     readState: { list: vi.fn(async () => []), markSeen: vi.fn(async () => undefined) },
     config: { get: configGet, patch: configPatch },
     disponibilidad: { list: disponibilidadList, create: vi.fn(), update: vi.fn(), remove: vi.fn(async () => undefined) },
+    playerAvailability: {
+      list: playerAvailabilityList,
+      create: vi.fn(),
+      update: vi.fn(),
+      remove: vi.fn(async () => undefined),
+      busySlots: vi.fn(async () => []),
+    },
     games: { getPot: potGet, listLogs: gameLogsList, playLoteria: vi.fn(), assignPotToCharacter: vi.fn(), removeLog: vi.fn(async () => undefined) },
     playerNotes: { list: playerNotesList, upsert: vi.fn(), update: vi.fn(), remove: vi.fn() },
   } as unknown as DataLayer
-  return { layer, fake, spies: { disponibilidadList, potGet, gameLogsList, playerNotesList, configGet, configPatch, configRows, entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
+  return { layer, fake, spies: { disponibilidadList, playerAvailabilityList, potGet, gameLogsList, playerNotesList, configGet, configPatch, configRows, entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
 }
 
 export const fakeUnread = (): UnreadPort & { markRead: ReturnType<typeof vi.fn> } => ({

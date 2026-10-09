@@ -5,12 +5,11 @@ import { pagedList } from './pagedList'
 import type { Db } from './types'
 import { throwZeroRows } from './zeroRows'
 
+/** A DM-created session slot. Personal availability lives in player_availability. */
 export interface Disponibilidad {
   id: number
   campaign_id: string
-  tipo: 'sesion' | 'personal' | 'no_disponible'
-  character_id: number | null
-  fecha: string | null
+  tipo: 'sesion'
   fecha_inicio: string | null
   fecha_fin: string | null
   hora_inicio: string | null

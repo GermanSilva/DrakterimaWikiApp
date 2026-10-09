@@ -3,6 +3,7 @@ import { createCampaignRepository } from './campaignRepository'
 import { CAMPAIGN_COLUMNS, DM_NOTES_COLUMNS, join } from './columns'
 import { createConfigRepository } from './configRepository'
 import { createDisponibilidadRepository } from './disponibilidadRepository'
+import { createPlayerAvailabilityRepository } from './playerAvailabilityRepository'
 import { createDmNotesRepository } from './dmNotesRepository'
 import { ConflictError } from './errors'
 import { createGamesRepository } from './gamesRepository'
@@ -190,8 +191,60 @@ describe('player notes / read state / disponibilidad', () => {
     const fake = createFakeClient()
     const repo = createDisponibilidadRepository(fake.db)
     fake.enqueue({ data: { id: 1 } })
-    await repo.create('c1', { tipo: 'no_disponible', fecha: '2026-01-01', id: 5, created_by: 'x' } as never)
-    expect(opsNamed(fake.calls[0], 'insert')).toEqual([[{ tipo: 'no_disponible', fecha: '2026-01-01', campaign_id: 'c1' }]])
+    await repo.create('c1', { tipo: 'sesion', hora_inicio: '18:00', id: 5, created_by: 'x', character_id: 3 } as never)
+    expect(opsNamed(fake.calls[0], 'insert')).toEqual([[{ tipo: 'sesion', hora_inicio: '18:00', campaign_id: 'c1' }]])
+  })
+})
+
+const CAMPAIGN = '0b0f4a63-1f3e-4a4c-9d0a-2d6a4f7d1c11'
+
+describe('player availability repository', () => {
+  it('lists general rows plus the rows pinned to the campaign, with explicit columns and paging', async () => {
+    const fake = createFakeClient()
+    fake.enqueue({ data: [{ id: 1 }] }, { data: [] })
+    const out = await createPlayerAvailabilityRepository(fake.db).list(CAMPAIGN)
+    expect(out).toEqual([{ id: 1 }])
+    expect(fake.calls[0].name).toBe('player_availability')
+    expect(opsNamed(fake.calls[0], 'or')).toEqual([[`campaign_id.is.null,campaign_id.eq.${CAMPAIGN}`]])
+    expect(opsNamed(fake.calls[0], 'select')[0][0]).not.toContain('*')
+    expect(fake.calls.map((c) => opsNamed(c, 'range')[0])).toEqual([[0, 999], [1, 1000]])
+  })
+
+  it('refuses a campaign id that is not a uuid (it is interpolated into an or filter)', async () => {
+    const fake = createFakeClient()
+    await expect(createPlayerAvailabilityRepository(fake.db).list('x,campaign_id.not.is.null')).rejects.toMatchObject({ kind: 'validation' })
+    expect(fake.calls).toHaveLength(0)
+  })
+
+  it('writes only writable columns (never user_id), maps "" to null and allows a general row', async () => {
+    const fake = createFakeClient()
+    const repo = createPlayerAvailabilityRepository(fake.db)
+    fake.enqueue({ data: { id: 1 } }, { data: { id: 1 } })
+    await repo.create({ tipo: 'no_disponible', fecha: '2026-01-01', campaign_id: '', id: 5, user_id: 'evil' } as never)
+    expect(opsNamed(fake.calls[0], 'insert')).toEqual([[{ tipo: 'no_disponible', fecha: '2026-01-01', campaign_id: null }]])
+    await repo.update(1, { campaign_id: CAMPAIGN, user_id: 'evil' } as never)
+    expect(opsNamed(fake.calls[1], 'update')).toEqual([[{ campaign_id: CAMPAIGN }]])
+  })
+
+  it('update / remove with zero rows are permission when the row is readable, not_found otherwise', async () => {
+    const fake = createFakeClient()
+    const repo = createPlayerAvailabilityRepository(fake.db)
+    fake.enqueue({ data: null }, { data: [{ id: 3 }] })
+    await expect(repo.update(3, { fecha: '2026-01-01' })).rejects.toMatchObject({ kind: 'permission' })
+    fake.enqueue({ data: [] }, { data: [] })
+    await expect(repo.remove(3)).rejects.toMatchObject({ kind: 'not_found' })
+  })
+
+  it('busySlots calls the RPC with the campaign and maps a non-member refusal to a permission error', async () => {
+    const fake = createFakeClient()
+    const repo = createPlayerAvailabilityRepository(fake.db)
+    fake.enqueue({ data: [{ user_id: 'u2', fecha_inicio: '2030-01-02', fecha_fin: '2030-01-02', hora_inicio: '14:00:00', hora_fin: '16:00:00' }] })
+    expect(await repo.busySlots(CAMPAIGN)).toHaveLength(1)
+    expect(fake.calls[0]).toMatchObject({ kind: 'rpc', name: 'campaign_busy_slots', args: { p_campaign_id: CAMPAIGN } })
+    fake.enqueue({ error: { message: 'not_a_member', code: '42501' } })
+    await expect(repo.busySlots(CAMPAIGN)).rejects.toMatchObject({ kind: 'permission', reason: 'not_a_member' })
+    fake.enqueue({ data: null })
+    expect(await repo.busySlots(CAMPAIGN)).toEqual([])
   })
 })
 
@@ -339,17 +392,17 @@ describe('disponibilidad coercion and zero-row handling', () => {
   it("writes '' as null for nullable columns", async () => {
     const fake = createFakeClient()
     fake.enqueue({ data: { id: 1 } })
-    await createDisponibilidadRepository(fake.db).create('c1', { tipo: 'sesion', fecha: '', hora_inicio: '' })
-    expect(opsNamed(fake.calls[0], 'insert')[0][0]).toEqual({ tipo: 'sesion', fecha: null, hora_inicio: null, campaign_id: 'c1' })
+    await createDisponibilidadRepository(fake.db).create('c1', { tipo: 'sesion', fecha_inicio: '', hora_inicio: '' })
+    expect(opsNamed(fake.calls[0], 'insert')[0][0]).toEqual({ tipo: 'sesion', fecha_inicio: null, hora_inicio: null, campaign_id: 'c1' })
   })
 
   it('update with zero rows is permission when the row exists, not_found otherwise', async () => {
     const fake = createFakeClient()
     const repo = createDisponibilidadRepository(fake.db)
     fake.enqueue({ data: null }, { data: [{ id: 3 }] })
-    await expect(repo.update(3, { fecha: '2026-01-01' })).rejects.toMatchObject({ kind: 'permission' })
+    await expect(repo.update(3, { hora_fin: '23:00' })).rejects.toMatchObject({ kind: 'permission' })
     fake.enqueue({ data: null }, { data: [] })
-    await expect(repo.update(3, { fecha: '2026-01-01' })).rejects.toMatchObject({ kind: 'not_found' })
+    await expect(repo.update(3, { hora_fin: '23:00' })).rejects.toMatchObject({ kind: 'not_found' })
   })
 
   it('removeLog and leaveCampaign disambiguate zero rows too', async () => {
