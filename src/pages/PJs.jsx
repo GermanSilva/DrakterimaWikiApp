@@ -28,6 +28,7 @@ export default function PJs() {
           pj={pj}
           notas={pj.notas ?? ''}
           isDM={isDM}
+          motivoLabel="Motivación · Gremio"
           back={<button className={btnSecondary} onClick={() => setSelectedId(null)}>← Volver</button>}
           actions={
             isDM ? (

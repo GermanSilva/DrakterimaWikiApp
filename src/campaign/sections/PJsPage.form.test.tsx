@@ -52,6 +52,18 @@ const updateCall = (spies: ReturnType<typeof createFakeLayer>['spies']) => {
 }
 
 describe('PJ form: DM', () => {
+  it('offers the campaign custom fields and a neutral motivation label, not the hard-coded guild wording', async () => {
+    const { layer } = createFakeLayer({ entities: { pjs: [ELDRIC] }, dmNotes: {}, visibility: {} })
+    renderSection('/c/demo/pjs/1', { layer, regions: REGIONS, customFields: [{ key: 'ancestro', label: 'Ancestro famoso', type: 'text' }] })
+    await screen.findByRole('heading', { level: 1, name: 'Eldric' })
+    fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
+    await screen.findByRole('dialog')
+    expect(within(dialogEl()).getByText('Motivación')).toBeInTheDocument()
+    expect(within(dialogEl()).getByLabelText('Ancestro famoso')).toBeInTheDocument()
+    expect(within(dialogEl()).queryByText(/Gremio/)).toBeNull()
+    expect(within(dialogEl()).queryByLabelText('Relación con la Magralita')).toBeNull()
+  })
+
   it('edit offers the three tabs, saves only what changed and stamps the sections it touched', async () => {
     const { layer, spies } = createFakeLayer({ entities: { pjs: [ELDRIC] }, dmNotes: {}, visibility: { 1: [3] } })
     renderSection('/c/demo/pjs/1', { layer, regions: REGIONS, customFields: FIELDS })

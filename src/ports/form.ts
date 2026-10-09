@@ -42,6 +42,8 @@ export interface FormPort {
   ownCharacterIds?: readonly number[]
   /** Extra character fields to offer in the PJ form (default: none). */
   characterFields?: readonly CharacterField[]
+  /** Label of the narrative `motivo` field (default "Motivación"; the legacy Drakterima app keeps its guild wording). */
+  motivoLabel?: string
   /** Legacy only: the password-based player access of the Firebase app (hub: false, replaced by Auth). */
   playerAccess?: boolean
 }

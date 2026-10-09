@@ -52,6 +52,16 @@ describe('dashboard tagline', () => {
     expect(await screen.findByText('Que empiece la aventura')).toBeInTheDocument()
   })
 
+  it.each([
+    ['missing', {}],
+    ['empty', { tagline: '' }],
+    ['whitespace-only', { tagline: '   	 ' }],
+  ])('renders nothing for a %s tagline', async (_name, branding) => {
+    const { container } = renderApp('/c/demo', { data: dataFor(makeCampaign({ branding })) })
+    await screen.findByRole('heading', { level: 1, name: 'Demo' })
+    expect(container.querySelector('p.italic')).toBeNull()
+  })
+
   it('ignores a non-string tagline', async () => {
     const { container } = renderApp('/c/demo', { data: dataFor(makeCampaign({ branding: { tagline: { x: 1 } } })) })
     await screen.findByRole('heading', { level: 1, name: 'Demo' })

@@ -3,7 +3,7 @@ import UnreadDot from '../../../components/UnreadDot'
 import { sectionTitleCls, detailTextCls, detailSectionCls } from '../../../constants'
 import { LEGACY_CHARACTER_FIELDS, customFieldValue } from '../../../helpers/pjCustomFields'
 
-export default function PJNarrativeSection({ pj, unread, customFields = LEGACY_CHARACTER_FIELDS }) {
+export default function PJNarrativeSection({ pj, unread, customFields = LEGACY_CHARACTER_FIELDS, motivoLabel = 'Motivación' }) {
   return (
     <div id="pj-section-narrativa" className="grid grid-cols-2 gap-0 gap-x-8 max-md:grid-cols-1">
       <div>
@@ -15,7 +15,7 @@ export default function PJNarrativeSection({ pj, unread, customFields = LEGACY_C
         )}
         {pj.motivo && (
           <div className={detailSectionCls}>
-            <div className={sectionTitleCls}>Motivación · Gremio<UnreadDot unread={unread} className="ml-2 inline-block align-middle" /></div>
+            <div className={sectionTitleCls}>{motivoLabel}<UnreadDot unread={unread} className="ml-2 inline-block align-middle" /></div>
             <div className={detailTextCls}><WikiText text={pj.motivo} /></div>
           </div>
         )}

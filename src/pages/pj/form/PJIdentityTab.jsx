@@ -13,7 +13,7 @@ function Separator({ label }) {
 export default function PJIdentityTab({ f, setF, isDM, isOwnPlayer }) {
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
   const { activeFieldRef } = useFormActions()
-  const { regions, characterFields = [] } = useFormPort()
+  const { regions, characterFields = [], motivoLabel = 'Motivación' } = useFormPort()
 
   return (
     <div>
@@ -97,7 +97,7 @@ export default function PJIdentityTab({ f, setF, isDM, isOwnPlayer }) {
       <Separator label="Trasfondo & Campaña" />
       <FormGroup><label className={labelCls}>Trasfondo / Historia</label><textarea className={`${inputCls} resize-y min-h-[90px]`} rows={4} value={f.trasfondo} onChange={set('trasfondo')}
         onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'trasfondo' } }} /></FormGroup>
-      <FormGroup><label className={labelCls}>Motivación para unirse al Gremio</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={2} value={f.motivo} onChange={set('motivo')}
+      <FormGroup><label className={labelCls}>{motivoLabel}</label><textarea className={`${inputCls} resize-y min-h-[70px]`} rows={2} value={f.motivo} onChange={set('motivo')}
         onFocus={e => { activeFieldRef.current = { el: e.target, setter: setF, key: 'motivo' } }} /></FormGroup>
       {characterFields.map(field => {
         // legacy: flat key on the document; hub: a key of data.custom_fields

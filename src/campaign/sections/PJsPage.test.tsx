@@ -354,6 +354,17 @@ describe('PJ detail', () => {
     expect(within(document.getElementById('pj-section-apariencia') as HTMLElement).getByText('Calmo')).toBeInTheDocument()
   })
 
+  it('titles the narrative with the campaign fields and a neutral motivation label, never the legacy guild wording', async () => {
+    const { layer } = createFakeLayer({ entities: { pjs: [FULL] } })
+    renderSection('/c/demo/pjs/1', { layer, customFields: [{ key: 'magralita', label: 'Ancestro famoso', type: 'text' }] })
+    await screen.findByRole('heading', { level: 1, name: 'Eldric' })
+    const narrativa = document.getElementById('pj-section-narrativa') as HTMLElement
+    expect(within(narrativa).getByText('Motivación')).toBeInTheDocument()
+    expect(within(narrativa).getByText('Ancestro famoso')).toBeInTheDocument()
+    expect(within(narrativa).queryByText(/Gremio/)).toBeNull()
+    expect(within(narrativa).queryByText('Relación con la Magralita')).toBeNull()
+  })
+
   it('DM sees the DM notes block and nav button; a player never gets DM notes nor makes DM reads, and sees no edit', async () => {
     const dmNotes = { 'pjs:1': { notas: 'NOTA PRIVADA', secreto: '', ganchos: '' } }
     const dm = createFakeLayer({ entities: { pjs: [FULL] }, dmNotes })

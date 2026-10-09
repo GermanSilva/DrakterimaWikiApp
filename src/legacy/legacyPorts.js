@@ -88,6 +88,7 @@ export function createLegacyFormPort({ db, isDM, currentPlayer = null }) {
     isDM,
     ownCharacterIds: !isDM && currentPlayer ? [currentPlayer.id] : [],
     characterFields: LEGACY_CHARACTER_FIELDS,
+    motivoLabel: 'Motivación para unirse al Gremio',
     playerAccess: true,
     regions: regionOptions.map((key) => ({ key, label: regionLabel[key], color: REGION_COLOR[key] })),
     characters: (db.pjs || []).map((p) => ({ id: p.id, nombre: p.nombre, jugador: p.jugador })),

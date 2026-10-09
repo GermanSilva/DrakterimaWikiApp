@@ -33,3 +33,30 @@ describe('PJIdentityTab custom-field wiki-link setter', () => {
     expect(screen.getByLabelText('Lema')).toHaveValue('abc [[{3N}Link]]')
   })
 })
+
+describe('PJIdentityTab motivation label', () => {
+  const renderTab = (portOver = {}) => {
+    const actions = { save: vi.fn(), remove: vi.fn(), closeForm: vi.fn(), saving: false, activeFieldRef: createRef() }
+    function Host() {
+      const [f, setF] = useState(() => buildPjFormState(null, { regions: port.regions, characterFields: fields }))
+      return <PJIdentityTab f={f} setF={setF} isDM isOwnPlayer={false} />
+    }
+    render(
+      <FormActionsContext.Provider value={actions}>
+        <FormPortContext.Provider value={{ ...port, ...portOver }}>
+          <Host />
+        </FormPortContext.Provider>
+      </FormActionsContext.Provider>,
+    )
+  }
+
+  it('is neutral by default and takes the label the adapter provides (the legacy app keeps its guild wording)', () => {
+    renderTab()
+    expect(screen.getByText('Motivación')).toBeInTheDocument()
+  })
+
+  it('uses the port label when given', () => {
+    renderTab({ motivoLabel: 'Motivación para unirse al Gremio' })
+    expect(screen.getByText('Motivación para unirse al Gremio')).toBeInTheDocument()
+  })
+})

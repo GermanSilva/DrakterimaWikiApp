@@ -52,8 +52,9 @@ const SECTION_ID_PREFIX = 'pj-section-'
  * @param {import('react').ReactNode} [props.regionTag]
  * @param {string} [props.regionColor] CSS colour of the "Personaje Jugador" eyebrow
  * @param {{key: string, label: string, flat?: boolean}[]} [props.customFields] campaign character fields
+ * @param {string} [props.motivoLabel] title of the narrative `motivo` section (the narrative section defaults to "Motivación")
  */
-export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = false, back, actions = null, regionTag = null, regionColor, customFields = LEGACY_CHARACTER_FIELDS }) {
+export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = false, back, actions = null, regionTag = null, regionColor, customFields = LEGACY_CHARACTER_FIELDS, motivoLabel }) {
   const unreadPort = useUnreadPort()
 
   const visibleSections = SECTIONS.filter(s => s.show(pj))
@@ -217,7 +218,7 @@ export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = f
       </div>
 
       {visibleSections.map(({ id, Component }) => (
-        <Component key={id} pj={pj} unread={unread[id]} customFields={customFields} />
+        <Component key={id} pj={pj} unread={unread[id]} customFields={customFields} motivoLabel={motivoLabel} />
       ))}
 
       {hasDMNotes && (
