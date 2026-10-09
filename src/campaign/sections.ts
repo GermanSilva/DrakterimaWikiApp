@@ -37,6 +37,7 @@ const Homerules = lazy(() => import('./sections/HomerulesPage').then((m) => ({ d
 const PJs = lazy(() => import('./sections/PJsPage').then((m) => ({ default: m.PJsPage })))
 const PNJs = lazy(() => import('./sections/PNJsPage').then((m) => ({ default: m.PNJsPage })))
 const Mapas = lazy(() => import('./sections/MapasPage').then((m) => ({ default: m.MapasPage })))
+const Calendario = lazy(() => import('./sections/CalendarioPage').then((m) => ({ default: m.CalendarioPage })))
 const SesionEnVivo = lazy(() => import('./sections/SesionEnVivoPage').then((m) => ({ default: m.SesionEnVivoPage })))
 const Placeholder = lazy(() => import('./SectionPlaceholder').then((m) => ({ default: m.SectionPlaceholder })))
 
@@ -52,7 +53,7 @@ const section = (
 export const SECTIONS: readonly SectionDef[] = [
   section('notas', 'Notas', 'Principal', NotebookPen),
   section('sesiones', 'Sesiones', 'Principal', Scroll, { Component: Sesiones }),
-  section('calendario', 'Calendario', 'Principal', CalendarDays),
+  section('calendario', 'Calendario', 'Principal', CalendarDays, { Component: Calendario }),
   section('pjs', 'Jugadores (PJ)', 'Personajes', Shield, { Component: PJs }),
   section('pnjs', 'PNJs', 'Personajes', Users, { Component: PNJs }),
   section('mapas', 'Mapas', 'Mundo', Map, { fullBleed: true, Component: Mapas }),
