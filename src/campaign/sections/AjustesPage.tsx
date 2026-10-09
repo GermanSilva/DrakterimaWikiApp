@@ -4,11 +4,13 @@ import { PageHeader } from '../../components/Shared'
 import { useCampaign } from '../CampaignContext'
 import { SectionNotFound } from '../SectionRoute'
 import { CampaignSettings } from './ajustes/CampaignSettings'
+import { CustomFieldsSettings } from './ajustes/CustomFieldsSettings'
 import { ExportSettings } from './ajustes/ExportSettings'
 import { GameLogsSettings } from './ajustes/GameLogsSettings'
 import { LoteriaSettings } from './ajustes/LoteriaSettings'
 import { PlayersSettings } from './ajustes/PlayersSettings'
 import { PotSettings } from './ajustes/PotSettings'
+import { RegionsSettings } from './ajustes/RegionsSettings'
 
 /**
  * The stacked sections of the settings page. Each is one self-contained block that owns its data
@@ -22,6 +24,14 @@ function AjustesSections() {
     <>
       <AdminSection title="Campaña">
         <CampaignSettings />
+      </AdminSection>
+
+      <AdminSection title="Regiones">
+        <RegionsSettings />
+      </AdminSection>
+
+      <AdminSection title="Campos de personaje">
+        <CustomFieldsSettings />
       </AdminSection>
 
       <AdminSection title="Pantalla de sesión">
