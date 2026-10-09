@@ -6,9 +6,11 @@ import { sectionsFor } from './sections'
 /** Placeholder landing page of a campaign (the real dashboard is ported later). */
 export function CampaignDashboard() {
   const { campaign, role, isDM } = useCampaign()
+  const tagline = typeof campaign.branding?.tagline === 'string' ? campaign.branding.tagline.trim() : ''
   return (
     <>
       <h1 className="font-exo text-xl font-semibold tracking-[0.15em] uppercase text-txt-primary mb-1">{campaign.name}</h1>
+      {tagline && <p className="text-sm text-txt-secondary italic mb-1">{tagline}</p>}
       <p className="text-sm text-txt-secondary mb-6">
         Tu rol: <strong className="text-txt-primary">{ROLE[role]}</strong>
       </p>

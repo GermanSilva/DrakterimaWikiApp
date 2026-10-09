@@ -1,6 +1,6 @@
 import { vi } from 'vitest'
 import { makeCampaign, makeData, renderApp } from '../../app/testing/renderApp'
-import type { DataLayer, FlatEntity } from '../../data'
+import type { CampaignWithRole, DataLayer, FlatEntity } from '../../data'
 
 /** jsdom has no IntersectionObserver: a recording stub so tests can scroll the title out of view. */
 export const observers: { callback: IntersectionObserverCallback; target: Element | null }[] = []
@@ -36,16 +36,18 @@ export interface RenderSectionOptions {
   characterIds?: number[]
   /** `campaigns.character_custom_fields` jsonb. */
   customFields?: unknown
+  /** Extra fields of the campaign the loader returns (name, branding, updated_at...). */
+  campaign?: Partial<CampaignWithRole>
 }
 
 /**
  * Renders the REAL router + campaign layout (shell, ports, form host) around a section page, with a
  * fake data layer and the viewer's role. `path` is the full URL, e.g. `/c/demo/sesiones/3`.
  */
-export function renderSection(path: string, { layer, isDM = true, regions = [], characterIds = [], customFields = [] }: RenderSectionOptions) {
+export function renderSection(path: string, { layer, isDM = true, regions = [], characterIds = [], customFields = [], campaign: campaignOver = {} }: RenderSectionOptions) {
   window.scrollTo = vi.fn() as typeof window.scrollTo
   installIntersectionObserver()
-  const campaign = makeCampaign({ role: isDM ? 'dm' : 'player', regions: regions as never, character_custom_fields: customFields as never })
+  const campaign = makeCampaign({ role: isDM ? 'dm' : 'player', regions: regions as never, character_custom_fields: customFields as never, ...campaignOver })
   const data = makeData({
     layer,
     listMyCampaigns: vi.fn(async () => [campaign]),

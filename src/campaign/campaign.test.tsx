@@ -46,6 +46,19 @@ describe('CampaignLayout loading', () => {
   })
 })
 
+describe('dashboard tagline', () => {
+  it('shows the branding tagline under the name, and nothing when it is missing or not text', async () => {
+    renderApp('/c/demo', { data: dataFor(makeCampaign({ branding: { tagline: '  Que empiece la aventura ' } })) })
+    expect(await screen.findByText('Que empiece la aventura')).toBeInTheDocument()
+  })
+
+  it('ignores a non-string tagline', async () => {
+    const { container } = renderApp('/c/demo', { data: dataFor(makeCampaign({ branding: { tagline: { x: 1 } } })) })
+    await screen.findByRole('heading', { level: 1, name: 'Demo' })
+    expect(container.querySelector('p.italic')).toBeNull()
+  })
+})
+
 describe('role-based navigation', () => {
   it('shows Ajustes to a DM', async () => {
     renderApp('/c/demo', { data: dataFor(dm) })

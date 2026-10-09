@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { vi } from 'vitest'
 import { AuthContext } from '../../auth/AuthContext'
 import { makeAuth, makeCampaign } from '../../app/testing/renderApp'
-import { ConflictError, type BusySlot, type CampaignPresence, type DataLayer, type Disponibilidad, type Member, type FlatEntity, type GameLog, type GamePot, type PlayerAvailability, type PlayerNote, type WikiIndexItem } from '../../data'
+import { ConflictError, type Campaign, type CampaignPatch, type BusySlot, type CampaignPresence, type DataLayer, type Disponibilidad, type Member, type FlatEntity, type GameLog, type GamePot, type PlayerAvailability, type PlayerNote, type WikiIndexItem } from '../../data'
 import { createFakeClient } from '../../data/testing/fakeClient'
 import { UnreadPortContext, type UnreadPort } from '../../ports'
 import { CampaignContext, type CampaignContextValue } from '../CampaignContext'
@@ -29,6 +29,8 @@ export interface FakeLayerOptions {
   /** Last connections as the DM would read them (`campaign_presence`). */
   presence?: CampaignPresence[]
   playerNotes?: PlayerNote[]
+  /** Stored campaign row behind `campaigns.updateCampaign` (match it with the campaign the loader returns). */
+  campaign?: Partial<Campaign>
   /** `campaign_config` rows by key (value + the `updated_at` version the guarded patch compares). */
   config?: Record<string, { value: Record<string, unknown>; updated_at?: string; visibility?: 'members' | 'dm' }>
 }
@@ -77,6 +79,19 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
     configRows.set(key, { value: { ...(current?.value ?? {}), ...patch }, updated_at: `v${configVersion}`, visibility: current?.visibility ?? visibility })
     return rowOf(key)
   })
+  // campaigns.updateCampaign: an in-memory row (versions u1, u2, ...) that honours the `base` guard and the branding merge like the repository
+  let campaignRow = { ...makeCampaign({ id: 'c1' }), ...options.campaign } as Campaign
+  let campaignVersion = 0
+  const updateCampaign = vi.fn(async (_id: string, patch: CampaignPatch, base?: string) => {
+    if (base !== undefined && campaignRow.updated_at !== base) throw new ConflictError()
+    const branding: Record<string, unknown> = { ...campaignRow.branding }
+    for (const [key, value] of Object.entries(patch.branding ?? {})) {
+      if (value === null) delete branding[key]
+      else branding[key] = value
+    }
+    campaignRow = { ...campaignRow, name: patch.name ?? campaignRow.name, branding, updated_at: `u${++campaignVersion}` }
+    return campaignRow
+  })
   const disponibilidadList = vi.fn(async () => options.disponibilidad ?? [])
   const playerAvailabilityList = vi.fn(async () => options.playerAvailability ?? [])
   const membersList = vi.fn(async () => options.members ?? [])
@@ -116,12 +131,12 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
       remove: vi.fn(async () => undefined),
       busySlots: busySlotsList,
     },
-    campaigns: { listMembers: membersList },
+    campaigns: { listMembers: membersList, updateCampaign },
     games: { getPot: potGet, listLogs: gameLogsList, playLoteria: vi.fn(), assignPotToCharacter: vi.fn(), removeLog: vi.fn(async () => undefined) },
     presence: { touch: presenceTouch, list: presenceList },
     playerNotes: { list: playerNotesList, upsert: vi.fn(), update: vi.fn(), remove: vi.fn() },
   } as unknown as DataLayer
-  return { layer, fake, spies: { presenceTouch, presenceList, membersList, busySlotsList, disponibilidadList, playerAvailabilityList, potGet, gameLogsList, playerNotesList, configGet, configPatch, configRows, entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
+  return { layer, fake, spies: { updateCampaign, presenceTouch, presenceList, membersList, busySlotsList, disponibilidadList, playerAvailabilityList, potGet, gameLogsList, playerNotesList, configGet, configPatch, configRows, entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
 }
 
 export const fakeUnread = (): UnreadPort & { markRead: ReturnType<typeof vi.fn> } => ({

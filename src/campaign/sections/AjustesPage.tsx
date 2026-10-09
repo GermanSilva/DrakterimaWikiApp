@@ -3,6 +3,7 @@ import { AdminAction, AdminSection } from '../../components/AdminSection'
 import { PageHeader } from '../../components/Shared'
 import { useCampaign } from '../CampaignContext'
 import { SectionNotFound } from '../SectionRoute'
+import { CampaignSettings } from './ajustes/CampaignSettings'
 import { ExportSettings } from './ajustes/ExportSettings'
 import { GameLogsSettings } from './ajustes/GameLogsSettings'
 import { LoteriaSettings } from './ajustes/LoteriaSettings'
@@ -11,7 +12,7 @@ import { PotSettings } from './ajustes/PotSettings'
 
 /**
  * The stacked sections of the settings page. Each is one self-contained block that owns its data
- * hooks, so adding a section (campaign management arrives in H10) is one more entry here.
+ * hooks, so adding a section is one more entry here.
  * Mounted only for a DM: nothing in here is requested for a player.
  */
 function AjustesSections() {
@@ -19,6 +20,10 @@ function AjustesSections() {
   const navigate = useNavigate()
   return (
     <>
+      <AdminSection title="Campaña">
+        <CampaignSettings />
+      </AdminSection>
+
       <AdminSection title="Pantalla de sesión">
         <AdminAction
           label="Sesión en vivo"
