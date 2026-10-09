@@ -89,7 +89,7 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
       if (value === null) delete branding[key]
       else branding[key] = value
     }
-    campaignRow = { ...campaignRow, name: patch.name ?? campaignRow.name, branding, updated_at: `u${++campaignVersion}` }
+    campaignRow = { ...campaignRow, name: patch.name ?? campaignRow.name, branding, regions: patch.regions ?? campaignRow.regions, character_custom_fields: patch.character_custom_fields ?? campaignRow.character_custom_fields, updated_at: `u${++campaignVersion}` }
     return campaignRow
   })
   const disponibilidadList = vi.fn(async () => options.disponibilidad ?? [])

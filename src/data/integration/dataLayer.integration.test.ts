@@ -293,6 +293,22 @@ describe('data layer against the local Supabase stack', () => {
     await dmData.campaigns.updateCampaign(campaignId, { name: 'H4 integration' })
   })
 
+  it('updateCampaign: the DM writes regions and custom fields (guarded); a player cannot', async () => {
+    const before = (await dmData.campaigns.getCampaignBySlug(slug))!
+    const regions = [{ key: 'norte', label: 'Norte', color: '#112233' }, { key: 'otro', label: 'Otro' }]
+    const fields = [{ key: 'lema', label: 'Lema', type: 'text' }]
+    const saved = await dmData.campaigns.updateCampaign(campaignId, { regions, character_custom_fields: fields }, before.updated_at)
+    expect(saved.regions).toEqual(regions)
+    expect(saved.character_custom_fields).toEqual(fields)
+    expect(saved.name).toBe(before.name)
+    await expect(dmData.campaigns.updateCampaign(campaignId, { regions: [] }, before.updated_at)).rejects.toMatchObject({ kind: 'conflict' })
+    await expect(playerData.campaigns.updateCampaign(campaignId, { regions: [] })).rejects.toMatchObject({ kind: 'permission' })
+    await expect(playerData.campaigns.updateCampaign(campaignId, { character_custom_fields: [] })).rejects.toMatchObject({ kind: 'permission' })
+    expect((await dmData.campaigns.getCampaignBySlug(slug))?.regions).toEqual(regions)
+    // restore the defaults for the tests that follow
+    await dmData.campaigns.updateCampaign(campaignId, { regions: before.regions, character_custom_fields: before.character_custom_fields })
+  })
+
   it('every select list executes against the real schema, and list()/get() work on every entity table (as DM)', async () => {
     for (const { name, table, columns } of COLUMN_LIST_ENTRIES) {
       const { error } = await dm.client

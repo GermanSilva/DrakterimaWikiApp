@@ -72,12 +72,15 @@ export interface AcceptInviteResult {
 
 /**
  * What `updateCampaign` may change. `branding` holds the keys to set: a string sets it, `null` removes it, keys
- * not mentioned are kept as stored (including keys this client does not know). Slug, regions, custom fields and
- * settings are deliberately not editable here.
+ * not mentioned are kept as stored (including keys this client does not know). `regions` and
+ * `character_custom_fields` replace the stored array as a whole (an array cannot be merged); the caller validates
+ * the entries (see the Ajustes validators). Slug, system and settings are deliberately not editable here.
  */
 export interface CampaignPatch {
   name?: string
   branding?: Record<string, string | null>
+  regions?: unknown[]
+  character_custom_fields?: unknown[]
 }
 
 const CAMPAIGN_SELECT = join(CAMPAIGN_COLUMNS)
@@ -115,7 +118,7 @@ export function createCampaignRepository(client: Db) {
     },
 
     /**
-     * DM only (RLS + column grant). Updates only the whitelisted `name` / `branding` columns; `branding` is merged
+     * DM only (RLS + column grant). Updates only the whitelisted `name` / `branding` / `regions` / `character_custom_fields` columns; `branding` is merged
      * key by key onto the stored object. `base` is the `updated_at` the caller's form was built from: when the stored
      * row is not at that version nothing is written and a ConflictError is thrown (the caller re-reads, never
      * overwrites). The write itself is guarded by `updated_at` too, so a change between our read and write also
@@ -128,8 +131,13 @@ export function createCampaignRepository(client: Db) {
       if (!current) throw new DataError('not_found', 'campaign: not found (missing or not visible)')
       if (base !== undefined && current.updated_at !== base) throw new ConflictError()
 
-      const update: { name?: string; branding?: Record<string, unknown> } = {}
+      const update: { name?: string; branding?: Record<string, unknown>; regions?: unknown[]; character_custom_fields?: unknown[] } = {}
+      for (const key of ['regions', 'character_custom_fields'] as const) {
+        if (patch[key] !== undefined && !Array.isArray(patch[key])) throw new DataError('validation', `campaign: ${key} must be an array`)
+      }
       if (patch.name !== undefined) update.name = patch.name
+      if (patch.regions !== undefined) update.regions = patch.regions
+      if (patch.character_custom_fields !== undefined) update.character_custom_fields = patch.character_custom_fields
       if (patch.branding !== undefined) {
         const merged: Record<string, unknown> = { ...(current.branding ?? {}) }
         for (const [key, value] of Object.entries(patch.branding)) {

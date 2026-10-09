@@ -173,7 +173,7 @@ describe('campaign repository', () => {
       fake.enqueue({ data: stored }, { data: { ...stored, name: 'New', updated_at: 'v2' } })
       const out = await createCampaignRepository(fake.db).updateCampaign(
         'c1',
-        { name: 'New', branding: { tagline: 'Hi', logo_url: null }, slug: 'hacked', regions: [] } as never,
+        { name: 'New', branding: { tagline: 'Hi', logo_url: null }, slug: 'hacked', settings: {} } as never,
         'v1',
       )
       expect(out.updated_at).toBe('v2')
@@ -214,6 +214,28 @@ describe('campaign repository', () => {
       const fake = createFakeClient()
       fake.enqueue({ data: null })
       await expect(createCampaignRepository(fake.db).updateCampaign('c1', { name: 'New' })).rejects.toMatchObject({ kind: 'not_found' })
+    })
+
+    it('writes regions and custom fields as whole arrays under the same guard, and never other columns', async () => {
+      const fake = createFakeClient()
+      const regions = [{ key: 'norte', label: 'Norte', color: '#112233' }]
+      const fields = [{ key: 'lema', label: 'Lema', type: 'text' }]
+      fake.enqueue({ data: stored }, { data: { ...stored, updated_at: 'v2' } })
+      await createCampaignRepository(fake.db).updateCampaign('c1', { regions, character_custom_fields: fields, settings: {}, system: 'x' } as never, 'v1')
+      expect(opsNamed(fake.calls[1], 'update')).toEqual([[{ regions, character_custom_fields: fields }]])
+      expect(opsNamed(fake.calls[1], 'eq')).toEqual([['id', 'c1'], ['updated_at', 'v1']])
+      fake.assertDrained()
+    })
+
+    it('conflicts on a stale base when writing regions, and rejects a non-array before any write', async () => {
+      const fake = createFakeClient()
+      fake.enqueue({ data: { ...stored, updated_at: 'v9' } })
+      await expect(createCampaignRepository(fake.db).updateCampaign('c1', { regions: [] }, 'v1')).rejects.toBeInstanceOf(ConflictError)
+      expect(fake.calls).toHaveLength(1)
+      const fake2 = createFakeClient()
+      fake2.enqueue({ data: stored })
+      await expect(createCampaignRepository(fake2.db).updateCampaign('c1', { regions: {} as never })).rejects.toMatchObject({ kind: 'validation' })
+      expect(fake2.calls).toHaveLength(1)
     })
 
     it('makes no write for an empty patch', async () => {
