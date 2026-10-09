@@ -82,7 +82,10 @@ function InviteLanding({ code }: { code: string | null }) {
         navigate(`/c/${result.slug}`, { replace: true })
       },
       (error) => {
-        joinStarted.current = false // the attempt failed without consuming the invite: the user may retry
+        // The request failed, so the user may retry. The attempt may or may not have been committed (a lost response),
+        // but retrying is safe either way: accept_invite is idempotent for someone who already joined (no extra use
+        // consumed, role unchanged).
+        joinStarted.current = false
         if (!mounted.current) return
         setJoining(false)
         const message = acceptInviteErrorMessage(error)

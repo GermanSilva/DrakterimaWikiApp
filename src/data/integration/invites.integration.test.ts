@@ -160,6 +160,48 @@ describe('invites: preview, accept and revoke against the local stack', () => {
     }
   })
 
+  it('a second accept after the first one committed (a lost response, a retry) leaves the uses unchanged', async () => {
+    const invite = await dmData.campaigns.createInvite({ campaign_id: campaignId, role: 'player', max_uses: 3 })
+    const retrier = createDataLayer((await newUser('inv-retry')).client)
+    expect(await retrier.campaigns.acceptInvite(invite.code)).toMatchObject({ joined: true })
+    expect(await usesOf(invite.code)).toBe(1)
+    expect(await retrier.campaigns.acceptInvite(invite.code)).toMatchObject({ joined: false, claimed: false, role: 'player' })
+    expect(await usesOf(invite.code)).toBe(1)
+  })
+
+  it('an existing player previewing and accepting a dm invite keeps their role and consumes nothing', async () => {
+    const invite = await dmData.campaigns.createInvite({ campaign_id: campaignId, role: 'dm' })
+    expect(await guestData.campaigns.previewInvite(invite.code)).toMatchObject({ role: 'dm', is_member: true, nothing_to_do: true })
+    expect(await guestData.campaigns.acceptInvite(invite.code)).toMatchObject({ joined: false, role: 'player' })
+    expect(await usesOf(invite.code)).toBe(0)
+    const members = await dmData.campaigns.listMembers(campaignId)
+    expect(members.find((m) => m.user_id === guest.id)?.role).toBe('player')
+  })
+
+  it('a member previewing an expired or exhausted claim invite for an unowned character still gets the error', async () => {
+    const admin = createAdminClient(env)
+    const expiredPj = (await dmData.entity('pjs').create(campaignId, { nombre: 'Claim Expired' })).id
+    const usedPj = (await dmData.entity('pjs').create(campaignId, { nombre: 'Claim Used' })).id
+    const expired = await dmData.campaigns.createInvite({ campaign_id: campaignId, character_id: expiredPj })
+    await admin.from('campaign_invites').update({ expires_at: new Date(Date.now() - 1000).toISOString() }).eq('id', expired.id)
+    const used = await dmData.campaigns.createInvite({ campaign_id: campaignId, character_id: usedPj })
+    await admin.from('campaign_invites').update({ uses: 1 }).eq('id', used.id)
+    await expect(guestData.campaigns.previewInvite(expired.code)).rejects.toMatchObject({ reason: 'invite_expired' })
+    await expect(guestData.campaigns.acceptInvite(expired.code)).rejects.toMatchObject({ reason: 'invite_expired' })
+    await expect(guestData.campaigns.previewInvite(used.code)).rejects.toMatchObject({ reason: 'invite_exhausted' })
+  })
+
+  it('player invites are limited server-side: at most 100 uses and an expiry within 365 days, whatever the client sends', async () => {
+    const invite = await dmData.campaigns.createInvite({ campaign_id: campaignId, role: 'player', max_uses: 5000 })
+    expect(invite.max_uses).toBe(100)
+    expect(invite.expires_at).not.toBeNull()
+    expect(Date.parse(invite.expires_at!)).toBeLessThanOrEqual(Date.now() + 365 * 24 * 3600 * 1000 + 60_000)
+    const far = await dmData.campaigns.createInvite({
+      campaign_id: campaignId, max_uses: 2, expires_at: new Date(Date.now() + 5 * 365 * 24 * 3600 * 1000).toISOString(),
+    })
+    expect(Date.parse(far.expires_at!)).toBeLessThanOrEqual(Date.now() + 365 * 24 * 3600 * 1000 + 60_000)
+  })
+
   it('anon cannot preview an invite', async () => {
     const anon = createClient(env.url, env.anonKey, { auth: { persistSession: false } })
     const { error } = await anon.rpc('preview_invite', { p_code: 'whatever' })

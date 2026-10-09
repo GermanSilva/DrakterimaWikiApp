@@ -2,7 +2,7 @@
 -- Self-contained fixture, rolled back at the end.
 begin;
 
-select plan(37);
+select plan(52);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -61,7 +61,9 @@ insert into public.pjs (id, campaign_id, owner_id, nombre) values
   (7002, '66666666-0000-4000-8000-00000000000a', '77777777-0000-4000-8000-000000000002', 'Mara'),
   (7003, '66666666-0000-4000-8000-00000000000a', null, 'Zed'),
   (7004, '66666666-0000-4000-8000-00000000000b', null, 'Secret B'),
-  (7005, '66666666-0000-4000-8000-00000000000a', null, 'Yuri');
+  (7005, '66666666-0000-4000-8000-00000000000a', null, 'Yuri'),
+  (7006, '66666666-0000-4000-8000-00000000000a', null, 'Free Expired'),
+  (7007, '66666666-0000-4000-8000-00000000000a', null, 'Free Used Up');
 
 insert into public.campaign_invites (campaign_id, code, role, max_uses, character_id) values
   ('66666666-0000-4000-8000-00000000000a', 'pv-plain',     'player', 3, null),
@@ -71,11 +73,13 @@ insert into public.campaign_invites (campaign_id, code, role, max_uses, characte
   ('66666666-0000-4000-8000-00000000000a', 'pv-claim',     'player', 1, 7001),
   ('66666666-0000-4000-8000-00000000000a', 'pv-claim-zed', 'player', 1, 7003),
   ('66666666-0000-4000-8000-00000000000a', 'pv-claim-expired-yuri', 'player', 1, 7005),
+  ('66666666-0000-4000-8000-00000000000a', 'pv-claim-exp-free',  'player', 1, 7006),
+  ('66666666-0000-4000-8000-00000000000a', 'pv-claim-used-free', 'player', 1, 7007),
   ('66666666-0000-4000-8000-00000000000b', 'pv-b-plain',   'player', 1, null),
   ('66666666-0000-4000-8000-00000000000b', 'pv-b-claim',   'player', 1, 7004);
 
-update public.campaign_invites set expires_at = now() - interval '1 hour' where code in ('pv-expired', 'pv-claim-expired-yuri');
-update public.campaign_invites set uses = 1 where code = 'pv-used-up';
+update public.campaign_invites set expires_at = now() - interval '1 hour' where code in ('pv-expired', 'pv-claim-expired-yuri', 'pv-claim-exp-free');
+update public.campaign_invites set uses = 1 where code in ('pv-used-up', 'pv-claim-used-free');
 -- somebody else took Zed after his invite was created
 update public.pjs set owner_id = '77777777-0000-4000-8000-000000000002' where id in (7003, 7005);
 
@@ -181,6 +185,23 @@ select is(
   public.preview_invite('pv-claim') ->> 'is_member', 'true',
   'and is told they are already a member');
 
+-- an existing player and a dm invite: nothing to do, and no role change
+select is(
+  public.preview_invite('pv-dm') ->> 'nothing_to_do', 'true',
+  'an existing player previewing a dm invite is told there is nothing to do');
+select is(
+  public.accept_invite('pv-dm') - 'campaign_id',
+  jsonb_build_object('joined', false, 'claimed', false, 'slug', 'preview-a', 'role', 'player', 'character_id', null),
+  'accept_invite of a dm invite by an existing player joins nothing and reports the role they already had');
+
+-- a member is still refused an expired / exhausted invite whose character is unowned
+select throws_ok($$select public.preview_invite('pv-claim-exp-free')$$, 'P0001', 'invite_expired',
+  'a member previewing an expired claim invite for an unowned character gets invite_expired');
+select throws_ok($$select public.preview_invite('pv-claim-used-free')$$, 'P0001', 'invite_exhausted',
+  'a member previewing an exhausted claim invite for an unowned character gets invite_exhausted');
+select throws_ok($$select public.accept_invite('pv-claim-exp-free')$$, 'P0001', 'invite_expired',
+  'and accept_invite refuses the same expired claim invite');
+
 ------------------------------------------------------------------------------
 -- Not a member of the DM's other campaign: a DM of B is an outsider for A's invites
 ------------------------------------------------------------------------------
@@ -193,8 +214,11 @@ select is(public.preview_invite('pv-plain') ->> 'is_member', 'false', 'the DM of
 select tests.as_postgres();
 select is(
   (select array_agg(code || ':' || uses order by code collate "C") from public.campaign_invites where code like 'pv-%'),
-  array['pv-b-claim:0', 'pv-b-plain:0', 'pv-claim:0', 'pv-claim-expired-yuri:0', 'pv-claim-zed:0', 'pv-dm:0', 'pv-expired:0', 'pv-plain:0', 'pv-used-up:1'],
-  'no invite use was consumed by any preview');
+  array['pv-b-claim:0', 'pv-b-plain:0', 'pv-claim:0', 'pv-claim-exp-free:0', 'pv-claim-expired-yuri:0', 'pv-claim-used-free:1', 'pv-claim-zed:0', 'pv-dm:0', 'pv-expired:0', 'pv-plain:0', 'pv-used-up:1'],
+  'no invite use was consumed by any preview (or by an existing player accepting a dm invite)');
+select is(
+  (select role::text from public.campaign_members where campaign_id = '66666666-0000-4000-8000-00000000000a' and user_id = '77777777-0000-4000-8000-000000000002'),
+  'player', 'the existing player was not promoted by the dm invite');
 select is(
   (select count(*)::int from public.campaign_members where campaign_id = '66666666-0000-4000-8000-00000000000a'),
   2, 'no membership was created');
@@ -213,7 +237,7 @@ select tests.as_user('77777777-0000-4000-8000-000000000004');
 select is((select count(*)::int from public.campaign_invites where campaign_id = '66666666-0000-4000-8000-00000000000a'), 0,
   'previewing does not grant read access to the invites of the campaign');
 select tests.as_user('77777777-0000-4000-8000-000000000001');
-select is((select count(*)::int from public.campaign_invites where campaign_id = '66666666-0000-4000-8000-00000000000a'), 7,
+select is((select count(*)::int from public.campaign_invites where campaign_id = '66666666-0000-4000-8000-00000000000a'), 9,
   'the DM lists their own invites (and not the other campaign''s)');
 -- revoke: a DM deletes an invite and the preview then reports not found
 delete from public.campaign_invites where code = 'pv-dm';
@@ -223,6 +247,27 @@ select tests.as_user('77777777-0000-4000-8000-000000000002');
 delete from public.campaign_invites where code = 'pv-claim';
 select tests.as_postgres();
 select is((select count(*)::int from public.campaign_invites where code = 'pv-claim'), 1, 'a player cannot delete an invite (RLS hides it: nothing deleted)');
+
+------------------------------------------------------------------------------
+-- Logo sanitiser: only a single absolute https URL of at most 2048 characters is handed out
+------------------------------------------------------------------------------
+create function tests.logo_of(b jsonb) returns jsonb language plpgsql security definer as $fn$
+begin
+  update public.campaigns set branding = b where id = '66666666-0000-4000-8000-00000000000a';
+  return public.preview_invite('pv-plain') -> 'logo_url';
+end;
+$fn$;
+select tests.as_user('77777777-0000-4000-8000-000000000003');
+select is(tests.logo_of('{"logo_url":"https://img.example.test/a.png"}'), '"https://img.example.test/a.png"'::jsonb, 'a plain https logo is returned');
+select is(tests.logo_of(jsonb_build_object('logo_url', E'https://img.example.test/a
+b.png')), 'null'::jsonb, 'an embedded newline makes the logo null');
+select is(tests.logo_of(jsonb_build_object('logo_url', 'https://img.example.test/a b.png')), 'null'::jsonb, 'an embedded space makes the logo null');
+select is(tests.logo_of(jsonb_build_object('logo_url', E'https://img.example.test/a	b.png')), 'null'::jsonb, 'an embedded tab makes the logo null');
+select is(tests.logo_of('{"logo_url":"javascript:alert(1)"}'), 'null'::jsonb, 'a javascript: URL is never returned');
+select is(tests.logo_of('{"logo_url":"data:image/png;base64,AAAA"}'), 'null'::jsonb, 'a data: URL is never returned');
+select is(tests.logo_of(jsonb_build_object('logo_url', 'https://x.test/' || repeat('a', 2034))), 'null'::jsonb, 'a logo over 2048 characters is null');
+select is(tests.logo_of('{"logo_url":42}'), 'null'::jsonb, 'a non-string logo (number) is null');
+select is(tests.logo_of('{"logo_url":{"u":"https://x.test/a.png"}}'), 'null'::jsonb, 'a non-string logo (object) is null');
 
 select * from finish();
 rollback;
