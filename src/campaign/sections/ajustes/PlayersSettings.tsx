@@ -95,7 +95,7 @@ export function PlayersSettings() {
                 <td className="py-2 pr-4">{member.role === 'dm' ? 'DM' : 'Jugador'}</td>
                 <td className="py-2 pr-4">{characters.length > 0 ? characters.join(', ') : <span className="text-txt-muted">—</span>}</td>
                 <td className="py-2">
-                  {presenceFailed || presence.status === 'loading' ? <span className="text-txt-muted">—</span> : <LastSeen iso={lastSeen} now={now} />}
+                  {presence.status === 'ready' ? <LastSeen iso={lastSeen} now={now} /> : <span className="text-txt-muted">—</span>}
                 </td>
               </tr>
             ))}

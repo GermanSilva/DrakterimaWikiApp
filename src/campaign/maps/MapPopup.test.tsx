@@ -61,6 +61,13 @@ describe('MapPopup', () => {
     expect(screen.queryByRole('button', { name: ACTIONS })).toBeNull()
   })
 
+  it.each(['constructor', 'toString', '__proto__', null])('shows the default pin icon for an unknown or inherited link type (%s)', (linkType) => {
+    setup(null, { pt: point({ link_type: linkType }) })
+    const dialog = screen.getByRole('dialog')
+    expect(dialog).toHaveTextContent('📍')
+    expect(dialog).not.toHaveTextContent('function')
+  })
+
   it('only the DM gets the edit button', () => {
     const { onEdit, unmount } = setup(null, { isDM: true })
     fireEvent.click(screen.getByRole('button', { name: 'Editar punto' }))

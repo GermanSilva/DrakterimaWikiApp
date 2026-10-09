@@ -200,6 +200,27 @@ describe('D20Overlay', () => {
     expect(frames).toHaveLength(0)
   })
 
+  it('a new roll starts a fresh throw: hint, live region, pointer capture and fade are reset', async () => {
+    const { getByTestId, rerender } = render(<D20Overlay roll={9} />)
+    await land()
+    fireEvent.click(getByTestId('d20-overlay'))
+    await tick(LANDING_MS) // the fade starts here
+    await tick(LANDING_MS + DISMISS_MS / 2)
+    expect(getByTestId('d20-canvas').style.opacity).not.toBe('')
+
+    rerender(<D20Overlay roll={14} />)
+    expect(getByTestId('d20-overlay').style.pointerEvents).toBe('none')
+    expect(getByTestId('d20-canvas').style.opacity).toBe('')
+    expect(getByTestId('d20-canvas').style.transform).toBe('')
+    expect(queryHint()).toBeNull()
+    expect(liveRegion()).toBeNull()
+
+    await land()
+    expect(getByTestId('d20-overlay').style.pointerEvents).toBe('auto')
+    expect(queryHint()).toHaveTextContent('Tocá para continuar')
+    expect(liveRegion()).toHaveTextContent('Salió 14')
+  })
+
   it.each([
     ['a pointer down (tap)', () => fireEvent.pointerDown(document.querySelector('[data-testid="d20-overlay"]')!)],
     ['Escape', () => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))],

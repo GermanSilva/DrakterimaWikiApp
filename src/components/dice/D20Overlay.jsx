@@ -56,6 +56,12 @@ export default function D20Overlay({ roll, onComplete, onClose }) {
     if (!el) return undefined
     faceIndexForRoll(roll) // throws for a roll outside 1-20 BEFORE any GPU resource exists
 
+    // a new roll is a new throw: forget the previous one having landed / faded out
+    setLanded(false)
+    setDismissing(false)
+    el.style.opacity = ''
+    el.style.transform = ''
+
     let disposed = false
     let rafId = 0
     let phase = 'rolling' // rolling -> landed -> dismissing

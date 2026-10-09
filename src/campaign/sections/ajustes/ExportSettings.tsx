@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AdminAction } from '../../../components/AdminSection'
 import { useCampaign } from '../../CampaignContext'
 import { useCampaignServices } from '../../entities/campaignServicesContext'
@@ -11,6 +11,13 @@ export function ExportSettings() {
   const [busy, setBusy] = useState(false)
   const [notice, setNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null)
   const running = useRef(false)
+  const mounted = useRef(true)
+  useEffect(() => {
+    mounted.current = true
+    return () => {
+      mounted.current = false
+    }
+  }, [])
 
   async function run() {
     if (running.current) return
@@ -22,13 +29,14 @@ export function ExportSettings() {
       const data = await buildCampaignExport(layer, campaign, now)
       const filename = exportFilename(campaign.slug, now)
       downloadJson(filename, data)
-      setNotice({ kind: 'ok', text: `Se descargó ${filename}.` })
+      if (mounted.current) setNotice({ kind: 'ok', text: `Se descargó ${filename}.` })
     } catch (e) {
+      if (!mounted.current) return
       const where = e instanceof ExportError ? ` Falló la lectura de: ${e.part}.` : ''
       setNotice({ kind: 'error', text: `No se pudo exportar la campaña.${where} No se descargó ningún archivo; intentá de nuevo.` })
     } finally {
       running.current = false
-      setBusy(false)
+      if (mounted.current) setBusy(false)
     }
   }
 
