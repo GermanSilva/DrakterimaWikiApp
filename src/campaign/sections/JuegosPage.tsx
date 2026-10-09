@@ -12,6 +12,8 @@ import { formatCoins, hasCoins, normalizeCoins, parseLoteriaConfig, type Loteria
 import { describeDailyReset, utcDay } from '../games/dayReset'
 import { describeGameError } from '../games/gameErrors'
 import { prefersReducedMotion } from '../games/motion'
+import { OverlayBoundary } from '../games/OverlayBoundary'
+import { withTimeout } from '../games/withTimeout'
 import { Loading } from './DetailNotice'
 
 type OverlayComponent = typeof import('../../components/dice/D20Overlay').default
@@ -19,6 +21,8 @@ type OverlayComponent = typeof import('../../components/dice/D20Overlay').defaul
 const loadOverlay = () => import('../../components/dice/D20Overlay').then((m) => m.default)
 
 const RECENT_LOGS = 5
+/** After the server answered, how long to wait for the dice chunk before skipping the animation. */
+const OVERLAY_LOAD_TIMEOUT_MS = 8000
 const CARD = 'bg-bg-card border border-border-base px-6 py-6'
 const LABEL = 'font-exo text-[10px] uppercase tracking-[0.1em] text-txt-muted'
 
@@ -131,6 +135,12 @@ export function JuegosPage() {
     refreshLogs()
   }, [refreshLogs])
 
+  /** The overlay cannot run (no WebGL, invalid roll...): the prize is already awarded, so just show it. */
+  const abandonOverlay = useCallback(() => {
+    finish()
+    setOverlay(null)
+  }, [finish])
+
   const canPlay = isDM || characterId !== null
   async function play() {
     if (busy.current || !canPlay || playedToday) return
@@ -149,7 +159,7 @@ export function JuegosPage() {
       if (!mounted.current) return
       if (characterId !== null) setPlayedKeys((prev) => new Set(prev).add(`${today}:${characterId}`))
       setOutcome({ roll: result.roll, prize: normalizeCoins(result.prize), target: result.prize_target })
-      const Dice = await overlayModule
+      const Dice = await withTimeout(overlayModule, OVERLAY_LOAD_TIMEOUT_MS) // a stalled download must not hold the result back
       if (!mounted.current) return
       if (!Dice) {
         finish()
@@ -297,7 +307,11 @@ export function JuegosPage() {
 
       <RecentLogs logs={recent} nameOf={isDM ? () => null : pjName} />
 
-      {Overlay && outcome && <Overlay roll={outcome.roll} onComplete={finish} onClose={() => { finish(); setOverlay(null) }} />}
+      {Overlay && outcome && (
+        <OverlayBoundary onError={abandonOverlay}>
+          <Overlay roll={outcome.roll} onComplete={finish} onClose={abandonOverlay} />
+        </OverlayBoundary>
+      )}
     </div>
   )
 }

@@ -246,6 +246,15 @@ describe('JuegosPage as a player', () => {
     expect(await screen.findByLabelText('Pozo acumulado')).toHaveTextContent('Vacío')
   })
 
+  it('reports a pot load failure without breaking the page', async () => {
+    const made = createFakeLayer({ entities: PJS, pot: POT, config: LOTERIA as never })
+    made.spies.potGet.mockRejectedValue(new Error('down'))
+    renderSection('/c/demo/juegos', { layer: made.layer, isDM: false, characterIds: [10] })
+    expect(await screen.findByText('No pudimos cargar el pozo.')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Pozo acumulado')).toBeNull()
+    expect(await playButton()).toBeEnabled() // the lottery itself still works
+  })
+
   it('lists the recent own logs with the character name and prize', async () => {
     setup({ logs: [log(3, { roll: 20, prize: { pp: 1 }, play_date: '2026-10-07' }), log(2, { roll: 4, play_date: '2026-10-06', character_id: 99 }), log(1, { roll: 9, play_date: '2026-10-05' })] })
     const list = await screen.findByRole('region', { name: 'Últimas tiradas' })
