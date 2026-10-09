@@ -1,7 +1,7 @@
 -- pgTAP: server-side invite limits (max_uses <= 100, expiry mandatory and <= 365 days).
 begin;
 
-select plan(9);
+select plan(15);
 
 insert into auth.users (instance_id, id, aud, role, email)
 values ('00000000-0000-0000-0000-000000000000', '88888888-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'limits-u1@example.test');
@@ -50,6 +50,26 @@ update public.campaign_invites set expires_at = now() + interval '1 day' where c
 select ok(
   (select max_uses = 301 and expires_at is not null from public.campaign_invites where code = 'lim-legacy'),
   'touching a legacy row never pushes max_uses below the uses already consumed');
+
+-- lower bound: enforced by the table (max_uses integer not null check (max_uses >= 1)), not by the trigger
+select throws_ok(
+  $$insert into public.campaign_invites (campaign_id, code, role, max_uses) values ('99999999-0000-4000-8000-00000000000a', 'lim-zero', 'player', 0)$$,
+  '23514', null, 'max_uses = 0 is rejected');
+select throws_ok(
+  $$insert into public.campaign_invites (campaign_id, code, role, max_uses) values ('99999999-0000-4000-8000-00000000000a', 'lim-neg', 'player', -3)$$,
+  '23514', null, 'a negative max_uses is rejected');
+select throws_ok(
+  $$update public.campaign_invites set max_uses = 0 where code = 'lim-near'$$,
+  '23514', null, 'an UPDATE to max_uses = 0 is rejected too');
+select throws_ok(
+  $$insert into public.campaign_invites (campaign_id, code, role, max_uses) values ('99999999-0000-4000-8000-00000000000a', 'lim-null', 'player', null)$$,
+  '23502', null, 'a NULL max_uses is rejected, not silently clamped to 100');
+-- the upper bound itself is allowed
+insert into public.campaign_invites (campaign_id, code, role, max_uses, expires_at) values ('99999999-0000-4000-8000-00000000000a', 'lim-100', 'player', 100, now() + interval '2 days');
+select is((select max_uses from public.campaign_invites where code = 'lim-100'), 100, 'exactly 100 is kept');
+select is(
+  (select obj_description('public.prepare_campaign_invite()'::regprocedure, 'pg_proc') like '%enforced by the table check%NULL max_uses is rejected%'),
+  true, 'the trigger function documents that the lower bound and NULL are documented as table / explicit rejection');
 
 select * from finish();
 rollback;

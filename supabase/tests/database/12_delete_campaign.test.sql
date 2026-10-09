@@ -1,7 +1,7 @@
 -- pgTAP: delete_campaign(p_campaign_id, p_confirm_slug). Self-contained fixture, rolled back at the end.
 begin;
 
-select plan(26);
+select plan(28);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -95,6 +95,15 @@ $$;
 select ok(
   (select p.prosecdef and p.proconfig = array['search_path=""'] from pg_proc p where p.oid = 'public.delete_campaign(uuid, text)'::regprocedure),
   'delete_campaign is SECURITY DEFINER with an empty search_path');
+-- Lock order. A concurrent lock cannot be held from this single pgTAP session, so the order of the checks is
+-- asserted on the definition: the DM check comes first (a non-DM never waits on the campaign row), then FOR UPDATE,
+-- and the DM check is repeated under the lock before the slug is compared.
+select ok(
+  (select position('is_campaign_dm' in p.prosrc) < position('for update' in p.prosrc) from pg_proc p where p.oid = 'public.delete_campaign(uuid, text)'::regprocedure),
+  'delete_campaign checks is_campaign_dm before taking the row lock');
+select is(
+  (select (length(p.prosrc) - length(replace(p.prosrc, 'is_campaign_dm', ''))) / length('is_campaign_dm') from pg_proc p where p.oid = 'public.delete_campaign(uuid, text)'::regprocedure),
+  2, 'and re-checks it under the lock');
 select ok(
   has_function_privilege('authenticated', 'public.delete_campaign(uuid, text)', 'execute')
   and not has_function_privilege('anon', 'public.delete_campaign(uuid, text)', 'execute')
