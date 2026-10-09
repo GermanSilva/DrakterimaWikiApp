@@ -272,6 +272,27 @@ describe('data layer against the local Supabase stack', () => {
     expect((await dmData.config.get(campaignId, 'session_screen'))?.value).toEqual({ cards: [{ id: 1, tipo: 'notes', text: 'b' }] })
   })
 
+  it('updateCampaign: the DM renames and merges branding under an updated_at guard; a player and a stranger cannot', async () => {
+    const before = (await dmData.campaigns.getCampaignBySlug(slug))!
+    const first = await dmData.campaigns.updateCampaign(campaignId, { name: 'H4 renamed', branding: { accent_color: '#112233', tagline: 'Hola', mystery: 'kept' } }, before.updated_at)
+    expect(first.name).toBe('H4 renamed')
+    expect(first.slug).toBe(slug)
+    expect(first.updated_at).not.toBe(before.updated_at)
+    // unknown keys survive, a null removes a key
+    const second = await dmData.campaigns.updateCampaign(campaignId, { branding: { tagline: null } }, first.updated_at)
+    expect(second.branding).toEqual({ accent_color: '#112233', mystery: 'kept' })
+    // a stale base conflicts and writes nothing
+    await expect(dmData.campaigns.updateCampaign(campaignId, { name: 'stale' }, first.updated_at)).rejects.toMatchObject({ kind: 'conflict' })
+    expect((await dmData.campaigns.getCampaignBySlug(slug))?.name).toBe('H4 renamed')
+
+    // RLS: a member who is not the DM gets a permission error, a stranger does not even see the row
+    await expect(playerData.campaigns.updateCampaign(campaignId, { name: 'player edit' })).rejects.toMatchObject({ kind: 'permission' })
+    await expect(strangerData.campaigns.updateCampaign(campaignId, { name: 'stranger edit' })).rejects.toMatchObject({ kind: 'not_found' })
+    expect((await dmData.campaigns.getCampaignBySlug(slug))?.name).toBe('H4 renamed')
+    // restore the name for the tests that follow
+    await dmData.campaigns.updateCampaign(campaignId, { name: 'H4 integration' })
+  })
+
   it('every select list executes against the real schema, and list()/get() work on every entity table (as DM)', async () => {
     for (const { name, table, columns } of COLUMN_LIST_ENTRIES) {
       const { error } = await dm.client

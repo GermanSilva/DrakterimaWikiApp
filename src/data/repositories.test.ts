@@ -159,6 +159,71 @@ describe('campaign repository', () => {
     await expect(repo.leaveCampaign('c1', 'u1')).rejects.toMatchObject({ kind: 'not_found' })
   })
 
+  describe('updateCampaign', () => {
+    const stored = {
+      id: 'c1',
+      slug: 'demo',
+      name: 'Demo',
+      branding: { logo_url: 'https://x.test/a.png', accent_color: '#dc2626', future_key: { nested: true } },
+      updated_at: 'v1',
+    }
+
+    it('sends only name and branding, merges branding onto the stored keys and guards on updated_at', async () => {
+      const fake = createFakeClient()
+      fake.enqueue({ data: stored }, { data: { ...stored, name: 'New', updated_at: 'v2' } })
+      const out = await createCampaignRepository(fake.db).updateCampaign(
+        'c1',
+        { name: 'New', branding: { tagline: 'Hi', logo_url: null }, slug: 'hacked', regions: [] } as never,
+        'v1',
+      )
+      expect(out.updated_at).toBe('v2')
+      expect(opsNamed(fake.calls[1], 'update')).toEqual([[{ name: 'New', branding: { accent_color: '#dc2626', future_key: { nested: true }, tagline: 'Hi' } }]])
+      expect(opsNamed(fake.calls[1], 'eq')).toEqual([['id', 'c1'], ['updated_at', 'v1']])
+      expect(opsNamed(fake.calls[1], 'select')).toEqual([[join(CAMPAIGN_COLUMNS)]])
+      fake.assertDrained()
+    })
+
+    it('leaves name out of the write when only branding changes', async () => {
+      const fake = createFakeClient()
+      fake.enqueue({ data: stored }, { data: stored })
+      await createCampaignRepository(fake.db).updateCampaign('c1', { branding: { accent_color: '#112233' } })
+      expect(Object.keys(opsNamed(fake.calls[1], 'update')[0][0] as object)).toEqual(['branding'])
+    })
+
+    it('does not write when the stored version is not the base', async () => {
+      const fake = createFakeClient()
+      fake.enqueue({ data: { ...stored, updated_at: 'v9' } })
+      await expect(createCampaignRepository(fake.db).updateCampaign('c1', { name: 'New' }, 'v1')).rejects.toBeInstanceOf(ConflictError)
+      expect(fake.calls).toHaveLength(1)
+      fake.assertDrained()
+    })
+
+    it('reports a conflict when the row changes between the read and the write', async () => {
+      const fake = createFakeClient()
+      fake.enqueue({ data: stored }, { data: null }, { data: { ...stored, updated_at: 'v2' } })
+      await expect(createCampaignRepository(fake.db).updateCampaign('c1', { name: 'New' }, 'v1')).rejects.toBeInstanceOf(ConflictError)
+    })
+
+    it('reports permission when the update matched nothing and the version is unchanged', async () => {
+      const fake = createFakeClient()
+      fake.enqueue({ data: stored }, { data: null }, { data: stored })
+      await expect(createCampaignRepository(fake.db).updateCampaign('c1', { name: 'New' })).rejects.toMatchObject({ kind: 'permission' })
+    })
+
+    it('reports not_found when the campaign is not visible', async () => {
+      const fake = createFakeClient()
+      fake.enqueue({ data: null })
+      await expect(createCampaignRepository(fake.db).updateCampaign('c1', { name: 'New' })).rejects.toMatchObject({ kind: 'not_found' })
+    })
+
+    it('makes no write for an empty patch', async () => {
+      const fake = createFakeClient()
+      fake.enqueue({ data: stored })
+      expect(await createCampaignRepository(fake.db).updateCampaign('c1', {}, 'v1')).toMatchObject({ id: 'c1' })
+      expect(fake.calls).toHaveLength(1)
+    })
+  })
+
   it('last-DM protection (23514) surfaces as a validation error', async () => {
     const fake = createFakeClient()
     fake.enqueue({ error: { message: 'cannot remove the only DM', code: '23514' } })

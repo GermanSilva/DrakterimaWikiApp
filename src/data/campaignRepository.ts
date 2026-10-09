@@ -5,7 +5,7 @@ import {
   INVITE_WRITE_COLUMNS,
   join,
 } from './columns'
-import { unwrap, unwrapWrite } from './errors'
+import { ConflictError, DataError, unwrap, unwrapWrite } from './errors'
 import { fromTable } from './loose'
 import { pagedList } from './pagedList'
 import type { Profile } from './profileRepository'
@@ -70,6 +70,16 @@ export interface AcceptInviteResult {
   character_id: number | null
 }
 
+/**
+ * What `updateCampaign` may change. `branding` holds the keys to set: a string sets it, `null` removes it, keys
+ * not mentioned are kept as stored (including keys this client does not know). Slug, regions, custom fields and
+ * settings are deliberately not editable here.
+ */
+export interface CampaignPatch {
+  name?: string
+  branding?: Record<string, string | null>
+}
+
 const CAMPAIGN_SELECT = join(CAMPAIGN_COLUMNS)
 const PROFILE_EMBED = 'id, display_name, avatar_url'
 
@@ -102,6 +112,47 @@ export function createCampaignRepository(client: Db) {
     /** RPC: creates the campaign and makes the caller its DM. Errors: reserved_slug, campaign_limit_reached. */
     async createCampaign(slug: string, name: string): Promise<Campaign> {
       return unwrap(await client.rpc('create_campaign', { p_slug: slug, p_name: name })) as unknown as Campaign
+    },
+
+    /**
+     * DM only (RLS + column grant). Updates only the whitelisted `name` / `branding` columns; `branding` is merged
+     * key by key onto the stored object. `base` is the `updated_at` the caller's form was built from: when the stored
+     * row is not at that version nothing is written and a ConflictError is thrown (the caller re-reads, never
+     * overwrites). The write itself is guarded by `updated_at` too, so a change between our read and write also
+     * conflicts. Returns the updated row.
+     */
+    async updateCampaign(campaignId: string, patch: CampaignPatch, base?: string): Promise<Campaign> {
+      const read = async () =>
+        unwrap<Campaign | null>(await fromTable(client, 'campaigns').select(CAMPAIGN_SELECT).eq('id', campaignId).maybeSingle())
+      const current = await read()
+      if (!current) throw new DataError('not_found', 'campaign: not found (missing or not visible)')
+      if (base !== undefined && current.updated_at !== base) throw new ConflictError()
+
+      const update: { name?: string; branding?: Record<string, unknown> } = {}
+      if (patch.name !== undefined) update.name = patch.name
+      if (patch.branding !== undefined) {
+        const merged: Record<string, unknown> = { ...(current.branding ?? {}) }
+        for (const [key, value] of Object.entries(patch.branding)) {
+          if (value === null) delete merged[key]
+          else merged[key] = value
+        }
+        update.branding = merged
+      }
+      if (Object.keys(update).length === 0) return current
+
+      const row = unwrap<Campaign | null>(
+        await fromTable(client, 'campaigns')
+          .update(update)
+          .eq('id', campaignId)
+          .eq('updated_at', current.updated_at)
+          .select(CAMPAIGN_SELECT)
+          .maybeSingle(),
+      )
+      if (row) return row
+      const latest = await read()
+      if (!latest) throw new DataError('not_found', 'campaign: not found (missing or not visible)')
+      if (latest.updated_at === current.updated_at) throw new DataError('permission', 'campaign: update affected no rows (not permitted)')
+      throw new ConflictError()
     },
 
     async listMembers(campaignId: string): Promise<Member[]> {
