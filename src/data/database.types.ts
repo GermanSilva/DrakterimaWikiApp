@@ -166,6 +166,39 @@ export type Database = {
           },
         ]
       }
+      campaign_presence: {
+        Row: {
+          campaign_id: string
+          last_seen_at: string
+          user_id: string
+        }
+        Insert: {
+          campaign_id: string
+          last_seen_at?: string
+          user_id: string
+        }
+        Update: {
+          campaign_id?: string
+          last_seen_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_presence_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_presence_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           branding: Json
@@ -1300,6 +1333,10 @@ export type Database = {
         Returns: number[]
       }
       shares_campaign_with: { Args: { uid: string }; Returns: boolean }
+      touch_campaign_presence: {
+        Args: { p_campaign_id: string }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never
