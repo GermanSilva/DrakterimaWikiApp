@@ -39,6 +39,7 @@ const PNJs = lazy(() => import('./sections/PNJsPage').then((m) => ({ default: m.
 const Mapas = lazy(() => import('./sections/MapasPage').then((m) => ({ default: m.MapasPage })))
 const Notas = lazy(() => import('./sections/NotasPage').then((m) => ({ default: m.NotasPage })))
 const Calendario = lazy(() => import('./sections/CalendarioPage').then((m) => ({ default: m.CalendarioPage })))
+const Juegos = lazy(() => import('./sections/JuegosPage').then((m) => ({ default: m.JuegosPage })))
 const SesionEnVivo = lazy(() => import('./sections/SesionEnVivoPage').then((m) => ({ default: m.SesionEnVivoPage })))
 const Placeholder = lazy(() => import('./SectionPlaceholder').then((m) => ({ default: m.SectionPlaceholder })))
 
@@ -63,7 +64,7 @@ export const SECTIONS: readonly SectionDef[] = [
   section('lore', 'Lore', 'Mundo', BookOpen, { Component: Lore }),
   section('homerules', 'Homerules', 'Homebrew', Hammer, { Component: Homerules }),
   section('items', 'Ítems', 'Homebrew', Gem, { Component: Items }),
-  section('juegos', 'Juegos', 'Homebrew', Dices),
+  section('juegos', 'Juegos', 'Homebrew', Dices, { Component: Juegos }),
   section('srd', 'SRD / Reglas', 'Referencia', BookMarked),
   section('sesion-en-vivo', 'Sesión en vivo', 'Administración', Swords, { dmOnly: true, fullBleed: true, Component: SesionEnVivo }),
   section('ajustes', 'Ajustes', 'Administración', SlidersHorizontal, { dmOnly: true }),
