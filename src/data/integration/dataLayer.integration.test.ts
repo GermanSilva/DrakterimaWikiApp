@@ -234,6 +234,19 @@ describe('data layer against the local Supabase stack', () => {
     expect(await dmData.readState.list(campaignId)).toEqual([])
   })
 
+  it('presence: members touch their own row, only the DM reads them, strangers are refused', async () => {
+    await playerData.presence.touch(campaignId)
+    await dmData.presence.touch(campaignId)
+    await playerData.presence.touch(campaignId) // inside the throttle window: a no-op, not an error
+    await expect(strangerData.presence.touch(campaignId)).rejects.toMatchObject({ kind: 'permission', reason: 'not_a_member' })
+
+    const rows = await dmData.presence.list(campaignId)
+    expect(rows.map((r) => r.user_id).sort()).toEqual([dm.id, player.id].sort())
+    expect(rows.every((r) => Number.isFinite(Date.parse(r.last_seen_at)))).toBe(true)
+    expect(await playerData.presence.list(campaignId)).toEqual([]) // not even their own
+    expect(await strangerData.presence.list(campaignId)).toEqual([])
+  })
+
   it('campaign config: members read loteria, the DM patches it and other keys survive', async () => {
     const loteria = await dmData.config.get(campaignId, 'loteria')
     expect(loteria?.visibility).toBe('members')

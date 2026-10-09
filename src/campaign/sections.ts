@@ -41,6 +41,7 @@ const Notas = lazy(() => import('./sections/NotasPage').then((m) => ({ default: 
 const Calendario = lazy(() => import('./sections/CalendarioPage').then((m) => ({ default: m.CalendarioPage })))
 const Juegos = lazy(() => import('./sections/JuegosPage').then((m) => ({ default: m.JuegosPage })))
 const SesionEnVivo = lazy(() => import('./sections/SesionEnVivoPage').then((m) => ({ default: m.SesionEnVivoPage })))
+const Ajustes = lazy(() => import('./sections/AjustesPage').then((m) => ({ default: m.AjustesPage })))
 const Placeholder = lazy(() => import('./SectionPlaceholder').then((m) => ({ default: m.SectionPlaceholder })))
 
 const section = (
@@ -67,7 +68,7 @@ export const SECTIONS: readonly SectionDef[] = [
   section('juegos', 'Juegos', 'Homebrew', Dices, { Component: Juegos }),
   section('srd', 'SRD / Reglas', 'Referencia', BookMarked),
   section('sesion-en-vivo', 'Sesión en vivo', 'Administración', Swords, { dmOnly: true, fullBleed: true, Component: SesionEnVivo }),
-  section('ajustes', 'Ajustes', 'Administración', SlidersHorizontal, { dmOnly: true }),
+  section('ajustes', 'Ajustes', 'Administración', SlidersHorizontal, { dmOnly: true, Component: Ajustes }),
 ]
 
 export function findSection(path: string | undefined): SectionDef | undefined {
