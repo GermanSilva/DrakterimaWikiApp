@@ -11,7 +11,7 @@ const NO_OWNER = ''
 /**
  * Who plays each character: one select per character with the members of the campaign and "Sin dueño". The change
  * is saved on selection (members only: the database refuses anyone else) and answered with a toast. The select
- * shows the value just saved until the realtime list catches up.
+ * shows the value just saved until the realtime list catches up, then the override is dropped.
  */
 export function CharacterOwners({ members }: { members: Member[] }) {
   const { layer } = useCampaignServices()
@@ -29,6 +29,16 @@ export function CharacterOwners({ members }: { members: Member[] }) {
       mounted.current = false
     }
   }, [])
+
+  // Drop an override as soon as the list moved off the owner it was saved from (the realtime update arrived, with
+  // our value or any other): from then on the list is the truth, so a later outside change back to the old owner
+  // shows the real value instead of a stale saved one. (Adjusting state during render, not in an effect.)
+  const stale = Object.entries(saved).filter(([id, entry]) => {
+    const pj = pjs.items.find((p) => p.id === Number(id))
+    const stored = pj && typeof pj.owner_id === 'string' ? pj.owner_id : NO_OWNER
+    return pj === undefined || stored !== entry.from || entry.value === entry.from
+  })
+  if (stale.length > 0) setSaved(Object.fromEntries(Object.entries(saved).filter(([id]) => !stale.some(([sid]) => sid === id))))
 
   const characters = [...pjs.items].sort((a, b) => String(a.nombre ?? '').localeCompare(String(b.nombre ?? '')))
   if (characters.length === 0) {

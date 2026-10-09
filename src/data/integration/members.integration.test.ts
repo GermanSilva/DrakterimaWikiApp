@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto'
-import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, inject, it } from 'vitest'
 import { createDataLayer, type DataLayer } from '../index'
 import { createAdminClient, createTestUser, type TestUser } from './testUsers'
 
@@ -8,6 +8,8 @@ const env = inject('supabase')
 /**
  * H10d: member administration through the REAL data layer, RLS, triggers and the delete_campaign RPC.
  * Co-DMs are allowed; only the last DM is protected; kicking releases characters and keeps content.
+ * Users are shared (nothing here changes them); every test gets its OWN campaign, character and memberships
+ * (beforeEach) and the campaign is deleted afterwards (afterEach), so a failure in one test cannot cascade.
  */
 describe('members, roles, character owners and campaign deletion against the local stack', () => {
   let dm: TestUser
@@ -21,7 +23,6 @@ describe('members, roles, character owners and campaign deletion against the loc
   let slug = ''
   let pjId = 0
   const created: TestUser[] = []
-  const extraCampaigns: string[] = []
 
   async function newUser(label: string) {
     const user = await createTestUser(env, label)
@@ -29,11 +30,14 @@ describe('members, roles, character owners and campaign deletion against the loc
     return user
   }
 
-  async function cleanup() {
-    const admin = createAdminClient(env)
-    for (const id of [campaignId, ...extraCampaigns]) if (id) await admin.from('campaigns').delete().eq('id', id)
+  // the campaign's DMs are deleted with the campaign first: protect_last_dm blocks deleting an account that is the only DM
+  async function dropCampaign() {
+    if (campaignId) await createAdminClient(env).from('campaigns').delete().eq('id', campaignId)
     campaignId = ''
-    extraCampaigns.length = 0
+  }
+  async function cleanup() {
+    await dropCampaign()
+    const admin = createAdminClient(env)
     for (const u of created.splice(0)) await admin.auth.admin.deleteUser(u.id)
   }
 
@@ -52,17 +56,26 @@ describe('members, roles, character owners and campaign deletion against the loc
       dmData = createDataLayer(dm.client)
       bobData = createDataLayer(bob.client)
       outsiderData = createDataLayer(outsider.client)
-      slug = `h10d-${randomBytes(4).toString('hex')}`
-      campaignId = (await dmData.campaigns.createCampaign(slug, 'H10d integration')).id
-      pjId = (await dmData.entity('pjs').create(campaignId, { nombre: 'Eldric' })).id
-      await join(bob)
-      await join(carol)
     } catch (e) {
       await cleanup().catch(() => undefined)
       throw e
     }
   })
 
+  beforeEach(async () => {
+    try {
+      slug = `h10d-${randomBytes(4).toString('hex')}`
+      campaignId = (await dmData.campaigns.createCampaign(slug, 'H10d integration')).id
+      pjId = (await dmData.entity('pjs').create(campaignId, { nombre: 'Eldric' })).id
+      await join(bob)
+      await join(carol)
+    } catch (e) {
+      await dropCampaign().catch(() => undefined)
+      throw e
+    }
+  })
+
+  afterEach(dropCampaign)
   afterAll(cleanup)
 
   it('a player cannot change roles, kick anyone or assign characters', async () => {

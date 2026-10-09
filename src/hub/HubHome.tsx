@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
 import { btnSecondary } from '../constants'
 import { useHubData } from '../app/DataContext'
@@ -9,14 +10,21 @@ import { useMyCampaigns } from './useMyCampaigns'
 export function HubHome() {
   const data = useHubData()
   const navigate = useNavigate()
-  // set by the campaign deletion redirect (router state: it survives that one navigation only)
-  const deleted = (useLocation().state as { campaignDeleted?: unknown } | null)?.campaignDeleted
+  const location = useLocation()
+  // Set by the campaign deletion redirect through router state. Router state outlives that navigation (reload,
+  // back), so it is consumed: kept in local state for this visit and wiped from the history entry.
+  const incoming = (location.state as { campaignDeleted?: unknown } | null)?.campaignDeleted
+  const [deleted, setDeleted] = useState<string | null>(null)
+  if (typeof incoming === 'string' && incoming !== deleted) setDeleted(incoming)
+  useEffect(() => {
+    if (typeof incoming === 'string') navigate(location, { replace: true, state: null })
+  }, [incoming, location, navigate])
   const { status, campaigns, reload } = useMyCampaigns()
 
   return (
     <>
       <h1 className="font-exo text-xl font-semibold tracking-[0.15em] uppercase text-txt-primary mb-5">Mis campañas</h1>
-      {typeof deleted === 'string' && (
+      {deleted !== null && (
         <p role="status" className="mb-4 text-sm text-accent-bright">
           Se borró la campaña «{deleted}».
         </p>

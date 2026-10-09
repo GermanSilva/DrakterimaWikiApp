@@ -1,4 +1,4 @@
-import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react'
+import { act, configure, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { DataError, type Member } from '../../../data'
 import { ME } from '../../../app/testing/renderApp'
@@ -156,6 +156,20 @@ describe('Ajustes > Jugadores: character owners', () => {
     fireEvent.change(await ownerSelect('Eldric'), { target: { value: '' } })
     await waitFor(() => expect(spies.setPjOwner).toHaveBeenCalledWith(10, null))
     expect(await screen.findByText('Eldric quedó sin dueño.')).toBeInTheDocument()
+  })
+
+  it('drops the saved override once the list reflects it, so a later outside change back shows the real owner', async () => {
+    const { fake, spies } = setup()
+    fireEvent.change(await ownerSelect('Mara'), { target: { value: 'u-dan' } })
+    await waitFor(() => expect(spies.setPjOwner).toHaveBeenCalledWith(11, 'u-dan'))
+    expect(await ownerSelect('Mara')).toHaveValue('u-dan')
+
+    const channel = fake.channels.find((c) => c.name.startsWith('campaign:pjs:'))!
+    act(() => channel.emit('UPDATE', { new: { ...PJS[1], owner_id: 'u-dan' } }))
+    expect(await ownerSelect('Mara')).toHaveValue('u-dan')
+    // somebody else releases the character: the list says nobody, not our stale saved value
+    act(() => channel.emit('UPDATE', { new: { ...PJS[1], owner_id: null } }))
+    await waitFor(async () => expect(await ownerSelect('Mara')).toHaveValue(''))
   })
 
   it('a refused assignment shows an error toast and the select keeps the real owner', async () => {

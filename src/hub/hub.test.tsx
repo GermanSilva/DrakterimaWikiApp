@@ -54,6 +54,20 @@ describe('hub home', () => {
   })
 })
 
+describe('campaign deleted notice', () => {
+  it('is shown once and cleared from the history entry, so it does not come back on reload or back', async () => {
+    const { router } = renderApp('/', { data: makeData({ listMyCampaigns: vi.fn(async () => []) }) })
+    await screen.findByText(/Todavía no sos parte de ninguna campaña/)
+    await act(async () => {
+      await router.navigate('/', { replace: true, state: { campaignDeleted: 'Demo' } })
+    })
+    expect(await screen.findByText('Se borró la campaña «Demo».')).toBeInTheDocument()
+    await waitFor(() => expect(router.state.location.state).toBeNull())
+    // the visit still shows it; the history entry (reload, back) no longer carries it
+    expect(screen.getByText('Se borró la campaña «Demo».')).toBeInTheDocument()
+  })
+})
+
 describe('create campaign', () => {
   it('suggests the slug from the name, creates and navigates to /c/:slug', async () => {
     const data = makeData()
