@@ -249,10 +249,21 @@ export function CalendarioPage() {
         />
       )}
       {modal?.kind === 'mine' && (
-        <AvailabilityForm campaignId={campaign.id} userId={meId} fecha={modal.fecha} row={modal.row} busy={busy} onClose={backToDay} />
+        <AvailabilityForm campaignId={campaign.id} userId={meId} fecha={modal.fecha} row={modal.row}
+          busy={busy}
+          busyStatus={busyLoad.status}
+          onRetryBusy={busyLoad.refresh}
+          onClose={backToDay}
+        />
       )}
       {modal?.kind === 'session' && isDM && (
-        <SessionSlotForm fecha={modal.fecha} slot={modal.slot} busy={busy} members={markers} onClose={backToDay} />
+        <SessionSlotForm fecha={modal.fecha} slot={modal.slot}
+          busy={busy}
+          members={markers}
+          busyStatus={busyLoad.status}
+          onRetryBusy={busyLoad.refresh}
+          onClose={backToDay}
+        />
       )}
     </div>
   )

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import type { BusySlot, Disponibilidad, PlayerAvailability } from '../../data'
 import {
   MEMBER_PALETTE, addDaysStr, asBlock, blockOverlapsDay, blocksOverlap, buildMemberMarkers, buildMonthCells, clipBlockToDay,
@@ -146,3 +146,58 @@ describe('member markers', () => {
     expect(buildMemberMarkers(members).get('u3')).toEqual(markers.get('u3'))
   })
 })
+
+describe('daylight-saving change days', () => {
+  // The window of the day that holds the clock change is 23h (spring) or 25h (autumn) in elapsed time;
+  // wall-clock maths must keep every segment inside the fixed 0..1440 timeline.
+  const zones = [
+    { tz: 'America/New_York', spring: '2026-03-07', autumn: '2026-10-31' },
+    { tz: 'Europe/Madrid', spring: '2026-03-28', autumn: '2026-10-24' },
+  ]
+  const previousTz = process.env.TZ
+  beforeAll(() => {
+    process.env.TZ = 'America/New_York'
+  })
+  afterAll(() => {
+    if (previousTz === undefined) delete process.env.TZ
+    else process.env.TZ = previousTz
+  })
+
+  it.each(zones)('uses a 1440-minute timeline in $tz', ({ tz, spring, autumn }) => {
+    process.env.TZ = tz
+    // sanity: the zone really has a 23h and a 25h window, so the test would catch elapsed-time maths
+    const elapsed = (f: string) => (new Date(...ymd(addDaysStr(f, 1)), 6).getTime() - new Date(...ymd(f), 6).getTime()) / 3600000
+    expect(elapsed(spring)).toBe(23)
+    expect(elapsed(autumn)).toBe(25)
+
+    for (const f of [spring, autumn]) {
+      const overnight = block(f, '20:00', addDaysStr(f, 1), '06:00')
+      expect(clipBlockToDay(overnight, f)).toEqual({ startMin: 840, endMin: 1440 })
+      const wholeWindow = block(f, '00:00', addDaysStr(f, 1), '12:00')
+      expect(clipBlockToDay(wholeWindow, f)).toEqual({ startMin: 0, endMin: 1440 })
+      // ends exactly when the next window starts: does not touch it
+      expect(blockOverlapsDay(overnight, addDaysStr(f, 1))).toBe(false)
+      expect(clipBlockToDay(overnight, addDaysStr(f, 1))).toBeNull()
+    }
+  })
+
+  it('keeps a block inside the change night at its wall-clock minutes', () => {
+    process.env.TZ = 'America/New_York'
+    // 02:30 on 2026-03-08 does not exist locally; wall-clock maths still places it 20h30 after 06:00 of the 7th
+    expect(clipBlockToDay(block('2026-03-08', '01:00', '2026-03-08', '04:00'), '2026-03-07')).toEqual({ startMin: 1140, endMin: 1320 })
+    // the repeated 01:00-02:00 hour of 2026-11-01 counts once
+    expect(clipBlockToDay(block('2026-11-01', '00:30', '2026-11-01', '03:00'), '2026-10-31')).toEqual({ startMin: 1110, endMin: 1260 })
+  })
+
+  it('adds days across the clock change without drifting', () => {
+    process.env.TZ = 'America/New_York'
+    expect(addDaysStr('2026-03-07', 1)).toBe('2026-03-08')
+    expect(addDaysStr('2026-03-08', 1)).toBe('2026-03-09')
+    expect(addDaysStr('2026-10-31', 2)).toBe('2026-11-02')
+  })
+})
+
+const ymd = (f: string): [number, number, number] => {
+  const [y, m, d] = f.split('-').map(Number)
+  return [y, m - 1, d]
+}

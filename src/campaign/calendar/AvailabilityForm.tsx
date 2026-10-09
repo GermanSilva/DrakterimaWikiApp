@@ -3,6 +3,7 @@ import { btnDanger, btnPrimary, btnSecondary, inputCls, labelCls } from '../../c
 import type { BusySlot, PlayerAvailability } from '../../data'
 import { usePlayerAvailabilityActions } from '../entities/usePlayerAvailabilityActions'
 import { asBlock, conflictingUserIds, shortTime } from './availabilityCalc'
+import { BusyAvailabilityNotice, type BusyStatus } from './BusyAvailabilityNotice'
 import { ModalShell } from './ModalShell'
 
 type Scope = 'general' | 'campaign'
@@ -17,6 +18,9 @@ interface Props {
   row?: PlayerAvailability
   /** Slots of other campaigns' sessions (any member): only the caller's are checked. */
   busy: readonly BusySlot[]
+  /** Saving is held back until the busy slots are known. */
+  busyStatus: BusyStatus
+  onRetryBusy: () => void
   onClose: () => void
 }
 
@@ -26,7 +30,7 @@ export const BUSY_MESSAGE = 'Ese horario se superpone con otro compromiso tuyo, 
  * Form for the signed-in user's OWN availability (players and DM alike). The scope decides whether the
  * entry applies to every campaign the user plays in (general, `campaign_id` null) or only to this one.
  */
-export function AvailabilityForm({ campaignId, userId, fecha, row, busy, onClose }: Props) {
+export function AvailabilityForm({ campaignId, userId, fecha, row, busy, busyStatus, onRetryBusy, onClose }: Props) {
   const actions = usePlayerAvailabilityActions()
   const scopeName = useId()
   const [tipo, setTipo] = useState<Tipo>(row?.tipo ?? 'personal')
@@ -55,6 +59,7 @@ export function AvailabilityForm({ campaignId, userId, fecha, row, busy, onClose
   }
 
   const save = async () => {
+    if (busyStatus !== 'ready') return
     const problem = validate()
     setError(problem)
     if (problem || busyConflict) return
@@ -148,6 +153,7 @@ export function AvailabilityForm({ campaignId, userId, fecha, row, busy, onClose
             {error}
           </p>
         )}
+        <BusyAvailabilityNotice status={busyStatus} onRetry={onRetryBusy} />
 
         <div className="flex gap-2.5 justify-end flex-wrap">
           {row && (
@@ -158,7 +164,7 @@ export function AvailabilityForm({ campaignId, userId, fecha, row, busy, onClose
           <button type="button" className={btnSecondary} onClick={onClose}>
             Cancelar
           </button>
-          <button type="button" className={btnPrimary} onClick={save} disabled={saving || busyConflict}>
+          <button type="button" className={btnPrimary} onClick={save} disabled={saving || busyConflict || busyStatus !== 'ready'}>
             Guardar
           </button>
         </div>

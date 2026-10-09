@@ -29,24 +29,27 @@ export interface DayCell {
   busy: string[]
 }
 
-export function combineDateTime(fecha: string, hora: string): Date {
+/**
+ * Wall-clock minutes of a date + time, counted on a UTC calendar (no daylight saving): every calendar
+ * day is exactly 1440 minutes, whatever the local time zone does on that day.
+ */
+function wallMinutes(fecha: string, hora: string): number {
   const [y, m, d] = fecha.split('-').map(Number)
   const [h, min] = hora.split(':').map(Number)
-  return new Date(y, m - 1, d, h, min)
+  return Date.UTC(y, m - 1, d, h, min) / 60000
 }
 
 export function addDaysStr(fecha: string, n: number): string {
   const [y, m, d] = fecha.split('-').map(Number)
-  const date = new Date(y, m - 1, d)
-  date.setDate(date.getDate() + n)
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().slice(0, 10)
 }
 
 /** `18:00:00` (Postgres time) and `18:00` are both shown and edited as `18:00`. */
 export const shortTime = (hora: string): string => hora.slice(0, 5)
 
-export function dayWindow(fecha: string): { start: Date; end: Date } {
-  return { start: combineDateTime(fecha, '06:00'), end: combineDateTime(addDaysStr(fecha, 1), '06:00') }
+function windowOf(fecha: string): { start: number; end: number } {
+  const start = wallMinutes(fecha, '06:00')
+  return { start, end: start + 1440 }
 }
 
 /** The row as a bounded block, or null when any of its four bounds is missing. */
@@ -60,13 +63,13 @@ export function asBlock(row: {
   return fecha_inicio && fecha_fin && hora_inicio && hora_fin ? { fecha_inicio, fecha_fin, hora_inicio, hora_fin } : null
 }
 
-function bounds(block: Block): { start: Date; end: Date } {
-  return { start: combineDateTime(block.fecha_inicio, block.hora_inicio), end: combineDateTime(block.fecha_fin, block.hora_fin) }
+function bounds(block: Block): { start: number; end: number } {
+  return { start: wallMinutes(block.fecha_inicio, block.hora_inicio), end: wallMinutes(block.fecha_fin, block.hora_fin) }
 }
 
 export function blockOverlapsDay(block: Block, fecha: string): boolean {
   const b = bounds(block)
-  const d = dayWindow(fecha)
+  const d = windowOf(fecha)
   return b.start < d.end && d.start < b.end
 }
 
@@ -77,14 +80,17 @@ export function blocksOverlap(a: Block, b: Block): boolean {
   return x.start < y.end && y.start < x.end
 }
 
-/** The part of the block inside the 06:00-06:00 window of `fecha`, in minutes; null when outside. */
+/**
+ * The part of the block inside the 06:00-06:00 window of `fecha`, in minutes; null when outside.
+ * Wall-clock arithmetic: on a daylight-saving change day the result still stays within 0..1440.
+ */
 export function clipBlockToDay(block: Block, fecha: string): Segment | null {
   const b = bounds(block)
-  const d = dayWindow(fecha)
-  const start = b.start > d.start ? b.start : d.start
-  const end = b.end < d.end ? b.end : d.end
+  const d = windowOf(fecha)
+  const start = Math.max(b.start, d.start)
+  const end = Math.min(b.end, d.end)
   if (start >= end) return null
-  return { startMin: (start.getTime() - d.start.getTime()) / 60000, endMin: (end.getTime() - d.start.getTime()) / 60000 }
+  return { startMin: start - d.start, endMin: end - d.start }
 }
 
 /**

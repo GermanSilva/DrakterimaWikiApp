@@ -3,6 +3,7 @@ import { btnDanger, btnPrimary, btnSecondary, inputCls, labelCls } from '../../c
 import type { BusySlot, Disponibilidad } from '../../data'
 import { useDisponibilidadActions } from '../entities/useDisponibilidadActions'
 import { asBlock, conflictingUserIds, shortTime, type MemberMarker } from './availabilityCalc'
+import { BusyAvailabilityNotice, type BusyStatus } from './BusyAvailabilityNotice'
 import { ModalShell } from './ModalShell'
 
 interface Props {
@@ -11,11 +12,14 @@ interface Props {
   slot?: Disponibilidad
   busy: readonly BusySlot[]
   members: readonly MemberMarker[]
+  /** Saving is held back until the busy slots are known. */
+  busyStatus: BusyStatus
+  onRetryBusy: () => void
   onClose: () => void
 }
 
 /** DM-only form of a session slot. A member booked by another campaign blocks the slot (UI level). */
-export function SessionSlotForm({ fecha, slot, busy, members, onClose }: Props) {
+export function SessionSlotForm({ fecha, slot, busy, members, busyStatus, onRetryBusy, onClose }: Props) {
   const actions = useDisponibilidadActions()
   const id = useId()
   const [f, setF] = useState({
@@ -38,6 +42,7 @@ export function SessionSlotForm({ fecha, slot, busy, members, onClose }: Props) 
   }, [f, busy, members])
 
   const save = async () => {
+    if (busyStatus !== 'ready') return
     let problem: string | null = null
     if (!f.fecha_inicio || !f.fecha_fin || !f.hora_inicio || !f.hora_fin) problem = 'Completá los 4 campos.'
     else if (f.fecha_fin === f.fecha_inicio && f.hora_fin <= f.hora_inicio) problem = 'La hora de fin debe ser posterior a la hora de inicio.'
@@ -92,6 +97,7 @@ export function SessionSlotForm({ fecha, slot, busy, members, onClose }: Props) 
             {error}
           </p>
         )}
+        <BusyAvailabilityNotice status={busyStatus} onRetry={onRetryBusy} />
 
         <div className="flex gap-2.5 justify-end flex-wrap">
           {slot && (
@@ -102,7 +108,7 @@ export function SessionSlotForm({ fecha, slot, busy, members, onClose }: Props) 
           <button type="button" className={btnSecondary} onClick={onClose}>
             Cancelar
           </button>
-          <button type="button" className={btnPrimary} onClick={save} disabled={saving || conflicts.length > 0}>
+          <button type="button" className={btnPrimary} onClick={save} disabled={saving || conflicts.length > 0 || busyStatus !== 'ready'}>
             Guardar
           </button>
         </div>

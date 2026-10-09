@@ -394,3 +394,135 @@ describe('Calendario realtime', () => {
     expect(await within(friday).findByTitle('Sesión programada')).toBeInTheDocument()
   })
 })
+
+describe('Calendario saves are gated on the busy slots', () => {
+  const deferred = <T,>() => {
+    let resolve!: (v: T) => void
+    const promise = new Promise<T>((r) => {
+      resolve = r
+    })
+    return { promise, resolve }
+  }
+  const fillSession = () => {
+    setField('Hora de inicio', '19:00')
+    setField('Hora de fin', '22:00')
+  }
+
+  it('blocks saving a session while the busy slots load, then allows it', async () => {
+    const { layer, spies } = createFakeLayer({ members: [DM_ME, BETO] })
+    const pending = deferred<BusySlot[]>()
+    spies.busySlotsList.mockImplementation(() => pending.promise)
+    renderSection('/c/demo/calendario', { layer })
+    fireEvent.click((await openDay()).getByRole('button', { name: /Agregar sesión/ }))
+    fillSession()
+    expect(screen.getByRole('status')).toHaveTextContent('Cargando disponibilidad de otras campañas…')
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(layer.disponibilidad.create).not.toHaveBeenCalled()
+
+    await act(async () => pending.resolve([]))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled())
+    expect(screen.queryByText(/Cargando disponibilidad/)).toBeNull()
+  })
+
+  it('blocks saving a session after the busy slots failed, and allows it once a retry succeeds', async () => {
+    const { layer, spies } = createFakeLayer({ members: [DM_ME, BETO] })
+    spies.busySlotsList.mockRejectedValue(new Error('down'))
+    renderSection('/c/demo/calendario', { layer })
+    fireEvent.click((await openDay()).getByRole('button', { name: /Agregar sesión/ }))
+    fillSession()
+    await waitFor(() => expect(within(dialog()).getByRole('alert')).toHaveTextContent('No pudimos cargar la disponibilidad de otras campañas'))
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
+    expect(layer.disponibilidad.create).not.toHaveBeenCalled()
+
+    spies.busySlotsList.mockResolvedValue([])
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Reintentar' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    await waitFor(() => expect(layer.disponibilidad.create).toHaveBeenCalledTimes(1))
+  })
+
+  it('still refuses a conflicting session once the slots arrive late', async () => {
+    const { layer, spies } = createFakeLayer({ members: [DM_ME, BETO] })
+    const pending = deferred<BusySlot[]>()
+    spies.busySlotsList.mockImplementation(() => pending.promise)
+    renderSection('/c/demo/calendario', { layer })
+    fireEvent.click((await openDay()).getByRole('button', { name: /Agregar sesión/ }))
+    fillSession()
+    await act(async () => pending.resolve([busy('u-beto', '2026-03-06', '20:00', '23:00')]))
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Beto Ruiz ya tiene otro compromiso'))
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
+  })
+
+  it('blocks saving own availability after a failure and allows it after a retry', async () => {
+    const { layer, spies } = createFakeLayer({ members: [PLAYER_ME] })
+    spies.busySlotsList.mockRejectedValue(new Error('down'))
+    renderSection('/c/demo/calendario', { layer, isDM: false })
+    fireEvent.click((await openDay()).getByRole('button', { name: /Agregar mi disponibilidad/ }))
+    setField('Hora de inicio', '18:00')
+    setField('Hora de fin', '22:00')
+    await waitFor(() => expect(within(dialog()).getByRole('alert')).toHaveTextContent('No pudimos cargar la disponibilidad de otras campañas'))
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
+    expect(layer.playerAvailability.create).not.toHaveBeenCalled()
+
+    spies.busySlotsList.mockResolvedValue([])
+    fireEvent.click(within(dialog()).getByRole('button', { name: 'Reintentar' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled())
+  })
+
+  it('shows the loading message on the availability form while the slots are pending', async () => {
+    const { layer, spies } = createFakeLayer({ members: [PLAYER_ME] })
+    spies.busySlotsList.mockImplementation(() => new Promise<BusySlot[]>(() => undefined))
+    renderSection('/c/demo/calendario', { layer, isDM: false })
+    fireEvent.click((await openDay()).getByRole('button', { name: /Agregar mi disponibilidad/ }))
+    expect(screen.getByRole('status')).toHaveTextContent('Cargando disponibilidad de otras campañas…')
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
+  })
+})
+
+describe('Calendario session slot write failures', () => {
+  const setup = (over: Parameters<typeof createFakeLayer>[0] = {}) => {
+    const made = createFakeLayer({ members: [DM_ME], ...over })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    renderSection('/c/demo/calendario', { layer: made.layer })
+    return { ...made, errorSpy }
+  }
+  const toastShown = () => screen.findByText('No se pudo completar la operación. Intentá de nuevo.')
+
+  it('create: shows a toast and keeps the form open', async () => {
+    const { layer, errorSpy } = setup()
+    ;(layer.disponibilidad.create as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('down'))
+    fireEvent.click((await openDay()).getByRole('button', { name: /Agregar sesión/ }))
+    setField('Hora de inicio', '19:00')
+    setField('Hora de fin', '23:00')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(await toastShown()).toBeInTheDocument()
+    expect(dialog()).toHaveAccessibleName('Agregar sesión')
+    expect(screen.getByLabelText('Hora de inicio')).toHaveValue('19:00') // nothing lost
+    expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled() // can retry
+    errorSpy.mockRestore()
+  })
+
+  it('update: shows a toast and keeps the form open', async () => {
+    const { layer, errorSpy } = setup({ disponibilidad: [slot(5, '2026-03-06')] })
+    ;(layer.disponibilidad.update as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('down'))
+    fireEvent.click(await (await openDay()).findByRole('button', { name: 'Editar sesión 19:00–23:00' }))
+    setField('Hora de fin', '23:30')
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Guardar' })).toBeEnabled())
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(await toastShown()).toBeInTheDocument()
+    expect(dialog()).toHaveAccessibleName('Editar sesión')
+    errorSpy.mockRestore()
+  })
+
+  it('remove: shows a toast and keeps the form open', async () => {
+    const { layer, errorSpy } = setup({ disponibilidad: [slot(5, '2026-03-06')] })
+    ;(layer.disponibilidad.remove as ReturnType<typeof vi.fn>).mockRejectedValueOnce(new Error('down'))
+    fireEvent.click(await (await openDay()).findByRole('button', { name: 'Editar sesión 19:00–23:00' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Eliminar' }))
+    expect(await toastShown()).toBeInTheDocument()
+    expect(dialog()).toHaveAccessibleName('Editar sesión')
+    errorSpy.mockRestore()
+  })
+})
