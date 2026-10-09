@@ -73,7 +73,13 @@ export function HubPlayerNotesProvider({ children }: { children: ReactNode }) {
   const items = notes && notes.campaignId === campaignId ? notes.items : null
   const failed = notes?.campaignId === campaignId && notes.failed === true
   const authorNames = authors?.campaignId === campaignId ? authors.names : null
-  const reload = useCallback(() => setReloadNonce((n) => n + 1), [])
+  // Only a failed load can be retried; the list goes back to loading until the retry answers, so the
+  // retry button is gone meanwhile and retries cannot overlap (the effect also drops a superseded response).
+  const reload = useCallback(() => {
+    if (!failed) return
+    setNotes(null)
+    setReloadNonce((n) => n + 1)
+  }, [failed])
 
   const upsertLocal = useCallback(
     (note: PlayerNote) => {

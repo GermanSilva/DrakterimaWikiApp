@@ -11,6 +11,7 @@ import {
   authorName, filterNotes, groupByAuthor, hasText, highlightSegments, isChipActive, parseQuery, toggleChip, typeLabel,
   typesPresent,
 } from '../notes/notesSearch'
+import { useToast } from '../toastContext'
 import { Loading } from './DetailNotice'
 
 const PILL = 'font-exo text-[10px] tracking-[0.1em] uppercase border transition-colors cursor-pointer'
@@ -81,6 +82,7 @@ export function NotasPage() {
   const port = usePlayerNotesPort()
   const { campaign, isDM } = useCampaign()
   const { byTable } = useWikiIndex()
+  const { showToast } = useToast()
   const [query, setQuery] = useState('')
   const [authorKey, setAuthorKey] = useState<string | null>(null)
   const [dialog, setDialog] = useState<{ kind: 'view' | 'confirm'; ref: NoteRef; from: 'card' | 'view' } | null>(null)
@@ -91,6 +93,18 @@ export function NotasPage() {
     // sessions may have no title: never leave the note unnamed
     return (type: string, id: number) => titles.get(`${type}:${id}`) || (type === 'sesiones' ? `Sesión #${id}` : `#${id}`)
   }, [byTable])
+
+  // A port write resolves `false` when it failed and already told the user (hub), nothing when it succeeded
+  // (legacy), or rejects (legacy has no failure channel): a rejection must not escape from the dialog.
+  const attempt = async (write: () => Promise<boolean | void>, failure: string) => {
+    try {
+      return (await write()) !== false
+    } catch (err) {
+      console.error(failure, err)
+      showToast(failure, 'error')
+      return false
+    }
+  }
 
   const header = (
     <PageHeader eyebrow="Registro" title="Notas" titleAs="h1">
@@ -224,7 +238,7 @@ export function NotasPage() {
       {dialog && current && dialog.kind === 'view' && (
         <NoteDetailDialog
           note={{ type: current.type, text: current.text, name: nameOf(current.type, current.id), byline: bylineOf(current), href: entityPath(campaign.slug, current.type, current.id) }}
-          onSave={async (text) => (await port.save(current.type, current.id, text, current.key)) !== false}
+          onSave={(text) => attempt(() => port.save(current.type, current.id, text, current.key), 'No se pudo guardar la nota')}
           onDelete={() => setDialog({ kind: 'confirm', ref: dialog.ref, from: 'view' })}
           onClose={() => setDialog(null)}
         />
@@ -234,7 +248,7 @@ export function NotasPage() {
           note={{ type: current.type, name: nameOf(current.type, current.id), byline: bylineOf(current) }}
           onCancel={() => setDialog(dialog.from === 'view' ? { ...dialog, kind: 'view' } : null)}
           onConfirm={async () => {
-            if ((await port.remove(current.type, current.id, current.key)) !== false) setDialog(null)
+            if (await attempt(() => port.remove(current.type, current.id, current.key), 'No se pudo eliminar la nota')) setDialog(null)
           }}
         />
       )}

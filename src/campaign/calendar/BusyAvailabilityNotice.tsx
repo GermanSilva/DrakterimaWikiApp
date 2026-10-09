@@ -6,7 +6,8 @@ export type BusyStatus = 'idle' | 'loading' | 'ready' | 'error'
 /** Why Save is held back while the busy slots are not loaded; renders nothing once they are. */
 export function BusyAvailabilityNotice({ status, onRetry }: { status: BusyStatus; onRetry: () => void }) {
   if (status === 'ready') return null
-  if (status === 'error') {
+  // 'idle' means nothing was requested, so nothing will arrive on its own: offer the retry like an error
+  if (status === 'error' || status === 'idle') {
     return (
       <p role="alert" className="text-sm text-red-400 m-0">
         No pudimos cargar la disponibilidad de otras campañas, así que no se puede guardar.{' '}

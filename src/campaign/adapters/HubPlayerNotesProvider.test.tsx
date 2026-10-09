@@ -82,6 +82,26 @@ describe('hub player notes port: all()', () => {
     errorSpy.mockRestore()
   })
 
+  it('while a retry is in flight the port is loading, a second reload() is ignored and the retry result wins', async () => {
+    const { layer, spies } = createFakeLayer()
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    let finishRetry: (items: PlayerNote[]) => void = () => undefined
+    spies.playerNotesList
+      .mockRejectedValueOnce(new Error('down'))
+      .mockImplementationOnce(() => new Promise<PlayerNote[]>((resolve) => { finishRetry = resolve }))
+    renderProbe(layer, false)
+    await waitFor(() => expect(getPort().failed).toBe(true))
+    act(() => getPort().reload?.())
+    expect(getPort().loading).toBe(true)
+    expect(getPort().failed).toBe(false)
+    act(() => getPort().reload?.())
+    expect(spies.playerNotesList).toHaveBeenCalledTimes(2)
+    await act(async () => finishRetry([note()]))
+    expect(getPort().loading).toBe(false)
+    expect(getPort().all()).toHaveLength(1)
+    errorSpy.mockRestore()
+  })
+
   it('save and remove resolve false on failure and true on success', async () => {
     const { layer, spies } = createFakeLayer()
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
