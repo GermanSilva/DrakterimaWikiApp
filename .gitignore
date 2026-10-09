@@ -5,3 +5,8 @@ dist/
 .claude/settings.local.json
 .superpowers/
 .atl/
+
+# legacy export / importer outputs: contain plaintext player passwords, DM-only text and invite codes
+data/db.json
+scripts/out/
+*.drakterima-export.json
