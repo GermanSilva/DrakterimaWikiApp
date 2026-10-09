@@ -280,6 +280,8 @@ export const GAME_LOG_COLUMNS = [
 
 export const GAME_POT_COLUMNS = ['campaign_id', 'cp', 'sp', 'ep', 'gp', 'pp', 'updated_at'] as const
 
+export const CAMPAIGN_PRESENCE_COLUMNS = ['campaign_id', 'user_id', 'last_seen_at'] as const
+
 export const join = (cols: readonly string[]): string => cols.join(', ')
 
 /** A column list together with the table it is selected from (checked against the real schema). */
@@ -311,6 +313,7 @@ export const COLUMN_LIST_ENTRIES: readonly ColumnListEntry[] = [
   { name: 'campaign_config', table: 'campaign_config', columns: CAMPAIGN_CONFIG_COLUMNS },
   { name: 'game_logs', table: 'game_logs', columns: GAME_LOG_COLUMNS },
   { name: 'game_pot', table: 'game_pot', columns: GAME_POT_COLUMNS },
+  { name: 'campaign_presence', table: 'campaign_presence', columns: CAMPAIGN_PRESENCE_COLUMNS },
 ]
 
 /** Every list above by name, for the guard test (no `*`, no `visible_to`). */

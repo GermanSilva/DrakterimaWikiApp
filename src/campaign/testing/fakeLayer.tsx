@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { vi } from 'vitest'
 import { AuthContext } from '../../auth/AuthContext'
 import { makeAuth, makeCampaign } from '../../app/testing/renderApp'
-import { ConflictError, type BusySlot, type DataLayer, type Disponibilidad, type Member, type FlatEntity, type GameLog, type GamePot, type PlayerAvailability, type PlayerNote, type WikiIndexItem } from '../../data'
+import { ConflictError, type BusySlot, type CampaignPresence, type DataLayer, type Disponibilidad, type Member, type FlatEntity, type GameLog, type GamePot, type PlayerAvailability, type PlayerNote, type WikiIndexItem } from '../../data'
 import { createFakeClient } from '../../data/testing/fakeClient'
 import { UnreadPortContext, type UnreadPort } from '../../ports'
 import { CampaignContext, type CampaignContextValue } from '../CampaignContext'
@@ -26,6 +26,8 @@ export interface FakeLayerOptions {
   /** The campaign pot row (null/undefined = no prize yet). */
   pot?: GamePot | null
   gameLogs?: GameLog[]
+  /** Last connections as the DM would read them (`campaign_presence`). */
+  presence?: CampaignPresence[]
   playerNotes?: PlayerNote[]
   /** `campaign_config` rows by key (value + the `updated_at` version the guarded patch compares). */
   config?: Record<string, { value: Record<string, unknown>; updated_at?: string; visibility?: 'members' | 'dm' }>
@@ -81,6 +83,11 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
   const busySlotsList = vi.fn(async () => options.busySlots ?? [])
   const potGet = vi.fn(async () => options.pot ?? null)
   const gameLogsList = vi.fn(async () => options.gameLogs ?? [])
+  const presenceTouch = vi.fn(async (campaignId?: string) => void campaignId)
+  const presenceList = vi.fn(async (campaignId?: string) => {
+    void campaignId
+    return options.presence ?? []
+  })
   const playerNotesList = vi.fn(async () => options.playerNotes ?? [])
   const layer = {
     client: fake.db,
@@ -111,9 +118,10 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
     },
     campaigns: { listMembers: membersList },
     games: { getPot: potGet, listLogs: gameLogsList, playLoteria: vi.fn(), assignPotToCharacter: vi.fn(), removeLog: vi.fn(async () => undefined) },
+    presence: { touch: presenceTouch, list: presenceList },
     playerNotes: { list: playerNotesList, upsert: vi.fn(), update: vi.fn(), remove: vi.fn() },
   } as unknown as DataLayer
-  return { layer, fake, spies: { membersList, busySlotsList, disponibilidadList, playerAvailabilityList, potGet, gameLogsList, playerNotesList, configGet, configPatch, configRows, entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
+  return { layer, fake, spies: { presenceTouch, presenceList, membersList, busySlotsList, disponibilidadList, playerAvailabilityList, potGet, gameLogsList, playerNotesList, configGet, configPatch, configRows, entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
 }
 
 export const fakeUnread = (): UnreadPort & { markRead: ReturnType<typeof vi.fn> } => ({

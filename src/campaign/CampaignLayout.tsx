@@ -5,6 +5,7 @@ import { btnSecondary } from '../constants'
 import { HubPortsProvider } from './adapters/HubPortsProvider'
 import { CampaignContext, type CampaignContextValue } from './CampaignContext'
 import { CampaignShell } from './CampaignShell'
+import { PresenceBeacon } from './presence/PresenceBeacon'
 import { useCampaignLoader } from './useCampaignLoader'
 
 function CampaignMessage({ title, children, action }: { title: string; children: string; action?: ReactNode }) {
@@ -61,6 +62,7 @@ export function CampaignLayout() {
   return (
     <CampaignContext.Provider value={value}>
       <HubPortsProvider>
+        <PresenceBeacon />
         <CampaignShell campaign={ready.campaign} isDM={value.isDM} campaigns={ready.campaigns} />
       </HubPortsProvider>
     </CampaignContext.Provider>

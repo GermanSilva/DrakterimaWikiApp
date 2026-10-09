@@ -7,6 +7,7 @@ import { createEntityRepository, type EntityRepository } from './entityRepositor
 import { createGamesRepository } from './gamesRepository'
 import { createPlayerAvailabilityRepository } from './playerAvailabilityRepository'
 import { createPlayerNotesRepository } from './playerNotesRepository'
+import { createPresenceRepository } from './presenceRepository'
 import { createProfileRepository } from './profileRepository'
 import { createReadStateRepository } from './readStateRepository'
 import { saveEntityWithDmNotes, type SaveEntityTarget } from './saveEntityWithDmNotes'
@@ -30,6 +31,7 @@ export * from './entityRepository'
 export * from './gamesRepository'
 export * from './playerAvailabilityRepository'
 export * from './playerNotesRepository'
+export * from './presenceRepository'
 export * from './profileRepository'
 export * from './readStateRepository'
 export * from './visibilityRepository'
@@ -75,6 +77,7 @@ export function createDataLayer(client: Db = getSupabase()) {
     playerAvailability: createPlayerAvailabilityRepository(client),
     config: createConfigRepository(client),
     games: createGamesRepository(client),
+    presence: createPresenceRepository(client),
   }
 }
 
