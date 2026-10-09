@@ -1,24 +1,51 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import * as THREE from 'three'
-import { FACES, FACE_NUMBERS, VERTICES, createRollParams, rollPose } from './d20Orientation'
+import { dismissFrame } from './dismissFade'
+import { FACES, FACE_NUMBERS, VERTICES, createRollParams, faceIndexForRoll, rollPose } from './d20Orientation'
 import { makeFaceTexture } from './faceTexture'
 
 const RADIUS = 1.6
 const CAMERA_HEIGHT = 9
 const CAMERA_FOV = 46
 
+const SR_ONLY = { position: 'absolute', width: 1, height: 1, margin: -1, padding: 0, overflow: 'hidden', clip: 'rect(0 0 0 0)', whiteSpace: 'nowrap', border: 0 }
+const HINT = {
+  position: 'absolute',
+  left: 0,
+  right: 0,
+  bottom: 24,
+  margin: 0,
+  textAlign: 'center',
+  fontSize: 12,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  color: 'rgba(255,255,255,0.7)',
+  textShadow: '0 1px 3px rgba(0,0,0,0.8)',
+  pointerEvents: 'none',
+}
+
 /**
- * Full-viewport, transparent, click-through WebGL overlay: a d20 is thrown onto the page as if it
- * were a horizontal monitor seen from above. The roll is DECIDED BY THE CALLER (the server): the die
- * tumbles and settles with the face of `roll` pointing at the camera (see rollPose), then
- * `onComplete(roll)` fires once and, after `holdMs`, `onClose()` (Escape closes it right away).
+ * Full-viewport, transparent WebGL overlay: a d20 is thrown onto the page as if it were a horizontal
+ * monitor seen from above. The roll is DECIDED BY THE CALLER (the server): the die tumbles and settles
+ * with the face of `roll` pointing at the camera (see rollPose), then `onComplete(roll)` fires once.
+ *
+ * While the die tumbles the layer is click-through and input is ignored. Once it has landed it STAYS on
+ * screen and captures a click / tap / Escape / Enter / Space anywhere; that dismisses it with a
+ * fade-out + zoom-in (see dismissFrame) and `onClose()` fires only after the fade ends, once.
+ * Setup errors (no WebGL, roll outside 1-20) are thrown to the nearest error boundary.
  *
  * Mount it only while a throw is in progress; unmounting disposes the renderer and every listener.
  *
- * @param {{ roll: number, onComplete?: (roll: number) => void, onClose?: () => void, holdMs?: number }} props
+ * @param {{ roll: number, onComplete?: (roll: number) => void, onClose?: () => void }} props
  */
-export default function D20Overlay({ roll, onComplete, onClose, holdMs = 1600 }) {
+export default function D20Overlay({ roll, onComplete, onClose }) {
   const mountRef = useRef(null)
+  const dismissRef = useRef(null)
+  const [landed, setLanded] = useState(false)
+  const [dismissing, setDismissing] = useState(false)
+  const [failure, setFailure] = useState(null)
+  if (failure) throw failure // errors raised outside render (animation frames) reach the error boundary too
+
   const callbacks = useRef({ onComplete, onClose })
   useEffect(() => {
     callbacks.current = { onComplete, onClose }
@@ -27,11 +54,11 @@ export default function D20Overlay({ roll, onComplete, onClose, holdMs = 1600 })
   useEffect(() => {
     const el = mountRef.current
     if (!el) return undefined
+    faceIndexForRoll(roll) // throws for a roll outside 1-20 BEFORE any GPU resource exists
 
     let disposed = false
     let rafId = 0
-    let holdTimer = 0
-    let finished = false
+    let phase = 'rolling' // rolling -> landed -> dismissing
     const cleanups = []
 
     const width = () => window.innerWidth || 1
@@ -99,28 +126,48 @@ export default function D20Overlay({ roll, onComplete, onClose, holdMs = 1600 })
     }
     apply(rollPose(0, params))
 
-    const close = () => {
-      if (disposed) return
-      callbacks.current.onClose?.()
-    }
-
     let startedAt = null
     const frame = (now) => {
       if (disposed) return
-      if (startedAt === null) startedAt = now
-      const pose = rollPose((now - startedAt) / 1000, params)
-      apply(pose)
-      renderer.render(scene, camera)
-      if (pose.done) {
-        if (!finished) {
-          finished = true
+      try {
+        if (startedAt === null) startedAt = now
+        const pose = rollPose((now - startedAt) / 1000, params)
+        apply(pose)
+        renderer.render(scene, camera)
+        if (pose.done) {
+          phase = 'landed'
+          setLanded(true)
           callbacks.current.onComplete?.(roll)
-          holdTimer = window.setTimeout(close, holdMs)
+          return // at rest: nothing left to animate until the user dismisses it
         }
-        return // at rest: nothing left to animate
+        rafId = requestAnimationFrame(frame)
+      } catch (e) {
+        setFailure(e)
       }
-      rafId = requestAnimationFrame(frame)
     }
+
+    let fadeStartedAt = null
+    const fadeFrame = (now) => {
+      if (disposed) return
+      if (fadeStartedAt === null) fadeStartedAt = now
+      const f = dismissFrame(now - fadeStartedAt)
+      el.style.opacity = String(f.opacity)
+      el.style.transform = `scale(${f.scale})`
+      if (f.done) {
+        callbacks.current.onClose?.()
+        return
+      }
+      rafId = requestAnimationFrame(fadeFrame)
+    }
+
+    /** Starts the fade-out + zoom-in. Only a landed die can be dismissed, and only once. */
+    const dismiss = () => {
+      if (disposed || phase !== 'landed') return
+      phase = 'dismissing'
+      setDismissing(true)
+      rafId = requestAnimationFrame(fadeFrame)
+    }
+    dismissRef.current = dismiss
 
     const onResize = () => {
       camera.aspect = width() / height()
@@ -129,7 +176,11 @@ export default function D20Overlay({ roll, onComplete, onClose, holdMs = 1600 })
       renderer.render(scene, camera)
     }
     const onKey = (e) => {
-      if (e.key === 'Escape') close()
+      if (phase !== 'landed') return
+      if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault() // Space must not scroll the page nor press a focused button
+        dismiss()
+      }
     }
     window.addEventListener('resize', onResize)
     window.addEventListener('keydown', onKey)
@@ -145,8 +196,8 @@ export default function D20Overlay({ roll, onComplete, onClose, holdMs = 1600 })
 
     return () => {
       disposed = true
+      dismissRef.current = null
       cancelAnimationFrame(rafId)
-      window.clearTimeout(holdTimer)
       cleanups.forEach((fn) => fn())
       geo.dispose()
       edgeGeo.dispose()
@@ -156,14 +207,27 @@ export default function D20Overlay({ roll, onComplete, onClose, holdMs = 1600 })
       renderer.dispose()
       if (el.contains(renderer.domElement)) el.removeChild(renderer.domElement)
     }
-  }, [roll, holdMs])
+  }, [roll])
 
+  const dismiss = () => dismissRef.current?.()
   return (
     <div
-      ref={mountRef}
-      aria-hidden="true"
       data-testid="d20-overlay"
-      style={{ position: 'fixed', inset: 0, zIndex: 400, pointerEvents: 'none', background: 'transparent' }}
-    />
+      onPointerDown={dismiss}
+      onClick={dismiss}
+      style={{ position: 'fixed', inset: 0, zIndex: 400, pointerEvents: landed ? 'auto' : 'none', background: 'transparent', cursor: landed ? 'pointer' : 'auto' }}
+    >
+      <div ref={mountRef} aria-hidden="true" data-testid="d20-canvas" style={{ position: 'absolute', inset: 0, transformOrigin: '50% 50%' }} />
+      {landed && (
+        <div role="status" aria-live="polite" style={SR_ONLY}>
+          {`Salió ${roll}. Tocá para continuar.`}
+        </div>
+      )}
+      {landed && !dismissing && (
+        <p aria-hidden="true" data-testid="d20-hint" style={HINT}>
+          Tocá para continuar
+        </p>
+      )}
+    </div>
   )
 }
