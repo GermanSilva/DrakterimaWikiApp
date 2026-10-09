@@ -64,3 +64,44 @@ export function makeLegacy() {
     login_logs: [{ id: 'l1', pj: 'Aria', ts: '2026-04-03T00:00:00.000Z' }],
   }
 }
+
+const NUMERIC_ID_COLLECTIONS = ['sesiones', 'pjs', 'pnjs', 'lugares', 'facciones', 'lore', 'items', 'mapas', 'map_points', 'homebrew_rules', 'disponibilidad']
+
+/**
+ * Returns a copy of a legacy export with every numeric id (own ids, references and wiki-link ids inside texts)
+ * moved up by `offset`. The integration tests use it to import next to the dev seed, whose rows own the low ids
+ * of the same identity tables (ids are unique per table across campaigns).
+ */
+export function shiftLegacyIds(legacy, offset) {
+  const bump = (v) => {
+    if (typeof v === 'number') return v + offset
+    if (typeof v === 'string' && /^[1-9]\d*$/.test(v.trim())) return String(Number(v.trim()) + offset)
+    return v
+  }
+  const walk = (v) => {
+    if (typeof v === 'string') return v.replace(/\[\[\{(\d+)([A-Za-z]?)/g, (_, n, l) => `[[{${Number(n) + offset}${l}`)
+    if (Array.isArray(v)) return v.map(walk)
+    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)]))
+    return v
+  }
+  const out = walk(legacy)
+  for (const c of NUMERIC_ID_COLLECTIONS) for (const doc of out[c] ?? []) doc.id = bump(doc.id)
+  for (const doc of out.map_points ?? []) {
+    doc.map_id = bump(doc.map_id)
+    if (doc.link_id !== '' && doc.link_id !== null && doc.link_id !== undefined) doc.link_id = bump(doc.link_id)
+  }
+  for (const c of NUMERIC_ID_COLLECTIONS) {
+    for (const doc of out[c] ?? []) if (Array.isArray(doc.visibilidad)) doc.visibilidad = doc.visibilidad.map(bump)
+  }
+  for (const doc of out.disponibilidad ?? []) if (doc.pj_id !== null && doc.pj_id !== undefined) doc.pj_id = bump(doc.pj_id)
+  for (const doc of out.player_notes ?? []) {
+    doc.pj_id = bump(doc.pj_id)
+    doc.entity_id = bump(doc.entity_id)
+  }
+  for (const doc of out.game_logs ?? []) if (doc.playerId !== null && doc.playerId !== undefined) doc.playerId = bump(doc.playerId)
+  for (const doc of out.read_state ?? []) {
+    if (doc.viewerId !== 'dm') doc.viewerId = bump(doc.viewerId)
+    doc.entityId = bump(doc.entityId)
+  }
+  return out
+}

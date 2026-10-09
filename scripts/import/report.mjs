@@ -9,9 +9,14 @@ const countBy = (items, key) => {
 
 function idRange(rows) {
   if (rows.length === 0) return { count: 0, min: null, max: null, nextSequenceValue: 1 }
-  const ids = rows.map((r) => r.id)
-  const max = Math.max(...ids)
-  return { count: rows.length, min: Math.min(...ids), max, nextSequenceValue: max + 1 }
+  // a loop, not Math.max(...ids): spreading ~100k ids overflows the call stack (RangeError)
+  let min = Infinity
+  let max = -Infinity
+  for (const r of rows) {
+    if (r.id < min) min = r.id
+    if (r.id > max) max = r.id
+  }
+  return { count: rows.length, min, max, nextSequenceValue: max + 1 }
 }
 
 /**
