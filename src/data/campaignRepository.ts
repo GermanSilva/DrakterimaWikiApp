@@ -60,6 +60,20 @@ export interface NewInvite {
   expires_at?: string | null
 }
 
+/** Return shape of the preview_invite RPC: what the invited user sees before accepting. */
+export interface InvitePreview {
+  campaign_name: string
+  campaign_slug: string
+  /** https URL or null. */
+  logo_url: string | null
+  role: CampaignRole
+  /** Name of the character offered by a claim invite. */
+  character_name: string | null
+  is_member: boolean
+  /** The caller is already a member and has nothing left to claim: accepting would change nothing. */
+  nothing_to_do: boolean
+}
+
 /** Return shape of the accept_invite RPC. */
 export interface AcceptInviteResult {
   joined: boolean
@@ -175,7 +189,32 @@ export function createCampaignRepository(client: Db) {
       )
     },
 
-    /** DM only. The generated `code` is returned (it is a credential: show it once to the DM). */
+    /**
+     * DM only (RLS: the code is a credential). Newest first, spent and expired invites included so the DM can see
+     * their status and clean them up.
+     */
+    async listInvites(campaignId: string): Promise<Invite[]> {
+      return pagedList<Invite>(
+        () =>
+          fromTable(client, 'campaign_invites')
+            .select(join(INVITE_COLUMNS))
+            .eq('campaign_id', campaignId)
+            .order('created_at', { ascending: false })
+            .order('id', { ascending: true }),
+        'campaign_invites',
+      )
+    },
+
+    /** DM only. Revoking = deleting: the code stops working at once. Throws not_found when it is already gone. */
+    async revokeInvite(inviteId: string): Promise<void> {
+      const rows = unwrap<unknown[]>(await fromTable(client, 'campaign_invites').delete().eq('id', inviteId).select('id'))
+      if (rows.length === 0) await throwZeroRows(client, 'campaign_invites', { id: inviteId }, 'invite')
+    },
+
+    /**
+     * DM only. The generated `code` is returned (it is a credential). Errors raised by the triggers keep their
+     * reason (kind 'validation'): character_already_owned, character_already_has_pending_invite.
+     */
     async createInvite(invite: NewInvite): Promise<Invite> {
       const payload = Object.fromEntries(
         INVITE_WRITE_COLUMNS.filter((k) => invite[k] !== undefined).map((k) => [k, invite[k]]),
@@ -183,6 +222,14 @@ export function createCampaignRepository(client: Db) {
       return unwrapWrite<Invite>(
         await fromTable(client, 'campaign_invites').insert(payload).select(join(INVITE_COLUMNS)).single(),
       )
+    },
+
+    /**
+     * RPC, read-only: what the code leads to, WITHOUT consuming it. Errors (kind 'business', message = reason) are
+     * acceptInvite's: invite_not_found, invite_expired, invite_exhausted, character_already_claimed.
+     */
+    async previewInvite(code: string): Promise<InvitePreview> {
+      return unwrap(await client.rpc('preview_invite', { p_code: code })) as unknown as InvitePreview
     },
 
     /** RPC. Errors (kind 'business', message = reason): invite_not_found, invite_expired, invite_exhausted, character_already_claimed. */

@@ -149,6 +149,57 @@ describe('campaign repository', () => {
     expect(opsNamed(fake.calls[1], 'insert')).toEqual([[{ campaign_id: 'c1', role: 'player', character_id: 3 }]])
   })
 
+  describe('invites', () => {
+    it('listInvites reads the campaign invites newest first, paging to the end', async () => {
+      const fake = createFakeClient()
+      const repo = createCampaignRepository(fake.db)
+      fake.enqueue({ data: [{ id: 'i1' }, { id: 'i2' }] }, { data: [] })
+      expect((await repo.listInvites('c1')).map((i) => i.id)).toEqual(['i1', 'i2'])
+      expect(fake.calls[0].name).toBe('campaign_invites')
+      expect(opsNamed(fake.calls[0], 'eq')).toEqual([['campaign_id', 'c1']])
+      expect(opsNamed(fake.calls[0], 'order')[0]).toEqual(['created_at', { ascending: false }])
+    })
+
+    it('revokeInvite deletes by id; an already revoked invite is not_found, a denied one is permission', async () => {
+      const fake = createFakeClient()
+      const repo = createCampaignRepository(fake.db)
+      fake.enqueue({ data: [{ id: 'i1' }] })
+      await repo.revokeInvite('i1')
+      expect(opsNamed(fake.calls[0], 'delete')).toHaveLength(1)
+      expect(opsNamed(fake.calls[0], 'eq')).toEqual([['id', 'i1']])
+
+      fake.enqueue({ data: [] }, { data: [] })
+      await expect(repo.revokeInvite('i1')).rejects.toMatchObject({ kind: 'not_found' })
+      fake.enqueue({ data: [] }, { data: [{ id: 'i1' }] })
+      await expect(repo.revokeInvite('i1')).rejects.toMatchObject({ kind: 'permission' })
+    })
+
+    it('previewInvite calls the read-only RPC and keeps the business reason of a bad code', async () => {
+      const fake = createFakeClient()
+      const repo = createCampaignRepository(fake.db)
+      fake.enqueue({ data: { campaign_name: 'Alpha', character_name: 'Eldric' } })
+      expect((await repo.previewInvite('abc')).character_name).toBe('Eldric')
+      expect(fake.calls[0]).toMatchObject({ kind: 'rpc', name: 'preview_invite', args: { p_code: 'abc' } })
+
+      fake.enqueue({ error: { message: 'invite_exhausted', code: 'P0001' } })
+      await expect(repo.previewInvite('abc')).rejects.toMatchObject({ kind: 'business', reason: 'invite_exhausted' })
+    })
+
+    it('createInvite sends role, expiry, uses and character, and keeps the trigger reasons', async () => {
+      const fake = createFakeClient()
+      const repo = createCampaignRepository(fake.db)
+      fake.enqueue({ data: { code: 'abc' } })
+      await repo.createInvite({ campaign_id: 'c1', role: 'player', max_uses: 5, expires_at: '2026-10-16T00:00:00.000Z' })
+      expect(opsNamed(fake.calls[0], 'insert')).toEqual([
+        [{ campaign_id: 'c1', role: 'player', max_uses: 5, expires_at: '2026-10-16T00:00:00.000Z' }],
+      ])
+      for (const reason of ['character_already_owned', 'character_already_has_pending_invite'] as const) {
+        fake.enqueue({ error: { message: reason, code: '23514' } })
+        await expect(repo.createInvite({ campaign_id: 'c1', character_id: 3 })).rejects.toMatchObject({ kind: 'validation', reason })
+      }
+    })
+  })
+
   it('leaveCampaign deletes my membership and fails when none was removed', async () => {
     const fake = createFakeClient()
     const repo = createCampaignRepository(fake.db)

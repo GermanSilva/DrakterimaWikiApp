@@ -60,6 +60,15 @@ export function makeData(over: Partial<HubData> = {}): HubData {
     layer: createDataLayer(createFakeClient().db),
     listMyCampaigns: vi.fn(async () => [makeCampaign()]),
     createCampaign: vi.fn(async (slug: string, name: string) => makeCampaign({ slug, name })),
+    previewInvite: vi.fn(async () => ({
+      campaign_name: 'Demo',
+      campaign_slug: 'demo',
+      logo_url: null,
+      role: 'player' as const,
+      character_name: null,
+      is_member: false,
+      nothing_to_do: false,
+    })),
     acceptInvite: vi.fn(async () => ({
       joined: true,
       claimed: false,

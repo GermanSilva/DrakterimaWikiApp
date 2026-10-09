@@ -5,6 +5,7 @@ import {
   type CampaignWithRole,
   type DataLayer,
   type Db,
+  type InvitePreview,
   type Profile,
 } from '../data'
 
@@ -20,6 +21,8 @@ export interface HubData {
   readonly layer: DataLayer
   listMyCampaigns(userId: string): Promise<CampaignWithRole[]>
   createCampaign(slug: string, name: string): Promise<Campaign>
+  /** Read-only: what an invite code leads to. Never consumes the invite. */
+  previewInvite(code: string): Promise<InvitePreview>
   acceptInvite(code: string): Promise<AcceptInviteResult>
   /** Ids of the characters (pjs) the user owns in the campaign. */
   listMyCharacterIds(campaignId: string, userId: string): Promise<number[]>
@@ -32,6 +35,7 @@ export function createHubData(client?: Db): HubData {
     layer,
     listMyCampaigns: (userId) => layer.campaigns.listMyCampaigns(userId),
     createCampaign: (slug, name) => layer.campaigns.createCampaign(slug, name),
+    previewInvite: (code) => layer.campaigns.previewInvite(code),
     acceptInvite: (code) => layer.campaigns.acceptInvite(code),
     async listMyCharacterIds(campaignId, userId) {
       const pjs = await layer.entity('pjs').list(campaignId)
