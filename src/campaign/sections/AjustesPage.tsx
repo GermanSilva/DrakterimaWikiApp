@@ -7,6 +7,7 @@ import { CampaignSettings } from './ajustes/CampaignSettings'
 import { CustomFieldsSettings } from './ajustes/CustomFieldsSettings'
 import { ExportSettings } from './ajustes/ExportSettings'
 import { GameLogsSettings } from './ajustes/GameLogsSettings'
+import { InvitesSettings } from './ajustes/InvitesSettings'
 import { LoteriaSettings } from './ajustes/LoteriaSettings'
 import { PlayersSettings } from './ajustes/PlayersSettings'
 import { PotSettings } from './ajustes/PotSettings'
@@ -58,6 +59,10 @@ function AjustesSections() {
 
       <AdminSection title="Jugadores">
         <PlayersSettings />
+      </AdminSection>
+
+      <AdminSection title="Invitaciones">
+        <InvitesSettings />
       </AdminSection>
 
       <AdminSection title="Exportar">

@@ -125,18 +125,23 @@ describe('create campaign', () => {
 
 describe('join with a code', () => {
   it('navigates to /invite/:code with the code URL-encoded and trimmed', async () => {
-    const { router } = renderApp('/', { data: makeData({ acceptInvite: vi.fn(() => new Promise<never>(() => undefined)) }) })
+    const data = makeData()
+    const { router } = renderApp('/', { data })
     await screen.findByRole('heading', { name: 'Mis campañas' })
     await fill(/Código de invitación/, '  abc123  ')
-    await submit(/^Unirme$/)
+    await submit(/^Ver invitación$/)
     await waitFor(() => expect(router.state.location.pathname).toBe('/invite/abc123'))
+    // the form only leads to the landing: it never joins by itself
+    expect(await screen.findByRole('button', { name: 'Unirme' })).toBeInTheDocument()
+    expect(data.previewInvite).toHaveBeenCalledWith('abc123')
+    expect(data.acceptInvite).not.toHaveBeenCalled()
   })
 
   it('rejects an empty or malformed code locally', async () => {
     const { router } = renderApp('/')
     await screen.findByRole('heading', { name: 'Mis campañas' })
     await fill(/Código de invitación/, 'a/b ?')
-    await submit(/^Unirme$/)
+    await submit(/^Ver invitación$/)
     expect(screen.getByText(/código de invitación válido/, { selector: '[role=alert]' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/')
   })

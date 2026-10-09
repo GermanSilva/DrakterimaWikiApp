@@ -64,7 +64,7 @@ describe('Ajustes: access', () => {
   it('shows the DM the stacked sections', async () => {
     setup()
     expect(await screen.findByRole('heading', { level: 1, name: 'Ajustes' })).toBeInTheDocument()
-    for (const title of ['Campaña', 'Pantalla de sesión', 'Juegos: configuración de la lotería', 'Juegos: pozo acumulado', 'Juegos: registro de tiradas', 'Jugadores', 'Exportar']) {
+    for (const title of ['Campaña', 'Pantalla de sesión', 'Juegos: configuración de la lotería', 'Juegos: pozo acumulado', 'Juegos: registro de tiradas', 'Jugadores', 'Invitaciones', 'Exportar']) {
       expect(await sectionOf(title)).toBeInTheDocument()
     }
   })

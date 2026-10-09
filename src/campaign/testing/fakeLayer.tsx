@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { vi } from 'vitest'
 import { AuthContext } from '../../auth/AuthContext'
 import { makeAuth, makeCampaign } from '../../app/testing/renderApp'
-import { ConflictError, type Campaign, type CampaignPatch, type BusySlot, type CampaignPresence, type DataLayer, type Disponibilidad, type Member, type FlatEntity, type GameLog, type GamePot, type PlayerAvailability, type PlayerNote, type WikiIndexItem } from '../../data'
+import { ConflictError, DataError, type Campaign, type CampaignPatch, type BusySlot, type CampaignPresence, type DataLayer, type Disponibilidad, type Member, type FlatEntity, type GameLog, type GamePot, type Invite, type NewInvite, type PlayerAvailability, type PlayerNote, type WikiIndexItem } from '../../data'
 import { createFakeClient } from '../../data/testing/fakeClient'
 import { UnreadPortContext, type UnreadPort } from '../../ports'
 import { CampaignContext, type CampaignContextValue } from '../CampaignContext'
@@ -29,6 +29,8 @@ export interface FakeLayerOptions {
   /** Last connections as the DM would read them (`campaign_presence`). */
   presence?: CampaignPresence[]
   playerNotes?: PlayerNote[]
+  /** Invites as `campaigns.listInvites` returns them (DM only). */
+  invites?: Invite[]
   /** Stored campaign row behind `campaigns.updateCampaign` (match it with the campaign the loader returns). */
   campaign?: Partial<Campaign>
   /** `campaign_config` rows by key (value + the `updated_at` version the guarded patch compares). */
@@ -92,6 +94,24 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
     campaignRow = { ...campaignRow, name: patch.name ?? campaignRow.name, branding, regions: patch.regions ?? campaignRow.regions, character_custom_fields: patch.character_custom_fields ?? campaignRow.character_custom_fields, updated_at: `u${++campaignVersion}` }
     return campaignRow
   })
+  // invites: an in-memory table; create/revoke change what the next list returns, like the real repository
+  let inviteRows = [...(options.invites ?? [])]
+  let inviteSeq = 0
+  const invitesList = vi.fn(async () => [...inviteRows])
+  const invitesCreate = vi.fn(async (invite: NewInvite) => {
+    inviteSeq += 1
+    const row: Invite = {
+      id: `new-${inviteSeq}`, campaign_id: invite.campaign_id, code: `newcode${inviteSeq}`, role: invite.role ?? 'player',
+      character_id: invite.character_id ?? null, max_uses: invite.max_uses ?? 1, uses: 0, expires_at: invite.expires_at ?? null,
+      created_by: 'user-1', created_at: '2026-10-09T12:00:00Z',
+    }
+    inviteRows = [row, ...inviteRows]
+    return row
+  })
+  const invitesRevoke = vi.fn(async (id: string) => {
+    if (!inviteRows.some((i) => i.id === id)) throw new DataError('not_found', 'invite: not found')
+    inviteRows = inviteRows.filter((i) => i.id !== id)
+  })
   const disponibilidadList = vi.fn(async () => options.disponibilidad ?? [])
   const playerAvailabilityList = vi.fn(async () => options.playerAvailability ?? [])
   const membersList = vi.fn(async () => options.members ?? [])
@@ -131,12 +151,12 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
       remove: vi.fn(async () => undefined),
       busySlots: busySlotsList,
     },
-    campaigns: { listMembers: membersList, updateCampaign },
+    campaigns: { listMembers: membersList, updateCampaign, listInvites: invitesList, createInvite: invitesCreate, revokeInvite: invitesRevoke },
     games: { getPot: potGet, listLogs: gameLogsList, playLoteria: vi.fn(), assignPotToCharacter: vi.fn(), removeLog: vi.fn(async () => undefined) },
     presence: { touch: presenceTouch, list: presenceList },
     playerNotes: { list: playerNotesList, upsert: vi.fn(), update: vi.fn(), remove: vi.fn() },
   } as unknown as DataLayer
-  return { layer, fake, spies: { updateCampaign, presenceTouch, presenceList, membersList, busySlotsList, disponibilidadList, playerAvailabilityList, potGet, gameLogsList, playerNotesList, configGet, configPatch, configRows, entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
+  return { layer, fake, spies: { updateCampaign, invitesList, invitesCreate, invitesRevoke, presenceTouch, presenceList, membersList, busySlotsList, disponibilidadList, playerAvailabilityList, potGet, gameLogsList, playerNotesList, configGet, configPatch, configRows, entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
 }
 
 export const fakeUnread = (): UnreadPort & { markRead: ReturnType<typeof vi.fn> } => ({

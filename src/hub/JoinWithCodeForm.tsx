@@ -43,7 +43,7 @@ export function JoinWithCodeForm({ onJoin }: { onJoin: (code: string) => void })
         </p>
       )}
       <button type="submit" className={`${btnSecondary} mt-4`}>
-        Unirme
+        Ver invitación
       </button>
     </form>
   )

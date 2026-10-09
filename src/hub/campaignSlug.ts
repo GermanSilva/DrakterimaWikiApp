@@ -73,6 +73,23 @@ export function acceptInviteErrorMessage(error: unknown): string {
   return 'No pudimos aceptar la invitación. Volvé a intentar.'
 }
 
+/** Told to the invited user BEFORE they join: the DM-only presence feature must not be a surprise. */
+export const PRESENCE_NOTICE = 'El DM puede ver cuándo te conectaste por última vez a esta campaña.'
+
+/** Spanish message for a failed previewInvite (same reasons as accepting; an unknown failure is about loading it). */
+export function previewInviteErrorMessage(error: unknown): string {
+  if (error instanceof DataError) {
+    if (error.reason && INVITE_MESSAGES[error.reason]) return INVITE_MESSAGES[error.reason]
+    if (error.kind === 'auth') return 'Tu sesión expiró. Iniciá sesión de nuevo.'
+  }
+  return 'No pudimos cargar la invitación. Volvé a intentar.'
+}
+
+/** Whether a failed preview is a definitive answer about the code (retrying cannot change it). */
+export function isFinalInviteError(error: unknown): boolean {
+  return error instanceof DataError && error.kind === 'business' && !!error.reason
+}
+
 /** Invite codes are opaque; reject anything that cannot be one before it reaches the backend. */
 export function normalizeInviteCode(raw: string): string | null {
   const code = raw.trim()
