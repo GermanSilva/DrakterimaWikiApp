@@ -170,9 +170,12 @@ insert into public.player_notes (campaign_id, user_id, entity_type, entity_id, c
 insert into public.read_state (user_id, campaign_id, entity_type, entity_id, section, seen_at) values
   ('aaaaaaaa-0000-4000-8000-000000000002', 'cccccccc-0000-4000-8000-00000000000a', 'lugares', 1, '', now());
 
-insert into public.disponibilidad (campaign_id, tipo, character_id, fecha_inicio, fecha_fin, hora_inicio, hora_fin) values
-  ('cccccccc-0000-4000-8000-00000000000a', 'sesion',   null, current_date + 7, current_date + 7, '19:00', '23:00'),
-  ('cccccccc-0000-4000-8000-00000000000a', 'personal', 1,    current_date + 7, current_date + 7, '18:00', '23:30');
+insert into public.disponibilidad (campaign_id, tipo, fecha_inicio, fecha_fin, hora_inicio, hora_fin) values
+  ('cccccccc-0000-4000-8000-00000000000a', 'sesion', current_date + 7, current_date + 7, '19:00', '23:00');
+
+-- Player availability is per user; campaign_id null = general (applies to every campaign of the user).
+insert into public.player_availability (user_id, campaign_id, tipo, fecha_inicio, fecha_fin, hora_inicio, hora_fin) values
+  ('aaaaaaaa-0000-4000-8000-000000000002', null,                                   'personal', current_date + 7, current_date + 7, '18:00', '23:30');
 
 ------------------------------------------------------------------------------
 -- Invite: whoever redeems it joins campaign A as a player and takes over Kaylinx (character 3)

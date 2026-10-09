@@ -145,15 +145,15 @@ select is(
 
 -- calendar
 select lives_ok(
-  $$insert into public.disponibilidad (campaign_id, tipo, character_id, fecha_inicio, fecha_fin, hora_inicio, hora_fin)
-    values ('dddddddd-0000-4000-8000-00000000000a', 'personal', 90001, current_date, current_date, '18:00', '22:00')$$,
-  'a player can add availability for their own character');
+  $$insert into public.player_availability (campaign_id, tipo, fecha_inicio, fecha_fin, hora_inicio, hora_fin)
+    values ('dddddddd-0000-4000-8000-00000000000a', 'personal', current_date, current_date, '18:00', '22:00')$$,
+  'a player can add their own availability');
 
 select throws_ok(
-  $$insert into public.disponibilidad (campaign_id, tipo, character_id, fecha_inicio, fecha_fin, hora_inicio, hora_fin)
-    values ('dddddddd-0000-4000-8000-00000000000a', 'personal', 90002, current_date, current_date, '18:00', '22:00')$$,
+  $$insert into public.player_availability (user_id, campaign_id, tipo, fecha_inicio, fecha_fin, hora_inicio, hora_fin)
+    values ('bbbbbbbb-0000-4000-8000-000000000003', 'dddddddd-0000-4000-8000-00000000000a', 'personal', current_date, current_date, '18:00', '22:00')$$,
   '42501', null,
-  'a player cannot add availability for another character');
+  'a player cannot add availability for another user');
 
 select throws_ok(
   $$insert into public.disponibilidad (campaign_id, tipo, fecha_inicio, fecha_fin, hora_inicio, hora_fin)
@@ -271,12 +271,12 @@ select is(
   'a player cannot read another player''s game logs');
 
 select is(
-  (select count(*) from public.disponibilidad where campaign_id = 'dddddddd-0000-4000-8000-00000000000a' and tipo = 'personal'),
+  (select count(*) from public.player_availability where user_id = 'bbbbbbbb-0000-4000-8000-000000000002'),
   1::bigint,
-  'every member sees the calendar');
+  'a campaign mate sees the other player''s availability');
 
 select is(
-  tests.affected($$update public.disponibilidad set hora_fin = '23:59' where character_id = 90001$$),
+  tests.affected($$update public.player_availability set hora_fin = '23:59' where user_id = 'bbbbbbbb-0000-4000-8000-000000000002'$$),
   0::bigint,
   'a player cannot edit another player''s availability');
 
@@ -291,7 +291,8 @@ select throws_ok(
   'a non-member cannot play the lottery');
 
 select is(
-  (select (select count(*) from public.disponibilidad) + (select count(*) from public.player_notes)
+  (select (select count(*) from public.disponibilidad) + (select count(*) from public.player_availability)
+        + (select count(*) from public.player_notes)
         + (select count(*) from public.game_logs) + (select count(*) from public.game_pot)),
   0::bigint,
   'a non-member sees no calendar, notes, logs or pot');
