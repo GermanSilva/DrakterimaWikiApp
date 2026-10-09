@@ -527,3 +527,9 @@ Route per task: delegated writer (writer trigger: 2+ non-trivial files). TDD: no
 
 - H9b3 done (5c8f6a3): calendar saves gated on busy-slot status (loading/failed + Reintentar), wall-clock minutes on UTC calendar for DST days (tests under NY/Madrid TZ, 3 fail against old code), session-slot write-failure tests.
 - H9c done (0234978, 1667569): `PlayerNotesPort.all()` (+failed/reload, save/remove results) with hub and legacy adapters; NotasPage (DM grouped by author with chips, player own notes, `[tipo]` search + highlight, detail/edit modal, delete confirm, failures keep the modal); pure `notesSearch` module. Checks: vitest 1043/1043, lint 0 errors, tsc clean, integration 30/30; browser NOT done (H9f). Native review of slice a887b5d..1667569 (includes H9b3) **approved** (review-beb5487446efd089, burned); boundary → `1667569`. Advisory follow-ups: (1) BusyAvailabilityNotice shows 'Cargando…' forever if busyStatus is 'idle' (no retry/exit) — handle idle; (2) `reload()` in HubPlayerNotesProvider gives no pending state and allows overlapping retries (disable/spinner during retry); (3) legacy void/rejection save path in NotasPage untested. Residual: notes not realtime; entity no longer visible shows '#id'; author mapping vs real profiles RLS only tested with fakes.
+
+## Product decision (user, 2026-10-08): d20 animation (H9d)
+
+- The d20 rolls across the WHOLE PAGE as a full-viewport overlay with a TRANSPARENT background (the UI stays visible behind), as if thrown onto a horizontal monitor seen from above (top-down camera).
+- The result is the face that ends up pointing at the user and MUST be the server-decided roll (land on the real face, not spin-then-reveal). Supersedes H9 question 1.
+- Defaults assumed unless the user objects: day reset shown in UTC; owned-PJ selector only when the player has >1 PJ in the campaign.
