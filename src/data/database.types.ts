@@ -1328,6 +1328,7 @@ export type Database = {
         Args: { p_campaign_id: string; p_character_id?: number }
         Returns: Json
       }
+      preview_invite: { Args: { p_code: string }; Returns: Json }
       set_entity_visibility: {
         Args: { p_entity_type: string; p_id: number; p_visible_to: number[] }
         Returns: number[]

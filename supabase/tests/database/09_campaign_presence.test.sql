@@ -110,7 +110,7 @@ select throws_ok(
 
 select tests.as_postgres();
 select is(
-  (select count(*)::int from public.campaign_presence),
+  (select count(*)::int from public.campaign_presence where campaign_id in ('99999999-0000-4000-8000-00000000000a', '99999999-0000-4000-8000-00000000000b')),
   4, 'exactly the four successful touches left a row (denied calls wrote nothing)');
 select is(
   (select array_agg(user_id::text order by user_id) from public.campaign_presence where campaign_id = '99999999-0000-4000-8000-00000000000a'),
