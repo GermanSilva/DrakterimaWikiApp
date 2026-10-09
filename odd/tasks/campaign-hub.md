@@ -564,3 +564,5 @@ Route per task: delegated writer (writer trigger: 2+ non-trivial files). TDD: no
 9. Slug: locked after creation (UI). [lock]
 10. delete_campaign RPC (typed-name confirm) in H10d. [include]
 11. Kick: keep content, release PJs, confirm dialog. [yes]
+
+- Product decision (user, 2026-10-09): H10 decision 1 = **co-DMs** (no single owner). Role changes (promote/demote/kick, incl. other DMs) go through a confirm dialog; "transfer" = promote another member then demote/leave self; last-DM protection stays in the DB. No transfer_dm RPC. Decisions 2-11 proceed with the recommended defaults unless the user objects.
