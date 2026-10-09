@@ -109,7 +109,8 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H8c | Port maps (mapas + map_points with Leaflet, click-to-place, pin visibility, hierarchical navigation) | delegated (writer) | [x] |
 | H9 | Port calendar, games, notes, homerules, unread state; DM zone → campaign settings (split below; mapper report 2026-10-07) | delegated (writer) | [ ] |
 | H9a | Infra (generic TableStore specs: disponibilidad/game_pot, hooks, fakeLayer extensions) + HomerulesPage (template ItemsPage) | delegated (writer) | [x] |
-| H9b | Calendar: TS disponibilidadCalc (character_id), generic member colors/initials, CalendarioPage + day modal + local availability form, unread dots | delegated (writer) | [ ] |
+| H9b1 | Availability per player: migration `player_availability` (user_id, campaign_id nullable = general), RLS, busy-from-confirmed-sessions RPC, realtime, pgTAP, repository + types + TableStore spec | delegated (writer) | [ ] |
+| H9b2 | Calendar UI: CalendarioPage + day modal + availability form (general vs campaign-specific, DM own unavailability), generic member colors, busy days disabled, unread dots | delegated (writer) | [ ] |
 | H9c | Notes: PlayerNotesPort.all() (+legacy/hub adapters), NotasPage (search syntax, DM grouping by character) | delegated (writer) | [ ] |
 | H9d | Games: JuegosPage (config/pot/own log, owned-PJ selector, UTC-day messaging), Dice3D target roll, coins helpers | delegated (writer) | [ ] |
 | H9e | Ajustes: games config, pot transfer, log management, session-screen link; extensible container for H10 | delegated (writer) | [ ] |
@@ -511,3 +512,11 @@ H7: port wiki entity pages (sesiones, pnjs, lugares, facciones, lore, items) ont
 Route per task: delegated writer (writer trigger: 2+ non-trivial files). TDD: not configured; ordinary functional checks.
 
 - H9a done (1580a9e): TableStore specs `dispo`/`pot`, `useDisponibilidad`/`useGamePot`, fakeLayer extensions, HomerulesPage. Native review of slice cdd796a..1580a9e **approved** (review-7285ddba952b5235, burned); reviewed boundary → `1580a9e`. Checks: vitest 948/949 (1 load timeout, passed alone), lint 0 errors, tsc clean. Advisory (non-blocking): global timeouts mask slow suites; MapPopup "constructor" own-key guard lacks a direct assertion (assert default icon); mapForms stale-link test covers behavior already present. Unverified: `game_pot`/`disponibilidad` in the realtime publication.
+
+## Product decision (user, 2026-10-08): availability is per PLAYER, across campaigns
+
+- A player rarely has >1 PJ per campaign but plays in several campaigns; each campaign has its own calendar.
+- Availability belongs to the user. Default scope = general (any campaign involving the user); the user can pin an entry to one campaign via UI.
+- A confirmed session (`disponibilidad.tipo='sesion'`) in one campaign disables that slot, for every involved user, in all other campaigns. Shown as "busy" WITHOUT naming the other campaign (approved).
+- DMs can mark their own unavailability too (user-scoped, no PJ needed).
+- Supersedes H9 question 3 (selector vs first PJ). `disponibilidad` keeps only session slots; `personal`/`no_disponible` move to `player_availability`.
