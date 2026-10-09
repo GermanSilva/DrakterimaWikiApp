@@ -5,7 +5,8 @@ import { CampaignTestProviders, createFakeLayer } from '../testing/fakeLayer'
 import { TableStore } from './tableStore'
 import { useDisponibilidad } from './useDisponibilidad'
 import { useGamePot } from './useGamePot'
-import { usePlayerAvailability } from './usePlayerAvailability'
+import { AVAILABILITY_RECONCILE_INTERVAL_MS, usePlayerAvailability } from './usePlayerAvailability'
+import { usePlayerAvailabilityActions } from './usePlayerAvailabilityActions'
 
 const dispo = (id: number, over: Partial<Disponibilidad> = {}): Disponibilidad => ({
   id, campaign_id: 'c1', tipo: 'sesion', fecha_inicio: '2026-03-01', fecha_fin: '2026-03-01',
@@ -110,6 +111,84 @@ describe('usePlayerAvailability', () => {
     const off = setup()
     renderHook(() => usePlayerAvailability({ enabled: false }), { wrapper: off.wrapper })
     expect(off.fake.channels).toHaveLength(0)
+  })
+})
+
+describe('player availability reconcile (stale re-pin)', () => {
+  // A member of campaign A that is not in B never receives the UPDATE of a row re-pinned A -> B.
+  it('drops the stale copy when the tab regains focus (re-list in place)', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      const { wrapper, spies } = setup({ playerAvailability: [avail(1, { campaign_id: 'c1' })] })
+      const { result } = renderHook(() => usePlayerAvailability(), { wrapper })
+      await waitFor(() => expect(result.current.items.map((d) => d.id)).toEqual([1]))
+      spies.playerAvailabilityList.mockResolvedValue([]) // the server no longer returns it for c1
+      vi.setSystemTime(Date.now() + 31_000)
+      await act(async () => {
+        window.dispatchEvent(new Event('focus'))
+      })
+      await waitFor(() => expect(result.current.items).toEqual([]))
+      expect(result.current.loading).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('drops the stale copy on the slow timer while the tab stays open, without a storm', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      const { wrapper, spies } = setup({ playerAvailability: [avail(1, { campaign_id: 'c1' })] })
+      const { result } = renderHook(() => usePlayerAvailability(), { wrapper })
+      await waitFor(() => expect(result.current.items).toHaveLength(1))
+      expect(spies.playerAvailabilityList).toHaveBeenCalledTimes(1)
+      spies.playerAvailabilityList.mockResolvedValue([])
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(AVAILABILITY_RECONCILE_INTERVAL_MS - 5_000)
+      })
+      expect(spies.playerAvailabilityList).toHaveBeenCalledTimes(1) // not before the interval
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10_000)
+      })
+      await waitFor(() => expect(result.current.items).toEqual([]))
+      expect(spies.playerAvailabilityList).toHaveBeenCalledTimes(2) // one re-list, not several
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('re-lists after a local write and when the channel reconnects', async () => {
+    const { wrapper, spies, layer, fake } = setup({ playerAvailability: [avail(1, { campaign_id: 'c1' }), avail(2)] })
+    const { result } = renderHook(() => ({ list: usePlayerAvailability(), actions: usePlayerAvailabilityActions() }), { wrapper })
+    await waitFor(() => expect(result.current.list.items).toHaveLength(2))
+    const before = spies.playerAvailabilityList.mock.calls.length
+
+    ;(layer.playerAvailability.update as ReturnType<typeof vi.fn>).mockResolvedValue(avail(2, { campaign_id: 'other' }))
+    spies.playerAvailabilityList.mockResolvedValue([avail(1, { campaign_id: 'c1' })]) // id 2 moved away
+    await act(async () => {
+      await result.current.actions.update(2, { campaign_id: 'other' })
+    })
+    await waitFor(() => expect(result.current.list.items.map((d) => d.id)).toEqual([1]))
+    expect(spies.playerAvailabilityList.mock.calls.length).toBe(before + 1)
+
+    spies.playerAvailabilityList.mockResolvedValue([])
+    act(() => channelOf(fake, 'player_availability').setStatus('SUBSCRIBED'))
+    await waitFor(() => expect(result.current.list.items).toEqual([]))
+  })
+
+  it('a failed write toasts and does not re-list', async () => {
+    const { wrapper, spies, layer } = setup({ playerAvailability: [avail(1)] })
+    const { result } = renderHook(() => ({ list: usePlayerAvailability(), actions: usePlayerAvailabilityActions() }), { wrapper })
+    await waitFor(() => expect(result.current.list.loading).toBe(false))
+    ;(layer.playerAvailability.remove as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('boom'))
+    const before = spies.playerAvailabilityList.mock.calls.length
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    let ok = true
+    await act(async () => {
+      ok = await result.current.actions.remove(1)
+    })
+    errorSpy.mockRestore()
+    expect(ok).toBe(false)
+    expect(spies.playerAvailabilityList.mock.calls.length).toBe(before)
   })
 })
 
