@@ -11,6 +11,7 @@ import { LoteriaSettings } from './ajustes/LoteriaSettings'
 import { PlayersSettings } from './ajustes/PlayersSettings'
 import { PotSettings } from './ajustes/PotSettings'
 import { RegionsSettings } from './ajustes/RegionsSettings'
+import { SavedCampaignProvider } from './ajustes/SavedCampaignProvider'
 
 /**
  * The stacked sections of the settings page. Each is one self-contained block that owns its data
@@ -75,7 +76,9 @@ export function AjustesPage() {
       <PageHeader eyebrow="Dungeon Master" title="Ajustes" titleAs="h1">
         {null}
       </PageHeader>
-      <AjustesSections key={campaign.id} />
+      <SavedCampaignProvider key={campaign.id}>
+        <AjustesSections />
+      </SavedCampaignProvider>
     </div>
   )
 }

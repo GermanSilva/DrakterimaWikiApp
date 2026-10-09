@@ -5,6 +5,7 @@ import { accentStyle, parseAccentColor, parseLogoUrl } from '../../branding'
 import { useCampaign } from '../../CampaignContext'
 import { useCampaignServices } from '../../entities/campaignServicesContext'
 import { describeDataError } from '../../entities/errorMessages'
+import { freshestCampaign, useSavedCampaign } from './savedCampaignContext'
 import { campaignFormInput, validateCampaignForm, LOGO_MAX, TAGLINE_MAX, type CampaignFormErrors, type CampaignFormInput } from './campaignForm'
 
 const labelCls = 'block font-exo text-[10px] font-medium tracking-[0.2em] uppercase text-txt-muted mb-1.5'
@@ -166,10 +167,10 @@ function CampaignForm({ campaign, notice, onSave }: { campaign: Campaign; notice
 export function CampaignSettings() {
   const { layer, campaignId } = useCampaignServices()
   const { campaign: loaded, reload } = useCampaign()
-  // The row we wrote last, valid only while the context still holds the campaign it was based on.
-  const [saved, setSaved] = useState<{ row: Campaign; over: Campaign } | null>(null)
+  // The freshest row any Ajustes section saved (shared), so a save elsewhere is this form's base version.
+  const { saved, setSaved } = useSavedCampaign()
   const [notice, setNotice] = useState<Notice | null>(null)
-  const campaign = saved && saved.over === loaded ? saved.row : loaded
+  const campaign = freshestCampaign(loaded, saved)
 
   async function save(input: CampaignFormInput): Promise<CampaignFormErrors | null> {
     setNotice(null)
@@ -185,6 +186,7 @@ export function CampaignSettings() {
       reload()
     } catch (e) {
       if (e instanceof ConflictError) {
+        setSaved(null)
         setNotice({ kind: 'error', text: 'La campaña cambió mientras la editabas. Cargamos los valores actuales: revisalos y guardá de nuevo.' })
         reload()
       } else {
