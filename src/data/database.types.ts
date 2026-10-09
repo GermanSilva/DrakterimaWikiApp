@@ -1314,6 +1314,10 @@ export type Database = {
         }
         Returns: undefined
       }
+      delete_campaign: {
+        Args: { p_campaign_id: string; p_confirm_slug: string }
+        Returns: undefined
+      }
       get_entity_visibility: {
         Args: { p_entity_type: string; p_ids: number[] }
         Returns: {
