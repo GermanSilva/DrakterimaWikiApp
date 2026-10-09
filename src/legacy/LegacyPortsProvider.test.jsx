@@ -169,3 +169,25 @@ describe('legacy player notes without an existing note for the key', () => {
     expect(typeof savePlayerNote.mock.calls[0][0]).toBe('number')
   })
 })
+
+describe('legacy player notes all()', () => {
+  const notes = [
+    { id: '5_lore_2', pj_id: 5, type: 'lore', entity_id: 2, text: 'mia' },
+    { id: '6_pnjs_1', pj_id: 6, type: 'pnjs', entity_id: 1, text: 'de otro' },
+  ]
+  const pjs = [{ id: 5, nombre: 'Eldric', jugador: 'Pepe' }, { id: 6, nombre: 'Mara' }]
+  const make = (over) =>
+    createLegacyPlayerNotesPort({ db: { player_notes: notes, pjs }, isDM: false, currentPlayer: { id: 5 }, savePlayerNote: vi.fn(), deletePlayerNote: vi.fn(), ...over })
+
+  it('a DM lists every note with the PJ name as label and the player as author', () => {
+    expect(make({ isDM: true, currentPlayer: null }).all()).toEqual([
+      { type: 'lore', id: 2, text: 'mia', key: '5', label: 'Eldric', author: 'Pepe' },
+      { type: 'pnjs', id: 1, text: 'de otro', key: '6', label: 'Mara', author: undefined },
+    ])
+  })
+
+  it('a player only lists their own notes, and nobody without identity lists any', () => {
+    expect(make().all().map((n) => n.key)).toEqual(['5'])
+    expect(make({ currentPlayer: null }).all()).toEqual([])
+  })
+})

@@ -73,6 +73,11 @@ export function createLegacyPlayerNotesPort({ db, isDM, currentPlayer, savePlaye
         })),
     mine: (type, id) =>
       notes.find((n) => n.pj_id === currentPlayer?.id && n.type === type && n.entity_id === id)?.text || '',
+    all: () =>
+      notes.filter((n) => isDM || (currentPlayer && n.pj_id === currentPlayer.id)).map((n) => {
+        const pj = (db.pjs || []).find((p) => p.id === n.pj_id)
+        return { type: n.type, id: n.entity_id, text: n.text || '', key: String(n.pj_id), label: pj?.nombre || '', author: pj?.jugador || undefined }
+      }),
     save: (type, id, text, key) => savePlayerNote(isDM ? pjIdOf(key) : currentPlayer.id, type, id, text),
     remove: (type, id, key) => deletePlayerNote(`${isDM ? key : currentPlayer.id}_${type}_${id}`),
   }

@@ -27,7 +27,10 @@ export function HubPlayerNotesProvider({ children }: { children: ReactNode }) {
   const { showToast } = useToast()
   const { byTable } = useWikiIndex()
   const me = user?.id ?? null
-  const [notes, setNotes] = useState<{ campaignId: string; items: PlayerNote[] } | null>(null)
+  const [notes, setNotes] = useState<{ campaignId: string; items: PlayerNote[]; failed?: boolean } | null>(null)
+  const [reloadNonce, setReloadNonce] = useState(0)
+  // DM only: user id -> display name, to tell authors apart on the notes page (best effort)
+  const [authors, setAuthors] = useState<{ campaignId: string; names: Map<string, string> } | null>(null)
 
   useEffect(() => {
     if (!me) return undefined
@@ -38,16 +41,39 @@ export function HubPlayerNotesProvider({ children }: { children: ReactNode }) {
       },
       (err: unknown) => {
         console.error('No se pudieron cargar las notas', err)
-        // an empty list lets the editor render; saving still works
-        if (!cancelled) setNotes({ campaignId, items: [] })
+        // an empty list lets the editor render (saving still works); `failed` tells the notes page
+        // the list is empty because of the failure, not because there are no notes
+        if (!cancelled) setNotes({ campaignId, items: [], failed: true })
       },
     )
     return () => {
       cancelled = true
     }
-  }, [layer, campaignId, me])
+  }, [layer, campaignId, me, reloadNonce])
+
+  useEffect(() => {
+    if (!me || !isDM) return undefined
+    let cancelled = false
+    layer.campaigns.listMembers(campaignId).then(
+      (members) => {
+        const names = new Map<string, string>()
+        for (const m of members) {
+          const name = m.profile?.display_name?.trim()
+          if (name) names.set(m.user_id, name)
+        }
+        if (!cancelled) setAuthors({ campaignId, names })
+      },
+      (err: unknown) => console.error('No se pudieron cargar los autores de las notas', err),
+    )
+    return () => {
+      cancelled = true
+    }
+  }, [layer, campaignId, me, isDM])
 
   const items = notes && notes.campaignId === campaignId ? notes.items : null
+  const failed = notes?.campaignId === campaignId && notes.failed === true
+  const authorNames = authors?.campaignId === campaignId ? authors.names : null
+  const reload = useCallback(() => setReloadNonce((n) => n + 1), [])
 
   const upsertLocal = useCallback(
     (note: PlayerNote) => {
@@ -62,8 +88,9 @@ export function HubPlayerNotesProvider({ children }: { children: ReactNode }) {
   )
 
   const port = useMemo<PlayerNotesPort>(() => {
-    const labelOf = (n: PlayerNote) =>
-      (n.character_id !== null ? byTable.pjs.find((p) => p.id === n.character_id)?.title : undefined) || 'Jugador'
+    const characterOf = (n: PlayerNote) =>
+      (n.character_id !== null ? byTable.pjs.find((p) => p.id === n.character_id)?.title : undefined) || ''
+    const labelOf = (n: PlayerNote) => characterOf(n) || 'Jugador'
     const all = items ?? []
     return {
       role: me ? (isDM ? 'dm' : 'player') : 'none',
@@ -71,8 +98,19 @@ export function HubPlayerNotesProvider({ children }: { children: ReactNode }) {
       entriesFor: (type, id) =>
         all.filter((n) => n.entity_type === type && n.entity_id === id).map((n) => ({ key: n.user_id, label: labelOf(n), text: n.text })),
       mine: (type, id) => all.find((n) => me !== null && sameNote(n, me, type, id))?.text ?? '',
+      all: () =>
+        all.map((n) => ({
+          type: n.entity_type,
+          id: n.entity_id,
+          text: n.text,
+          key: n.user_id,
+          label: characterOf(n),
+          author: authorNames?.get(n.user_id),
+        })),
+      failed,
+      reload,
       async save(type, id, text, key) {
-        if (!me || !isNoteType(type)) return
+        if (!me || !isNoteType(type)) return false
         try {
           const author = isDM && key ? key : me
           const existing = all.find((n) => sameNote(n, author, type, id))
@@ -91,13 +129,15 @@ export function HubPlayerNotesProvider({ children }: { children: ReactNode }) {
                 })
           upsertLocal(saved)
           showToast('Nota guardada')
+          return true
         } catch (err) {
           console.error('No se pudo guardar la nota', err)
           showToast(describeDataError(err, 'No se pudo guardar la nota'), 'error')
+          return false
         }
       },
       async remove(type, id, key) {
-        if (!me || !isNoteType(type)) return
+        if (!me || !isNoteType(type)) return false
         const author = isDM && key ? key : me
         try {
           await layer.playerNotes.remove(campaignId, author, type, id)
@@ -105,13 +145,15 @@ export function HubPlayerNotesProvider({ children }: { children: ReactNode }) {
             prev ? { ...prev, items: prev.items.filter((n) => !sameNote(n, author, type, id)) } : prev,
           )
           showToast('Nota eliminada')
+          return true
         } catch (err) {
           console.error('No se pudo eliminar la nota', err)
           showToast(describeDataError(err, 'No se pudo eliminar la nota'), 'error')
+          return false
         }
       },
     }
-  }, [items, me, isDM, byTable.pjs, layer, campaignId, myCharacterIds, upsertLocal, showToast])
+  }, [items, failed, reload, authorNames, me, isDM, byTable.pjs, layer, campaignId, myCharacterIds, upsertLocal, showToast])
 
   return <PlayerNotesPortContext.Provider value={port}>{children}</PlayerNotesPortContext.Provider>
 }
