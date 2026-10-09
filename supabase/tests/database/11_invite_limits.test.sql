@@ -1,7 +1,7 @@
 -- pgTAP: server-side invite limits (max_uses <= 100, expiry mandatory and <= 365 days).
 begin;
 
-select plan(15);
+select plan(14);
 
 insert into auth.users (instance_id, id, aud, role, email)
 values ('00000000-0000-0000-0000-000000000000', '88888888-0000-4000-8000-000000000001', 'authenticated', 'authenticated', 'limits-u1@example.test');
@@ -67,9 +67,7 @@ select throws_ok(
 -- the upper bound itself is allowed
 insert into public.campaign_invites (campaign_id, code, role, max_uses, expires_at) values ('99999999-0000-4000-8000-00000000000a', 'lim-100', 'player', 100, now() + interval '2 days');
 select is((select max_uses from public.campaign_invites where code = 'lim-100'), 100, 'exactly 100 is kept');
-select is(
-  (select obj_description('public.prepare_campaign_invite()'::regprocedure, 'pg_proc') like '%enforced by the table check%NULL max_uses is rejected%'),
-  true, 'the trigger function documents that the lower bound and NULL are documented as table / explicit rejection');
+-- (a former assertion pattern-matched the trigger function comment; the NULL and 0 rejections above are the behavioural checks)
 
 select * from finish();
 rollback;
