@@ -115,7 +115,12 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H9d | Games: JuegosPage (config/pot/own log, owned-PJ selector, UTC-day messaging), Dice3D target roll, coins helpers | delegated (writer) | [x] |
 | H9e | Ajustes: games config, pot transfer, log management, session-screen link; extensible container for H10 | delegated (writer) | [x] |
 | H9f | Unread sweep + browser check (DM and player1) + adversarial sweep | delegated + parent | [x] |
-| H10 | Campaign management: create campaign, branding, regions, custom fields, invites, members/roles | delegated (writer) | [ ] |
+| H10 | Campaign management (split below; mapper report 2026-10-09) | delegated (writer) | [ ] |
+| H10a | `updateCampaign` path + Ajustes "Campaña" section (name, logo https URL, accent colour, tagline; slug locked in UI; context reload on save) | delegated (writer) | [ ] |
+| H10b | Regions editor + custom character fields editor (shared list editor, in-use key guard, remove "Gremio" hardcodes, seed defaults) | delegated (writer) | [ ] |
+| H10c | Invites: DM UI (create player/dm/PJ-claim, expiry, uses, copy link, revoke) + invite landing/confirm page (+ preview RPC if chosen) | delegated (writer) | [ ] |
+| H10d | Members/roles, PJ owner assignment, DM transfer, delete campaign (depends on decisions 1, 2, 10) | delegated (writer) | [ ] |
+| H10e | Player-visible notice that the DM sees last connection | delegated (writer) | [ ] |
 | H11 | Refactors: `useStickyTitle`, split FormModal, error boundary + error toasts, a11y basics | delegated (writer; 2+ non-trivial files) | [x] |
 | H12 | Firestore → Supabase import script (Drakterima campaign, id preservation, character claim via invites) | delegated (writer) | [ ] |
 | H13 | Vercel config (SPA rewrites, env), docs (CLAUDE.md), cutover runbook | inline | [ ] |
@@ -545,3 +550,17 @@ Route per task: delegated writer (writer trigger: 2+ non-trivial files). TDD: no
 - H9 follow-ups done (5a4a10f, 964ce99, bd85d32): idle busy notice (retry), notes reload pending/no overlap, NotasPage legacy void/rejection paths, d20 overlay reset on roll change (incl. stale fade styles), PlayersSettings dash unless presence ready, ExportSettings mounted guard, MapPopup own-key icon test, vitest `maxWorkers: 4`. Each new test verified failing on old code (the ExportSettings one by wrapping useState). Checks: `npx vitest run` (no flags) 1256/1256 twice (~84s), tsc clean, lint 0 errors, build ok. Slice cf3bf3b..bd85d32 = 318 lines (medium, under budget) → review pending in slice; reviewed boundary stays `cf3bf3b`. Stashes H8b/H7a intact.
 
 - H9f done (2026-10-09, browser verification on the local stack, preview `vite-dev`, magic-link test users dm@/player1@example.test via Mailpit): **DM**: calendar renders (session badge, per-member initials markers, legend with "Ocupado"), day modal timeline, own availability form (scope General by default, saved full-day "no disponible" shown on the timeline), Juegos (pot, prizes, DM roll → pot), d20 overlay transparent full-viewport, landed on the server roll (5 = "Salió 5"), "Tocá para continuar", click → fade-out + zoom, Notas grouped by author with chips, Homerules list, Ajustes (all sections incl. presence: DM "hace 1 minuto", players "Nunca"). **Player (player1)**: calendar shows the DM's general unavailability, no DM buttons; `/ajustes` → "Sección no encontrada"; Juegos "Jugás con Maisie Moonwhisper", roll landed on 8 = "Salió 8", message "00:00 UTC (en 17h 33m · 21:00 en tu zona horaria)"; Notas flat list, own notes only. No console errors. NOT verified in browser: cross-campaign "Ocupado" from a session in another campaign (needs a second campaign session), mobile viewport, DST day, export download, bulk log delete, config save conflict, pot transfer. H9 complete. Unreviewed slice in the branch: cf3bf3b..HEAD (follow-ups batch, 318+ lines, medium, under budget).
+
+## H10 open product decisions (mapper report, 2026-10-09; recommendation in brackets)
+
+1. Multi-DM / DM transfer: DB allows co-DMs and any DM can demote/kick another DM; only last-DM is protected. [keep co-DMs, role changes behind a confirm dialog; add transfer_dm RPC only if a single-owner model is wanted] — blocks H10d.
+2. PJ ownership: DM assigns/releases owner_id to any member from Jugadores + invite claim for unregistered users. [yes]
+3. Invites: keep code links + add preview/confirm landing page; 'dm' invites exposed with warning (already single-use, <=7d). [yes]
+4. Player notice of last-connection: shown on the invite landing before accepting + persistent small note in the campaign view (client-side ack). [all]
+5. Logo: https URL only for H10, Storage upload later. [URL only]
+6. Theme: accent colour + tagline only for H10. [yes]
+7. Regions: key immutable, label/colour editable, delete blocked while in use, new campaigns seeded with 'otro'. [yes]
+8. Custom fields: text only, max ~10, key immutable, removal keeps data hidden. [yes]
+9. Slug: locked after creation (UI). [lock]
+10. delete_campaign RPC (typed-name confirm) in H10d. [include]
+11. Kick: keep content, release PJs, confirm dialog. [yes]
