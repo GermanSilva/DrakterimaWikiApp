@@ -41,7 +41,9 @@ UI code should call `createDataLayer()` / the hook, never `supabase.from(...)` d
   and player_availability date/time columns); `sesiones.fecha` reads back as `''`.
 - Errors: `DataError.kind` follows the SQLSTATE; `DataError.reason` carries the stable code of our own
   functions (`KNOWN_REASONS`: invite_expired, not_a_member, not_your_character, dm_only,
-  already_played_today, ...) whether it arrived as P0001, 42501 or 23514. A write whose
+  already_played_today, slug_mismatch, ...) whether it arrived as P0001, 42501 or 23514. Two triggers raise
+  23514 with a sentence instead of a code; `toDataError` maps them to `last_dm` (protect_last_dm) and
+  `owner_not_member` (check_pj_owner_is_member). A write whose
   `select().single()` returns no row is `written_not_visible` (it may have been applied: re-read before
   retrying), never `not_found`. A zero-row update/delete is `permission` when the row is readable and
   `not_found` otherwise.

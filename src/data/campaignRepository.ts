@@ -6,6 +6,7 @@ import {
   join,
 } from './columns'
 import { ConflictError, DataError, unwrap, unwrapWrite } from './errors'
+import { createEntityRepository } from './entityRepository'
 import { fromTable } from './loose'
 import { pagedList } from './pagedList'
 import type { Profile } from './profileRepository'
@@ -102,6 +103,15 @@ const PROFILE_EMBED = 'id, display_name, avatar_url'
 
 /** Campaigns, membership and invites. */
 export function createCampaignRepository(client: Db) {
+  async function removeMembership(campaignId: string, userId: string): Promise<void> {
+    const rows = unwrap<unknown[]>(
+      await fromTable(client, 'campaign_members').delete().eq('campaign_id', campaignId).eq('user_id', userId).select('user_id'),
+    )
+    if (rows.length === 0) {
+      await throwZeroRows(client, 'campaign_members', { campaign_id: campaignId, user_id: userId }, 'membership')
+    }
+  }
+
   return {
     /** Campaigns the user belongs to, each with their role in it. */
     async listMyCampaigns(userId: string): Promise<CampaignWithRole[]> {
@@ -237,11 +247,27 @@ export function createCampaignRepository(client: Db) {
       return unwrap(await client.rpc('accept_invite', { p_code: code })) as unknown as AcceptInviteResult
     },
 
-    /** A member removes themselves. The last DM cannot leave (23514 validation error). */
+    /** A member removes themselves. The last DM cannot leave (23514 validation error, reason 'last_dm'). */
     async leaveCampaign(campaignId: string, userId: string): Promise<void> {
+      await removeMembership(campaignId, userId)
+    },
+
+    /**
+     * DM only (RLS). Kicks a member: the triggers release their characters (owner_id becomes null) and every piece of
+     * content stays. Removing the last DM fails with reason 'last_dm'. Throws not_found when they are already gone.
+     */
+    async removeMember(campaignId: string, userId: string): Promise<void> {
+      await removeMembership(campaignId, userId)
+    },
+
+    /**
+     * DM only (RLS). Promotes (player -> dm) or demotes (dm -> player) a member; co-DMs are allowed. Demoting the
+     * last DM fails with reason 'last_dm'.
+     */
+    async updateMemberRole(campaignId: string, userId: string, role: CampaignRole): Promise<void> {
       const rows = unwrap<unknown[]>(
         await fromTable(client, 'campaign_members')
-          .delete()
+          .update({ role })
           .eq('campaign_id', campaignId)
           .eq('user_id', userId)
           .select('user_id'),
@@ -249,6 +275,22 @@ export function createCampaignRepository(client: Db) {
       if (rows.length === 0) {
         await throwZeroRows(client, 'campaign_members', { campaign_id: campaignId, user_id: userId }, 'membership')
       }
+    },
+
+    /**
+     * DM only. Gives a character to a member of the campaign, or releases it (null), through the regular pjs update
+     * path. A user who is not a member is refused by the database (reason 'owner_not_member').
+     */
+    async setPjOwner(characterId: number, userId: string | null): Promise<void> {
+      await createEntityRepository(client, 'pjs').update(characterId, { owner_id: userId })
+    },
+
+    /**
+     * RPC, DM only: deletes the whole campaign and everything in it, permanently. `confirmSlug` must be the slug of
+     * the campaign. Errors: dm_only (permission), slug_mismatch (business).
+     */
+    async deleteCampaign(campaignId: string, confirmSlug: string): Promise<void> {
+      unwrap(await client.rpc('delete_campaign', { p_campaign_id: campaignId, p_confirm_slug: confirmSlug }))
     },
   }
 }

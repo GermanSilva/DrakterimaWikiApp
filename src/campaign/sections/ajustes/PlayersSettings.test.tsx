@@ -11,6 +11,8 @@ vi.mock('../../entities/campaignServicesContext', () => ({
 vi.mock('../../entities/useCampaignMembers', () => ({
   useCampaignMembers: () => ({ status: 'ready', data: [{ campaign_id: 'c1', user_id: 'u1', role: 'player', created_at: '', updated_at: '', profile: { id: 'u1', display_name: 'Bob', avatar_url: null } } satisfies Member], error: null, refresh: vi.fn() }),
 }))
+vi.mock('../../../auth', () => ({ useAuth: () => ({ user: { id: 'u-me' } }) }))
+vi.mock('../../toastContext', () => ({ useToast: () => ({ showToast: vi.fn() }) }))
 vi.mock('../../entities/useEntities', () => ({ useEntities: () => ({ items: [] }) }))
 vi.mock('../../entities/useLoad', () => ({
   useLoad: () => ({ status: mocks.presenceStatus, data: mocks.presenceStatus === 'ready' ? [] : null, error: null, refresh: vi.fn() }),

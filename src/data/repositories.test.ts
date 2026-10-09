@@ -210,6 +210,74 @@ describe('campaign repository', () => {
     await expect(repo.leaveCampaign('c1', 'u1')).rejects.toMatchObject({ kind: 'not_found' })
   })
 
+  describe('member administration', () => {
+    const LAST_DM = { message: 'cannot remove, demote or delete the account of the only DM of a campaign: transfer the DM role to another member or delete the campaign first', code: '23514' }
+
+    it('updateMemberRole updates only the role of that membership and reports what it could not change', async () => {
+      const fake = createFakeClient()
+      const repo = createCampaignRepository(fake.db)
+      fake.enqueue({ data: [{ user_id: 'u2' }] })
+      await repo.updateMemberRole('c1', 'u2', 'dm')
+      expect(opsNamed(fake.calls[0], 'update')).toEqual([[{ role: 'dm' }]])
+      expect(opsNamed(fake.calls[0], 'eq')).toEqual([['campaign_id', 'c1'], ['user_id', 'u2']])
+
+      fake.enqueue({ data: [] }, { data: [] })
+      await expect(repo.updateMemberRole('c1', 'u2', 'dm')).rejects.toMatchObject({ kind: 'not_found' })
+      fake.enqueue({ data: [] }, { data: [{ campaign_id: 'c1' }] })
+      await expect(repo.updateMemberRole('c1', 'u2', 'dm')).rejects.toMatchObject({ kind: 'permission' })
+    })
+
+    it('demoting or removing the last DM surfaces the typed last_dm reason', async () => {
+      const fake = createFakeClient()
+      const repo = createCampaignRepository(fake.db)
+      fake.enqueue({ error: LAST_DM })
+      await expect(repo.updateMemberRole('c1', 'u1', 'player')).rejects.toMatchObject({ kind: 'validation', reason: 'last_dm' })
+      fake.enqueue({ error: LAST_DM })
+      await expect(repo.removeMember('c1', 'u1')).rejects.toMatchObject({ kind: 'validation', reason: 'last_dm' })
+    })
+
+    it('removeMember deletes that membership only and is not_found when they are already gone', async () => {
+      const fake = createFakeClient()
+      const repo = createCampaignRepository(fake.db)
+      fake.enqueue({ data: [{ user_id: 'u2' }] })
+      await repo.removeMember('c1', 'u2')
+      expect(opsNamed(fake.calls[0], 'delete')).toHaveLength(1)
+      expect(opsNamed(fake.calls[0], 'eq')).toEqual([['campaign_id', 'c1'], ['user_id', 'u2']])
+      fake.enqueue({ data: [] }, { data: [] })
+      await expect(repo.removeMember('c1', 'u2')).rejects.toMatchObject({ kind: 'not_found' })
+    })
+
+    it('setPjOwner writes only owner_id through the pjs update path (null releases)', async () => {
+      const fake = createFakeClient()
+      const repo = createCampaignRepository(fake.db)
+      fake.enqueue({ data: { id: 7, owner_id: 'u2', data: {} } })
+      await repo.setPjOwner(7, 'u2')
+      expect(fake.calls[0]).toMatchObject({ kind: 'from', name: 'pjs' })
+      expect(opsNamed(fake.calls[0], 'update')).toEqual([[{ owner_id: 'u2' }]])
+      expect(opsNamed(fake.calls[0], 'eq')).toEqual([['id', 7]])
+      fake.enqueue({ data: { id: 7, owner_id: null, data: {} } })
+      await repo.setPjOwner(7, null)
+      expect(opsNamed(fake.calls[1], 'update')).toEqual([[{ owner_id: null }]])
+    })
+
+    it('setPjOwner for a non-member surfaces owner_not_member', async () => {
+      const fake = createFakeClient()
+      fake.enqueue({ error: { message: 'character owner must be a member of the campaign', code: '23514' } })
+      await expect(createCampaignRepository(fake.db).setPjOwner(7, 'stranger')).rejects.toMatchObject({ kind: 'validation', reason: 'owner_not_member' })
+    })
+
+    it('deleteCampaign calls the RPC with the typed slug; the refusals keep their reason', async () => {
+      const fake = createFakeClient()
+      const repo = createCampaignRepository(fake.db)
+      await repo.deleteCampaign('c1', 'demo')
+      expect(fake.calls[0]).toMatchObject({ kind: 'rpc', name: 'delete_campaign', args: { p_campaign_id: 'c1', p_confirm_slug: 'demo' } })
+      fake.enqueue({ error: { message: 'slug_mismatch', code: 'P0001' } })
+      await expect(repo.deleteCampaign('c1', 'x')).rejects.toMatchObject({ kind: 'business', reason: 'slug_mismatch' })
+      fake.enqueue({ error: { message: 'dm_only', code: '42501' } })
+      await expect(repo.deleteCampaign('c1', 'demo')).rejects.toMatchObject({ kind: 'permission', reason: 'dm_only' })
+    })
+  })
+
   describe('updateCampaign', () => {
     const stored = {
       id: 'c1',

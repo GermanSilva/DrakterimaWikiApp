@@ -29,6 +29,9 @@ export const KNOWN_REASONS = [
   'dm_only',
   'insufficient_pot',
   'character_not_found',
+  'slug_mismatch',
+  'last_dm',
+  'owner_not_member',
 ] as const
 
 export type DataErrorReason = (typeof KNOWN_REASONS)[number]
@@ -81,11 +84,19 @@ function kindOf(code: string | undefined): DataErrorKind {
 const REASON_CODES = new Set(['P0001', '42501', '23514'])
 const reasons = new Set<string>(KNOWN_REASONS)
 
+/**
+ * Check-violation (23514) raised by our triggers with a descriptive sentence instead of a bare reason code.
+ * Matched by a stable fragment of the message; anything else stays a plain validation error.
+ */
+const TRIGGER_REASONS: readonly [RegExp, DataErrorReason][] = [
+  [/only DM of a campaign/, 'last_dm'], // protect_last_dm
+  [/character owner must be a member/, 'owner_not_member'], // check_pj_owner_is_member
+]
+
 export function toDataError(error: PostgrestLikeError): DataError {
-  const reason =
-    error.code && REASON_CODES.has(error.code) && reasons.has(error.message)
-      ? (error.message as DataErrorReason)
-      : undefined
+  let reason: DataErrorReason | undefined =
+    error.code && REASON_CODES.has(error.code) && reasons.has(error.message) ? (error.message as DataErrorReason) : undefined
+  if (!reason && error.code === '23514') reason = TRIGGER_REASONS.find(([pattern]) => pattern.test(error.message))?.[1]
   return new DataError(kindOf(error.code), error.message, error, reason)
 }
 

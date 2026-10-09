@@ -378,7 +378,7 @@ describe('Ajustes: players and last connection', () => {
   it('lists members (DM first) with their character and last connection, relative with an absolute tooltip', async () => {
     setup({ members: MEMBERS, presence: PRESENCE })
     const p = await players()
-    await p.findByText('Bob')
+    await p.findByRole('cell', { name: 'Bob' })
     const names = p.getAllByRole('row').slice(1).map((r) => within(r).getAllByRole('cell')[0].textContent)
     expect(names).toEqual(['Ana DM', 'Bob', 'Ana', 'Sin nombre'])
 
@@ -394,7 +394,7 @@ describe('Ajustes: players and last connection', () => {
   it('shows "Nunca" for a member who never connected', async () => {
     setup({ members: MEMBERS, presence: PRESENCE })
     const p = await players()
-    await p.findByText('Bob')
+    await p.findByRole('cell', { name: 'Bob' })
     expect(rowOf(p, /^Bob/).getByText('Nunca')).toBeInTheDocument()
     expect(rowOf(p, /^Bob/).getByText('Mara')).toBeInTheDocument()
   })
@@ -408,7 +408,7 @@ describe('Ajustes: players and last connection', () => {
     const { spies } = setup({ members: MEMBERS, before: ({ spies: s }) => { s.presenceList.mockRejectedValue(new Error('down')) } })
     const p = await players()
     expect(await p.findByRole('alert')).toHaveTextContent('No pudimos cargar las últimas conexiones.')
-    expect(p.getByText('Bob')).toBeInTheDocument()
+    expect(p.getByRole('cell', { name: 'Bob' })).toBeInTheDocument()
     expect(p.queryByText('Nunca')).not.toBeInTheDocument() // unknown is not "never"
     expect(spies.presenceList).toHaveBeenCalled()
   })
@@ -416,7 +416,7 @@ describe('Ajustes: players and last connection', () => {
   it('re-reads on demand', async () => {
     const { spies } = setup({ members: MEMBERS, presence: PRESENCE })
     const p = await players()
-    await p.findByText('Bob')
+    await p.findByRole('cell', { name: 'Bob' })
     const before = spies.presenceList.mock.calls.length
     fireEvent.click(p.getByRole('button', { name: 'Actualizar' }))
     await waitFor(() => expect(spies.presenceList.mock.calls.length).toBeGreaterThan(before))

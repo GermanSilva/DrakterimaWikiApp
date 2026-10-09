@@ -114,7 +114,19 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
   })
   const disponibilidadList = vi.fn(async () => options.disponibilidad ?? [])
   const playerAvailabilityList = vi.fn(async () => options.playerAvailability ?? [])
-  const membersList = vi.fn(async () => options.members ?? [])
+  // members: an in-memory roster; role changes and kicks change what the next list returns, like the repository
+  let memberRows = [...(options.members ?? [])]
+  const membersList = vi.fn(async () => [...memberRows])
+  const updateMemberRole = vi.fn(async (_campaignId: string, userId: string, role: 'dm' | 'player') => {
+    if (!memberRows.some((m) => m.user_id === userId)) throw new DataError('not_found', 'membership: not found')
+    memberRows = memberRows.map((m) => (m.user_id === userId ? { ...m, role } : m))
+  })
+  const removeMember = vi.fn(async (_campaignId: string, userId: string) => {
+    if (!memberRows.some((m) => m.user_id === userId)) throw new DataError('not_found', 'membership: not found')
+    memberRows = memberRows.filter((m) => m.user_id !== userId)
+  })
+  const setPjOwner = vi.fn(async (characterId: number, userId: string | null) => void [characterId, userId])
+  const deleteCampaign = vi.fn(async (campaignId: string, slug: string) => void [campaignId, slug])
   const busySlotsList = vi.fn(async () => options.busySlots ?? [])
   const potGet = vi.fn(async () => options.pot ?? null)
   const gameLogsList = vi.fn(async () => options.gameLogs ?? [])
@@ -151,12 +163,12 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
       remove: vi.fn(async () => undefined),
       busySlots: busySlotsList,
     },
-    campaigns: { listMembers: membersList, updateCampaign, listInvites: invitesList, createInvite: invitesCreate, revokeInvite: invitesRevoke },
+    campaigns: { listMembers: membersList, updateMemberRole, removeMember, setPjOwner, deleteCampaign, updateCampaign, listInvites: invitesList, createInvite: invitesCreate, revokeInvite: invitesRevoke },
     games: { getPot: potGet, listLogs: gameLogsList, playLoteria: vi.fn(), assignPotToCharacter: vi.fn(), removeLog: vi.fn(async () => undefined) },
     presence: { touch: presenceTouch, list: presenceList },
     playerNotes: { list: playerNotesList, upsert: vi.fn(), update: vi.fn(), remove: vi.fn() },
   } as unknown as DataLayer
-  return { layer, fake, spies: { updateCampaign, invitesList, invitesCreate, invitesRevoke, presenceTouch, presenceList, membersList, busySlotsList, disponibilidadList, playerAvailabilityList, potGet, gameLogsList, playerNotesList, configGet, configPatch, configRows, entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
+  return { layer, fake, spies: { updateMemberRole, removeMember, setPjOwner, deleteCampaign, updateCampaign, invitesList, invitesCreate, invitesRevoke, presenceTouch, presenceList, membersList, busySlotsList, disponibilidadList, playerAvailabilityList, potGet, gameLogsList, playerNotesList, configGet, configPatch, configRows, entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
 }
 
 export const fakeUnread = (): UnreadPort & { markRead: ReturnType<typeof vi.fn> } => ({

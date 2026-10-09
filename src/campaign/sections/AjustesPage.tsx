@@ -4,6 +4,7 @@ import { PageHeader } from '../../components/Shared'
 import { useCampaign } from '../CampaignContext'
 import { SectionNotFound } from '../SectionRoute'
 import { CampaignSettings } from './ajustes/CampaignSettings'
+import { DangerZone } from './ajustes/DangerZone'
 import { CustomFieldsSettings } from './ajustes/CustomFieldsSettings'
 import { ExportSettings } from './ajustes/ExportSettings'
 import { GameLogsSettings } from './ajustes/GameLogsSettings'
@@ -67,6 +68,10 @@ function AjustesSections() {
 
       <AdminSection title="Exportar">
         <ExportSettings />
+      </AdminSection>
+
+      <AdminSection title="Zona de peligro">
+        <DangerZone />
       </AdminSection>
     </>
   )

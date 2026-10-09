@@ -1,5 +1,6 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
+import { useAuth } from '../../../auth'
 import { btnSecondary } from '../../../constants'
 import type { Member } from '../../../data'
 import { useCampaignServices } from '../../entities/campaignServicesContext'
@@ -7,6 +8,9 @@ import { useCampaignMembers } from '../../entities/useCampaignMembers'
 import { useEntities } from '../../entities/useEntities'
 import { useLoad } from '../../entities/useLoad'
 import { Loading } from '../DetailNotice'
+import { CharacterOwners } from './CharacterOwners'
+import { MemberActionDialog, type MemberAction } from './MemberActionDialog'
+import { memberName } from './memberMessages'
 import { describeLastSeen } from './presenceFormat'
 
 function LastSeen({ iso, now }: { iso: string | undefined; now: Date }) {
@@ -23,6 +27,9 @@ const roleOrder = (m: Member) => (m.role === 'dm' ? 0 : 1)
 
 /** Members of the campaign with their character and LAST CONNECTION. DM only (presence rows are DM-only in RLS). */
 export function PlayersSettings() {
+  const { user } = useAuth()
+  const selfId = user?.id ?? null
+  const [pending, setPending] = useState<{ action: MemberAction; member: Member } | null>(null)
   const { layer, campaignId } = useCampaignServices()
   const members = useCampaignMembers()
   const presence = useLoad(() => layer.presence.list(campaignId), `presence:${campaignId}`)
@@ -85,7 +92,8 @@ export function PlayersSettings() {
               <th className="text-left py-2 pr-4 font-semibold">Nombre</th>
               <th className="text-left py-2 pr-4 font-semibold">Rol</th>
               <th className="text-left py-2 pr-4 font-semibold">Personaje</th>
-              <th className="text-left py-2 font-semibold">Última conexión</th>
+              <th className="text-left py-2 pr-4 font-semibold">Última conexión</th>
+              <th className="text-left py-2 font-semibold">Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -94,14 +102,64 @@ export function PlayersSettings() {
                 <td className="py-2 pr-4 font-semibold text-txt-primary">{member.profile?.display_name || 'Sin nombre'}</td>
                 <td className="py-2 pr-4">{member.role === 'dm' ? 'DM' : 'Jugador'}</td>
                 <td className="py-2 pr-4">{characters.length > 0 ? characters.join(', ') : <span className="text-txt-muted">—</span>}</td>
-                <td className="py-2">
+                <td className="py-2 pr-4">
                   {presence.status === 'ready' ? <LastSeen iso={lastSeen} now={now} /> : <span className="text-txt-muted">—</span>}
+                </td>
+                <td className="py-2">
+                  <div className="flex flex-wrap gap-2">
+                    {member.role === 'dm' ? (
+                      <button
+                        type="button"
+                        className={btnSecondary}
+                        aria-label={member.user_id === selfId ? 'Dejar de ser DM' : `Pasar a jugador a ${memberName(member)}`}
+                        onClick={() => setPending({ action: 'demote', member })}
+                      >
+                        {member.user_id === selfId ? 'Dejar de ser DM' : 'Pasar a jugador'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        className={btnSecondary}
+                        aria-label={`Nombrar DM a ${memberName(member)}`}
+                        onClick={() => setPending({ action: 'promote', member })}
+                      >
+                        Nombrar DM
+                      </button>
+                    )}
+                    {member.user_id !== selfId && (
+                      <button
+                        type="button"
+                        className={btnSecondary}
+                        aria-label={`Sacar a ${memberName(member)} de la campaña`}
+                        onClick={() => setPending({ action: 'remove', member })}
+                      >
+                        Sacar
+                      </button>
+                    )}
+                  </div>
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      <h3 className="font-exo text-[10px] font-medium tracking-[0.2em] uppercase text-txt-muted mt-4">Dueños de los personajes</h3>
+      <p className="text-[12px] text-txt-secondary">Elegí quién juega cada personaje. Solo pueden ser dueños los integrantes de la campaña.</p>
+      <CharacterOwners members={members.data ?? []} />
+
+      {pending && (
+        <MemberActionDialog
+          action={pending.action}
+          member={pending.member}
+          selfId={selfId}
+          onDone={() => {
+            setPending(null)
+            members.refresh()
+          }}
+          onClose={() => setPending(null)}
+        />
+      )}
     </div>
   )
 }

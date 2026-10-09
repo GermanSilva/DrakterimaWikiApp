@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react'
 import { Outlet, useParams } from 'react-router'
 import { ConnectedUserMenu } from '../app/ConnectedUserMenu'
 import type { CampaignWithRole } from '../data'
+import { PRESENCE_NOTICE } from '../hub/campaignSlug'
 import { accentStyle, parseLogoUrl } from './branding'
 import { CampaignHeader } from './CampaignHeader'
 import { CampaignSidebar } from './CampaignSidebar'
@@ -32,7 +33,13 @@ export function CampaignShell({ campaign, isDM, campaigns, userMenu }: CampaignS
         onToggleMenu={() => setMenuOpen((open) => !open)}
         userMenu={userMenu ?? <ConnectedUserMenu />}
       />
-      <CampaignSidebar slug={campaign.slug} sections={sectionsFor(isDM)} open={menuOpen} onNavigate={() => setMenuOpen(false)} />
+      <CampaignSidebar
+        slug={campaign.slug}
+        sections={sectionsFor(isDM)}
+        open={menuOpen}
+        onNavigate={() => setMenuOpen(false)}
+        notice={isDM ? undefined : PRESENCE_NOTICE}
+      />
       {menuOpen && <div className="fixed inset-0 z-[150] bg-black/50 md:hidden" onClick={() => setMenuOpen(false)} aria-hidden="true" />}
       <main id="main-content" tabIndex={-1} className="md:ml-[240px] pt-[60px] min-w-0 outline-none">
         <div className={fullBleed ? 'py-8' : 'py-8 px-10 max-md:p-5 max-w-[1100px]'}>

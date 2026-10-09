@@ -8,6 +8,8 @@ export interface CampaignSidebarProps {
   sections: SectionDef[]
   open: boolean
   onNavigate: () => void
+  /** A small standing note at the foot of the menu (shown to players: the DM sees their last connection). */
+  notice?: string
 }
 
 const linkCls = ({ isActive }: { isActive: boolean }) =>
@@ -21,7 +23,7 @@ const linkCls = ({ isActive }: { isActive: boolean }) =>
 const labelCls = 'font-exo text-[11px] tracking-[0.06em] font-medium uppercase'
 
 /** Presentational: the campaign's section navigation (NavLinks give aria-current for free). */
-export function CampaignSidebar({ slug, sections, open, onNavigate }: CampaignSidebarProps) {
+export function CampaignSidebar({ slug, sections, open, onNavigate, notice }: CampaignSidebarProps) {
   return (
     <nav
       id="campaign-nav"
@@ -52,6 +54,7 @@ export function CampaignSidebar({ slug, sections, open, onNavigate }: CampaignSi
         </div>
       ))}
       <div className="mt-auto pt-4 border-t border-border-base">
+        {notice && <p className="px-[18px] pb-3 text-[11px] leading-snug text-txt-muted">{notice}</p>}
         <Link to="/" className={linkCls({ isActive: false })} onClick={onNavigate}>
           <span className={labelCls}>Mis campañas</span>
         </Link>
