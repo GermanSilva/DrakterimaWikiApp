@@ -1,4 +1,4 @@
-﻿-- pgTAP: campaign_presence (DM-only "last connection") and touch_campaign_presence().
+-- pgTAP: campaign_presence (DM-only "last connection") and touch_campaign_presence().
 -- Self-contained fixture, rolled back at the end.
 begin;
 
