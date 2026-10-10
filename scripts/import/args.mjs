@@ -29,8 +29,9 @@ Notes:
     import then aborts, that user stays; the report says "dmUser: created" when this run made it. Remove it from
     the Supabase dashboard (Authentication > Users) or with auth.admin.deleteUser; re-running just reuses it.
   - Sequences are only ever advanced, never rewound; a dry run does not touch them.
-  - Exit codes: 0 ok, 1 refused/failed, 2 bad arguments, 3 committed but an output file could not be written
-    (re-run with --apply to regenerate the invite CSV).`
+  - Exit codes: 0 ok, 1 refused/failed, 2 bad arguments, 3 committed but a follow-up step failed (an output file could
+    not be written, or the post-apply counts could not be read); the message names which. Re-run with --apply to
+    regenerate the report and the invite CSV.`
 
 const OPTIONS = {
   input: { type: 'string' },

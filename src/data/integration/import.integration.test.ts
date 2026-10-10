@@ -395,7 +395,7 @@ describe('legacy import CLI against the local stack', () => {
       const blocked = join(inputFile, 'cannot-exist')
       const res = runCli(['--apply'], { slug: outFailSlug, input: file, extraEnv: { IMPORT_OUT_DIR: blocked } })
       expect(res.code).toBe(3)
-      expect(res.stderr).toMatch(/^committed, but writing .+ failed; re-run with --apply to regenerate the invite CSV$/m)
+      expect(res.stderr).toMatch(/^committed, but writing the (JSON report|invite CSV) file .+ failed; re-run with --apply to regenerate both the JSON report and the invite CSV$/m)
       expect(res.stderr).not.toContain('database error')
       expect(`${res.stdout}${res.stderr}`).not.toMatch(/postgres(ql)?:\/\/|service-role|ENOTDIR/i)
       expect(await campaignBySlug(outFailSlug)).toBeDefined() // the data really is committed

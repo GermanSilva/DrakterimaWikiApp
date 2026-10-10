@@ -7,6 +7,8 @@ import { MAX_PARAMS, advanceSequenceStatement, buildGameLogInsert, buildUpsert, 
 
 const CID = '11111111-2222-4333-8444-555555555555'
 const SENTINEL = 'SENTINEL-CELL-VALUE'
+/** A game_logs comparison written with a plain `=` (NULL-unsafe) instead of IS NOT DISTINCT FROM. created_at is the one deliberate `=`: it is guarded by `v.created_at is null or` and NOT NULL in the schema. */
+const PLAIN_EQUALITY_GUARD = /g\.(?!created_at\b)\w+ = v\./
 
 describe('buildUpsert', () => {
   const rows = [
@@ -62,7 +64,11 @@ describe('buildUpsert', () => {
     const [s] = buildUpsert({ table: 'game_pot', rows: [{ campaign_id: CID }], conflictColumns: ['campaign_id'], onConflict: 'update' })
     expect(s.text).toContain('do nothing')
     expect(s).toMatchObject({ degraded: 'do-nothing', keys: [[CID]] })
-    expect(stmt.degraded).toBeUndefined()
+    // a real update (something to SET) is not degraded and carries no keys
+    const [update] = buildUpsert({ table: 'game_pot', rows: [{ campaign_id: CID, gp: 1 }], conflictColumns: ['campaign_id'], onConflict: 'update' })
+    expect(update.text).toContain('do update set')
+    expect(update.degraded).toBeUndefined()
+    expect(update.keys).toBeUndefined()
     const [n] = buildUpsert({ table: 'game_pot', rows: [{ campaign_id: CID, gp: 1 }], conflictColumns: ['campaign_id'], onConflict: 'nothing' })
     expect(n.degraded).toBeUndefined()
   })
@@ -91,7 +97,17 @@ describe('buildGameLogInsert', () => {
     for (const column of ['actor_type', 'character_id', 'game', 'play_date', 'roll', 'prize', 'prize_target']) {
       expect(where, column).toContain(`g.${column} is not distinct from v.${column}`)
     }
-    expect(where).not.toMatch(/g.w+ = v./)
+    expect(where).not.toMatch(PLAIN_EQUALITY_GUARD)
+  })
+
+  it('the plain-equality guard can actually fail (mutation check)', () => {
+    expect('and g.roll = v.roll ').toMatch(PLAIN_EQUALITY_GUARD)
+    expect('and g.prize_target = v.prize_target ').toMatch(PLAIN_EQUALITY_GUARD)
+    expect('and g.roll is not distinct from v.roll ').not.toMatch(PLAIN_EQUALITY_GUARD)
+    // a statement mutated to use `=` for one column is flagged
+    const mutated = stmt.text.replace('g.roll is not distinct from v.roll', 'g.roll = v.roll')
+    expect(mutated).not.toBe(stmt.text)
+    expect(mutated.slice(mutated.indexOf('where not exists'), mutated.indexOf('on conflict'))).toMatch(PLAIN_EQUALITY_GUARD)
   })
 })
 

@@ -256,7 +256,9 @@ export async function runImport(client, opts) {
       const state = await one(client, sequenceStateQuery(table))
       const maxId = Number(state.max_id ?? 0)
       const nextValue = apply ? (state.last_value === null ? 1 : Number(state.last_value) + 1) : nextValueFrom(state)
-      sequenceChecks[table] = { maxId, nextValue, ok: nextValue > maxId }
+      // `ok` only means something after a real advance. In a dry run nextValue is derived from max(id) itself
+      // (nextValue = max + 1), so a check would be a tautology: the numbers are informational there.
+      sequenceChecks[table] = apply ? { maxId, nextValue, ok: nextValue > maxId } : { maxId, nextValue }
     }
 
     const invites = await ensureClaimInvites(client, { campaignId, dmId, pjs: output.tables.pjs ?? [], inviteDays })
@@ -269,7 +271,7 @@ export async function runImport(client, opts) {
       sequences: sequenceChecks,
       invites: { created: invites.filter((i) => i.status === 'created').length, reused: invites.filter((i) => i.status === 'reused').length },
     }
-    if (Object.values(sequenceChecks).some((c) => !c.ok)) throw new ImportAbort('sequence_behind', 'a sequence is not past the highest preserved id')
+    if (apply && Object.values(sequenceChecks).some((c) => !c.ok)) throw new ImportAbort('sequence_behind', 'a sequence is not past the highest preserved id')
 
     const committed = await commitOrRollback(client, apply)
     return { committed, campaignId: apply ? campaignId : null, invites, db }

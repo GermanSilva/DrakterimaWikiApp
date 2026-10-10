@@ -21,22 +21,34 @@ function repoRootDir() {
   }
 }
 
-/** Exit code when the database COMMITTED but an output file could not be written (distinct from a database failure). */
+/**
+ * Exit code when the database COMMITTED but a follow-up step failed (an output file could not be written, or the
+ * post-apply counts could not be read). Distinct from a database failure: the data IS in the target.
+ */
 export const EXIT_COMMITTED_OUTPUT_FAILED = 3
 
-/** A file write failed. Carries the path only: the OS error text can quote more than the caller should print. */
+/** A file write failed. Carries the path and kind only: the OS error text can quote more than the caller should print. */
 class OutputWriteError extends Error {
-  constructor(path) {
+  constructor(path, kind) {
     super('output write failed')
     this.path = path
+    this.kind = kind
   }
 }
 
-function writeOutput(path, content) {
+const KIND_LABEL = { report: 'JSON report', invites: 'invite CSV', 'sync-report': 'sync report' }
+
+/** Printed when the database committed but a file could not be written: names the failing file kind. */
+export function committedWriteFailureMessage(kind, path) {
+  const regenerate = kind === 'sync-report' ? 'the sync report' : 'both the JSON report and the invite CSV'
+  return `committed, but writing the ${KIND_LABEL[kind] ?? 'output'} file ${path} failed; re-run with --apply to regenerate ${regenerate}`
+}
+
+function writeOutput(path, content, kind) {
   try {
     return writePrivateFile(path, content)
   } catch {
-    throw new OutputWriteError(path)
+    throw new OutputWriteError(path, kind)
   }
 }
 
@@ -51,7 +63,7 @@ async function createDmUser(target, email) {
 /**
  * @param {string[]} argv
  * @param {Record<string, string|undefined>} env
- * @param {{ out?: (s: string) => void, err?: (s: string) => void, getStatus?: () => Record<string, string> }} [io]
+ * @param {{ out?: (s: string) => void, err?: (s: string) => void, getStatus?: () => Record<string, string>, createClient?: (target: object) => import("pg").Client }} [io]
  * @returns {Promise<number>} exit code
  */
 export async function main(argv, env, io = {}) {
@@ -83,7 +95,7 @@ export async function main(argv, env, io = {}) {
     const date = stamp()
     const reportPath = join(dir, `report-${args.slug}-${date}.json`)
     if (!built.ok) {
-      writeOutput(reportPath, `${JSON.stringify({ ...built.report, run: { aborted: 'validation' } }, null, 2)}\n`)
+      writeOutput(reportPath, `${JSON.stringify({ ...built.report, run: { aborted: 'validation' } }, null, 2)}\n`, 'report')
       err('Import aborted by validation: nothing was written to the database.')
       out(`Report: ${reportPath}`)
       return 1
@@ -97,7 +109,7 @@ export async function main(argv, env, io = {}) {
     secrets.push(target.serviceKey, target.dbUrl)
     out(`Target: ${target.remote ? 'HOSTED' : 'local'} (${target.host}); mode: ${args.apply ? 'APPLY' : 'dry run (rolled back)'}`)
 
-    client = new pg.Client({ connectionString: target.dbUrl })
+    client = (io.createClient ?? ((t) => new pg.Client({ connectionString: t.dbUrl })))(target)
     await client.connect()
 
     let dmUserId = await findUserIdByEmail(client, args.dmEmail)
@@ -125,7 +137,16 @@ export async function main(argv, env, io = {}) {
     })
 
     committed = result.committed
-    const postApply = result.committed ? await readCounts(client, result.campaignId) : null
+    // the data is already committed here: a failing read must not turn into a "nothing happened" database error
+    let postApply = null
+    let postApplyFailed = false
+    if (result.committed) {
+      try {
+        postApply = await readCounts(client, result.campaignId)
+      } catch {
+        postApplyFailed = true
+      }
+    }
     const report = {
       ...built.report,
       run: {
@@ -137,11 +158,11 @@ export async function main(argv, env, io = {}) {
       },
       db: { ...result.db, postApplyCounts: postApply },
     }
-    writeOutput(reportPath, `${JSON.stringify(report, null, 2)}\n`)
+    writeOutput(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'report')
 
     let invitesPath = null
     if (result.committed && result.invites.length > 0) {
-      invitesPath = writeOutput(join(dir, `invites-${args.slug}-${date}.csv`), buildInvitesCsv(result.invites, args.appOrigin))
+      invitesPath = writeOutput(join(dir, `invites-${args.slug}-${date}.csv`), buildInvitesCsv(result.invites, args.appOrigin), 'invites')
     }
 
     out(args.apply ? 'Committed.' : 'Dry run complete: everything was rolled back, the database is unchanged.')
@@ -154,11 +175,15 @@ export async function main(argv, env, io = {}) {
     out(`Report: ${reportPath}`)
     if (invitesPath) out(`Invites: ${invitesPath}`)
     else if (!args.apply) out('Invites CSV is only written with --apply (dry-run codes do not exist afterwards).')
+    if (postApplyFailed) {
+      err('committed, but the post-apply counts could not be read (the report was written without them); the data is in the target')
+      return EXIT_COMMITTED_OUTPUT_FAILED
+    }
     return 0
   } catch (e) {
     if (e instanceof OutputWriteError) {
       if (committed) {
-        err(`committed, but writing ${e.path} failed; re-run with --apply to regenerate the invite CSV`)
+        err(committedWriteFailureMessage(e.kind, e.path))
         return EXIT_COMMITTED_OUTPUT_FAILED
       }
       err(`could not write ${e.path}; nothing was committed`)

@@ -173,10 +173,14 @@ export function sequenceStateQuery(table) {
 
 /**
  * Advances the identity sequence of `table` past the highest id of the table (all campaigns), in ONE statement
- * that also reads the sequence's current position: it only ever moves forward (greatest of both), so it never hands
- * out an id twice even when another session advanced the sequence meanwhile. A sequence that is untouched and whose
- * table is empty is left alone (its first generated id is already 1). The importer never rewinds a sequence.
- * Returns one row ({ value }) when it moved the sequence, none otherwise.
+ * that also reads the sequence's current position: it only ever moves forward (greatest of both). A sequence that is
+ * untouched and whose table is empty is left alone (its first generated id is already 1). The importer never
+ * rewinds a sequence. Returns one row ({ value }) when it moved the sequence, none otherwise.
+ *
+ * It must run in a QUIET WINDOW (legacy app frozen, no hub writers). It narrows but does not eliminate a race with
+ * a concurrent nextval(): the read of last_value and the setval are not under a lock, so an id handed out between
+ * them can be overwritten (a gap, or in a narrow window a later duplicate key), and max(id) ignores rows another
+ * transaction has not committed yet.
  */
 export function advanceSequenceStatement(table) {
   const t = quoteIdent(table)

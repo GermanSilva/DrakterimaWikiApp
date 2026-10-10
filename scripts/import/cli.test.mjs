@@ -1,10 +1,10 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { assertLocal } from '../../src/data/integration/assertLocal'
 import { UsageError, parseCliArgs } from './args.mjs'
-import { main } from './cli.mjs'
+import { EXIT_COMMITTED_OUTPUT_FAILED, committedWriteFailureMessage, main } from './cli.mjs'
 import { DM_SECRET_TEXT, SECRET_PASSWORD_1, SECRET_PASSWORD_2, SENTINEL_TEXT, makeLegacy } from './fixture.mjs'
 import { GuardError, assertLocalDbUrl, assertLocalUrl, parseStatusOutput, redact, resolveTarget } from './guard.mjs'
 
@@ -300,5 +300,73 @@ describe('main (no database reached)', () => {
     const text = c.lines.join('\n')
     expect(text).toContain('IMPORT_ALLOW_REMOTE')
     expect(text).not.toContain('VALUE')
+  })
+})
+
+describe('committed-path failures (exit 3)', () => {
+  it('the write-failure message names the failing file kind and says a re-run regenerates the outputs (R2-003)', () => {
+    const report = committedWriteFailureMessage('report', '/x/report.json')
+    const csv = committedWriteFailureMessage('invites', '/x/invites.csv')
+    expect(report).toContain('JSON report')
+    expect(report).not.toContain('invite CSV file')
+    expect(csv).toContain('invite CSV file')
+    expect(csv).not.toContain('JSON report file')
+    for (const m of [report, csv]) {
+      expect(m).toMatch(/^committed, but writing the .+ file .+ failed; re-run with --apply to regenerate both the JSON report and the invite CSV$/)
+    }
+    expect(committedWriteFailureMessage('sync-report', '/x/s.json')).toContain('sync report')
+  })
+
+  // A scripted pg client: the import of an empty export runs end to end, COMMIT succeeds, then the first count query fails.
+  function fakePg() {
+    const log = []
+    let committed = false
+    return {
+      log,
+      connect: async () => undefined,
+      end: async () => undefined,
+      async query(text) {
+        const t = typeof text === 'string' ? text : text.text
+        log.push(t)
+        if (t === 'commit') committed = true
+        if (/from auth\.users/.test(t)) return { rows: [{ id: 'dm-1' }], rowCount: 1 }
+        if (/from public\.campaigns where slug/.test(t)) return { rows: [], rowCount: 0 }
+        if (/insert into public\.campaigns/.test(t)) return { rows: [{ id: '11111111-2222-4333-8444-555555555555' }], rowCount: 1 }
+        if (/select count\(\*\)::int as n/.test(t)) {
+          if (committed) throw Object.assign(new Error('connection reset postgresql://u:SECRET-PW@h/db'), { code: '57P01' })
+          return { rows: [{ n: 0 }], rowCount: 1 }
+        }
+        if (/from pg_sequences s where/.test(t)) return { rows: [{ last_value: null, max_id: null }], rowCount: 1 }
+        return { rows: [], rowCount: 0 }
+      },
+    }
+  }
+
+  it('a failing post-apply readCounts AFTER COMMIT is reported as committed (exit 3), not as a database error (R3-005 / R4-002)', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'import-cli-f-'))
+    try {
+      const file = join(dir, 'empty.json')
+      writeFileSync(file, '{}')
+      const lines = []
+      const client = fakePg()
+      const io = { out: (x) => lines.push(x), err: (x) => lines.push(x), getStatus: () => LOCAL_STATUS, createClient: () => client }
+      const code = await main(
+        ['--input', file, '--dm-email', 'dm@import.test', '--app-origin', 'http://localhost:5173', '--lenient', '--allow-partial', '--apply'],
+        { IMPORT_OUT_DIR: join(dir, 'out') },
+        io,
+      )
+      expect(code).toBe(EXIT_COMMITTED_OUTPUT_FAILED)
+      const text = lines.join('\n')
+      expect(text).toMatch(/committed, but the post-apply counts could not be read/)
+      expect(text).not.toMatch(/database error|SECRET-PW|postgresql:\/\//)
+      expect(client.log).toContain('commit')
+      expect(client.log).not.toContain('rollback') // nothing was rolled back after the commit
+      // the report is still written, without the counts
+      const report = JSON.parse(readFileSync(join(dir, 'out', readdirSync(join(dir, 'out')).find((f) => f.startsWith('report-'))), 'utf8'))
+      expect(report.run.committed).toBe(true)
+      expect(report.db.postApplyCounts).toBeNull()
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })
