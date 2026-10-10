@@ -1,7 +1,9 @@
 // Database writer for the legacy import. Takes a connected `pg` client and the output of buildImport().
 //
 // Everything runs in ONE transaction. The caller decides between COMMIT (apply) and ROLLBACK (dry run) through
-// `apply`. Sequences are not transactional, so every path that does not commit puts them back.
+// `apply`. Sequences are not transactional and are NEVER rewound: a dry run does not touch them at all (the next
+// values are computed from the data), and an apply only moves them forward, so a rolled-back or possibly
+// committed run cannot make a live target hand out an id twice.
 //
 // Logging: this module returns counts and ids only. It never returns row text, and `ImportAbort` messages are
 // fixed strings. Driver errors are summarised by `describeDbError` (code, table, constraint) because their
@@ -9,12 +11,13 @@
 import {
   COUNT_TABLES,
   SEQUENCE_TABLES,
+  advanceSequenceStatement,
   buildGameLogInsert,
   buildUpsert,
   countQuery,
-  restoreSequenceStatement,
+  nextValueFrom,
+  quoteIdent,
   sequenceStateQuery,
-  setvalStatement,
 } from './sql.mjs'
 
 export class ImportAbort extends Error {
@@ -45,21 +48,46 @@ export async function findUserIdByEmail(client, email) {
   return rows[0]?.id ?? null
 }
 
-async function readSequenceStates(client) {
-  const states = {}
-  for (const table of SEQUENCE_TABLES) states[table] = await one(client, sequenceStateQuery(table))
-  return states
+/**
+ * COMMIT (apply) or ROLLBACK (dry run). A failure of COMMIT itself is never reported as "not committed": the
+ * server may have applied it before the connection broke.
+ * @returns {Promise<boolean>} committed
+ */
+export async function commitOrRollback(client, apply) {
+  if (!apply) {
+    await client.query('rollback')
+    return false
+  }
+  try {
+    await client.query('commit')
+  } catch {
+    throw new ImportAbort(
+      'commit_outcome_unknown',
+      'the COMMIT failed with an unknown outcome: the import may have been applied. Check the target (a dry run reports what exists) before retrying. Sequences were left as they are',
+    )
+  }
+  return true
 }
 
-async function restoreSequences(client, states) {
-  for (const table of SEQUENCE_TABLES) await client.query(restoreSequenceStatement(table, states[table]))
+/** Degraded upserts (nothing to SET) cannot count rows: confirm every key either is ours or was just inserted. */
+async function assertOwnedByCampaign(client, spec, stmt, label) {
+  const t = quoteIdent(spec.table)
+  for (const key of stmt.keys) {
+    const where = spec.conflictColumns.map((c, i) => `${quoteIdent(c)} = $${i + 1}`).join(' and ')
+    const owner = (await client.query(`select campaign_id from public.${t} where ${where}`, key)).rows[0]
+    if (!owner || owner.campaign_id !== spec.rows[0].campaign_id) {
+      throw new ImportAbort('id_conflict', `${label}: a row already belongs to another campaign (ids are unique per table: import into a database without the dev seed or other campaigns using these ids)`)
+    }
+  }
 }
 
 async function upsertOwned(client, spec, label) {
   let written = 0
   for (const stmt of buildUpsert(spec)) {
     const res = await client.query(stmt.text, stmt.values)
-    if (spec.onConflict === 'update' && res.rowCount !== stmt.rowCount) {
+    if (stmt.degraded === 'do-nothing') {
+      await assertOwnedByCampaign(client, spec, stmt, label)
+    } else if (spec.onConflict === 'update' && res.rowCount !== stmt.rowCount) {
       throw new ImportAbort('id_conflict', `${label}: ${stmt.rowCount - res.rowCount} id(s) already belong to another campaign (ids are unique per table: import into a database without the dev seed or other campaigns using these ids)`)
     }
     written += res.rowCount
@@ -151,14 +179,11 @@ export async function runImport(client, opts) {
   const { output, slug, apply, inviteDays, forceOverwrite } = opts
   if (apply && opts.dmUserId === null) throw new ImportAbort('dm_user_missing', 'the DM user must exist before applying')
 
-  const states = await readSequenceStates(client)
-  let committed = false
   try {
     await client.query('begin')
     await client.query("set local lock_timeout = '15s'")
 
     let dmId = opts.dmUserId
-    let dmPlaceholder = false
     if (dmId === null) {
       // dry run only: a stand-in DM so the campaign/membership/invite statements can run. Rolled back with the rest.
       dmId = (
@@ -169,7 +194,6 @@ export async function runImport(client, opts) {
           values: [opts.dmEmail],
         })
       ).id
-      dmPlaceholder = true
     }
 
     const campaign = await ensureCampaign(client, { output, slug, name: opts.name, dmId, force: forceOverwrite })
@@ -205,6 +229,8 @@ export async function runImport(client, opts) {
 
     written.game_logs = 0
     for (const stmt of buildGameLogInsert(output.gameLogs, campaignId)) written.game_logs += (await client.query(stmt.text, stmt.values)).rowCount
+    // already present (identical row) or refused by one-play-per-day: expected on a re-run, a warning otherwise
+    const gameLogsSkipped = output.gameLogs.length - written.game_logs
 
     written.campaign_config = await upsertOwned(
       client,
@@ -223,40 +249,33 @@ export async function runImport(client, opts) {
       'disponibilidad',
     )
 
-    // sequences: past every preserved id (and never backwards)
+    // sequences: past every preserved id, forward only. A dry run only computes where they would end up.
     const sequenceChecks = {}
     for (const table of SEQUENCE_TABLES) {
+      if (apply) await client.query(advanceSequenceStatement(table))
       const state = await one(client, sequenceStateQuery(table))
-      await client.query(setvalStatement(table, state))
-      const after = await one(client, sequenceStateQuery(table))
-      const maxId = Number(after.max_id ?? 0)
-      sequenceChecks[table] = { maxId, nextValue: after.last_value === null ? 1 : Number(after.last_value) + 1 }
-      sequenceChecks[table].ok = sequenceChecks[table].nextValue > maxId
+      const maxId = Number(state.max_id ?? 0)
+      const nextValue = apply ? (state.last_value === null ? 1 : Number(state.last_value) + 1) : nextValueFrom(state)
+      sequenceChecks[table] = { maxId, nextValue, ok: nextValue > maxId }
     }
 
     const invites = await ensureClaimInvites(client, { campaignId, dmId, pjs: output.tables.pjs ?? [], inviteDays })
 
     const db = {
       campaignCreated: campaign.created,
-      dmUserCreatedInTransaction: dmPlaceholder,
       written,
+      gameLogsSkipped,
       counts: await readCounts(client, campaignId),
       sequences: sequenceChecks,
       invites: { created: invites.filter((i) => i.status === 'created').length, reused: invites.filter((i) => i.status === 'reused').length },
     }
     if (Object.values(sequenceChecks).some((c) => !c.ok)) throw new ImportAbort('sequence_behind', 'a sequence is not past the highest preserved id')
 
-    if (apply) {
-      await client.query('commit')
-      committed = true
-    } else {
-      await client.query('rollback')
-    }
-    return { committed, campaignId: apply ? campaignId : null, dmUserId: dmPlaceholder ? null : dmId, invites, db }
+    const committed = await commitOrRollback(client, apply)
+    return { committed, campaignId: apply ? campaignId : null, invites, db }
   } catch (e) {
-    await client.query('rollback').catch(() => undefined)
+    // after a failed COMMIT the outcome is unknown: do not touch the connection's state further
+    if (e?.code !== 'commit_outcome_unknown') await client.query('rollback').catch(() => undefined)
     throw e
-  } finally {
-    if (!committed) await restoreSequences(client, states).catch(() => undefined)
   }
 }

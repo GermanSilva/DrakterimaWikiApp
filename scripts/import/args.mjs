@@ -19,7 +19,18 @@ export const USAGE = `Usage: npm run db:import -- --input <export.json> --dm-ema
   --force-overwrite     re-import into a campaign that already has hub activity
   --remote --confirm-host <host>
                         hosted target; also needs env IMPORT_ALLOW_REMOTE=<host>, SUPABASE_URL,
-                        SUPABASE_SERVICE_ROLE_KEY and SUPABASE_DB_URL. Local by default.`
+                        SUPABASE_SERVICE_ROLE_KEY and SUPABASE_DB_URL. Local by default.
+                        SUPABASE_URL must be https://<ref>.supabase.co and SUPABASE_DB_URL must belong to
+                        the same project (host db.<ref>.supabase.co, or a *.pooler.supabase.com host with
+                        user <role>.<ref>); otherwise nothing is connected.
+
+Notes:
+  - The DM auth user is created OUTSIDE the transaction (only with --apply, when the e-mail has no user). If the
+    import then aborts, that user stays; the report says "dmUser: created" when this run made it. Remove it from
+    the Supabase dashboard (Authentication > Users) or with auth.admin.deleteUser; re-running just reuses it.
+  - Sequences are only ever advanced, never rewound; a dry run does not touch them.
+  - Exit codes: 0 ok, 1 refused/failed, 2 bad arguments, 3 committed but an output file could not be written
+    (re-run with --apply to regenerate the invite CSV).`
 
 const OPTIONS = {
   input: { type: 'string' },

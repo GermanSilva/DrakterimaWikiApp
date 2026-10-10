@@ -3,7 +3,7 @@ import { buildInvitesCsv, csvCell, inviteLink } from './files.mjs'
 import { buildImport } from './index.mjs'
 import { makeLegacy, shiftLegacyIds } from './fixture.mjs'
 import { buildReport } from './report.mjs'
-import { MAX_PARAMS, buildGameLogInsert, buildUpsert, quoteIdent, restoreSequenceStatement, sequenceStateQuery, setvalStatement } from './sql.mjs'
+import { MAX_PARAMS, advanceSequenceStatement, buildGameLogInsert, buildUpsert, nextValueFrom, quoteIdent, sequenceStateQuery } from './sql.mjs'
 
 const CID = '11111111-2222-4333-8444-555555555555'
 const SENTINEL = 'SENTINEL-CELL-VALUE'
@@ -58,6 +58,15 @@ describe('buildUpsert', () => {
     expect(() => buildUpsert({ table: 'pjs"', rows: [{ id: 1, campaign_id: CID }], conflictColumns: ['id'], onConflict: 'update' })).toThrow('unsafe')
   })
 
+  it('flags an update whose SET list is empty as a degraded do-nothing and keeps the conflict keys (R2-001)', () => {
+    const [s] = buildUpsert({ table: 'game_pot', rows: [{ campaign_id: CID }], conflictColumns: ['campaign_id'], onConflict: 'update' })
+    expect(s.text).toContain('do nothing')
+    expect(s).toMatchObject({ degraded: 'do-nothing', keys: [[CID]] })
+    expect(stmt.degraded).toBeUndefined()
+    const [n] = buildUpsert({ table: 'game_pot', rows: [{ campaign_id: CID, gp: 1 }], conflictColumns: ['campaign_id'], onConflict: 'nothing' })
+    expect(n.degraded).toBeUndefined()
+  })
+
   it('returns nothing for no rows', () => {
     expect(buildUpsert({ table: 'pjs', rows: [], conflictColumns: ['id'], onConflict: 'update' })).toEqual([])
   })
@@ -76,22 +85,41 @@ describe('buildGameLogInsert', () => {
     expect(stmt.text).toContain('on conflict do nothing')
     expect(stmt.text).toContain('coalesce(v.created_at, now())')
   })
+
+  it('compares EVERY column with IS NOT DISTINCT FROM so NULLs match on a re-run (R2-002)', () => {
+    const where = stmt.text.slice(stmt.text.indexOf('where not exists'), stmt.text.indexOf('on conflict'))
+    for (const column of ['actor_type', 'character_id', 'game', 'play_date', 'roll', 'prize', 'prize_target']) {
+      expect(where, column).toContain(`g.${column} is not distinct from v.${column}`)
+    }
+    expect(where).not.toMatch(/g.w+ = v./)
+  })
 })
 
 describe('sequences', () => {
-  it('advances past the highest id, never backwards, and resets an untouched empty table to 1 (not called)', () => {
-    expect(setvalStatement('pjs', { max_id: '12', last_value: null }).values).toEqual(['public.pjs', 12])
-    expect(setvalStatement('pjs', { max_id: '12', last_value: '40' }).values).toEqual(['public.pjs', 40])
-    expect(setvalStatement('pjs', { max_id: null, last_value: null }).text).toContain('1, false')
+  it('advances in one statement that reads the sequence itself: forward only, empty untouched tables skipped (R1-002)', () => {
+    const q = advanceSequenceStatement('pjs')
+    expect(q.values).toEqual(['public.pjs'])
+    expect(q.text).toContain('greatest(')
+    expect(q.text).toContain('max(id)')
+    expect(q.text).toContain('last_value')
+    expect(q.text).toContain('where s.target > 0')
+    expect(q.text).not.toContain(', false')
   })
 
-  it('restores the previous position', () => {
-    expect(restoreSequenceStatement('pjs', { last_value: null }).text).toContain('1, false')
-    expect(restoreSequenceStatement('pjs', { last_value: '7' }).values).toEqual(['public.pjs', '7'])
+  it('computes the would-be next value from the data without touching anything (dry run)', () => {
+    expect(nextValueFrom({ max_id: '12', last_value: null })).toBe(13)
+    expect(nextValueFrom({ max_id: '12', last_value: '40' })).toBe(41)
+    expect(nextValueFrom({ max_id: null, last_value: null })).toBe(1)
+  })
+
+  it('exposes no way to rewind a sequence', async () => {
+    const sql = await import('./sql.mjs')
+    expect(Object.keys(sql).filter((k) => /restore|rewind/i.test(k))).toEqual([])
   })
 
   it('only accepts table names that look like identifiers', () => {
     expect(() => sequenceStateQuery('pjs; select 1')).toThrow()
+    expect(() => advanceSequenceStatement('pjs; select 1')).toThrow()
     expect(sequenceStateQuery('pjs').values).toEqual(['public.pjs'])
   })
 })

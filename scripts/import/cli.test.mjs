@@ -185,6 +185,45 @@ describe('target resolution', () => {
     }
   })
 
+  describe('hosted database must belong to the confirmed project (R1-001)', () => {
+    const withDb = (url) => () => resolveTarget(remote, { ...REMOTE_ENV, SUPABASE_DB_URL: url }, () => LOCAL_STATUS)
+    const POOLER = 'aws-0-eu-west-1.pooler.supabase.com:6543'
+
+    it('accepts the direct host and a pooler whose user carries the same ref', () => {
+      expect(withDb('postgresql://postgres:pw-VALUE@db.abcd.supabase.co:5432/postgres')()).toMatchObject({ remote: true })
+      expect(withDb(`postgresql://postgres.abcd:pw-VALUE@${POOLER}/postgres`)()).toMatchObject({ remote: true })
+      expect(withDb(`postgres://cli_login.abcd:pw-VALUE@${POOLER}/postgres`)()).toMatchObject({ remote: true })
+    })
+
+    it.each([
+      ['a staging API URL with a production database host', 'postgresql://postgres:pw-VALUE@db.prodref.supabase.co:5432/postgres', /host does not belong/],
+      ['a pooler of another project', `postgresql://postgres.prodref:pw-VALUE@${POOLER}/postgres`, /pooler user/],
+      ['a pooler user without any ref', `postgresql://postgres:pw-VALUE@${POOLER}/postgres`, /pooler user/],
+      ['a look-alike suffix', 'postgresql://postgres:pw-VALUE@db.abcd.supabase.co.evil.test:5432/postgres', /host does not belong/],
+      ['a look-alike prefix', 'postgresql://postgres:pw-VALUE@xdb.abcd.supabase.co:5432/postgres', /host does not belong/],
+      ['an unrelated host', 'postgresql://postgres:pw-VALUE@db.example.test:5432/postgres', /host does not belong/],
+      ['a local database', 'postgresql://postgres:pw-VALUE@127.0.0.1:54322/postgres', /host does not belong/],
+      ['a host override in the query string', 'postgresql://postgres:pw-VALUE@db.abcd.supabase.co:5432/postgres?host=db.prodref.supabase.co', /override the host/],
+      ['a user override in the query string', `postgresql://postgres.abcd:pw-VALUE@${POOLER}/postgres?user=postgres.prodref`, /override the user/],
+      ['a non-postgres URL', 'https://db.abcd.supabase.co', /parseable postgres URL/],
+      ['an unparseable URL', 'not a url pw-VALUE', /parseable postgres URL/],
+    ])('refuses %s and never prints the URL or its credentials', (_name, url, message) => {
+      expect(withDb(url)).toThrow(GuardError)
+      expect(withDb(url)).toThrow(message)
+      try {
+        withDb(url)()
+      } catch (e) {
+        for (const leak of ['pw-VALUE', 'postgres://', 'postgresql://', 'prodref', 'evil.test']) expect(e.message).not.toContain(leak)
+      }
+    })
+
+    it('refuses an API host that is not <ref>.supabase.co (the database cannot be matched to it)', () => {
+      const custom = { remote: true, confirmHost: 'api.example.test' }
+      const env = { ...REMOTE_ENV, SUPABASE_URL: 'https://api.example.test', IMPORT_ALLOW_REMOTE: 'api.example.test' }
+      expect(() => resolveTarget(custom, env, () => LOCAL_STATUS)).toThrow(/<ref>.supabase.co/)
+    })
+  })
+
   it('does not read supabase status for a hosted target', () => {
     const t = resolveTarget(remote, REMOTE_ENV, () => {
       throw new Error('status must not be read')
@@ -238,6 +277,18 @@ describe('main (no database reached)', () => {
     const text = c.lines.join('\n')
     expect(text).toContain('nothing was written')
     for (const secret of [SECRET_PASSWORD_1, SECRET_PASSWORD_2, SENTINEL_TEXT, DM_SECRET_TEXT, 'Es una espía']) expect(text).not.toContain(secret)
+  })
+
+  it('refuses a hosted run whose database belongs to another project before connecting (R1-001)', async () => {
+    const file = join(dir, 'lenient-mismatch.json')
+    writeFileSync(file, JSON.stringify(makeLegacy()))
+    const c = capture()
+    const env = { IMPORT_OUT_DIR: join(dir, 'out'), ...REMOTE_ENV, SUPABASE_DB_URL: 'postgresql://postgres:prod-pw-VALUE@db.prodref.supabase.co:5432/postgres' }
+    const code = await main([...args(file), '--lenient', '--remote', '--confirm-host', 'abcd.supabase.co', '--apply'], env, c.io)
+    expect(code).toBe(1)
+    const text = c.lines.join('\n')
+    expect(text).toContain('SUPABASE_DB_URL host does not belong')
+    for (const leak of ['VALUE', 'prodref', 'postgresql://']) expect(text).not.toContain(leak)
   })
 
   it('refuses a hosted run lacking the authorization before connecting', async () => {

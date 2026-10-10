@@ -49,9 +49,12 @@ function columnsOf(rows) {
  *   (`WHERE target.campaign_id = excluded.campaign_id`); a row owned by another campaign is neither written
  *   nor returned, so the caller detects it by comparing the returned count with `rowCount`.
  * - `onConflict: 'nothing'` keeps whatever is there.
+ * - `onConflict: 'update'` with nothing left to SET (every column is a key) degrades to DO NOTHING: the statement
+ *   carries `degraded: 'do-nothing'` and the conflict-column values of its rows (`keys`), so the caller verifies
+ *   ownership with a select instead of comparing the returned count.
  *
  * @param {{ table: string, rows: object[], conflictColumns: string[], onConflict: 'update'|'nothing', returning?: string }} spec
- * @returns {{ text: string, values: unknown[], rowCount: number }[]} one statement per chunk
+ * @returns {{ text: string, values: unknown[], rowCount: number, degraded?: 'do-nothing', keys?: unknown[][] }[]} one statement per chunk
  */
 export function buildUpsert({ table, rows, conflictColumns, onConflict, returning }) {
   if (rows.length === 0) return []
@@ -66,6 +69,7 @@ export function buildUpsert({ table, rows, conflictColumns, onConflict, returnin
     .join(', ')
   if (onConflict === 'update' && columns.includes('campaign_id') === false) throw new Error('campaign_id is required for an owned upsert')
 
+  const degraded = onConflict === 'update' && setList === ''
   const tail =
     onConflict === 'nothing' || setList === ''
       ? ` on conflict (${conflict}) do nothing`
@@ -86,7 +90,12 @@ export function buildUpsert({ table, rows, conflictColumns, onConflict, returnin
       })
       return `(${cells.join(', ')})`
     })
-    statements.push({ text: `insert into public.${t} (${colList}) values ${tuples.join(', ')}${tail}${ret}`, values, rowCount: chunk.length })
+    const statement = { text: `insert into public.${t} (${colList}) values ${tuples.join(', ')}${tail}${ret}`, values, rowCount: chunk.length }
+    if (degraded) {
+      statement.degraded = 'do-nothing'
+      statement.keys = chunk.map((row) => conflictColumns.map((c) => row[c]))
+    }
+    statements.push(statement)
   }
   return statements
 }
@@ -127,9 +136,8 @@ export function buildGameLogInsert(rows, campaignId) {
       `insert into public.game_logs (campaign_id, actor_type, character_id, game, play_date, roll, prize, prize_target, created_at) ` +
       `select $1::uuid, v.actor_type, v.character_id, v.game, v.play_date, v.roll, v.prize, v.prize_target, coalesce(v.created_at, now()) ` +
       `from (values ${tuples.join(', ')}) as v(${names}) ` +
-      `where not exists (select 1 from public.game_logs g where g.campaign_id = $1::uuid and g.actor_type = v.actor_type ` +
-      `and g.character_id is not distinct from v.character_id and g.game = v.game and g.play_date = v.play_date ` +
-      `and g.roll = v.roll and g.prize = v.prize and g.prize_target = v.prize_target ` +
+      `where not exists (select 1 from public.game_logs g where g.campaign_id = $1::uuid ` +
+      GAME_LOG_COLUMNS.filter(([c]) => c !== 'created_at').map(([c]) => `and g.${c} is not distinct from v.${c} `).join('') +
       `and (v.created_at is null or g.created_at = v.created_at)) ` +
       `on conflict do nothing returning id`
     statements.push({ text, values, rowCount: chunk.length })
@@ -164,24 +172,27 @@ export function sequenceStateQuery(table) {
 }
 
 /**
- * setval past the highest id of the table (all campaigns), never below the sequence's own position.
- * Same semantics as supabase/seed.sql; an untouched empty table gets setval(seq, 1, false) so the first
- * generated id is 1, not 2.
+ * Advances the identity sequence of `table` past the highest id of the table (all campaigns), in ONE statement
+ * that also reads the sequence's current position: it only ever moves forward (greatest of both), so it never hands
+ * out an id twice even when another session advanced the sequence meanwhile. A sequence that is untouched and whose
+ * table is empty is left alone (its first generated id is already 1). The importer never rewinds a sequence.
+ * Returns one row ({ value }) when it moved the sequence, none otherwise.
  */
-export function setvalStatement(table, state) {
-  const floor = Math.max(Number(state.max_id ?? 0), Number(state.last_value ?? 0))
-  quoteIdent(table)
-  return floor > 0
-    ? { text: `select setval(pg_get_serial_sequence($1, 'id'), $2::bigint, true)`, values: [`public.${table}`, floor] }
-    : { text: `select setval(pg_get_serial_sequence($1, 'id'), 1, false)`, values: [`public.${table}`] }
+export function advanceSequenceStatement(table) {
+  const t = quoteIdent(table)
+  return {
+    text:
+      `select setval(s.seq, s.target, true) as value from (select pg_get_serial_sequence($1, 'id') as seq, greatest(` +
+      `coalesce((select max(id) from public.${t}), 0), ` +
+      `coalesce((select q.last_value from pg_sequences q where q.schemaname = 'public' and q.sequencename = split_part(pg_get_serial_sequence($1, 'id'), '.', 2)), 0)) as target) s ` +
+      `where s.target > 0`,
+    values: [`public.${table}`],
+  }
 }
 
-/** Puts a sequence back where it was (setval is not transactional, so a dry run must undo it by hand). */
-export function restoreSequenceStatement(table, state) {
-  quoteIdent(table)
-  return state.last_value === null || state.last_value === undefined
-    ? { text: `select setval(pg_get_serial_sequence($1, 'id'), 1, false)`, values: [`public.${table}`] }
-    : { text: `select setval(pg_get_serial_sequence($1, 'id'), $2::bigint, true)`, values: [`public.${table}`, state.last_value] }
+/** The next id a sequence would hand out given its state (as read by sequenceStateQuery), without touching it. */
+export function nextValueFrom(state) {
+  return Math.max(Number(state.max_id ?? 0), Number(state.last_value ?? 0)) + 1
 }
 
 /** Row counts of one campaign across the imported tables, one cheap query per table. */

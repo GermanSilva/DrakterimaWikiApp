@@ -21,6 +21,25 @@ function repoRootDir() {
   }
 }
 
+/** Exit code when the database COMMITTED but an output file could not be written (distinct from a database failure). */
+export const EXIT_COMMITTED_OUTPUT_FAILED = 3
+
+/** A file write failed. Carries the path only: the OS error text can quote more than the caller should print. */
+class OutputWriteError extends Error {
+  constructor(path) {
+    super('output write failed')
+    this.path = path
+  }
+}
+
+function writeOutput(path, content) {
+  try {
+    return writePrivateFile(path, content)
+  } catch {
+    throw new OutputWriteError(path)
+  }
+}
+
 /** Creates the DM auth user with no password supplied (sign-in is by magic link / Google; GoTrue keeps a random unusable one). */
 async function createDmUser(target, email) {
   const admin = createClient(target.apiUrl, target.serviceKey, { auth: { persistSession: false, autoRefreshToken: false } })
@@ -40,6 +59,8 @@ export async function main(argv, env, io = {}) {
   const err = io.err ?? ((s) => console.error(s))
   const secrets = []
   let client = null
+  let dmUserCreated = false
+  let committed = false
   try {
     const args = parseCliArgs(argv)
     if (args.help) {
@@ -62,7 +83,7 @@ export async function main(argv, env, io = {}) {
     const date = stamp()
     const reportPath = join(dir, `report-${args.slug}-${date}.json`)
     if (!built.ok) {
-      writePrivateFile(reportPath, `${JSON.stringify({ ...built.report, run: { aborted: 'validation' } }, null, 2)}\n`)
+      writeOutput(reportPath, `${JSON.stringify({ ...built.report, run: { aborted: 'validation' } }, null, 2)}\n`)
       err('Import aborted by validation: nothing was written to the database.')
       out(`Report: ${reportPath}`)
       return 1
@@ -80,7 +101,17 @@ export async function main(argv, env, io = {}) {
     await client.connect()
 
     let dmUserId = await findUserIdByEmail(client, args.dmEmail)
-    if (dmUserId === null && args.apply) dmUserId = await createDmUser(target, args.dmEmail)
+    // 'existing' | 'created' (this apply made it, outside the transaction) | 'would-create' (dry run, stand-in rolled back)
+    let dmUser = 'existing'
+    if (dmUserId === null) {
+      if (args.apply) {
+        dmUserId = await createDmUser(target, args.dmEmail)
+        dmUserCreated = true
+        dmUser = 'created'
+      } else {
+        dmUser = 'would-create'
+      }
+    }
 
     const result = await runImport(client, {
       output,
@@ -93,6 +124,7 @@ export async function main(argv, env, io = {}) {
       forceOverwrite: args.forceOverwrite,
     })
 
+    committed = result.committed
     const postApply = result.committed ? await readCounts(client, result.campaignId) : null
     const report = {
       ...built.report,
@@ -100,19 +132,23 @@ export async function main(argv, env, io = {}) {
         mode: args.apply ? 'apply' : 'dry-run',
         committed: result.committed,
         target: { remote: target.remote, host: target.host },
-        dmUser: result.db.dmUserCreatedInTransaction ? 'would-create' : dmUserId === null ? 'unknown' : 'existing-or-created',
+        dmUser,
         campaignCreated: result.db.campaignCreated,
       },
       db: { ...result.db, postApplyCounts: postApply },
     }
-    writePrivateFile(reportPath, `${JSON.stringify(report, null, 2)}\n`)
+    writeOutput(reportPath, `${JSON.stringify(report, null, 2)}\n`)
 
     let invitesPath = null
     if (result.committed && result.invites.length > 0) {
-      invitesPath = writePrivateFile(join(dir, `invites-${args.slug}-${date}.csv`), buildInvitesCsv(result.invites, args.appOrigin))
+      invitesPath = writeOutput(join(dir, `invites-${args.slug}-${date}.csv`), buildInvitesCsv(result.invites, args.appOrigin))
     }
 
     out(args.apply ? 'Committed.' : 'Dry run complete: everything was rolled back, the database is unchanged.')
+    if (result.db.gameLogsSkipped > 0) {
+      out(`Warning: ${result.db.gameLogsSkipped} game log(s) were not inserted (an identical one already exists, or one-play-per-day refused it).`)
+    }
+    if (dmUser === 'created') out('DM auth user: created by this run.')
     out(`DB rows written: ${Object.entries(result.db.written).map(([t, n]) => `${t}=${n}`).join(' ')}`)
     out(`Claim invites: ${result.db.invites.created} created, ${result.db.invites.reused} reused${args.apply ? '' : ' (not persisted)'}`)
     out(`Report: ${reportPath}`)
@@ -120,6 +156,17 @@ export async function main(argv, env, io = {}) {
     else if (!args.apply) out('Invites CSV is only written with --apply (dry-run codes do not exist afterwards).')
     return 0
   } catch (e) {
+    if (e instanceof OutputWriteError) {
+      if (committed) {
+        err(`committed, but writing ${e.path} failed; re-run with --apply to regenerate the invite CSV`)
+        return EXIT_COMMITTED_OUTPUT_FAILED
+      }
+      err(`could not write ${e.path}; nothing was committed`)
+      return 1
+    }
+    if (dmUserCreated && !committed && e?.code !== 'commit_outcome_unknown') {
+      err('The DM auth user created by this run was left behind (it is created outside the transaction); see --help to remove it.')
+    }
     if (e instanceof UsageError) {
       err(e.message)
       err(USAGE)

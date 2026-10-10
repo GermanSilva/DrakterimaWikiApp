@@ -2,10 +2,12 @@
 //
 // Local (default): URLs and keys come from `supabase status -o json`, never from argv.
 // Hosted: needs ALL of --remote, IMPORT_ALLOW_REMOTE=<host>, --confirm-host <host> (same host) and
-// SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / SUPABASE_DB_URL in the environment.
+// SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY / SUPABASE_DB_URL in the environment. The host of SUPABASE_DB_URL must
+// belong to the same project as SUPABASE_URL (`db.<ref>.supabase.co`, or a pooler whose user carries `.<ref>`),
+// because every write goes through the database URL, not the API URL.
 //
 // `assertLocalUrl` duplicates src/data/integration/assertLocal.ts on purpose (that file is TypeScript
-// compiled by vitest, not loadable from plain Node); guard.test.mjs compares both on one URL table.
+// compiled by vitest, not loadable from plain Node); cli.test.mjs compares both on one URL table.
 import { execSync } from 'node:child_process'
 
 export class GuardError extends Error {}
@@ -64,6 +66,47 @@ export function readLocalStatus(exec = execSync) {
   return parseStatusOutput(out)
 }
 
+/** Project ref of an API host of the form `<ref>.supabase.co`, or null. */
+export function projectRefOf(apiHost) {
+  const m = /^([a-z0-9]+)\.supabase\.co$/.exec(apiHost)
+  return m ? m[1] : null
+}
+
+/**
+ * The database the writes go to must be the confirmed project's: `db.<ref>.supabase.co`, or a pooler
+ * (`*.pooler.supabase.com`) whose user is `<role>.<ref>`. Only the part that mismatched is named, never the URL.
+ */
+export function assertDbMatchesProject(apiHost, dbUrl) {
+  const ref = projectRefOf(apiHost)
+  if (ref === null) throw new GuardError('SUPABASE_URL must be the project API host (<ref>.supabase.co) so the database can be matched to it')
+  let parsed = null
+  try {
+    parsed = new URL(dbUrl)
+  } catch {
+    // falls through
+  }
+  if (parsed === null || (parsed.protocol !== 'postgresql:' && parsed.protocol !== 'postgres:')) {
+    throw new GuardError('SUPABASE_DB_URL is not a parseable postgres URL')
+  }
+  // the driver lets query parameters override the host/user of the URL: refuse them
+  for (const key of ['host', 'hostaddr', 'user', 'service']) {
+    if (parsed.searchParams.has(key)) throw new GuardError(`SUPABASE_DB_URL must not override the ${key} through a query parameter`)
+  }
+  const host = parsed.hostname.toLowerCase()
+  if (host === `db.${ref}.supabase.co`) return
+  if (host.endsWith('.pooler.supabase.com')) {
+    let user = ''
+    try {
+      user = decodeURIComponent(parsed.username)
+    } catch {
+      // stays empty and mismatches below
+    }
+    if (user.split('.').slice(1).join('.') === ref) return
+    throw new GuardError('SUPABASE_DB_URL pooler user does not carry the project ref of SUPABASE_URL')
+  }
+  throw new GuardError('SUPABASE_DB_URL host does not belong to the project of SUPABASE_URL')
+}
+
 /**
  * @param {{ remote: boolean, confirmHost: string|null }} args
  * @param {Record<string, string|undefined>} env
@@ -97,6 +140,7 @@ export function resolveTarget(args, env, getStatus) {
   if (!args.confirmHost || args.confirmHost !== host) {
     throw new GuardError('A hosted import needs --confirm-host typed back as the exact target host')
   }
+  assertDbMatchesProject(host, env.SUPABASE_DB_URL)
   return { remote: true, host, apiUrl: env.SUPABASE_URL, serviceKey: env.SUPABASE_SERVICE_ROLE_KEY, dbUrl: env.SUPABASE_DB_URL }
 }
 
