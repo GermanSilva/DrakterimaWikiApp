@@ -17,367 +17,209 @@ Cuando se usa el flujo brainstorming → writing-plans → ejecución de superpo
 ## Comandos
 
 ```bash
-npm run dev       # Servidor de desarrollo (Vite, localhost:5173)
-npm run build     # Build de producción (salida en dist/)
-npm run preview   # Vista previa del build de producción
+npm run dev               # Vite, http://localhost:5173
+npm run build             # build de producción (salida en dist/)
+npm run preview           # sirve el build
+npm run lint              # eslint .
+npm run typecheck         # tsc --noEmit
+npm test                  # vitest run (jsdom, unitarios; excluye src/data/integration)
+npm run test:watch        # vitest en modo watch
+npm run test:integration  # vitest contra la pila local de Supabase (requiere `supabase start`)
+npm run db:types          # regenera src/data/database.types.ts (requiere `supabase start`)
+npm run db:import         # importador Firestore -> Supabase (ver scripts/import/README.md)
+supabase start            # pila local (Docker): Postgres, Auth, Realtime, Studio, Mailpit
+supabase db reset         # reaplica migraciones + supabase/seed.sql (solo local)
+supabase test db          # pruebas pgTAP de supabase/tests/database (requiere `supabase start`)
 ```
 
-No hay test runner configurado.
+Ver qué comandos son seguros contra qué entorno en [`docs/hosting-and-cutover.md`](docs/hosting-and-cutover.md).
+Operaciones remotas (Supabase alojado, Vercel, Google Cloud, Firebase, `gh` con escritura) **solo con autorización
+explícita por operación**; nunca ejecutar `supabase config push` (sobrescribiría Auth alojado con valores locales).
 
-`gh` (GitHub CLI) no viene preinstalado en el entorno — instalar con `scoop install gh` (o `choco install gh`) antes de crear PRs por comando.
-
-El proyecto está deployado en GitHub Pages: `https://germansilva.github.io/DrakterimaWikiApp/`
-El deploy se dispara automáticamente al pushear a `main` vía `.github/workflows/deploy.yml`.
+Un cambio no se da por bueno sin `npx vitest run`, `npm run lint` (0 errores; hay warnings preexistentes),
+`npx tsc --noEmit` y `npm run build`. Los cambios de esquema además requieren `supabase test db`.
 
 ## Principios de diseño
 
-- **Clean architecture**: cada componente o módulo tiene una única responsabilidad. Preferir componentes pequeños y bien delimitados sobre componentes grandes que hacen múltiples cosas. Las fronteras entre capas deben ser claras: parseo, presentación, estado y datos no deben mezclarse en un mismo componente.
-- **YAGNI**: no agregar abstracciones ni features especulativos. Solo construir lo que el requerimiento actual necesita.
-- **Sin efectos colaterales ocultos**: las mutaciones de datos pasan exclusivamente por `save`, `remove` y `savePlayerNote` en `App.jsx`.
+- **Clean architecture**: cada componente o módulo tiene una única responsabilidad. Las fronteras entre capas son claras:
+  datos (`src/data`), puertos (`src/ports`), estado/contexto de campaña (`src/campaign`), presentación (componentes).
+- **YAGNI**: no agregar abstracciones ni features especulativos.
+- **La base de datos es el límite de seguridad**: RLS decide qué ve y escribe cada usuario. La UI oculta botones por
+  comodidad, nunca como control de acceso.
+- **Las escrituras pasan por la capa de datos** (`src/data`), con `create` / `update(patch)` explícitos; no hay
+  sobrescritura de filas enteras. Excepción: la app legacy (ver su sección).
 
 ## Arquitectura
 
-**dragones-wiki** es una SPA (Single Page Application) para gestionar la campaña de D&D "Leyendas de Drakterima". Stack: React 18 + Vite 5, sin backend propio.
+SPA React 18 + Vite 5 + TypeScript parcial (`allowJs`, `strict`; los módulos nuevos son `.ts/.tsx`, parte del código
+heredado sigue en `.jsx`). Backend: **Supabase** (Postgres con RLS, Auth, Realtime). Hosting previsto: **Vercel**
+(`vercel.json`). La app es un **hub multi-campaña**: un usuario tiene una identidad global y pertenece a varias campañas
+con un rol por campaña (DM o jugador). Documento de seguimiento de la migración: `odd/tasks/campaign-hub.md`.
 
-### Fuente de verdad y sincronización
+`src/main.jsx` monta `ErrorBoundary > ConfigGate > AuthProvider > HubDataProvider > RouterProvider`. `ConfigGate` muestra
+"Falta configurar Supabase" si faltan `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` (también bloquea `/legacy`).
 
-Los datos viven en **Firebase Firestore**. La app usa `onSnapshot` para sincronización en tiempo real entre múltiples pestañas/usuarios sin necesidad de recargar.
+### Rutas (`src/app/routes.tsx`, detalle en [`src/app/README.md`](src/app/README.md))
 
-- **`src/firebase.js`**: inicializa Firestore con las 6 vars `VITE_FIREBASE_*` y habilita persistencia offline con `enableMultiTabIndexedDbPersistence`.
-- **Colecciones Firestore**: `sesiones`, `pjs`, `pnjs`, `lugares`, `facciones`, `lore`, `items`, `player_notes`, `login_logs`, `game_logs`, `game_pot`, `game_config`, `mapas`, `map_points`, `homebrew_rules`. Los documentos usan el `id` numérico convertido a string como doc ID.
-- **Seed**: al primer load, `seedCollectionIfEmpty(collName, seedData)` comprueba si la colección está vacía y la rellena con datos iniciales usando `writeBatch`.
-- Sin Firebase Storage — las imágenes se referencian por URL externa (`imagen_url`, campo de texto).
+| Ruta | Pantalla |
+| --- | --- |
+| `/login`, `/auth/callback` | login (magic link / Google) y fin del flujo PKCE |
+| `/` | `HubHome`: mis campañas, crear campaña, unirse con código |
+| `/invite/:code` | `InvitePage`: vista previa + confirmación explícita ("Unirme") |
+| `/profile` | perfil |
+| `/c/:slug` | `CampaignLayout` (carga campaña y rol, provee `CampaignContext`) + dashboard |
+| `/c/:slug/:section`, `/c/:slug/:section/:id` | sección de la campaña (lista y detalle por URL) |
+| `/legacy/*` | app legacy Firebase, import dinámico |
 
-### Flujo de datos
+Todo salvo el login es lazy. `/`, `/invite/*`, `/profile` y `/c/*` exigen sesión (`RequireAuthRoute`). El parámetro `next` se
+valida (`safeNext.ts`). La app legacy **nunca** se importa de forma estática desde `routes.tsx` (hay test); no pasar
+`import.meta.env` entero a ningún lado (Vite incrustaría todos los `VITE_*`): leer cada clave por separado.
 
-`App.jsx` es dueño de todo el estado: `db` (datos), `page` (vista activa), `detail` (panel de detalle), `form` (modal de formulario), `toastMsg`, `sidebarOpen`, `pendingDetail`. Todas las mutaciones pasan por `save(type, data)` y `remove(type, id)`, que escriben directamente a Firestore.
+### Mapa de carpetas
 
-- `save(type, data)`: `setDoc` en Firestore con el doc id = `String(data.id ?? nextId(...))`. **Sin merge — sobrescribe el doc entero.** Si mutás desde un modal acotado (solo un subconjunto de campos visibles), el objeto a guardar debe llevar TODOS los campos existentes (`{...entity, ...cambios}`) o se pierden los que falten. Funciones dedicadas como `saveGameConfig`/`saveSessionScreen` sí usan `{merge:true}`.
-- `remove(type, id)`: `deleteDoc` en Firestore.
-- `savePlayerNote(pj_id, type, entity_id, text)`: `setDoc` en `player_notes` con doc id `${pj_id}_${type}_${entity_id}`.
-- `importData(file)`: upsert masivo vía `writeBatch` a Firestore.
-- `exportData()`: descarga el `db` completo como `drakterima-YYYY-MM-DD.json`.
+| Carpeta | Contenido |
+| --- | --- |
+| `src/app/` | router, rutas, `ConfigGate`, proveedor de datos del hub, `LegacyApp` |
+| `src/auth/` | `AuthProvider`/`useAuth`, login, callback, perfil. Ver [`src/auth/README.md`](src/auth/README.md) |
+| `src/hub/` | pantallas fuera de una campaña: lista, crear/unirse, invitación, perfil, 404 |
+| `src/campaign/` | contexto y shell de campaña, registro de secciones, páginas por sección, hooks de entidades |
+| `src/data/` | capa de datos tipada sobre Supabase. Ver [`src/data/README.md`](src/data/README.md) |
+| `src/ports/` | interfaces (wiki, no leídos, notas de jugador, formularios, pantalla de sesión) que desacoplan los componentes compartidos |
+| `src/legacy/` | adaptadores de los puertos para la app legacy (`LegacyPortsProvider`) |
+| `src/components/`, `src/hooks/`, `src/helpers/` | componentes y utilidades compartidos por hub y legacy |
+| `src/pages/` | páginas heredadas (legacy) y piezas que el hub reutiliza (`pages/pj`, `pages/session`, mapas) |
+| `supabase/` | `config.toml`, `migrations/`, `seed.sql` (solo local), `tests/database` (pgTAP) |
+| `scripts/` | `import-firestore.mjs` + `scripts/import/` (importador), `gen-db-types.mjs` |
+| `docs/` | `hosting-and-cutover.md` (runbook) y material de planificación |
+| `odd/tasks/` | documento de seguimiento de la feature `campaign-hub` |
 
-`AppContext.jsx` expone el contexto; todos los componentes hijos lo consumen con `useApp()`. No se usa ninguna librería de estado externa.
+### Campaña y secciones
 
-- `openForm(type, id, prefill)`: el tercer argumento `prefill` (objeto opcional) se pasa al formulario como prop — usado por `MapViewer` para pre-cargar `{ map_id, x, y }` al crear un punto via click-to-place.
+`useCampaign()` (solo dentro de `/c/:slug`) devuelve `{ campaign, role, isDM, myCharacterIds, reload }`. La campaña lleva su
+branding (`accent_color` `#rrggbb`, `logo_url` https), regiones y campos de personaje propios.
 
-### Esquema de datos (`seed.js`)
+`src/campaign/sections.ts` es el **registro único** (`SECTIONS`) que usan el sidebar, el dashboard y el router:
+`notas`, `sesiones`, `calendario`, `pjs`, `pnjs`, `mapas`, `lugares`, `facciones`, `lore`, `homerules`, `items`, `juegos`,
+`srd` (placeholder: la referencia SRD solo existe en la app legacy), y las `dmOnly` `sesion-en-vivo` y `ajustes`. `dmOnly`
+oculta el enlace y da 404 al jugador, pero el límite real es RLS. Las páginas viven en `src/campaign/sections/`.
 
-El objeto `db` tiene las colecciones: `sesiones`, `pjs`, `pnjs`, `lugares`, `facciones`, `lore`, `items`, `player_notes`, `mapas`, `map_points`. Cada ítem tiene un `id` numérico asignado por `nextId()` (máximo id existente + 1).
+- **Lista y detalle son una sola ruta** (`/c/:slug/<sección>[/:id]`), con filtros en query params. `EntitySectionRoute`
+  resuelve lista/detalle/id inválido; `:id` solo es válido si cumple `^[0-9]{1,15}$`.
+- **Ajustes** (solo DM, `AjustesPage`): Campaña (nombre, logo, color, lema), Regiones, Campos de personaje, enlace a Sesión
+  en vivo, Juegos (lotería, pozo, registro), Jugadores (roles, dueños de PJ, traspaso de DM), Invitaciones, Exportar y Zona de
+  peligro (borrar campaña escribiendo el slug). Para una tarea de administración nueva, agregar una sección ahí.
+- **Sesión en vivo** (`/c/:slug/sesion-en-vivo`, `SesionEnVivoPage` sobre `SessionScreenView`): pantalla del DM con cards;
+  el layout se guarda en `campaign_config` (clave `session_screen`, visibilidad `dm`).
+- **Mapas** (`/c/:slug/mapas`): Leaflet con `CRS.Simple`, solo dentro del chunk lazy `LeafletCanvas`; puntos con coordenadas
+  normalizadas 0..1 y navegación jerárquica por `?trail=`.
+- **PJs**: el dueño de un personaje solo edita campos de identidad (`pjOwnerFields.ts` refleja el trigger
+  `guard_pj_player_update`); el DM edita todo. Ver [`src/app/README.md`](src/app/README.md) (sección de personajes).
 
-- `defaultData` tiene `lugares`, `facciones` y `lore` pre-cargados.
-- `seedPJs`, `seedPNJs`, `seedSesiones` se inyectan en el primer load si esas colecciones están vacías.
+### Datos (`src/data`)
 
-### Visibilidad de entidades (`estado` / `visibilidad`)
+`createDataLayer()` agrupa un repositorio por tabla/RPC. Contrato (lo hacen cumplir los permisos de columna y los tests,
+detalle en [`src/data/README.md`](src/data/README.md)):
 
-Cada entidad de las 7 colecciones principales tiene dos campos de control de acceso:
+- Todo SELECT usa una lista explícita de columnas de `columns.ts`: nunca `*` ni `visible_to` (los clientes no tienen
+  privilegio sobre esa columna; falla con 42501). El DM lee/escribe `visible_to` solo con las RPC `get_entity_visibility` /
+  `set_entity_visibility`.
+- Campos privados del DM (`notas`, `secreto`, `ganchos`) viven en `entity_dm_notes` (tabla no publicada en Realtime), no en la
+  fila de la entidad. Los formularios que mezclan ambos usan `saveEntityWithDmNotes`.
+- Una entidad plana = columnas promovidas + claves de `data` (jsonb) + `campaign_id`, `created_at`, `updated_at`,
+  `created_by`. Los `update` envían solo lo cambiado; las columnas jsonb se fusionan con control optimista por `updated_at`
+  (`ConflictError`).
+- Errores: `DataError` con `kind` y `reason` estables. Listados paginados con `.range()`, tope 20 000 filas.
+- Realtime por tabla con `useCampaignTable` (re-lista en cada `SUBSCRIBED`); en el hub se comparte vía `TableStore` y los
+  hooks de `src/campaign/entities/` (`useEntities`, `useEntity`, `useEntityActions`, `useDmNotes`, `useVisibility`...).
+- Los ids son identidades de Postgres **globales por tabla** (no hay `nextId` en el cliente). El import conserva los ids
+  legacy para que sigan resolviendo los wiki-links `[[{3G}Texto]]` dentro de la campaña.
 
-- **`estado`**: `'publicado'` | `'secreto'` | `'borrador'`. Default implícito: `'publicado'`.
-- **`visibilidad`**: `number[]` — array de IDs de PJs que pueden ver la entidad cuando `estado === 'secreto'`.
+Para agregar una tabla de entidad: migración (con RLS, y concesión de columnas explícita si lleva `visible_to`), lista en
+`columns.ts`, repositorio, regenerar `database.types.ts` (`npm run db:types`), prueba pgTAP y registro en `SECTIONS`.
 
-La función `isVisible(entity, isDM, currentPlayer)` en `helpers.js` implementa la lógica:
-- DM: siempre ve todo.
-- `borrador`: solo DM.
-- `publicado`: todos.
-- `secreto`: DM + PJs cuyo `id` esté en `visibilidad`.
+### Base de datos (`supabase/`)
 
-Todos los listados de páginas filtran con `isVisible`. Los componentes de formulario incluyen `EstadoField` (en `FormModal.jsx`) que muestra un select de estado y, cuando `estado === 'secreto'`, checkboxes para seleccionar PJs.
+Migraciones en `supabase/migrations/` (identidad, campañas, miembros, invitaciones, entidades, notas, lecturas, calendario,
+juegos, mapas, presencia, endurecimientos). 23 tablas, todas con RLS. RPC principales: `create_campaign`, `accept_invite`,
+`preview_invite`, `play_loteria`, `assign_pot_to_character`, `delete_campaign`, `get/set_entity_visibility`. Las funciones
+`SECURITY DEFINER` fijan `search_path` vacío. Realtime publica 14 tablas (sin `entity_dm_notes`). Visibilidad de entidades:
+`estado` (`publicado` | `secreto` | `borrador`) + `visible_to` (ids de PJ), resuelto en `can_see_entity()`.
 
-Las etiquetas CSS `tag-borrador` (dorado) y `tag-secreto` (violeta) se muestran en cards y vistas de detalle. Las entidades `publicado` no muestran etiqueta de estado.
-
-### Layout de la UI
-
-Tres columnas: `Header` (barra superior con logo SVG y hamburger en mobile) → `Sidebar` (nav izquierdo con contadores y botones de importar/exportar) → `main` (página activa).
-
-El sidebar tiene menú hamburger en mobile (`sidebarOpen` / `toggleSidebar`). Al hacer click en un ítem del nav en mobile, el sidebar se cierra automáticamente.
-
-El `<main>` no tiene padding ni max-width cuando `page === 'mapas'` — el viewer Leaflet ocupa todo el espacio disponible.
-
-### Navegación y detalle inline
-
-Todas las páginas de entidades usan **detalle inline** (no panel lateral): cada página tiene un estado local `selectedId` (null = lista, non-null = detalle). Al seleccionar un ítem se renderiza el componente de detalle con un botón "← Volver".
-
-La única excepción es `items`, que todavía usa `DetailPanel` (panel slide-in derecho).
-
-Para navegar directamente a un ítem desde otra página (ej. Dashboard → sesión específica), se usa el mecanismo `pendingDetail`:
-- `goToDetail(page, id)` en el contexto: setea la página y guarda `{ id }` en `pendingDetail`.
-- La página destino inicializa `selectedId` con `pendingDetail?.id ?? null` y llama `consumePendingDetail()` en un `useEffect` al montar.
-
-### Formularios
-
-Los formularios abren en `FormModal` (modal centrado). El título y las acciones (guardar/eliminar/cancelar) son `position: sticky` (top y bottom respectivamente), con el contenido scrolleable en el medio. Al hacer click fuera del modal, pide confirmación si hay campos con contenido.
-
-Cada formulario incluye el componente `EstadoField` para controlar la visibilidad de la entidad.
-
-### Constantes de estilo (`constants.js`)
-
-`src/constants.js` exporta clases Tailwind reutilizables: `sectionTitleCls`, `detailTextCls`, `detailSectionCls`, `dmSectionCls`, `dmTitleCls`, `labelCls`, `inputCls`, `btnPrimary`, `btnDanger`, `btnSecondary`, `REGION_COLOR`. Usar en lugar de duplicar clases inline.
-
-### Zona DM
-
-`src/pages/ZonaDM.jsx` es una página visible solo para el DM. Contiene: exportar/importar JSON, registro de accesos de jugadores (`login_logs`), configuración y logs del sistema de juegos (`JuegosSection`), y mantenimiento (backfill de timestamps). Al agregar nuevas tareas admin, hacerlas aquí.
-
-### Pantalla de sesión DM (`SessionScreen.jsx` en `src/pages/`, subcomponentes en `src/pages/session/`)
-
-Pantalla full-screen (sin padding en `<main>`, mismo patrón que `mapas`) para uso del DM durante una sesión en vivo. Accesible desde un botón en `ZonaDM.jsx` (sin entrada en `Sidebar` `NAV`). Gate `if (!isDM) return null` — muestra `db.pjs` sin filtro de visibilidad, es DM-only por diseño.
-
-**Fuente única de verdad**: `layout.cards[]`, persistido en `game_config/session_screen` vía `saveSessionScreen(layout)` (mismo patrón `{merge:true}` que `saveGameConfig`). Este array alimenta a la vez las pestañas del header, las cards apiladas y el drag-and-drop — no hay estado duplicado que sincronizar.
-
-- **Pestañas = anclas de scroll**, no un switcher: todas las cards se apilan verticalmente y son visibles a la vez. Pestaña activa resaltada vía `IntersectionObserver` (mismo patrón que el nombre sticky en detalles).
-- **`cardRegistry.js`** mapea tipo → `{ label, Component, editable }`: `stats`, `skills`, `weapons`, `spells`, `inventory`, `resources`, `inspiration`, `notes`, `rules`, `combat`. Cada `tipo` es una card única para toda la pantalla (no una instancia por PJ) — las cards "por PJ" iteran `db.pjs` internamente y renderizan un `PJSubsection` por cada uno. `editable: true` conecta el botón "Editar" a `SessionEditModal`; `editable: false` (notes, rules, combat) maneja su propia persistencia sin modal, guardando su estado directo en el entry de `layout.cards[]` (ej. `entry.text`, `entry.combatants`) vía `saveSessionScreen` — sin doc Firestore nuevo. Un `tipo` obsoleto persistido en Firestore (ej. `hp-ac`, ya removida) se filtra sin romper nada y se limpia solo del doc en el próximo reorder.
-- **`PJSubsection.jsx`**: bloque colapsable compartido por las 6 cards de personaje, uno por PJ. Controlable externamente (`collapsed`/`onToggleCollapsed`) para el botón "Expandir/Contraer todo" de `SessionCardShell`. `fullViewToggle` + `children({fullView})` habilita "Vista completa" (estado local, no persistido) para revelar campos secundarios.
-- **`SessionEditModal.jsx`**: edición acotada por tipo de card, reutilizando `AttacksCRUD`/`EquipmentCRUD`/`SpellsCRUD`/grid de proficiencias existentes. El draft SIEMPRE se siembra completo (`{...pj}`) — ver gotcha de `save()` sin merge.
-- **Reglas homebrew** (colección `homebrew_rules`: `{ id, nombre, texto }`): crear/seleccionar/eliminar (hard-delete) directo desde la card, sin pantalla de administración dedicada todavía.
-- **Grilla responsive de 2 columnas** a partir de `1906px` de viewport (750px×2 + 6px gap + 400px de chrome fijo del layout). Usa `rectSortingStrategy` de dnd-kit (no `verticalListSortingStrategy`) para que el drag funcione en ambos layouts. Pestañas y cards comparten `DndContext`/`handleDragEnd`; las pestañas usan namespace de id separado (`tab-{id}`) para no colisionar en dnd-kit.
-
-HP/AC temporal en `pj`: `stat_hp_current` (actual, default `?? stat_hp` si falta, sin migración), `stat_hp_temp`, `stat_ac`, `stat_ac_temp`, `stat_speed`. Editables en `PJMechanicsTab` y en la card `stats` de esta pantalla.
-
-### Sistema de juegos (`Juegos.jsx`, `Dice3D.jsx`)
-
-`src/pages/Juegos.jsx` — lotería d20, un tiro por día por jugador. Lee config de `game_config/loteria` (commonMinRoll, commonPrize, specialPrize en monedas cp/sp/ep/gp/pp). Guarda resultado en `game_logs` con id `{pjId}_loteria_{fecha}`. El premio del DM va al pozo (`game_pot/current`).
-
-`src/components/Dice3D.jsx` — d20 icosaedro Three.js (dep: `three`): cámara cenital, parallax, bounce zoom, snap con resorte amortiguado. Se importa con `lazy()`. Props: `onComplete(roll)` (callback con resultado 1-20), `rolling` (bool dispara animación).
-
-Funciones de contexto (App.jsx): `saveGameResult(actorType, pjId, roll)`, `saveGameConfig(cfg)`, `assignPotToPJ(pjId, coins)`.
-
-`JuegosSection` en ZonaDM: configurar premios/umbral, ver/eliminar logs, gestionar el pozo, asignar monedas del pozo a un PJ.
-
-### Imágenes
-
-Todas las entidades que muestran imagen usan un campo `imagen_url` (texto con URL externa). Los formularios tienen un input de tipo `url` con preview en tiempo real. En las vistas de detalle se renderiza con `LazyImg` (skeleton + lazy loading); hacer click abre `ImageLightbox`.
-
-### Edición por jugadores
-
-Los jugadores pueden editar campos de identidad de su propio PJ. `isOwnPlayer = !isDM && currentPlayer?.id === pj.id` determina si mostrar el botón de editar.
+Pruebas: `supabase/tests/database/*.test.sql` (pgTAP, `supabase test db`). `seed.sql` crea usuarios de `example.test` y es
+**solo local**.
 
 ### Autenticación
 
-- **DM**: contraseña en `VITE_DM_PASSWORD` (GitHub Secret, bakeada en el bundle). Sesión en `sessionStorage` como `drakterima_dm = '1'`.
-- **Jugadores**: contraseñas en `VITE_PLAYER_1_PASSWORD` … `VITE_PLAYER_6_PASSWORD` (GitHub Secrets). Mapeadas por id de PJ en `PLAYER_PASSWORDS` en `App.jsx`. Sesión en `sessionStorage` como `drakterima_player` (JSON `{ id, nombre }`).
-- `tryAccess(password)` en el contexto: prueba primero DM, luego jugadores.
-- El modal de acceso está en `Sidebar.jsx` (`AccessModal`). Se abre con el botón "Acceder" cuando no hay sesión activa.
+Supabase Auth: magic link (PKCE, debe abrirse en el mismo navegador) y Google OAuth (opcional, `VITE_AUTH_GOOGLE_ENABLED`).
+No hay contraseñas en el hub. El cliente no soporta captcha todavía (activarlo en el dashboard rompería el login).
+Detalle y límites en [`src/auth/README.md`](src/auth/README.md).
 
-### Campos privados DM
+### Importador (`scripts/import-firestore.mjs`)
 
-Varios tipos tienen campos privados (`notas`, `secreto`) visualmente diferenciados con `var(--accent)` / `var(--accent-bright)` y un ícono de candado. Solo visibles cuando `isDM === true`.
+`npm run db:import` mueve un export JSON de la app legacy a una campaña del hub (local por defecto, dry run por defecto,
+destino alojado solo con las cinco condiciones documentadas). Guía de operador:
+[`scripts/import/README.md`](scripts/import/README.md). Los exports contienen contraseñas legacy en texto plano: nunca al
+repo (`data/db.json`, `scripts/out/` y `*.drakterima-export.json` están en `.gitignore`).
 
-### Wiki-links entre artículos
+### Tests
 
-Los campos de texto largo en vistas de detalle soportan wiki-links internos. Sintaxis:
+- **Unitarios**: `npm test` (vitest + jsdom + Testing Library; incluye `scripts/import/*.test.mjs`). Config en `vite.config.js`.
+- **Integración**: `npm run test:integration` (`vitest.integration.config.js`, `src/data/integration/`); lee URL y claves
+  de `supabase status` y se niega a correr contra un host no local.
+- **Base de datos**: `supabase test db` (pgTAP).
+- Estilo de pruebas del hub: se renderizan las rutas reales con `src/app/testing/renderApp.tsx` y clientes falsos
+  (`src/data/testing/`).
 
-```
-[[{NL}Texto del enlace]]
-```
+### Variables de entorno
 
-Donde `N` es el id numérico y `L` es la letra de colección (S, P, N, G, F, L, I).
-Ejemplo: `[[{3G}Magrales del este]]` navega al lugar con id 3.
-Links sin letra (`[[{3}Texto]]`) se renderizan como formato inválido (sin navegación).
-Las letras canónicas están en `wikiHelpers.js` → `COLLECTION_LETTER`.
+| Variable | Uso | Público |
+| --- | --- | --- |
+| `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | cliente Supabase (`src/data/supabaseClient.ts`, `src/app/supabaseConfig.ts`) | sí |
+| `VITE_AUTH_GOOGLE_ENABLED` | `false` oculta el botón de Google | sí |
+| `VITE_FIREBASE_*`, `VITE_DM_PASSWORD`, `VITE_PLAYER_1..6_PASSWORD` | solo la app legacy | comprometidas, a retirar |
+| `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `IMPORT_ALLOW_REMOTE` | solo el importador contra un destino alojado | **secretas**, nunca en archivos |
 
-`WikiText` también parsea Markdown básico:
-- Bloques: `# ## ###` headings, `- *` listas sin orden, `1.` listas numeradas, `---` separador horizontal.
-- Inline: `**bold**`, `*italic*`, `***bold-italic***`, `[[https://...]]` imagen inline.
+Para desarrollo local: `supabase status` da URL y anon key. Crear `.env.local` (ignorado por git). Tabla completa de
+secretos y dónde vive cada uno: [`docs/hosting-and-cutover.md`](docs/hosting-and-cutover.md).
 
-- El componente `WikiText` (`src/components/WikiText.jsx`) parsea el texto y llama a `goToDetail(page, id)` al hacer click en un enlace.
-- Si el artículo no existe, se muestra atenuado sin acción.
-- `WikiText` reemplaza `dangerouslySetInnerHTML={nl2br(...)}` en todos los detalles de entidad. Usar `<WikiText text={campo} />` dentro de `<div className="detail-text">`.
-- Los campos cortos (nombre, título, fecha) no necesitan WikiText.
+### Despliegue
 
-### Helpers de wiki-links (`wikiHelpers.js`)
+- **Hub**: Vercel. `vercel.json` hace el rewrite SPA (todo salvo `/assets/*` y `/favicon.svg` sirve `index.html`) y pone
+  headers de seguridad (sin CSP todavía). `vite.config.js` usa `base: '/'`. Pasos de alta, corte y retiro:
+  [`docs/hosting-and-cutover.md`](docs/hosting-and-cutover.md).
+- **Legacy**: `.github/workflows/deploy.yml` sigue publicando en GitHub Pages
+  (`https://germansilva.github.io/DrakterimaWikiApp/`) al pushear a `main`. Hasta el corte, `main` no recibe la rama
+  `feat/campaign-hub`: con `base: '/'` el hub no funcionaría bajo `/DrakterimaWikiApp/`.
 
-- `COLLECTION_LETTER`: map colección → letra (`pjs → 'P'`, `lugares → 'G'`, `pnjs → 'N'`, `sesiones → 'S'`, `facciones → 'F'`, `lore → 'L'`, `items → 'I'`, `mapas → 'M'`).
-- `LETTER_COLLECTION`: inverso de `COLLECTION_LETTER`.
-- `findEntity(db, id)`: busca entidad por id numérico en todas las colecciones.
-- `COLLECTION_DISPLAY`: nombres legibles de colecciones para tooltips.
+`gh` (GitHub CLI) no viene preinstalado: `scoop install gh` o `choco install gh` antes de crear PRs por comando.
 
-### Componentes de imagen y wiki
+### Convenciones que conviene recordar
 
-- `LazyImg`: imagen con lazy loading y skeleton shimmer. Prop `containerCls` debe incluir clase de altura para que el skeleton sea visible. Usar en todas las vistas de detalle.
-- `WikiImage`: wrapper de `LazyImg` para imágenes inline embebidas en WikiText (`[[https://...]]`).
-- `ImageLightbox`: modal fullscreen. Cerrar con Escape o click afuera. Props: `src`, `alt`, `onClose`.
-- `SpellDetailModal`: modal read-only para detalle de hechizo de PJ. Cerrar con Escape o click afuera. Props: `spell` (entrada de `pj.hechizos`), `onClose`. Usa `z-[250]`. Patrón idéntico a `ImageLightbox`.
-- `WikiLink`: enlace clickeable con tooltip hover (thumbnail + título). Lo usa WikiText internamente; no instanciar directamente.
-- `WikiLinkPicker`: modal de búsqueda para insertar wiki-links en textareas de formularios. Integrado en `FormModal`.
-- `Tooltip`: tooltip hover con skeleton de thumbnail. Props: `title`, `section`, `imagenUrl`.
+- Texto de UI en español; código, comentarios y nombres de artefactos técnicos en inglés.
+- Estilos: Tailwind + `src/styles.css` con variables CSS (`--accent`, ...); clases reutilizables en `src/constants.js`.
+  El acento de campaña se aplica solo si es exactamente `#rrggbb`.
+- Formularios: modal centrado (`FormShell`), con confirmación al descartar; los modales se cierran por backdrop solo si
+  pointer-down y click caen ambos en el backdrop (`useBackdropClose`) y siempre tienen botón visible de cerrar.
+- Títulos de detalle: `useStickyTitle` (nombre en la barra "← Volver" al salir del viewport).
+- Wiki-links: `[[{NL}Texto]]` (`N` = id, `L` = letra de colección: S, P, N, G, F, L, I, M, H, ver `COLLECTION_LETTER` en
+  `src/components/wikiHelpers.js`); `WikiText` también parsea Markdown básico y `[[https://...]]` como imagen inline.
+- Imágenes: campo de texto con URL https externa (no hay Storage); `LazyImg` y `ImageLightbox`. El host de la imagen ve la
+  IP de quien la carga.
+- Nunca poner una service role key, URL de base de datos o contraseña en `VITE_*` ni en `src/`.
 
-### Nombre en header sticky
+## App legacy (Firebase)
 
-Todas las vistas de detalle inline muestran el nombre de la entidad en la barra "← Volver" cuando el título principal sale del viewport. Patrón:
-- `nameRef` en el `<div>` del título principal.
-- `backBarRef` en la barra sticky con `sticky top-[60px]`.
-- `HEADER_H = 60` constante (altura del Header global).
-- `IntersectionObserver` con `rootMargin: -${HEADER_H + backBarH}px 0px 0px 0px`.
-- `showNameInHeader` state → `opacity: 0→1` con `transition: opacity 0.2s ease`.
+La app original (Firestore + contraseñas en el bundle) sigue montada en `/legacy/*` solo para comparar durante la
+migración y se retira en el corte. **No es la fuente de verdad del hub.** No agregar features nuevas ahí.
 
-### Helpers (`helpers.js`)
-
-- `regionLabel` / `regionOptions`: valores canónicos de región (`magral`, `nezor`, `heladas`, `islas`, `otro`).
-- `relacionLabel`: valores canónicos de relación (`aliado`, `neutral`, `enemigo`, `desconocido`).
-- `nextId(arr)`: incrementa el máximo id.
-- `nl2br(text)`: utilidad legada, ya no se usa en componentes (reemplazada por `WikiText`).
-- `isVisible(entity, isDM, currentPlayer)`: determina si una entidad es visible para el usuario actual.
-
-### Activos
-
-- `src/svgs/dragonIcon.jsx`: componente React del logo SVG del dragón. Props: `width`, `height`, `fill` (default `currentColor`), `className`, `style`.
-- `public/favicon.svg`: favicon SVG con `fill="#dc2626"` (rojo de la app).
-
-### Estilos
-
-Todos los estilos están en `src/styles.css`. Usa CSS custom properties (`--accent`, `--text-muted`, etc.) para el tema oscuro. Sin framework CSS ni CSS-in-JS.
-
-### Variables de entorno requeridas (GitHub Secrets → deploy.yml)
-
-```
-VITE_FIREBASE_API_KEY
-VITE_FIREBASE_AUTH_DOMAIN
-VITE_FIREBASE_PROJECT_ID
-VITE_FIREBASE_STORAGE_BUCKET
-VITE_FIREBASE_MESSAGING_SENDER_ID
-VITE_FIREBASE_APP_ID
-VITE_DM_PASSWORD
-VITE_PLAYER_1_PASSWORD … VITE_PLAYER_6_PASSWORD
-```
-
-Para desarrollo local: crear `.env.local` con los mismos valores.
-
-### Mapas interactivos (`Mapas.jsx`, `MapViewer.jsx`, `MapPopup.jsx`)
-
-La sección Mapas usa **Leaflet** (`leaflet` + `react-leaflet`) con `CRS.Simple` para imágenes no-geográficas. El CSS de Leaflet se importa en `src/main.jsx`.
-
-**Colecciones:**
-- `mapas`: `{ id, nombre, imagen_url, descripcion, notas, is_default, estado, visibilidad }`. El campo `is_default` indica el mapa que se abre por defecto al entrar a la sección.
-- `map_points`: `{ id, map_id, nombre, descripcion, x, y, link_type, link_id, estado, visibilidad }`. Las coordenadas `x/y` son normalizadas (0.0–1.0). `link_type` puede ser `'lugar'|'pnj'|'faccion'|'lore'|'item'|'sesion'|'mapa'|null`.
-
-**Conversión de coordenadas** (en `MapViewer.jsx`, calculada dinámicamente según aspect ratio de la imagen):
-```js
-const mapBounds = [[0, 0], [imgSize.h, imgSize.w]]
-const toLeaflet = (x, y) => [(1 - y) * imgSize.h, x * imgSize.w]
-const fromLeaflet = (latlng) => ({ x: latlng.lng / imgSize.w, y: 1 - latlng.lat / imgSize.h })
-```
-El `imgSize` se detecta cargando la imagen con `new window.Image()` antes de montar el `MapContainer`. Esto preserva el aspect ratio real de la imagen.
-
-**Componentes:**
-- `Mapas.jsx`: maneja el stack de navegación jerárquica (`[{ id, nombre }]`). Cuando no hay mapa activo muestra una grilla de tarjetas; cuando hay uno activo, renderiza `MapViewer` a pantalla completa (`height: calc(100vh - 60px)`).
-- `MapViewer.jsx`: contiene el `MapContainer`. Los eventos del mapa van por `useMapEvents` dentro del container (no `onClick` en `MapContainer`). Gestiona el modo agregar punto, pin fantasma draggable (`draggable: true`), popup, breadcrumb y toolbar DM.
-- `MapPopup.jsx`: popup React posicionado absolutamente sobre el mapa (no Leaflet nativo). Lo posiciona `MapViewer` con `e.containerPoint`.
-
-**Pin fantasma (click-to-place):** toolbar DM → "+ Agregar punto" → cursor crosshair → click en mapa → pin fantasma semitransparente arrastrable → "Confirmar posición" llama `openForm('map_points', null, { map_id, x, y })` con las coordenadas normalizadas.
-
-**Colores de pins por tipo:** `lugar #dc2626`, `pnj #22c55e`, `faccion #f59e0b`, `lore #3b82f6`, `item #06b6d4`, `sesion #6b7280`, `mapa #eab308`, sin link `#e5e7eb`.
-
-**Visibilidad de puntos:** `pinOpacity(pt)` en `MapViewer` — `borrador`: DM opacity 0.4 / players no ven; `secreto`: DM opacity 0.4 / players en `visibilidad` ven opacity 1.
-
-### Ataques en fichas de PJ (`PJAttacksSection`, `AttacksCRUD`)
-
-Cada entrada en `pj.ataques[]`:
-
-```js
-{
-  id,            // number (Date.now() al crear)
-  nombre,        // string — nombre del arma
-  bono_ataque,   // string libre, ej. "+5"
-  dano,          // string libre, ej. "1d8+3"
-  tipo_dano,     // string libre, ej. "Cortante"
-  alcance,       // string libre, ej. "5 ft"
-  notas,         // string libre, opcional
-  precio,        // number, default 0 — precio del arma
-  precio_moneda, // 'cp'|'sp'|'ep'|'gp'|'pp', default 'gp'
-  portando,      // boolean, default true — true = portando, false = guardado
-}
-```
-
-El precio de las armas se incluye en el totalizador "Valor total del inventario" de `PJEquipmentSection`. Las armas no tienen campo `cantidad` — se cuentan como 1 unidad en el total.
-
-`PJAttacksSection` agrupa las armas en dos sublistas: "Portando" y "Guardado", cada una con su subtotal de precio.
-
-### Equipo e inventario (`PJEquipmentSection`, `EquipmentCRUD`)
-
-Cada entrada en `pj.equipo[]`:
-
-```js
-{
-  id,            // number (Date.now() al crear)
-  nombre,        // string
-  cantidad,      // number, default 1
-  descripcion,   // string libre, opcional
-  precio,        // number, default 0 — precio unitario
-  precio_moneda, // 'cp'|'sp'|'ep'|'gp'|'pp', default 'gp'
-  portando,      // boolean, default true — true = portando, false = guardado
-}
-```
-
-Monedas del PJ:
-
-```js
-pj.monedas          // { cp, sp, ep, gp, pp } — dinero en mano (campo existente)
-pj.monedas_guardado // { cp, sp, ep, gp, pp } — dinero guardado/banco (campo nuevo, opcional)
-```
-
-`PJEquipmentSection` renderiza el equipo en una `<table>` (Nombre/Cantidad/Descripción/Precio) agrupada en "Portando" y "Guardado" vía filas `colSpan`, cada grupo con subtotal propio — mismo formato de tabla que `SessionCardInventory.jsx` (`EquipoTable`) usa en la pantalla de sesión (esa versión omite Precio). El totalizador combinado ("Valor total del inventario") suma precios de equipo + armas (portando y guardado). Convierte todo a cobre usando tasas D&D 5e estándar: 1pp=1000cp, 1gp=100cp, 1ep=50cp, 1sp=10cp. El output omite electrum y muestra solo denominaciones no-cero en orden pp→gp→sp→cp.
-
-Las secciones de monedas (en mano y guardadas) muestran las denominaciones en orden descendente: pp, gp, ep, sp, cp. Los labels usan nombres completos: platino, oro, electrum, plata, bronce.
-
-### Atributos en formulario de mecánicas (`PJMechanicsTab`)
-
-En la grilla de atributos del formulario de edición, el label de cada atributo muestra el modificador calculado automáticamente junto al nombre (`FUE  +3`). El modificador se recalcula en tiempo real al cambiar el valor del input. Implementado con `abilityMod` de `helpers/pjCalc.js`. Layout: flex row con `justify-between` — nombre a la izquierda, modificador a la derecha.
-
-### Hechizos en fichas de PJ (`PJSpellsSection`, `SpellDetailModal`, `SpellsCRUD`)
-
-Cada entrada en `pj.hechizos[]` tiene el siguiente schema — todos los campos nuevos son opcionales (retrocompatibles con datos anteriores):
-
-```js
-{
-  id,                    // number (Date.now() al crear)
-  nombre,                // string
-  nivel,                 // number 0–9 (0 = truco), 10 = habilidad
-  preparado,             // boolean — false por defecto
-  escuela,               // string libre (Evocación, Conjuración, etc.)
-  casting_time,          // string libre
-  alcance,               // string libre
-  componentes,           // string libre
-  duracion,              // string libre
-  concentracion,         // boolean
-  ritual,                // boolean
-  descripcion,           // string (texto largo)
-  a_niveles_superiores,  // string (texto largo, opcional)
-}
-```
-
-**Lógica de color en chips (`PJSpellsSection`):** `isPrepared = h.preparado || Number(h.nivel) === 0 || Number(h.nivel) === 10`. Los trucos (nivel 0) y las habilidades (nivel 10) son siempre activos implícitamente. Chip rojo (`bg-accent`) si preparado/activo, gris (`bg-bg-mid`) si no. Badges `C`/`R` dentro del chip para concentración y ritual.
-
-**Formulario (`SpellsCRUD`):** inline CRUD con `{ ...EMPTY, ...h }` en `startEdit` para backfill de campos faltantes en hechizos guardados antes de este schema. La sección "A niveles superiores" es colapsable vía `showUpcast` state.
-
-### SRD / Referencia D&D 5e (`SRD.jsx`, `src/srd/`)
-
-La sección SRD consume la API pública de open5e (`https://api.open5e.com/v1/`) para consulta rápida durante la sesión. **Read-only — sin interacción con Firebase ni con `save`/`remove`.**
-
-**Archivos:**
-- `src/pages/SRD.jsx` — página principal con `activeTab` state. `key={activeTab}` en el componente activo fuerza remount/reset de estado al cambiar pestaña (intencional).
-- `src/srd/srdApi.js` — capa de API. Una función por endpoint: `fetchSpells`, `fetchMonsters`, `fetchConditions`, `fetchWeapons`, `fetchArmors`, `fetchMagicItems`. Maneja URL building, paginación (`next` URL) y errores.
-- `src/srd/srdCommon.jsx` — hook `useTabFetch(fetchFn)` y primitivos UI compartidos (`SRDDetailHeader`, `SRDList`).
-- `src/srd/SpellsTab.jsx`, `MonstersTab.jsx`, `ConditionsTab.jsx`, `WeaponsTab.jsx`, `ArmorsTab.jsx`, `MagicItemsTab.jsx` — componentes por pestaña.
-
-**Pestañas:** Hechizos (`/v1/spells/`), Monstruos (`/v1/monsters/`), Condiciones (`/v1/conditions/`), Armas (`/v1/weapons/`), Armaduras (`/v1/armor/`), Ítems mágicos (`/v1/magicitems/`).
-
-**Parámetros API críticos:** spell level usa `level_int`; monster CR usa `cr` como param de URL (el campo en los objetos retornados es `challenge_rating`).
-
-**`useTabFetch`:** inicializa `loading: true` (evita flash de estado vacío), usa ignored-flag para prevenir race conditions en fetches concurrentes.
-
-**Detalle inline:** mismo patrón `selectedItem` / `← Volver` que el resto de la app. `SRDDetailHeader` incluye IntersectionObserver para fade-in del nombre en la barra sticky.
-
-**Datos defensivos:** `open5e` puede retornar `school` como string u objeto `{ name }`, `desc` como array o string, `speed` como string u objeto. Todos los componentes de detalle manejan ambas formas.
-
-### Agregar un nuevo tipo de entidad
-
-1. Crear `src/pages/MiEntidad.jsx` con patrón de detalle inline (`selectedId` state).
-2. Agregar la entrada en `FORM_COMPONENTS` en `FormModal.jsx` (incluir `EstadoField`).
-3. Agregar entrada en `NAV` en `Sidebar.jsx`.
-4. Agregar entrada en `PAGES` en `App.jsx`.
-5. Agregar la clave al objeto `db` en `seed.js` y en `defaultData`.
-6. Inicializar la colección en Firestore con `seedCollectionIfEmpty` en `App.jsx`.
-7. Filtrar el listado con `isVisible(entity, isDM, currentPlayer)`.
-8. Usar `<WikiText text={campo} />` en campos de texto largo del detalle.
-9. Agregar la colección a `COLLECTION_LETTER` en `wikiHelpers.js` para que sea enlazable con wiki-links.
-10. Usar el patrón sticky name-in-header (`nameRef`, `backBarRef`, `IntersectionObserver`) en la vista de detalle.
+- Código: `src/App.jsx` (dueño del estado `db`, `page`, `detail`, `form`), `src/AppContext.jsx` (`useApp()`),
+  `src/firebase.js` (Firestore con `VITE_FIREBASE_*`), `src/seed.js`, `src/pages/*`, `src/components/{Sidebar,Header,...}`.
+- Datos: colecciones Firestore `sesiones`, `pjs`, `pnjs`, `lugares`, `facciones`, `lore`, `items`, `player_notes`, `mapas`,
+  `map_points`, `homebrew_rules`, `game_logs`, `game_pot`, `game_config`, `login_logs`. Escrituras por `save(type, data)`
+  (`setDoc` **sin merge**: sobrescribe el documento entero), `remove` y `savePlayerNote` en `App.jsx`.
+- Acceso: contraseñas `VITE_DM_PASSWORD` / `VITE_PLAYER_N_PASSWORD` y sesión en `sessionStorage`. Es un control solo de UI:
+  los datos secretos se descargan igual y se filtran en el cliente. Las contraseñas están en el historial de git y en el
+  bundle público: se retiran en el corte.
+- Los componentes compartidos con el hub (WikiText, formularios, no leídos, notas de jugador, pantalla de sesión) leen
+  datos por **puertos** (`src/ports`); el adaptador legacy está en `src/legacy/`.
+- Despliegue: GitHub Pages por `.github/workflows/deploy.yml`, que se elimina en el retiro (ver el runbook).
