@@ -487,7 +487,7 @@ Cómo probarlo, sin tocar producción: en una rama aparte, agregar a `vercel.jso
 `"key": "Content-Security-Policy-Report-Only"` y el valor anterior en una sola línea (`<ref>` reemplazado), desplegar a Preview y
 recorrer: login, hub, una campaña, mapas (imagen de mapa + pins), juegos (dado 3D), calendario, ajustes (logo https),
 página de invitación. Si aparecen violaciones legítimas, ampliar la directiva correspondiente. Si se sirviera `/legacy`
-habría que añadir los hosts de Firebase (no recomendado: ver e.7).
+habría que añadir los hosts de Firebase (no recomendado: ver la variable de entorno de legacy, más arriba en esta sección (e)).
 
 Pendiente fuera de alcance: una política con `nonce` o sin `'unsafe-inline'` en estilos exigiría refactor de estilos.
 
