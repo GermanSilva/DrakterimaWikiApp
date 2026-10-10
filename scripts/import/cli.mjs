@@ -11,6 +11,7 @@ import { GuardError, readLocalStatus, redact, resolveTarget } from './guard.mjs'
 import { buildImport, formatReport } from './index.mjs'
 import { LegacyFormatError } from './legacy.mjs'
 import { ImportAbort, describeDbError, findUserIdByEmail, readCounts, runImport } from './load.mjs'
+import { completionBanner } from './report.mjs'
 import { buildSyncReport, formatSyncSummary, runSync } from './sync.mjs'
 
 /** Repo root from this file's location (falls back to the cwd where import.meta.url is not a file: URL, e.g. jsdom tests). */
@@ -26,7 +27,7 @@ function repoRootDir() {
  * Exit code when the database COMMITTED but a follow-up step failed (an output file could not be written, or the
  * post-apply counts could not be read). Distinct from a database failure: the data IS in the target.
  */
-export const EXIT_COMMITTED_OUTPUT_FAILED = 3
+export const EXIT_COMMITTED_FOLLOWUP_FAILED = 3
 
 /** A file write failed. Carries the path and kind only: the OS error text can quote more than the caller should print. */
 class OutputWriteError extends Error {
@@ -176,7 +177,7 @@ export async function main(argv, env, io = {}) {
       invitesPath = writeOutput(join(dir, `invites-${args.slug}-${date}.csv`), buildInvitesCsv(result.invites, args.appOrigin), 'invites')
     }
 
-    out(args.apply ? 'Committed.' : 'Dry run complete: everything was rolled back, the database is unchanged.')
+    out(completionBanner(args.apply))
     if (result.db.gameLogsSkipped > 0) {
       out(`Warning: ${result.db.gameLogsSkipped} game log(s) were not inserted (an identical one already exists, or one-play-per-day refused it).`)
     }
@@ -188,14 +189,14 @@ export async function main(argv, env, io = {}) {
     else if (!args.apply) out('Invites CSV is only written with --apply (dry-run codes do not exist afterwards).')
     if (postApplyFailed) {
       err('committed, but the post-apply counts could not be read (the report was written without them); the data is in the target')
-      return EXIT_COMMITTED_OUTPUT_FAILED
+      return EXIT_COMMITTED_FOLLOWUP_FAILED
     }
     return 0
   } catch (e) {
     if (e instanceof OutputWriteError) {
       if (committed) {
         err(committedWriteFailureMessage(e.kind, e.path))
-        return EXIT_COMMITTED_OUTPUT_FAILED
+        return EXIT_COMMITTED_FOLLOWUP_FAILED
       }
       err(`could not write ${e.path}; nothing was committed`)
       return 1

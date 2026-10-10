@@ -65,7 +65,12 @@ allows, non-empty text, only for entities that still exist), the read state of t
 the legacy personal / "not available" availability (pinned to this campaign, never general). The DM's legacy read state
 goes to the DM user. Characters still unclaimed are skipped and listed with the status of their invite (`live`,
 `expired_or_used`, `none`); the full list with names is in `scripts/out/sync-report-<slug>-<date>.json`, the console
-shows ids and counts only.
+shows ids and counts only. Pass `--redact-names` to leave the character and player names out of that file too (the
+report is a local, mode-0600 file; names are kept by default so you can tell who still has to claim). Characters that exist
+only in the hub (not in the export) have nothing to sync and are flagged `hubOnly` in the report.
+
+Exit code `3` also applies here: the sync committed but its report could not be written; re-run with `--apply` to
+regenerate the sync report (nothing is written twice).
 
 It is idempotent and never overwrites hub edits: notes and availability are insert-missing, read state only moves
 forward. A note a player **deleted** in the hub comes back on the next sync (the tool cannot tell "deleted" from "never

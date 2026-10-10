@@ -7,6 +7,7 @@ import pg from 'pg'
 import { afterAll, beforeAll, describe, expect, inject, it } from 'vitest'
 import { buildImport } from '../../../scripts/import/index.mjs'
 import { makeLegacy, shiftLegacyIds, SENTINEL_TEXT } from '../../../scripts/import/fixture.mjs'
+import { runSync as runSyncCore } from '../../../scripts/import/sync.mjs'
 import { assertLocal } from './assertLocal'
 import { createAdminClient, createTestUser, type TestUser } from './testUsers'
 
@@ -236,6 +237,20 @@ describe('--sync-claims against the local stack', () => {
     expect(third.code, third.stderr).toBe(0)
     expect(third.stdout).toContain('Totals: player_notes=0 read_state=0 player_availability=0')
     expect(await Promise.all(Object.values(synced()))).toEqual(after)
+
+    // per-character accounting of that second run (R3-003): everything planned was already there, nothing written
+    const reportName = readdirSync(outDir).filter((f) => f.startsWith(`sync-report-${slug}-`)).pop()!
+    const perPj = JSON.parse(readFileSync(join(outDir, reportName), 'utf8')).sync.perPj as Record<string, Record<string, { planned: number; written: number; alreadyPresent?: number }>>
+    const claimedIds = [pj1, pj2].map(String)
+    expect(Object.keys(perPj).sort()).toEqual(claimedIds.sort())
+    for (const id of claimedIds) {
+      for (const kind of ['playerNotes', 'availability']) {
+        expect(perPj[id][kind].written, `${id} ${kind}`).toBe(0)
+        expect(perPj[id][kind].alreadyPresent, `${id} ${kind}`).toBe(perPj[id][kind].planned)
+      }
+      expect(perPj[id].readState.written).toBe(0)
+    }
+    expect(perPj[String(pj1)].playerNotes.planned + perPj[String(pj1)].availability.planned).toBeGreaterThan(0)
   })
 
   it('a note edited in the hub is never overwritten by a re-sync, and a read state seen later stays', async () => {
@@ -301,6 +316,24 @@ describe('--sync-claims against the local stack', () => {
     const local = runSync([], { extraEnv: { SUPABASE_URL: 'https://example.invalid', SUPABASE_DB_URL: 'postgresql://x:y@db.example.invalid/postgres' } })
     expect(local.code, local.stderr).toBe(0)
     expect(local.stdout).toContain('Target: local (127.0.0.1)')
+  })
+
+  it('read state colliding after the section normalisation syncs (one row, the newest) instead of aborting the transaction (R3-001/R4-001)', async () => {
+    // The legacy transform already deduplicates, so the CLI cannot produce this input: drive the loader with a crafted bundle.
+    const sesionId = 1 + offset
+    const output = structuredClone(built.output) as { deferred: { byPj: Record<string, { readState: object[] }> }; tables: { pjs: object[] } }
+    output.deferred.byPj[pj1].readState = [
+      { entity_type: 'sesiones', entity_id: sesionId, section: null, seen_at: '2026-04-05T00:00:00.000Z' },
+      { entity_type: 'sesiones', entity_id: sesionId, section: '', seen_at: '2026-04-09T00:00:00.000Z' },
+    ]
+    const res = await runSyncCore(db, { output, slug, apply: true })
+    expect(res.committed).toBe(true)
+    const rows = (await db.query("select section, seen_at from public.read_state where campaign_id = $1 and user_id = $2 and entity_type = 'sesiones'", [campaignId, playerA.id])).rows
+    expect(rows).toHaveLength(1)
+    expect(rows[0].section).toBe('')
+    expect((rows[0].seen_at as Date).toISOString()).toBe('2026-04-09T00:00:00.000Z')
+    // idempotent: the same input again changes nothing
+    expect((await runSyncCore(db, { output, slug, apply: true })).db.totals.read_state).toBe(0)
   })
 
   it('rejects options that do not apply to --sync-claims (exit 2)', () => {

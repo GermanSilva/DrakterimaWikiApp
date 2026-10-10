@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { assertLocal } from '../../src/data/integration/assertLocal'
 import { UsageError, parseCliArgs } from './args.mjs'
-import { EXIT_COMMITTED_OUTPUT_FAILED, committedWriteFailureMessage, main } from './cli.mjs'
+import { EXIT_COMMITTED_FOLLOWUP_FAILED, committedWriteFailureMessage, main } from './cli.mjs'
 import { DM_SECRET_TEXT, SECRET_PASSWORD_1, SECRET_PASSWORD_2, SENTINEL_TEXT, makeLegacy } from './fixture.mjs'
 import { GuardError, assertLocalDbUrl, assertLocalUrl, parseStatusOutput, redact, resolveTarget } from './guard.mjs'
 
@@ -355,7 +355,7 @@ describe('committed-path failures (exit 3)', () => {
         { IMPORT_OUT_DIR: join(dir, 'out') },
         io,
       )
-      expect(code).toBe(EXIT_COMMITTED_OUTPUT_FAILED)
+      expect(code).toBe(EXIT_COMMITTED_FOLLOWUP_FAILED)
       const text = lines.join('\n')
       expect(text).toMatch(/committed, but the post-apply counts could not be read/)
       expect(text).not.toMatch(/database error|SECRET-PW|postgresql:\/\//)
@@ -365,6 +365,48 @@ describe('committed-path failures (exit 3)', () => {
       const report = JSON.parse(readFileSync(join(dir, 'out', readdirSync(join(dir, 'out')).find((f) => f.startsWith('report-'))), 'utf8'))
       expect(report.run.committed).toBe(true)
       expect(report.db.postApplyCounts).toBeNull()
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+describe('--sync-claims committed-path failures (exit 3, R3-002)', () => {
+  // A scripted pg client: the sync of an empty export runs end to end and COMMITs (no characters, nothing to write).
+  const syncClient = () => {
+    const log = []
+    return {
+      log,
+      connect: async () => undefined,
+      end: async () => undefined,
+      async query(text) {
+        const t = typeof text === 'string' ? text : text.text
+        log.push(t)
+        if (/from public\.campaigns where slug/.test(t)) {
+          return { rows: [{ id: '11111111-2222-4333-8444-555555555555', created_by: 'dm-1', settings: { import: { source: 'legacy-firestore' } } }], rowCount: 1 }
+        }
+        return { rows: [], rowCount: 0 }
+      },
+    }
+  }
+
+  it('the sync report cannot be written after the commit: exit 3, names the sync report and says a re-run regenerates it', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'import-cli-s-'))
+    try {
+      const file = join(dir, 'empty.json')
+      writeFileSync(file, '{}')
+      const blocker = join(dir, 'not-a-directory')
+      writeFileSync(blocker, 'x') // IMPORT_OUT_DIR below lives UNDER a regular file: the directory cannot be created
+      const lines = []
+      const client = syncClient()
+      const io = { out: (x) => lines.push(x), err: (x) => lines.push(x), getStatus: () => LOCAL_STATUS, createClient: () => client }
+      const code = await main(['--sync-claims', '--input', file, '--slug', 'camp-x', '--lenient', '--allow-partial', '--apply'], { IMPORT_OUT_DIR: join(blocker, 'out') }, io)
+      expect(code).toBe(EXIT_COMMITTED_FOLLOWUP_FAILED)
+      expect(client.log).toContain('commit')
+      expect(client.log).not.toContain('rollback')
+      const text = lines.join('\n')
+      expect(text).toMatch(/committed, but writing the sync report file .+ failed; re-run with --apply to regenerate the sync report/)
+      expect(text).not.toMatch(/JSON report|invite CSV/)
     } finally {
       rmSync(dir, { recursive: true, force: true })
     }

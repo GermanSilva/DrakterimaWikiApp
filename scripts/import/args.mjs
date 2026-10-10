@@ -6,7 +6,7 @@ import { parseArgs } from 'node:util'
 export class UsageError extends Error {}
 
 export const USAGE = `Usage: npm run db:import -- --input <export.json> --dm-email <email> --app-origin <url> [options]
-       npm run db:import -- --sync-claims --input <export.json> --slug <slug> [--lenient] [--apply]
+       npm run db:import -- --sync-claims --input <export.json> --slug <slug> [--lenient] [--apply] [--redact-names]
 
   --input <file>        legacy JSON export (required)
   --dm-email <email>    e-mail of the DM auth user (created without a password when missing)
@@ -22,6 +22,8 @@ export const USAGE = `Usage: npm run db:import -- --input <export.json> --dm-ema
                         personal availability of the CLAIMED characters to their owners (and the DM's read state).
                         Insert-missing only (never overwrites hub edits), idempotent, dry run by default. Needs
                         --input and --slug; --dm-email, --app-origin, --name, --invite-days and --force-overwrite do not apply.
+  --redact-names        with --sync-claims: leave the character and player names out of the sync report file
+                        (default: the report lists them for the unclaimed characters; it is a local 0600 file)
   --remote --confirm-host <host>
                         hosted target; also needs env IMPORT_ALLOW_REMOTE=<host>, SUPABASE_URL,
                         SUPABASE_SERVICE_ROLE_KEY and SUPABASE_DB_URL. Local by default.
@@ -50,6 +52,7 @@ const OPTIONS = {
   'invite-days': { type: 'string' },
   'force-overwrite': { type: 'boolean' },
   'sync-claims': { type: 'boolean' },
+  'redact-names': { type: 'boolean' },
   remote: { type: 'boolean' },
   'confirm-host': { type: 'string' },
   help: { type: 'boolean' },
@@ -78,7 +81,7 @@ export function normaliseOrigin(value) {
 /**
  * @param {string[]} argv arguments after the script name
  * @returns {{ help: true } | { help: false, input: string, dmEmail: string|null, slug: string, name: string|null, appOrigin: string|null,
- *   apply: boolean, mode: 'strict'|'lenient', allowPartial: boolean, inviteDays: number, forceOverwrite: boolean, syncClaims: boolean,
+ *   apply: boolean, mode: 'strict'|'lenient', allowPartial: boolean, inviteDays: number, forceOverwrite: boolean, syncClaims: boolean, redactNames: boolean,
  *   remote: boolean, confirmHost: string|null }}
  */
 export function parseCliArgs(argv) {
@@ -91,6 +94,7 @@ export function parseCliArgs(argv) {
   }
   if (values.help) return { help: true }
 
+  if (values['redact-names'] === true && values['sync-claims'] !== true) throw new UsageError('--redact-names only applies to --sync-claims')
   const need = (key, flag) => {
     const v = values[key]
     if (typeof v !== 'string' || v.trim() === '') throw new UsageError(`${flag} is required`)
@@ -146,6 +150,7 @@ export function parseCliArgs(argv) {
     inviteDays,
     forceOverwrite: values['force-overwrite'] === true,
     syncClaims,
+    redactNames: values['redact-names'] === true,
     remote,
     confirmHost,
   }

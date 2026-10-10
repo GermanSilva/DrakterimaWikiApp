@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { UsageError, parseCliArgs } from './args.mjs'
 import { ImportAbort } from './load.mjs'
 import { buildAvailabilityInsertMissing, buildReadStateUpsert, buildUpsert } from './sql.mjs'
-import { buildSyncReport, formatSyncSummary, planSync, referencedEntities, runSync } from './sync.mjs'
+import { buildSyncReport, dedupeReadState, formatSyncSummary, planSync, referencedEntities, runSync } from './sync.mjs'
 
 const CID = '11111111-2222-4333-8444-555555555555'
 const DM = 'dddddddd-2222-4333-8444-555555555555'
@@ -65,6 +65,39 @@ describe('planSync (pure)', () => {
     expect(plan.claimed[0].readState).toEqual([{ user_id: OWNER_1, campaign_id: CID, entity_type: 'lugares', entity_id: 1, section: 'descripcion', seen_at: '2026-04-02T00:00:00.000Z' }])
     expect(plan.dm.readState).toEqual([{ user_id: DM, campaign_id: CID, entity_type: 'sesiones', entity_id: 1, section: '', seen_at: '2026-04-01T00:00:00.000Z' }])
     expect(plan.dm.skipped.dangling_read_state).toBe(1)
+  })
+
+  it('read state: legacy entries that collide after the section normalisation keep ONE row, the newest (R3-001/R4-001)', () => {
+    const d = deferred()
+    d.byPj[1].readState = [
+      { entity_type: 'lugares', entity_id: 1, section: null, seen_at: '2026-04-05T00:00:00.000Z' },
+      { entity_type: 'lugares', entity_id: 1, section: '', seen_at: '2026-04-09T00:00:00.000Z' },
+      { entity_type: 'lugares', entity_id: 1, section: undefined, seen_at: '2026-04-01T00:00:00.000Z' },
+      { entity_type: 'lugares', entity_id: 1, section: 'descripcion', seen_at: '2026-04-02T00:00:00.000Z' },
+    ]
+    d.dm.readState = [
+      { entity_type: 'sesiones', entity_id: 1, section: '', seen_at: '2026-04-01T00:00:00.000Z' },
+      { entity_type: 'sesiones', entity_id: 1, section: null, seen_at: '2026-04-03T00:00:00.000Z' },
+    ]
+    const p = planSync({ deferred: d, pjs: pjs(), existing: existing(), campaignId: CID, dmUserId: DM })
+    expect(p.claimed[0].readState.map((r) => [r.section, r.seen_at])).toEqual([
+      ['', '2026-04-09T00:00:00.000Z'],
+      ['descripcion', '2026-04-02T00:00:00.000Z'],
+    ])
+    expect(p.dm.readState.map((r) => r.seen_at)).toEqual(['2026-04-03T00:00:00.000Z'])
+    // what reaches the database: no two tuples share the conflict key, so ON CONFLICT DO UPDATE never hits a row twice
+    for (const rows of [p.claimed[0].readState, p.dm.readState]) {
+      const keys = rows.map((r) => `${r.entity_type}|${r.entity_id}|${r.section}`)
+      expect(new Set(keys).size).toBe(keys.length)
+    }
+  })
+
+  it('dedupeReadState keeps the first of equal timestamps and ignores unparseable ones', () => {
+    const a = { entity_type: 'lore', entity_id: 1, section: '', seen_at: '2026-04-01T00:00:00.000Z', tag: 'first' }
+    const b = { ...a, tag: 'second' }
+    const bad = { ...a, seen_at: 'not a date', tag: 'bad' }
+    expect(dedupeReadState([a, b]).map((r) => r.tag)).toEqual(['first'])
+    expect(dedupeReadState([bad, a]).map((r) => r.tag)).toEqual(['first'])
   })
 
   it('skips a claimed character whose owner left the campaign', () => {
@@ -144,7 +177,7 @@ describe('arguments', () => {
 })
 
 /** Scripted pg client for runSync: no database. */
-function fakeClient({ campaign = { id: CID, created_by: DM, settings: { import: { source: 'legacy-firestore' } } }, failCommit = false } = {}) {
+function fakeClient({ campaign = { id: CID, created_by: DM, settings: { import: { source: 'legacy-firestore' } } }, failCommit = false, rowCounts = {} } = {}) {
   const log = []
   return {
     log,
@@ -158,7 +191,10 @@ function fakeClient({ campaign = { id: CID, created_by: DM, settings: { import: 
       }
       if (/select id from public\./.test(t)) return { rows: [{ id: '1' }], rowCount: 1 }
       if (/from public\.campaign_invites/.test(t)) return { rows: [{ total: 1, live: 1 }], rowCount: 1 }
-      if (/insert into/.test(t)) return { rows: [], rowCount: 1 }
+      if (/insert into/.test(t)) {
+        const table = /insert into public\."?(\w+)/.exec(t)?.[1]
+        return { rows: [], rowCount: rowCounts[table] ?? 1 }
+      }
       return { rows: [], rowCount: 0 }
     },
   }
@@ -175,7 +211,7 @@ describe('runSync (scripted client)', () => {
     expect(texts(c)).not.toContain('commit')
     expect(texts(c).some((t) => /insert into public\."player_notes"/.test(t))).toBe(true)
     expect(res.db.perPj[1].playerNotes.planned).toBe(1)
-    expect(res.db.unclaimed).toEqual([{ pjId: 2, nombre: 'Borin', jugador: 'Beto', invite: 'live' }])
+    expect(res.db.unclaimed).toEqual([{ pjId: 2, nombre: 'Borin', jugador: 'Beto', hubOnly: false, invite: 'live' }])
   })
 
   it('apply commits', async () => {
@@ -210,5 +246,45 @@ describe('runSync (scripted client)', () => {
     for (const leak of [SENTINEL, OWNER_1, 'Borin', 'Beto']) expect(summary).not.toContain(leak)
     const report = JSON.stringify(buildSyncReport({ importReport: { ok: true }, args: { apply: false }, target: { remote: false, host: '127.0.0.1' }, result: res }))
     for (const leak of [SENTINEL, OWNER_1]) expect(report).not.toContain(leak)
+  })
+
+  it('accounting per character: alreadyPresent = planned - inserted, for notes and availability (R3-003)', async () => {
+    const out = output()
+    out.deferred.byPj[1].playerNotes = [{ entity_type: 'lugares', entity_id: 1, text: 'a' }, { entity_type: 'pnjs', entity_id: 1, text: 'b' }, { entity_type: 'lore', entity_id: 1, text: 'c' }]
+    out.deferred.byPj[1].availability = [
+      { tipo: 'personal', fecha_inicio: '2026-02-03', fecha_fin: '2026-02-04' },
+      { tipo: 'no_disponible', fecha: '2026-02-05' },
+    ]
+    const res = await runSync(fakeClient({ rowCounts: { player_notes: 1, player_availability: 0 } }), { output: out, slug: 'camp', apply: false })
+    const pj = res.db.perPj[1]
+    expect(pj.playerNotes).toEqual({ planned: 3, written: 1, alreadyPresent: 2 })
+    expect(pj.availability).toEqual({ planned: 2, written: 0, alreadyPresent: 2 })
+    expect(res.db.totals).toMatchObject({ player_notes: 1, player_availability: 0 })
+  })
+
+  it('unclaimed list comes from the plan; a character the export never had is flagged hubOnly and not reported as skipped data (R2-001)', async () => {
+    const out = output()
+    out.tables.pjs = [{ id: 1 }] // character 2 exists only in the hub
+    const res = await runSync(fakeClient(), { output: out, slug: 'camp', apply: false })
+    expect(res.db.unclaimed).toEqual([{ pjId: 2, nombre: 'Borin', jugador: 'Beto', hubOnly: true, invite: 'live' }])
+    expect(formatSyncSummary(res.db, false).join('\n')).not.toContain('Still unclaimed')
+  })
+})
+
+describe('--redact-names (R1-001)', () => {
+  const base = ['--sync-claims', '--input', 'export.json', '--slug', 'mi-campana']
+  it('parses, defaults off, and is refused outside --sync-claims', () => {
+    expect(parseCliArgs(base).redactNames).toBe(false)
+    expect(parseCliArgs([...base, '--redact-names']).redactNames).toBe(true)
+    expect(() => parseCliArgs(['--input', 'f.json', '--dm-email', 'a@b.test', '--app-origin', 'https://x.test', '--redact-names'])).toThrow(/only applies to --sync-claims/)
+  })
+
+  it('the report file lists names by default and omits jugador/nombre when redacted', async () => {
+    const res = await runSync(fakeClient(), { output: output(), slug: 'camp', apply: false })
+    const make = (redactNames) => JSON.stringify(buildSyncReport({ importReport: { ok: true }, args: { apply: false, redactNames }, target: { remote: false, host: '127.0.0.1' }, result: res }))
+    expect(make(false)).toContain('Borin')
+    const redacted = make(true)
+    for (const name of ['Borin', 'Beto', 'nombre', 'jugador']) expect(redacted).not.toContain(name)
+    expect(JSON.parse(redacted).sync.unclaimed).toEqual([{ pjId: 2, hubOnly: false, invite: 'live' }])
   })
 })

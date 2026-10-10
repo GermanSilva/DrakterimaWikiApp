@@ -148,3 +148,6 @@ export function formatReport(report) {
   }
   return out.join('\n')
 }
+
+/** First console line of a finished run, shared by the import and --sync-claims (the integration tests match this wording). */
+export const completionBanner = (apply) => (apply ? 'Committed.' : 'Dry run complete: everything was rolled back, the database is unchanged.')

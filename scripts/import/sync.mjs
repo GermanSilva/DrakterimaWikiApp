@@ -11,6 +11,7 @@
 // Like the import it runs in ONE transaction, COMMIT only with `apply`, otherwise ROLLBACK (dry run). Logging
 // returns counts and ids only: never note text, names of players in the console, codes or credentials.
 import { ImportAbort, IMPORT_MARKER, commitOrRollback } from './load.mjs'
+import { completionBanner } from './report.mjs'
 import { NOTE_ENTITY_TYPES } from './schema.mjs'
 import { buildAvailabilityInsertMissing, buildReadStateUpsert, buildUpsert, quoteIdent } from './sql.mjs'
 
@@ -44,6 +45,26 @@ function splitByExistence(rows, existing) {
   return { kept, dangling }
 }
 
+/**
+ * One row per (entity_type, entity_id, section), keeping the NEWEST seen_at (the first one on a tie). Required by
+ * the read_state upsert: ON CONFLICT DO UPDATE cannot touch the same row twice in one statement ("cannot affect
+ * row a second time"), which would roll back the whole sync. The legacy transform already deduplicates, so this is
+ * a guard for any other producer of deferred. Rows must already carry the normalised section.
+ */
+export function dedupeReadState(rows) {
+  const ts = (r) => {
+    const t = new Date(r.seen_at).getTime()
+    return Number.isNaN(t) ? -Infinity : t
+  }
+  const latest = new Map()
+  for (const r of rows) {
+    const key = JSON.stringify([r.entity_type, r.entity_id, r.section])
+    const prev = latest.get(key)
+    if (!prev || ts(r) > ts(prev)) latest.set(key, r)
+  }
+  return [...latest.values()]
+}
+
 const availabilityKey = (r) => [r.tipo, r.fecha, r.fecha_inicio, r.fecha_fin, r.hora_inicio, r.hora_fin].map((v) => v ?? '').join('|')
 
 /**
@@ -72,7 +93,7 @@ export function planSync({ deferred, pjs, existing, campaignId, dmUserId }) {
       detached.push(pjId)
       continue
     }
-    const bundle = deferred.byPj?.[pjId] ?? deferred.byPj?.[String(pjId)] ?? { playerNotes: [], readState: [], availability: [] }
+    const bundle = deferred.byPj?.[pjId] ?? { playerNotes: [], readState: [], availability: [] }
     const userId = pj.owner_id
 
     const notes = splitByExistence(
@@ -113,7 +134,7 @@ export function planSync({ deferred, pjs, existing, campaignId, dmUserId }) {
         text: n.text,
         ...stamps(n),
       })),
-      readState: reads.kept.map((r) => ({ user_id: userId, campaign_id: campaignId, entity_type: r.entity_type, entity_id: r.entity_id, section: r.section ?? '', seen_at: r.seen_at })),
+      readState: dedupeReadState(reads.kept.map((r) => ({ user_id: userId, campaign_id: campaignId, entity_type: r.entity_type, entity_id: r.entity_id, section: r.section ?? '', seen_at: r.seen_at }))),
       availability,
       skipped: { dangling_notes: notes.dangling, dangling_read_state: reads.dangling },
     })
@@ -122,7 +143,7 @@ export function planSync({ deferred, pjs, existing, campaignId, dmUserId }) {
   const dmReads = splitByExistence(deferred.dm?.readState ?? [], existing)
   const dm = {
     userId: dmUserId,
-    readState: dmReads.kept.map((r) => ({ user_id: dmUserId, campaign_id: campaignId, entity_type: r.entity_type, entity_id: r.entity_id, section: r.section ?? '', seen_at: r.seen_at })),
+    readState: dedupeReadState(dmReads.kept.map((r) => ({ user_id: dmUserId, campaign_id: campaignId, entity_type: r.entity_type, entity_id: r.entity_id, section: r.section ?? '', seen_at: r.seen_at }))),
     skipped: { dangling_read_state: dmReads.dangling },
   }
 
@@ -149,7 +170,7 @@ async function runStatements(client, statements) {
   return n
 }
 
-/** Never throws for "live" lookups: a character without any invite simply reports `none`. */
+/** Counts only. A character without any invite reports `none`; a failing query propagates and rolls the transaction back. */
 async function inviteStatus(client, campaignId, pjId) {
   const r = await one(
     client,
@@ -212,10 +233,13 @@ export async function runSync(client, { output, slug, apply }) {
     const dmWritten = await runStatements(client, buildReadStateUpsert(plan.dm.readState))
     totals.read_state += dmWritten
 
-    const exportPjs = new Map((output.tables.pjs ?? []).map((p) => [Number(p.id), p]))
+    // single source: plan.unclaimedPjIds. A character the export never had (created in the hub) has nothing to sync: hubOnly
+    const inExport = new Set((output.tables.pjs ?? []).map((p) => Number(p.id)))
+    const pjById = new Map(pjs.map((p) => [p.id, p]))
     const unclaimed = []
-    for (const pj of pjs.filter((p) => !p.owner_id && exportPjs.has(p.id))) {
-      unclaimed.push({ pjId: pj.id, nombre: pj.nombre ?? '', jugador: pj.jugador ?? '', invite: await inviteStatus(client, campaignId, pj.id) })
+    for (const pjId of plan.unclaimedPjIds) {
+      const pj = pjById.get(pjId)
+      unclaimed.push({ pjId, nombre: pj?.nombre ?? '', jugador: pj?.jugador ?? '', hubOnly: !inExport.has(pjId), invite: await inviteStatus(client, campaignId, pjId) })
     }
 
     const committed = await commitOrRollback(client, apply)
@@ -242,13 +266,13 @@ export function buildSyncReport({ importReport, args, target, result }) {
   return {
     ...importReport,
     run: { mode: args.apply ? 'apply' : 'dry-run', syncClaims: true, committed: result.committed, target: { remote: target.remote, host: target.host } },
-    sync: result.db,
+    sync: args.redactNames ? { ...result.db, unclaimed: result.db.unclaimed.map(({ nombre, jugador, ...rest }) => rest) } : result.db,
   }
 }
 
 /** Console summary: per-character counts and ids only (names stay in the report file). */
 export function formatSyncSummary(db, apply) {
-  const lines = [apply ? 'Committed.' : 'Dry run complete: everything was rolled back, the database is unchanged.']
+  const lines = [completionBanner(apply)]
   for (const [pjId, c] of Object.entries(db.perPj)) {
     const skipped = c.skipped.dangling_notes + c.skipped.dangling_read_state
     lines.push(
@@ -258,8 +282,9 @@ export function formatSyncSummary(db, apply) {
   }
   lines.push(`DM read_state ${db.dm.readState.written}/${db.dm.readState.planned}${db.dm.skipped.dangling_read_state > 0 ? `, skipped (entity gone) ${db.dm.skipped.dangling_read_state}` : ''}`)
   lines.push(`Totals: player_notes=${db.totals.player_notes} read_state=${db.totals.read_state} player_availability=${db.totals.player_availability}${apply ? '' : ' (not persisted)'}`)
-  if (db.unclaimed.length > 0) {
-    lines.push(`Still unclaimed (skipped): ${db.unclaimed.map((u) => `PJ ${u.pjId} (invite ${u.invite})`).join(', ')}`)
+  const pending = db.unclaimed.filter((u) => !u.hubOnly) // hub-only characters have no legacy data to skip
+  if (pending.length > 0) {
+    lines.push(`Still unclaimed (skipped): ${pending.map((u) => `PJ ${u.pjId} (invite ${u.invite})`).join(', ')}`)
   }
   if (db.detachedPjIds.length > 0) lines.push(`Skipped, owner is no longer a member: PJ ${db.detachedPjIds.join(', ')}`)
   if (db.missingPjIds.length > 0) lines.push(`Skipped, character no longer in the hub: PJ ${db.missingPjIds.join(', ')}`)
