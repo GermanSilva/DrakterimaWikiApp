@@ -6,6 +6,7 @@ import { parseArgs } from 'node:util'
 export class UsageError extends Error {}
 
 export const USAGE = `Usage: npm run db:import -- --input <export.json> --dm-email <email> --app-origin <url> [options]
+       npm run db:import -- --sync-claims --input <export.json> --slug <slug> [--lenient] [--apply]
 
   --input <file>        legacy JSON export (required)
   --dm-email <email>    e-mail of the DM auth user (created without a password when missing)
@@ -17,6 +18,10 @@ export const USAGE = `Usage: npm run db:import -- --input <export.json> --dm-ema
   --allow-partial       accept an export with missing collections
   --invite-days <n>     claim invite lifetime in days, 1-365 (default: 90)
   --force-overwrite     re-import into a campaign that already has hub activity
+  --sync-claims         second step, after the players accepted their invites: copy the legacy notes, read state and
+                        personal availability of the CLAIMED characters to their owners (and the DM's read state).
+                        Insert-missing only (never overwrites hub edits), idempotent, dry run by default. Needs
+                        --input and --slug; --dm-email, --app-origin, --name, --invite-days and --force-overwrite do not apply.
   --remote --confirm-host <host>
                         hosted target; also needs env IMPORT_ALLOW_REMOTE=<host>, SUPABASE_URL,
                         SUPABASE_SERVICE_ROLE_KEY and SUPABASE_DB_URL. Local by default.
@@ -44,6 +49,7 @@ const OPTIONS = {
   'allow-partial': { type: 'boolean' },
   'invite-days': { type: 'string' },
   'force-overwrite': { type: 'boolean' },
+  'sync-claims': { type: 'boolean' },
   remote: { type: 'boolean' },
   'confirm-host': { type: 'string' },
   help: { type: 'boolean' },
@@ -71,8 +77,8 @@ export function normaliseOrigin(value) {
 
 /**
  * @param {string[]} argv arguments after the script name
- * @returns {{ help: true } | { help: false, input: string, dmEmail: string, slug: string, name: string|null, appOrigin: string,
- *   apply: boolean, mode: 'strict'|'lenient', allowPartial: boolean, inviteDays: number, forceOverwrite: boolean,
+ * @returns {{ help: true } | { help: false, input: string, dmEmail: string|null, slug: string, name: string|null, appOrigin: string|null,
+ *   apply: boolean, mode: 'strict'|'lenient', allowPartial: boolean, inviteDays: number, forceOverwrite: boolean, syncClaims: boolean,
  *   remote: boolean, confirmHost: string|null }}
  */
 export function parseCliArgs(argv) {
@@ -90,10 +96,21 @@ export function parseCliArgs(argv) {
     if (typeof v !== 'string' || v.trim() === '') throw new UsageError(`${flag} is required`)
     return v.trim()
   }
+  const syncClaims = values['sync-claims'] === true
   const input = need('input', '--input')
-  const dmEmail = need('dm-email', '--dm-email').toLowerCase()
-  if (!EMAIL_PATTERN.test(dmEmail)) throw new UsageError('--dm-email is not a valid e-mail address')
-  const appOrigin = normaliseOrigin(need('app-origin', '--app-origin'))
+  let dmEmail = null
+  let appOrigin = null
+  if (syncClaims) {
+    // the DM is the campaign's creator and no invite is created: these options would be silently ignored, so refuse them
+    for (const key of ['dm-email', 'app-origin', 'name', 'invite-days', 'force-overwrite']) {
+      if (values[key] !== undefined) throw new UsageError(`--${key} does not apply to --sync-claims`)
+    }
+    need('slug', '--slug')
+  } else {
+    dmEmail = need('dm-email', '--dm-email').toLowerCase()
+    if (!EMAIL_PATTERN.test(dmEmail)) throw new UsageError('--dm-email is not a valid e-mail address')
+    appOrigin = normaliseOrigin(need('app-origin', '--app-origin'))
+  }
 
   const slug = (values.slug ?? 'drakterima').trim()
   if (!SLUG_PATTERN.test(slug) || slug.length < 3 || slug.length > 40) {
@@ -128,6 +145,7 @@ export function parseCliArgs(argv) {
     allowPartial: values['allow-partial'] === true,
     inviteDays,
     forceOverwrite: values['force-overwrite'] === true,
+    syncClaims,
     remote,
     confirmHost,
   }

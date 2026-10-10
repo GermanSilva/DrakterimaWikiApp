@@ -11,6 +11,7 @@ import { GuardError, readLocalStatus, redact, resolveTarget } from './guard.mjs'
 import { buildImport, formatReport } from './index.mjs'
 import { LegacyFormatError } from './legacy.mjs'
 import { ImportAbort, describeDbError, findUserIdByEmail, readCounts, runImport } from './load.mjs'
+import { buildSyncReport, formatSyncSummary, runSync } from './sync.mjs'
 
 /** Repo root from this file's location (falls back to the cwd where import.meta.url is not a file: URL, e.g. jsdom tests). */
 function repoRootDir() {
@@ -111,6 +112,16 @@ export async function main(argv, env, io = {}) {
 
     client = (io.createClient ?? ((t) => new pg.Client({ connectionString: t.dbUrl })))(target)
     await client.connect()
+
+    if (args.syncClaims) {
+      const result = await runSync(client, { output, slug: args.slug, apply: args.apply })
+      committed = result.committed
+      const syncPath = join(dir, `sync-report-${args.slug}-${date}.json`)
+      writeOutput(syncPath, `${JSON.stringify(buildSyncReport({ importReport: built.report, args, target, result }), null, 2)}\n`, 'sync-report')
+      for (const line of formatSyncSummary(result.db, args.apply)) out(line)
+      out(`Report: ${syncPath}`)
+      return 0
+    }
 
     let dmUserId = await findUserIdByEmail(client, args.dmEmail)
     // 'existing' | 'created' (this apply made it, outside the transaction) | 'would-create' (dry run, stand-in rolled back)

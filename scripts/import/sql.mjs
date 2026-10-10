@@ -214,3 +214,94 @@ export const COUNT_TABLES = [
 export function countQuery(table, campaignId) {
   return { text: `select count(*)::int as n from public.${quoteIdent(table)} where campaign_id = $1::uuid`, values: [campaignId] }
 }
+
+/**
+ * read_state upsert for the post-claim sync: inserts missing rows and only moves an existing row FORWARD
+ * (`seen_at` newer than what the hub already has), so a re-run never rewinds what a user has read since.
+ * Rows must not repeat a key within one call (a single statement cannot touch a row twice).
+ */
+const READ_STATE_COLUMNS = [
+  ['user_id', 'uuid'],
+  ['campaign_id', 'uuid'],
+  ['entity_type', 'text'],
+  ['entity_id', 'bigint'],
+  ['section', 'text'],
+  ['seen_at', 'timestamptz'],
+]
+
+export function buildReadStateUpsert(rows) {
+  if (rows.length === 0) return []
+  const perChunk = Math.floor(MAX_PARAMS / READ_STATE_COLUMNS.length)
+  const names = READ_STATE_COLUMNS.map(([c]) => quoteIdent(c)).join(', ')
+  const statements = []
+  for (let start = 0; start < rows.length; start += perChunk) {
+    const chunk = rows.slice(start, start + perChunk)
+    const values = []
+    const tuples = chunk.map((row) => {
+      const cells = READ_STATE_COLUMNS.map(([column, cast]) => {
+        values.push(row[column] ?? null)
+        return `$${values.length}::${cast}`
+      })
+      return `(${cells.join(', ')})`
+    })
+    statements.push({
+      text:
+        `insert into public.read_state (${names}) values ${tuples.join(', ')} ` +
+        `on conflict (user_id, campaign_id, entity_type, entity_id, section) do update set seen_at = excluded.seen_at ` +
+        `where public.read_state.seen_at < excluded.seen_at`,
+      values,
+      rowCount: chunk.length,
+    })
+  }
+  return statements
+}
+
+/** player_availability has an identity id and no natural key: the unit of "already there" is every data column. */
+const AVAILABILITY_COLUMNS = [
+  ['user_id', 'uuid'],
+  ['campaign_id', 'uuid'],
+  ['tipo', 'text'],
+  ['fecha', 'date'],
+  ['fecha_inicio', 'date'],
+  ['fecha_fin', 'date'],
+  ['hora_inicio', 'time'],
+  ['hora_fin', 'time'],
+  ['created_at', 'timestamptz'],
+  ['updated_at', 'timestamptz'],
+]
+const AVAILABILITY_KEY_COLUMNS = AVAILABILITY_COLUMNS.filter(([c]) => c !== 'created_at' && c !== 'updated_at')
+
+/**
+ * Inserts availability rows that are not already there (same user, campaign, kind and window; NULL-safe). Never
+ * updates: whatever the user changed in the hub since the first sync stays. Rows must be distinct within one call.
+ */
+export function buildAvailabilityInsertMissing(rows) {
+  if (rows.length === 0) return []
+  const perChunk = Math.floor(MAX_PARAMS / AVAILABILITY_COLUMNS.length)
+  const names = AVAILABILITY_COLUMNS.map(([c]) => c).join(', ')
+  const statements = []
+  for (let start = 0; start < rows.length; start += perChunk) {
+    const chunk = rows.slice(start, start + perChunk)
+    const values = []
+    const tuples = chunk.map((row) => {
+      const cells = AVAILABILITY_COLUMNS.map(([column, cast]) => {
+        values.push(row[column] ?? null)
+        return `$${values.length}::${cast}`
+      })
+      return `(${cells.join(', ')})`
+    })
+    statements.push({
+      text:
+        `insert into public.player_availability (${names}) ` +
+        `select v.user_id, v.campaign_id, v.tipo, v.fecha, v.fecha_inicio, v.fecha_fin, v.hora_inicio, v.hora_fin, ` +
+        `coalesce(v.created_at, now()), coalesce(v.updated_at, v.created_at, now()) ` +
+        `from (values ${tuples.join(', ')}) as v(${names}) ` +
+        `where not exists (select 1 from public.player_availability a where ` +
+        AVAILABILITY_KEY_COLUMNS.map(([c]) => `a.${c} is not distinct from v.${c}`).join(' and ') +
+        `) returning id`,
+      values,
+      rowCount: chunk.length,
+    })
+  }
+  return statements
+}
