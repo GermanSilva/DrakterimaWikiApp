@@ -19,6 +19,9 @@ async function submit(name: RegExp) {
   })
 }
 
+// H15: only hub owners get the direct create form; everybody else requests a campaign (see campaignRequests.test.tsx)
+const ownerData = (over: Parameters<typeof makeData>[0] = {}) => makeData({ isHubOwner: vi.fn(async () => true), ...over })
+
 describe('hub home', () => {
   it('lists my campaigns with role badges, logo only when https', async () => {
     const data = makeData({
@@ -70,9 +73,9 @@ describe('campaign deleted notice', () => {
 
 describe('create campaign', () => {
   it('suggests the slug from the name, creates and navigates to /c/:slug', async () => {
-    const data = makeData()
+    const data = ownerData()
     const { router } = renderApp('/', { data })
-    await screen.findByRole('heading', { name: 'Mis campañas' })
+    await screen.findByRole('heading', { name: 'Crear campaña' })
     await fill(/^Nombre$/, 'La Corona Rota')
     expect(screen.getByLabelText('Dirección')).toHaveValue('la-corona-rota')
     await submit(/^Crear campaña$/)
@@ -81,8 +84,8 @@ describe('create campaign', () => {
   })
 
   it('stops following the name once the slug was edited by hand', async () => {
-    renderApp('/')
-    await screen.findByRole('heading', { name: 'Mis campañas' })
+    renderApp('/', { data: ownerData() })
+    await screen.findByRole('heading', { name: 'Crear campaña' })
     await fill(/^Nombre$/, 'Uno')
     await fill(/Dirección/, 'mi-slug')
     await fill(/^Nombre$/, 'Dos')
@@ -90,9 +93,9 @@ describe('create campaign', () => {
   })
 
   it('validates client-side without calling the backend', async () => {
-    const data = makeData()
+    const data = ownerData()
     renderApp('/', { data })
-    await screen.findByRole('heading', { name: 'Mis campañas' })
+    await screen.findByRole('heading', { name: 'Crear campaña' })
     await fill(/^Nombre$/, 'Demo')
     await fill(/Dirección/, 'Bad Slug')
     await submit(/^Crear campaña$/)
@@ -110,8 +113,8 @@ describe('create campaign', () => {
     ['unexpected', new Error('boom'), /No pudimos crear la campaña/],
   ])('maps %s to a Spanish message and allows retrying', async (_name, error, message) => {
     const create = vi.fn().mockRejectedValueOnce(error).mockResolvedValue(makeCampaign({ slug: 'demo' }))
-    const { router } = renderApp('/', { data: makeData({ createCampaign: create }) })
-    await screen.findByRole('heading', { name: 'Mis campañas' })
+    const { router } = renderApp('/', { data: ownerData({ createCampaign: create }) })
+    await screen.findByRole('heading', { name: 'Crear campaña' })
     await fill(/^Nombre$/, 'Demo')
     await submit(/^Crear campaña$/)
     expect(await screen.findByText(message, { selector: '[role=alert]' })).toBeInTheDocument()
@@ -124,8 +127,8 @@ describe('create campaign', () => {
   it('creates exactly once on a double submit, also under StrictMode', async () => {
     const pending = deferred<ReturnType<typeof makeCampaign>>()
     const create = vi.fn(() => pending.promise)
-    renderApp('/', { data: makeData({ createCampaign: create }), wrapper: (tree) => <StrictMode>{tree}</StrictMode> })
-    await screen.findByRole('heading', { name: 'Mis campañas' })
+    renderApp('/', { data: ownerData({ createCampaign: create }), wrapper: (tree) => <StrictMode>{tree}</StrictMode> })
+    await screen.findByRole('heading', { name: 'Crear campaña' })
     await fill(/^Nombre$/, 'Demo')
     const button = screen.getByRole('button', { name: /^Crear campaña$/ })
     await act(async () => {

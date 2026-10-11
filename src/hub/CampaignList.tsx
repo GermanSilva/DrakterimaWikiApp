@@ -5,9 +5,9 @@ import { ROLE_LABEL } from './roles'
 import DragonIcon from '../svgs/dragonIcon'
 
 /** Presentational list of the user's campaigns. */
-export function CampaignList({ campaigns }: { campaigns: CampaignWithRole[] }) {
+export function CampaignList({ campaigns, canCreate = false }: { campaigns: CampaignWithRole[]; canCreate?: boolean }) {
   if (campaigns.length === 0) {
-    return <p className="text-sm text-txt-secondary">Todavía no sos parte de ninguna campaña. Creá una o unite con un código.</p>
+    return <p className="text-sm text-txt-secondary">Todavía no sos parte de ninguna campaña. {canCreate ? 'Creá una' : 'Solicitá una'} o unite con un código.</p>
   }
   return (
     <ul className="grid gap-3 sm:grid-cols-2">

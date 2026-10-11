@@ -40,7 +40,7 @@ Resolverlas **antes** de crear los proyectos. Cada una indica la recomendación.
 | D3 | Un proyecto Supabase o dos (producción + staging) | Dos: staging (Free) sirve para ensayar migraciones, Realtime y el import completo, y para los deploys de preview de Vercel. | (b), (e) |
 | D4 | SMTP propio | **Obligatorio en la práctica**: el correo por defecto de Supabase es solo para pruebas y limita mucho el volumen y los destinatarios. Sin SMTP propio los jugadores no reciben el magic link. Verificar las condiciones vigentes en la doc de Supabase. | (d) |
 | D5 | Captcha | **Cloudflare Turnstile (plan gratis), decidido.** La app ya lo soporta: se activa definiendo `VITE_TURNSTILE_SITE_KEY` en Vercel y la clave secreta en Supabase (pasos en d.5). Sin esa variable la app funciona como antes (sin widget ni token). | (d), (e) |
-| D6 | Registro abierto o cerrado | Hoy cualquiera con un email puede crear cuenta y hasta 20 campañas (tope de `create_campaign`). Opciones en (d). Recomendado para un grupo cerrado: registro abierto + SMTP propio + límites, y reevaluar si aparece abuso. | (d) |
+| D6 | Registro abierto o cerrado | Cualquiera con un email puede crear cuenta, pero **ya no puede crear campañas**: solo puede *solicitarlas* y el Hub Owner las aprueba (H15, ver d.6). Opciones en (d). Recomendado para un grupo cerrado: registro abierto + SMTP propio + límites, y reevaluar si aparece abuso. | (d) |
 | D7 | Google login | Opcional. Si no se configura, poner `VITE_AUTH_GOOGLE_ENABLED=false` en Vercel. | (d), (e) |
 | D8 | Dominio | `*.vercel.app` o dominio propio. Cambiarlo después obliga a retocar Site URL, redirect URLs, Google y el origen de los links de invitación. | (d), (e) |
 | D9 | ¿Staging separado para previews de Vercel? | Sí (D3). Si no, las previews usan la base de **producción**. | (e) |
@@ -173,8 +173,8 @@ supabase link --project-ref <ref>
 
 ### c.2 Migraciones
 
-Las migraciones están en `supabase/migrations/` (13 archivos, de `20261006120000_campaign_hub_core.sql` a
-`20261011140000_delete_campaign_lock_order.sql`). Ver qué se aplicaría, sin tocar nada:
+Las migraciones están en `supabase/migrations/` (14 archivos, de `20261006120000_campaign_hub_core.sql` a
+`20261012120000_hub_owner_requests.sql`). Ver qué se aplicaría, sin tocar nada:
 
 ```powershell
 supabase db push --dry-run
@@ -186,7 +186,7 @@ Aplicar (el resumen debe listar las 13, en orden):
 supabase db push
 ```
 
-Confirmar que local y remoto coinciden (13 filas con ambas columnas llenas):
+Confirmar que local y remoto coinciden (14 filas con ambas columnas llenas):
 
 ```powershell
 supabase migration list
@@ -202,7 +202,7 @@ supabase migration list
 ### c.3 Smoke checks SQL (equivalentes a pgTAP, solo lectura)
 
 **[OWNER]** Dashboard > *SQL Editor* > pegar y ejecutar. Los resultados esperados se obtuvieron ejecutando las mismas consultas
-contra la base local con las 13 migraciones (con la salvedad de usuarios: la local tiene los 4 del seed, la alojada debe tener 0).
+contra la base local con las 14 migraciones (con la salvedad de usuarios: la local tiene los 4 del seed, la alojada debe tener 0).
 
 **1. Tablas publicadas en Realtime.** Esperado: exactamente estas **14** filas:
 `campaign_config, disponibilidad, facciones, game_pot, homebrew_rules, items, lore, lugares, map_points, mapas, pjs,
@@ -229,7 +229,7 @@ where n.nspname = 'public' and a.attname = 'visible_to' and not a.attisdropped a
 order by 1;
 ```
 
-**3. RLS activo en todas las tablas.** Esperado: `rls_on = 23`, `rls_off = 0`.
+**3. RLS activo en todas las tablas.** Esperado: `rls_on = 25`, `rls_off = 0`.
 
 ```sql
 select count(*) filter (where relrowsecurity) as rls_on,
@@ -270,7 +270,7 @@ where n.nspname = 'public' and p.prosecdef
 select (select count(*) from auth.users) as users, (select count(*) from public.campaigns) as campaigns;
 ```
 
-**8. Migraciones registradas.** Esperado: `13`.
+**8. Migraciones registradas.** Esperado: `14`.
 
 ```sql
 select count(*) as migrations from supabase_migrations.schema_migrations;
@@ -388,13 +388,35 @@ proveedor. La mitigación complementaria sigue siendo SMTP propio + límites de 
 
 ### d.6 Registro abierto, cerrado o por invitación (D6)
 
-Estado actual: `shouldCreateUser: true`, registro abierto. Una persona con cualquier email puede crear cuenta y, desde
-la app, crear hasta 20 campañas (tope en `create_campaign`). No ve datos de campañas ajenas (RLS), pero consume
-almacenamiento y envía correos desde tu SMTP.
+Estado actual: `shouldCreateUser: true`, registro abierto. Una persona con cualquier email puede crear cuenta, pero no
+puede crear campañas (solo el Hub Owner, ver más abajo): puede *solicitar* hasta 3 campañas pendientes a la vez y unirse
+a campañas existentes con un código de invitación. No ve datos de campañas ajenas (RLS), pero ocupa una fila de perfil
+y envía correos de acceso desde tu SMTP.
+
+#### Hub Owner: paso obligatorio ANTES de abrir el registro (H15)
+
+El **Hub Owner** (vos) es el único que crea campañas directamente (queda como su DM) y el que aprueba o rechaza las
+solicitudes (la campaña se crea con el *solicitante* como DM). No se envían correos: cada persona ve el estado en la
+app («Mis solicitudes»). La lista de owners (`public.hub_owners`) **no se puede escribir desde la API**: se asigna una
+sola vez, a mano, en *SQL Editor* de Supabase (rol `postgres`):
+
+```sql
+-- 1. Iniciá sesión en la app UNA vez con tu email (esto crea tu usuario y tu perfil).
+-- 2. Ejecutá, con tu email real:
+insert into public.hub_owners (user_id)
+select id from auth.users where email = '<tu email>';
+-- 3. Verificá (debe devolver 1 fila):
+select u.email, h.created_at from public.hub_owners h join auth.users u on u.id = h.user_id;
+```
+
+Para quitar el privilegio: `delete from public.hub_owners where user_id = (select id from auth.users where email = '<email>');`.
+Sin al menos un owner nadie puede crear campañas (el import usa la API de admin y no depende de esto). Si el email de
+`--dm-email` del import es el tuyo, hacelo antes o después del import: es independiente. Los usuarios de `supabase/seed.sql`
+(solo desarrollo local) incluyen a `dm@example.test` como owner.
 
 | Opción | Cómo | Costo |
 |--------|------|-------|
-| A. Abierto (por defecto) | no tocar nada; límites de d.4 | exposición a abuso de cuentas/campañas |
+| A. Abierto (por defecto) | no tocar nada; límites de d.4 | exposición a abuso de cuentas (las campañas ya requieren aprobación) |
 | B. Cerrado | *Authentication > Sign In / Providers* > desactivar *Allow new users to sign up* | los jugadores deben existir antes: hay que invitarlos uno a uno desde *Authentication > Users > Invite user* **antes** de que usen el link de campaña. Rompe el flujo "mando un link y listo" |
 | C. Gate por invitación real | *hook* `before user created` (Auth Hook) que compruebe un código | requiere código nuevo y despliegue de una función; **no implementado** |
 
@@ -630,9 +652,9 @@ hasta la fase de retiro. `.github/workflows/deploy.yml` no se modifica antes.
 | # | Fase | Quién | Gate |
 |---|------|-------|------|
 | 0 | Decisiones D1..D13 resueltas; suite local en verde (a) | OWNER | **GO 0** |
-| 1 | Crear Supabase (b), link y `db push` (c.1, c.2) | OWNER | **GO 1**: 13 migraciones aplicadas |
+| 1 | Crear Supabase (b), link y `db push` (c.1, c.2) | OWNER | **GO 1**: 14 migraciones aplicadas |
 | 2 | Smoke checks SQL (c.3) y chequeo Realtime (c.4) | OWNER | **GO 2**: todo PASA |
-| 3 | Auth: URL config, SMTP, límites, (Google) (d) | OWNER | **GO 3**: magic link llega a un correo ajeno |
+| 3 | Auth: URL config, SMTP, límites, (Google) (d); **asignarte como Hub Owner (d.6)** antes de abrir el registro | OWNER | **GO 3**: magic link llega a un correo ajeno; `select ... from hub_owners` devuelve tu email |
 | 4 | Vercel: proyecto, variables, dominio, previews protegidas (e) | OWNER | **GO 4**: `/login` y un deep link cargan; sin "Falta configurar Supabase" |
 | 5 | CSP en Report-Only en una preview (e.3), opcional | OWNER | informativo |
 | 6 | Ensayo en staging con export real (f), opcional | OWNER | **GO 6**: conteos coherentes |
@@ -724,7 +746,7 @@ Conocidos y aceptados al momento de escribir esto; no se ocultan.
 | Carrera de secuencias en el import | `setval` sin bloqueo: solo seguro en **ventana de calma** (legacy congelado, sin escritores en el hub). Hay que respetarlo. |
 | El host del logo ve la IP de quien abre la campaña | El logo (y avatares) son URLs https externas puestas por el DM; los navegadores de todos los miembros las piden. Se mantiene `referrerPolicy="no-referrer"`. |
 | Borrado de campaña permanente | `delete_campaign` no tiene papelera ni auditoría; otras pestañas abiertas ven errores de carga. |
-| Registro abierto, tope 20 campañas por usuario | Ver (d.6). |
+| Registro abierto; las campañas requieren aprobación del Hub Owner (tope de 3 solicitudes pendientes por usuario) | Ver (d.6). |
 | Google OAuth no pasa por el captcha (el captcha de Supabase cubre el magic link, no `signInWithOAuth`) | Ver (d.5), D6 y límites de frecuencia. |
 | Enlaces de magic link ligados al navegador (PKCE) y consumibles por filtros de correo | Avisar a los jugadores; pedir otro enlace. |
 | Sin CSP | Propuesta en e.3. |

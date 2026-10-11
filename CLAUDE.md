@@ -64,7 +64,7 @@ con un rol por campaña (DM o jugador). Documento de seguimiento de la migració
 | Ruta | Pantalla |
 | --- | --- |
 | `/login`, `/auth/callback` | login (magic link / Google) y fin del flujo PKCE |
-| `/` | `HubHome`: mis campañas, crear campaña, unirse con código |
+| `/` | `HubHome`: mis campañas; crear campaña (solo Hub Owner) o solicitarla; bandeja de solicitudes del owner; unirse con código |
 | `/invite/:code` | `InvitePage`: vista previa + confirmación explícita ("Unirme") |
 | `/profile` | perfil |
 | `/c/:slug` | `CampaignLayout` (carga campaña y rol, provee `CampaignContext`) + dashboard |
@@ -140,7 +140,7 @@ Para agregar una tabla de entidad: migración (con RLS, y concesión de columnas
 ### Base de datos (`supabase/`)
 
 Migraciones en `supabase/migrations/` (identidad, campañas, miembros, invitaciones, entidades, notas, lecturas, calendario,
-juegos, mapas, presencia, endurecimientos). 23 tablas, todas con RLS. RPC principales: `create_campaign`, `accept_invite`,
+juegos, mapas, presencia, endurecimientos). 25 tablas, todas con RLS. Modelo de privilegio de plataforma (H15): `hub_owners` (solo se escribe con service_role o SQL Editor; `is_hub_owner()`); `create_campaign` es solo para owners y las demás personas piden una campaña en `campaign_requests`, que el owner decide con `approve_campaign_request` (el SOLICITANTE queda como DM) o `reject_campaign_request`; la creación vive en `create_campaign_for` (no ejecutable por la API). RPC principales: `create_campaign`, `approve_campaign_request`, `reject_campaign_request`, `accept_invite`,
 `preview_invite`, `play_loteria`, `assign_pot_to_character`, `delete_campaign`, `get/set_entity_visibility`. Las funciones
 `SECURITY DEFINER` fijan `search_path` vacío. Realtime publica 14 tablas (sin `entity_dm_notes`). Visibilidad de entidades:
 `estado` (`publicado` | `secreto` | `borrador`) + `visible_to` (ids de PJ), resuelto en `can_see_entity()`.

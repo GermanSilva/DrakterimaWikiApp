@@ -1,6 +1,7 @@
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { btnPrimary, inputCls, labelCls } from '../constants'
-import { createCampaignErrorMessage, NAME_MAX, SLUG_MAX, suggestSlug, validateCampaignForm, type CampaignFormErrors } from './campaignSlug'
+import { createCampaignErrorMessage, NAME_MAX, SLUG_MAX, validateCampaignForm, type CampaignFormErrors } from './campaignSlug'
+import { useNameAndSlug } from './useNameAndSlug'
 
 export interface CreateCampaignFormProps {
   /** Resolves with the created campaign's slug; rejects with the data-layer error. */
@@ -12,20 +13,13 @@ export interface CreateCampaignFormProps {
 export function CreateCampaignForm({ onCreate, onCreated }: CreateCampaignFormProps) {
   const nameId = useId()
   const slugId = useId()
-  const [name, setName] = useState('')
-  const [slug, setSlug] = useState('')
   // Once the user edits the slug by hand it stops following the name.
-  const [slugTouched, setSlugTouched] = useState(false)
+  const { name, slug, changeName, changeSlug } = useNameAndSlug()
   const [errors, setErrors] = useState<CampaignFormErrors>({})
   const [failure, setFailure] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
   // Synchronous guard: two submits before React re-renders the disabled button must create one campaign.
   const inFlight = useRef(false)
-
-  function changeName(value: string) {
-    setName(value)
-    if (!slugTouched) setSlug(suggestSlug(value))
-  }
 
   async function submit(e: FormEvent) {
     e.preventDefault()
@@ -82,10 +76,7 @@ export function CreateCampaignForm({ onCreate, onCreated }: CreateCampaignFormPr
         maxLength={SLUG_MAX}
         autoCapitalize="none"
         spellCheck={false}
-        onChange={(e) => {
-          setSlugTouched(true)
-          setSlug(e.target.value)
-        }}
+        onChange={(e) => changeSlug(e.target.value)}
         aria-invalid={!!errors.slug}
         aria-describedby={errors.slug ? `${slugId}-err` : `${slugId}-hint`}
       />
