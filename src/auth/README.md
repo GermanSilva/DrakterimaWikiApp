@@ -3,9 +3,10 @@
 Additive (the Firebase app and its password modal are untouched). H6 mounts it in the router/shell.
 
 ```
-authConfig.ts          AUTH_CALLBACK_PATH, callbackUrl(), isGoogleEnabled()
-authErrors.ts          AuthFlowError (invalid_email | rate_limited | provider_disabled | network | unknown), normalizeEmail
-authActions.ts         requestMagicLink(client, email), startGoogleSignIn(client)   (pure, client injected)
+authConfig.ts          AUTH_CALLBACK_PATH, callbackUrl(), isGoogleEnabled(), turnstileSiteKey()
+authErrors.ts          AuthFlowError (invalid_email | rate_limited | provider_disabled | captcha_failed | network | unknown), normalizeEmail
+authActions.ts         requestMagicLink(client, email, captchaToken?), startGoogleSignIn(client)   (pure, client injected)
+turnstile/             turnstileLoader.ts (script loaded once, lazily), useTurnstile.ts (widget + token hook), fakeTurnstile.ts (tests)
 AuthProvider.tsx       <AuthProvider client? profiles?> + useAuth(): { status, session, user, profile, profileError, profileStatus,
                        signInWithEmail, signInWithGoogle, signOut, refreshProfile }
 completeAuthCallback.ts / AuthCallback.tsx   finish the sign-in at /auth/callback, then onDone('/')
@@ -45,6 +46,17 @@ at `/auth/callback`. The provider uses `getSupabase()` unless a client is passed
 - `/auth/callback` must be listed in `supabase/config.toml` `additional_redirect_urls` (localhost and 127.0.0.1
   are there) and, on a hosted project, in Authentication > URL Configuration for every deployed origin.
 - `VITE_AUTH_GOOGLE_ENABLED=false` hides the Google button (anything else shows it).
+- `VITE_TURNSTILE_SITE_KEY` (public) turns on the Cloudflare Turnstile captcha at login; unset or blank = no widget, no token
+  (local dev, tests). When set, `LoginPage` renders the widget (`useTurnstile`: explicit render, dark theme, `es`, appearance
+  `interaction-only`), keeps "Enviar link mágico" disabled until there is a token, sends it as `options.captchaToken` of
+  `signInWithOtp` and resets the widget after every attempt (tokens are single use). The script
+  (`https://challenges.cloudflare.com/turnstile/v0/api.js`, `async defer`, one tag) is injected only when the login page
+  mounts with a site key. If it cannot load, login stays blocked with a retry (it never silently skips the captcha). Token expiry
+  or widget errors show a Spanish message with "Reintentar". The token is never logged. Google OAuth takes no token.
+  The secret key lives only in Supabase (Authentication > Attack Protection); see `docs/hosting-and-cutover.md` d.5 and the
+  commented `[auth.captcha]` block in `supabase/config.toml` (local test keys).
+- Verified against the local GoTrue with captcha enabled: a magic-link request without token gets 400 `captcha_failed`, with
+  the Turnstile test token it gets 200 (so `signInWithOtp` IS covered by the captcha setting; OAuth is not).
 - Google OAuth (disabled locally): supabase-js only builds the authorize URL, so `startGoogleSignIn` asks for it with
   `skipBrowserRedirect`, probes it once (no redirect followed) and shows a friendly message when the provider is off.
   The probe can read the error only when GoTrue answers with CORS headers; otherwise it cannot tell and navigation proceeds

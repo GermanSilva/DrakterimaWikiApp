@@ -151,7 +151,7 @@ Pruebas: `supabase/tests/database/*.test.sql` (pgTAP, `supabase test db`). `seed
 ### Autenticación
 
 Supabase Auth: magic link (PKCE, debe abrirse en el mismo navegador) y Google OAuth (opcional, `VITE_AUTH_GOOGLE_ENABLED`).
-No hay contraseñas en el hub. El cliente no soporta captcha todavía (activarlo en el dashboard rompería el login).
+No hay contraseñas en el hub. Captcha opcional con Cloudflare Turnstile: si `VITE_TURNSTILE_SITE_KEY` (pública) está definida, la página de login muestra el widget, bloquea "Enviar link mágico" hasta tener token y lo envía como `options.captchaToken`; sin la variable no hay widget ni token (local y tests). La clave secreta va solo en Supabase (Authentication > Attack Protection), nunca en el repo ni en una `VITE_*`. El magic link queda protegido por el captcha de Supabase; Google OAuth no.
 Detalle y límites en [`src/auth/README.md`](src/auth/README.md).
 
 ### Importador (`scripts/import-firestore.mjs`)
@@ -176,6 +176,7 @@ repo (`data/db.json`, `scripts/out/` y `*.drakterima-export.json` están en `.gi
 | --- | --- | --- |
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | cliente Supabase (`src/data/supabaseClient.ts`, `src/app/supabaseConfig.ts`) | sí |
 | `VITE_AUTH_GOOGLE_ENABLED` | `false` oculta el botón de Google | sí |
+| `VITE_TURNSTILE_SITE_KEY` | site key de Cloudflare Turnstile; vacía/ausente = sin captcha (la clave secreta va solo en Supabase) | sí |
 | `VITE_FIREBASE_*`, `VITE_DM_PASSWORD`, `VITE_PLAYER_1..6_PASSWORD` | solo la app legacy | comprometidas, a retirar |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `IMPORT_ALLOW_REMOTE` | solo el importador contra un destino alojado | **secretas**, nunca en archivos |
 
