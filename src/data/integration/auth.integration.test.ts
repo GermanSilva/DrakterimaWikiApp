@@ -93,7 +93,7 @@ describe('PKCE magic link sign-in against the local stack (GoTrue + Mailpit)', (
 
   it('emails a link whose code only the requesting client can exchange, then creates the profile', { timeout: TEST_TIMEOUT_MS }, async () => {
     const client = newClient()
-    await requestMagicLink(client, email.toUpperCase(), ORIGIN)
+    await requestMagicLink(client, email.toUpperCase(), undefined, ORIGIN)
 
     const ids = await waitForMessageIds(email)
     expect(ids).toHaveLength(1)

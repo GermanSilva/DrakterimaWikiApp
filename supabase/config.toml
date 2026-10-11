@@ -210,10 +210,19 @@ token_verifications = 30
 web3 = 30
 
 # Configure one of the supported captcha providers: `hcaptcha`, `turnstile`.
+# Disabled by default: with it on, every magic-link request needs a captcha token, so the app must be
+# started with VITE_TURNSTILE_SITE_KEY (the login page then renders the Turnstile widget).
+# To try it locally with Cloudflare's published TEST keys (always pass; never use them in production):
+#   1. uncomment the block below and export the secret before `supabase start` (or put it in supabase/.env, gitignored):
+#        SUPABASE_AUTH_CAPTCHA_SECRET=1x0000000000000000000000000000000AA
+#   2. run the app with VITE_TURNSTILE_SITE_KEY=1x00000000000000000000AA (dummy token XXXX.DUMMY.TOKEN.XXXX)
+#   3. restart the stack (`supabase stop && supabase start`). Re-comment the block afterwards:
+#      `npm run test:integration` requests magic links without a token and fails while captcha is on.
+# Hosted projects configure this in the dashboard (Authentication > Attack Protection) with a REAL secret key.
 # [auth.captcha]
 # enabled = true
-# provider = "hcaptcha"
-# secret = ""
+# provider = "turnstile"
+# secret = "env(SUPABASE_AUTH_CAPTCHA_SECRET)"
 
 [auth.email]
 # Allow/disallow new user signups via email to your project.

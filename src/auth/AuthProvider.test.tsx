@@ -166,6 +166,10 @@ describe('AuthProvider', () => {
     await expect(result.current.signInWithEmail('bad')).rejects.toMatchObject({ kind: 'invalid_email' })
     await result.current.signInWithEmail('A@b.co')
     expect(auth.signInWithOtp).toHaveBeenCalledWith(expect.objectContaining({ email: 'a@b.co' }))
+    await result.current.signInWithEmail('A@b.co', 'tok-1')
+    expect(auth.signInWithOtp).toHaveBeenLastCalledWith(
+      expect.objectContaining({ options: expect.objectContaining({ captchaToken: 'tok-1' }) }),
+    )
   })
 
   it('useAuth outside the provider throws', () => {

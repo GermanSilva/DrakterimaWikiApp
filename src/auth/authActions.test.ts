@@ -64,6 +64,13 @@ describe('toAuthFlowError', () => {
     expect(toOAuthFlowError({ message: 'Unsupported provider: provider is not enabled' }).kind).toBe('provider_disabled')
     expect(toOAuthFlowError(new TypeError('Failed to fetch')).kind).toBe('network')
   })
+  it('maps captcha errors by code or message, never leaking the server text', () => {
+    const e = toAuthFlowError({ status: 400, code: 'captcha_failed', message: 'secret internal detail' })
+    expect(e.kind).toBe('captcha_failed')
+    expect(e.message).toMatch(/verificación de seguridad/)
+    expect(e.message).not.toContain('secret')
+    expect(toAuthFlowError({ message: 'Captcha verification failed' }).kind).toBe('captcha_failed')
+  })
   it('never leaks the server message', () => {
     expect(toAuthFlowError({ message: 'secret internal detail' }).message).not.toContain('secret')
   })
@@ -72,11 +79,28 @@ describe('toAuthFlowError', () => {
 describe('requestMagicLink', () => {
   it('sends a normalized email with the callback redirect and shouldCreateUser', async () => {
     const { client, auth } = createFakeAuth()
-    await requestMagicLink(client, ' Ana@Example.com ', 'https://hub.test')
+    await requestMagicLink(client, ' Ana@Example.com ', undefined, 'https://hub.test')
     expect(auth.signInWithOtp).toHaveBeenCalledWith({
       email: 'ana@example.com',
       options: { emailRedirectTo: 'https://hub.test/auth/callback', shouldCreateUser: true },
     })
+  })
+  it('forwards a captcha token as options.captchaToken, and omits the key when there is none', async () => {
+    const { client, auth } = createFakeAuth()
+    await requestMagicLink(client, 'a@b.co', 'tok-1', 'https://hub.test')
+    expect(auth.signInWithOtp).toHaveBeenCalledWith({
+      email: 'a@b.co',
+      options: { emailRedirectTo: 'https://hub.test/auth/callback', shouldCreateUser: true, captchaToken: 'tok-1' },
+    })
+    await requestMagicLink(client, 'a@b.co', undefined, 'https://hub.test')
+    expect(auth.signInWithOtp.mock.calls[1][0]).not.toHaveProperty('options.captchaToken')
+  })
+  it('maps a captcha rejection to its own Spanish message', async () => {
+    const { client, auth } = createFakeAuth()
+    auth.signInWithOtp.mockResolvedValueOnce({ data: {}, error: { status: 400, code: 'captcha_failed', message: 'captcha protection: request disallowed (invalid-input-response)' } })
+    expect(await kindOf(requestMagicLink(client, 'a@b.co', 'bad'))).toBe('captcha_failed')
+    auth.signInWithOtp.mockResolvedValueOnce({ data: {}, error: { status: 400, message: 'captcha verification process failed' } })
+    expect(await kindOf(requestMagicLink(client, 'a@b.co', 'bad'))).toBe('captcha_failed')
   })
   it('rejects an invalid email without calling the server', async () => {
     const { client, auth } = createFakeAuth()

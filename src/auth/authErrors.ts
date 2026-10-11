@@ -3,6 +3,7 @@ export type AuthFlowErrorKind =
   | 'rate_limited'
   | 'oauth_rate_limited'
   | 'provider_disabled'
+  | 'captcha_failed'
   | 'network'
   | 'unknown'
 
@@ -11,6 +12,7 @@ const MESSAGES: Record<AuthFlowErrorKind, string> = {
   rate_limited: 'Pediste demasiados links en poco tiempo. Esperá unos minutos y volvé a intentar.',
   oauth_rate_limited: 'Hubo demasiados intentos de inicio de sesión. Esperá unos minutos y volvé a intentar.',
   provider_disabled: 'El inicio de sesión con Google no está disponible por ahora. Usá el link por email.',
+  captcha_failed: 'La verificación de seguridad falló o venció. Volvé a verificar e intentá de nuevo.',
   network: 'No pudimos conectarnos. Revisá tu conexión y volvé a intentar.',
   unknown: 'No pudimos iniciar sesión. Volvé a intentar en unos minutos.',
 }
@@ -66,6 +68,9 @@ export function sanitizeForLog(error: unknown): { name?: string; status?: number
   }
 }
 
+/** GoTrue answers a missing/invalid/expired captcha token with code `captcha_failed` (or a message naming the captcha). */
+const isCaptchaFailure = (e: ErrorLike) => codeOf(e) === 'captcha_failed' || /captcha/i.test(messageOf(e))
+
 const isProviderDisabled = (e: ErrorLike) =>
   /provider.*(not enabled|disabled)|unsupported provider/i.test(messageOf(e)) || codeOf(e) === 'provider_disabled'
 
@@ -80,6 +85,7 @@ export function toAuthFlowError(error: unknown): AuthFlowError {
   const e = asLike(error)
   const code = codeOf(e)
   if (isRateLimited(error)) return new AuthFlowError('rate_limited', { cause: error })
+  if (isCaptchaFailure(e)) return new AuthFlowError('captcha_failed', { cause: error })
   if (code === 'email_address_invalid' || (e.status === 422 && code === 'validation_failed')) {
     return new AuthFlowError('invalid_email', { cause: error })
   }

@@ -16,8 +16,8 @@ export interface AuthValue {
   profileError: Error | null
   /** idle: signed out; loading: first fetch for this user; loaded; error (profile may hold the last known value). */
   profileStatus: 'idle' | 'loading' | 'loaded' | 'error'
-  /** Sends a magic link. Throws AuthFlowError (invalid_email, rate_limited, ...). */
-  signInWithEmail: (email: string) => Promise<void>
+  /** Sends a magic link; `captchaToken` is the Turnstile token when captcha is configured. Throws AuthFlowError (invalid_email, rate_limited, captcha_failed, ...). */
+  signInWithEmail: (email: string, captchaToken?: string) => Promise<void>
   /** Starts the Google OAuth redirect. Throws AuthFlowError (provider_disabled, ...). */
   signInWithGoogle: () => Promise<void>
   signOut: () => Promise<void>
