@@ -186,6 +186,8 @@ Aplicar (el resumen debe listar las 15, en orden):
 supabase db push
 ```
 
+> **Orden de despliegue:** una migración que cambia permisos de columnas (p. ej. `decided_by` en `campaign_requests`, el `slug` de `campaigns`) deja de funcionar con el frontend anterior. Antes del corte no hay usuarios, así que no importa. Una vez con usuarios reales, desplegá primero el frontend compatible con ambos esquemas y recién después ejecutá `supabase db push`, o hacelo en una ventana de mantenimiento.
+
 Confirmar que local y remoto coinciden (15 filas con ambas columnas llenas):
 
 ```powershell
