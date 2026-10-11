@@ -125,6 +125,7 @@ Out (for now): non-5e game systems, Firebase removal before cutover, Phase 2 fea
 | H12 | Firestore → Supabase import script (Drakterima campaign, id preservation, character claim via invites) | delegated (writer) | [x] |
 | H13 | Vercel config (SPA rewrites, env), docs (CLAUDE.md), cutover runbook | inline | [x] |
 | H14 | Cutover (user-owned remote steps) + Phase 2: deep feature analysis with approval stage | parent | [ ] |
+| H15 | Hub Owner: `hub_owners`, `campaign_requests` (request / approve / reject RPCs), `create_campaign` restricted to hub owners, requester-as-DM on approval, hub UI (request form + my requests; owner inbox + direct create), bootstrap docs | delegated (writer) | [ ] |
 
 ## Acceptance criteria
 
@@ -605,3 +606,8 @@ SECURITY FINDING: `data/db.json` is git-tracked since early commits and holds 6 
 
 - Captcha: Cloudflare Turnstile (free). SMTP provider: **Brevo** (account created by the user; free plan ~300 emails/day via SMTP relay, relay `smtp-relay.brevo.com:587`, SMTP key not API key; sender verification/domain authentication and possible manual approval of transactional sending NOT verified: test well before cutover). Hosting: **Vercel** (Netlify was evaluated and rejected: no regex paths, so the per-path `no-referrer` rule for `/invite/*` would rely on an unverified header-precedence behaviour; the repo's `vercel.json`, its test and the runbook stay as they are). Maps to runbook D4 (SMTP), D5 (captcha), D8-D9 pending on the domain.
 - Still open for the owner: (1) own domain? (blocks a properly authenticated Brevo sender and D8), (2) signup policy (open / closed / open with a per-user campaign cap; recommendation: cap 3 via a small reversible migration to `create_campaign`), plus runbook D1-D3, D6, D7, D9-D13.
+
+## Owner decisions (user, 2026-10-11)
+
+- No own domain. Consequence: a properly authenticated Brevo sender (SPF/DKIM) is not possible; magic links may land in spam. Facts verified: Supabase default email = 2/hour and team members only; email+password flows (signup confirmation, password reset) ALSO need SMTP; Google login needs a Google Cloud OAuth client (Web), the Supabase callback URL as redirect URI, scopes openid/email/profile (no sensitive scopes → no scope verification), no custom domain required (strongly recommended: consent screen shows `<project-id>.supabase.co`; brand verification not automatic, "may take a few business days"); publishing-status limits (Testing: user cap/token expiry) NOT verified. Recommendation pending the owner's choice: Google as primary login, magic link as best-effort secondary (Brevo single sender); email+password not recommended (needs SMTP for confirm/reset; without confirmation any unverified email can register).
+- **Signup policy → "Hub Owner" model (new feature H15):** the user is the Hub Owner; ordinary users can REQUEST a campaign; the owner approves manually and the instance is created with the requester as DM; the owner can also create campaigns where they are DM. Campaign creation is no longer open to every authenticated user; invites still let anyone join an existing campaign. Open signup becomes low risk (no campaign creation without approval), and the per-user 20-campaign cap discussion is superseded.
