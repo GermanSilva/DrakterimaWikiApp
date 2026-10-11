@@ -65,6 +65,8 @@ export function campaignRequestErrorMessage(error: unknown, action: 'request' | 
         return 'Solo el administrador del sitio puede resolver solicitudes.'
       case 'too_many_pending_requests':
         return 'Ya tenés 3 solicitudes pendientes. Cancelá una o esperá a que se resuelvan.'
+      case 'too_many_requests_recently':
+        return 'Hiciste muchas solicitudes en las últimas 24 horas. Probá de nuevo más tarde.'
       case 'reserved_slug':
         return 'Esa dirección está reservada. Elegí otra.'
       case 'slug_taken':

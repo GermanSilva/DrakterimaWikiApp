@@ -135,7 +135,7 @@ function ApproveDialog({
       onDone(created)
     } catch (error) {
       setFailure(campaignRequestErrorMessage(error, 'approve'))
-      if ((error as { reason?: string }).reason === 'request_not_pending') onStale()
+      if ((error as { reason?: string }).reason === 'request_not_pending' || (error as { reason?: string }).reason === 'request_not_found') onStale()
       inFlight.current = false
       setPending(false)
     }
@@ -222,7 +222,7 @@ function RejectDialog({
       onDone()
     } catch (error) {
       setFailure(campaignRequestErrorMessage(error, 'reject'))
-      if ((error as { reason?: string }).reason === 'request_not_pending') onStale()
+      if ((error as { reason?: string }).reason === 'request_not_pending' || (error as { reason?: string }).reason === 'request_not_found') onStale()
       inFlight.current = false
       setPending(false)
     }

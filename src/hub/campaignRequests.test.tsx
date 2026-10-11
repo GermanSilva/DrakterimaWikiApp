@@ -87,6 +87,7 @@ describe('hub home: ordinary user', () => {
 
   it.each([
     ['too_many_pending_requests', business('too_many_pending_requests'), /3 solicitudes pendientes/],
+    ['too_many_requests_recently', business('too_many_requests_recently'), /últimas 24 horas/],
     ['reserved_slug', business('reserved_slug'), /reservada/],
     ['unexpected', new Error('boom'), /No pudimos enviar la solicitud/],
   ])('maps %s to a Spanish message and allows retrying', async (_name, error, message) => {
@@ -260,6 +261,27 @@ describe('hub home: hub owner', () => {
     expect(reject).toHaveBeenCalledWith(7, undefined)
     expect(await screen.findByText(/ya fue resuelta o cancelada/, { selector: '[role=alert]' })).toBeInTheDocument()
     await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
+  })
+
+  it.each([
+    ['approve', 'request_not_pending', /Aprobar y crear/, /ya fue resuelta o cancelada/],
+    ['approve', 'request_not_found', /Aprobar y crear/, /No encontramos la solicitud/],
+    ['reject', 'request_not_found', /Rechazar solicitud$/, /No encontramos la solicitud/],
+  ])('%s: a stale request (%s) is explained and the inbox reloads, dropping it', async (action, reason, submit, message) => {
+    const fail = vi.fn().mockRejectedValue(business(reason))
+    const list = vi.fn().mockResolvedValueOnce([inboxRow()]).mockResolvedValue([])
+    const data = ownerData({
+      listAllCampaignRequests: list,
+      ...(action === 'approve' ? { approveCampaignRequest: fail } : { rejectCampaignRequest: fail }),
+    })
+    renderApp('/', { data })
+    await screen.findByText('La Corona Rota')
+    await click(action === 'approve' ? /^Aprobar$/ : /^Rechazar$/)
+    await click(submit)
+    expect(fail).toHaveBeenCalledTimes(1)
+    expect(await screen.findByText(message, { selector: '[role=alert]' })).toBeInTheDocument()
+    await waitFor(() => expect(list).toHaveBeenCalledTimes(2))
+    await waitFor(() => expect(screen.getByText('No hay solicitudes pendientes.')).toBeInTheDocument())
   })
 
   it('closes the dialogs with the visible close button, Escape and the backdrop', async () => {
