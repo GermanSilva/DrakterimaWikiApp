@@ -65,8 +65,8 @@ describe('data layer against the local Supabase stack', () => {
     }
   }
 
-  async function newUser(label: string): Promise<TestUser> {
-    const user = await createTestUser(env, label)
+  async function newUser(label: string, hubOwner = false): Promise<TestUser> {
+    const user = await createTestUser(env, label, { hubOwner })
     createdUsers.push(user) // sequential: a later failure still cleans up the earlier users
     return user
   }
@@ -81,7 +81,7 @@ describe('data layer against the local Supabase stack', () => {
   })
 
   async function setup() {
-    dm = await newUser('dm')
+    dm = await newUser('dm', true)
     player = await newUser('player')
     stranger = await newUser('stranger')
     dmData = createDataLayer(dm.client)

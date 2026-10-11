@@ -24,8 +24,8 @@ describe('characters (pjs): owner, other players and DM against the local stack'
   let theirs: FlatEntity // owned by `other`
   const created: TestUser[] = []
 
-  async function newUser(label: string) {
-    const user = await createTestUser(env, label)
+  async function newUser(label: string, hubOwner = false) {
+    const user = await createTestUser(env, label, { hubOwner })
     created.push(user)
     return user
   }
@@ -41,7 +41,7 @@ describe('characters (pjs): owner, other players and DM against the local stack'
 
   beforeAll(async () => {
     try {
-      dm = await newUser('pj-dm')
+      dm = await newUser('pj-dm', true)
       owner = await newUser('pj-owner')
       other = await newUser('pj-other')
       dmData = createDataLayer(dm.client)

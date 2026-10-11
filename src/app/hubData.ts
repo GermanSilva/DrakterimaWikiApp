@@ -2,10 +2,13 @@ import {
   createDataLayer,
   type AcceptInviteResult,
   type Campaign,
+  type CampaignRequest,
+  type CampaignRequestWithRequester,
   type CampaignWithRole,
   type DataLayer,
   type Db,
   type InvitePreview,
+  type NewCampaignRequest,
   type Profile,
 } from '../data'
 
@@ -20,7 +23,19 @@ export interface HubData {
    */
   readonly layer: DataLayer
   listMyCampaigns(userId: string): Promise<CampaignWithRole[]>
+  /** Hub owners only (the database refuses everybody else with reason hub_owner_only). */
   createCampaign(slug: string, name: string): Promise<Campaign>
+  /** UI hint only: the database enforces the privilege. */
+  isHubOwner(): Promise<boolean>
+  listMyCampaignRequests(userId: string): Promise<CampaignRequest[]>
+  createCampaignRequest(request: NewCampaignRequest): Promise<CampaignRequest>
+  /** Resolves false when the request was no longer pending (nothing cancelled). */
+  cancelCampaignRequest(requestId: number): Promise<boolean>
+  /** Hub owners: the inbox (all requests, pending first). */
+  listAllCampaignRequests(): Promise<CampaignRequestWithRequester[]>
+  /** Resolves with the new campaign slug; the requester becomes its DM. */
+  approveCampaignRequest(requestId: number, overrides?: { slug?: string; name?: string }): Promise<string>
+  rejectCampaignRequest(requestId: number, note?: string): Promise<void>
   /** Read-only: what an invite code leads to. Never consumes the invite. */
   previewInvite(code: string): Promise<InvitePreview>
   acceptInvite(code: string): Promise<AcceptInviteResult>
@@ -35,6 +50,13 @@ export function createHubData(client?: Db): HubData {
     layer,
     listMyCampaigns: (userId) => layer.campaigns.listMyCampaigns(userId),
     createCampaign: (slug, name) => layer.campaigns.createCampaign(slug, name),
+    isHubOwner: () => layer.campaignRequests.isHubOwner(),
+    listMyCampaignRequests: (userId) => layer.campaignRequests.listMyCampaignRequests(userId),
+    createCampaignRequest: (request) => layer.campaignRequests.createCampaignRequest(request),
+    cancelCampaignRequest: (id) => layer.campaignRequests.cancelCampaignRequest(id),
+    listAllCampaignRequests: () => layer.campaignRequests.listAllCampaignRequests(),
+    approveCampaignRequest: (id, overrides) => layer.campaignRequests.approveCampaignRequest(id, overrides),
+    rejectCampaignRequest: (id, note) => layer.campaignRequests.rejectCampaignRequest(id, note),
     previewInvite: (code) => layer.campaigns.previewInvite(code),
     acceptInvite: (code) => layer.campaigns.acceptInvite(code),
     async listMyCharacterIds(campaignId, userId) {

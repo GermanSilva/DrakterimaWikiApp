@@ -174,6 +174,24 @@ export const CAMPAIGN_COLUMNS = [
   'updated_at',
 ] as const
 
+export const CAMPAIGN_REQUEST_COLUMNS = [
+  'id',
+  'requester_id',
+  'name',
+  'slug_wanted',
+  'message',
+  'status',
+  'decision_note',
+  'decided_by',
+  'decided_at',
+  'campaign_id',
+  'created_at',
+  'updated_at',
+] as const
+
+/** The only columns a requester may send (column grant). */
+export const CAMPAIGN_REQUEST_WRITE_COLUMNS = ['name', 'slug_wanted', 'message'] as const
+
 export const CAMPAIGN_MEMBER_COLUMNS = ['campaign_id', 'user_id', 'role', 'created_at', 'updated_at'] as const
 
 export const INVITE_COLUMNS = [
@@ -300,6 +318,8 @@ export const COLUMN_LIST_ENTRIES: readonly ColumnListEntry[] = [
   ...WIKI_INDEX_TABLES.map((t) => ({ name: `${t}.wiki_index`, table: t, columns: WIKI_INDEX_COLUMNS[t] })),
   { name: 'profiles', table: 'profiles', columns: PROFILE_COLUMNS },
   { name: 'campaigns', table: 'campaigns', columns: CAMPAIGN_COLUMNS },
+  { name: 'campaign_requests', table: 'campaign_requests', columns: CAMPAIGN_REQUEST_COLUMNS },
+  { name: 'campaign_requests_write', table: 'campaign_requests', columns: CAMPAIGN_REQUEST_WRITE_COLUMNS },
   { name: 'campaign_members', table: 'campaign_members', columns: CAMPAIGN_MEMBER_COLUMNS },
   { name: 'campaign_invites', table: 'campaign_invites', columns: INVITE_COLUMNS },
   { name: 'campaign_invites_write', table: 'campaign_invites', columns: INVITE_WRITE_COLUMNS },

@@ -1,4 +1,5 @@
 import { createCampaignRepository } from './campaignRepository'
+import { createCampaignRequestRepository } from './campaignRequestRepository'
 import type { EntityTable, WikiIndexTable } from './columns'
 import { createConfigRepository } from './configRepository'
 import { createDisponibilidadRepository } from './disponibilidadRepository'
@@ -24,6 +25,7 @@ export * from './supabaseClient'
 export * from './types'
 export * from './useCampaignTable'
 export * from './campaignRepository'
+export * from './campaignRequestRepository'
 export * from './configRepository'
 export * from './disponibilidadRepository'
 export * from './dmNotesRepository'
@@ -68,6 +70,7 @@ export function createDataLayer(client: Db = getSupabase()) {
     saveEntityWithDmNotes: (table: EntityTable, target: SaveEntityTarget, flat: Record<string, unknown>) =>
       saveEntityWithDmNotes(entity(table), dmNotes, target, flat),
     campaigns: createCampaignRepository(client),
+    campaignRequests: createCampaignRequestRepository(client),
     profiles: createProfileRepository(client),
     visibility: createVisibilityRepository(client),
     dmNotes,

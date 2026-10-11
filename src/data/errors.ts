@@ -10,7 +10,7 @@ export type DataErrorKind =
 
 /**
  * Stable reason codes raised on purpose by our SQL functions and triggers. They can arrive with
- * SQLSTATE P0001 (business), 42501 (permission) or 23514 (validation), so `kind` stays tied to the
+ * SQLSTATE P0001 (business), 42501 (permission), 23514 (validation) or 23505 (conflict, slug_taken), so `kind` stays tied to the
  * SQLSTATE and `reason` tells them apart.
  */
 export const KNOWN_REASONS = [
@@ -32,6 +32,13 @@ export const KNOWN_REASONS = [
   'slug_mismatch',
   'last_dm',
   'owner_not_member',
+  'hub_owner_only',
+  'too_many_pending_requests',
+  'request_not_pending',
+  'request_not_found',
+  'slug_taken',
+  'invalid_slug',
+  'invalid_name',
 ] as const
 
 export type DataErrorReason = (typeof KNOWN_REASONS)[number]
@@ -95,7 +102,7 @@ const TRIGGER_REASONS: readonly [RegExp, DataErrorReason][] = [
 
 export function toDataError(error: PostgrestLikeError): DataError {
   let reason: DataErrorReason | undefined =
-    error.code && REASON_CODES.has(error.code) && reasons.has(error.message) ? (error.message as DataErrorReason) : undefined
+    error.code && (REASON_CODES.has(error.code) || (error.code === '23505' && error.message === 'slug_taken')) && reasons.has(error.message) ? (error.message as DataErrorReason) : undefined
   if (!reason && error.code === '23514') reason = TRIGGER_REASONS.find(([pattern]) => pattern.test(error.message))?.[1]
   return new DataError(kindOf(error.code), error.message, error, reason)
 }

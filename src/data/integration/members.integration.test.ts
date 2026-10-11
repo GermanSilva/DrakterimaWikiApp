@@ -24,8 +24,8 @@ describe('members, roles, character owners and campaign deletion against the loc
   let pjId = 0
   const created: TestUser[] = []
 
-  async function newUser(label: string) {
-    const user = await createTestUser(env, label)
+  async function newUser(label: string, hubOwner = false) {
+    const user = await createTestUser(env, label, { hubOwner })
     created.push(user)
     return user
   }
@@ -49,7 +49,7 @@ describe('members, roles, character owners and campaign deletion against the loc
 
   beforeAll(async () => {
     try {
-      dm = await newUser('mem-dm')
+      dm = await newUser('mem-dm', true)
       bob = await newUser('mem-bob')
       carol = await newUser('mem-carol')
       outsider = await newUser('mem-outsider')

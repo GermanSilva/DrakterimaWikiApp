@@ -42,7 +42,7 @@ describe('H7a: wiki index + entity actions against the local Supabase stack', ()
 
   beforeAll(async () => {
     try {
-      dm = await createTestUser(env, 'h7dm')
+      dm = await createTestUser(env, 'h7dm', { hubOwner: true })
       users.push(dm)
       player = await createTestUser(env, 'h7pl')
       users.push(player)

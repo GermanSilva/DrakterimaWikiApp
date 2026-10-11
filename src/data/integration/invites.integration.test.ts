@@ -23,8 +23,8 @@ describe('invites: preview, accept and revoke against the local stack', () => {
   let freePjId = 0
   const created: TestUser[] = []
 
-  async function newUser(label: string) {
-    const user = await createTestUser(env, label)
+  async function newUser(label: string, hubOwner = false) {
+    const user = await createTestUser(env, label, { hubOwner })
     created.push(user)
     return user
   }
@@ -45,7 +45,7 @@ describe('invites: preview, accept and revoke against the local stack', () => {
 
   beforeAll(async () => {
     try {
-      dm = await newUser('inv-dm')
+      dm = await newUser('inv-dm', true)
       guest = await newUser('inv-guest')
       stranger = await newUser('inv-stranger')
       dmData = createDataLayer(dm.client)
@@ -150,7 +150,7 @@ describe('invites: preview, accept and revoke against the local stack', () => {
 
   it('the DM of another campaign cannot list or revoke these invites', async () => {
     const invite = await dmData.campaigns.createInvite({ campaign_id: campaignId, max_uses: 1 })
-    const otherDm = createDataLayer((await newUser('inv-otherdm')).client)
+    const otherDm = createDataLayer((await newUser('inv-otherdm', true)).client)
     const mine = await otherDm.campaigns.createCampaign(`h10c-${randomBytes(4).toString('hex')}`, 'Other DM campaign')
     try {
       expect(await otherDm.campaigns.listInvites(campaignId)).toEqual([])

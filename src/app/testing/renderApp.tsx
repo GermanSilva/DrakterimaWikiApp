@@ -4,7 +4,7 @@ import { vi } from 'vitest'
 import { createMemoryRouter, RouterProvider, type RouteObject } from 'react-router'
 import type { AuthValue } from '../../auth/AuthContext'
 import { AuthHost } from './AuthHost'
-import { createDataLayer, type CampaignWithRole, type Profile } from '../../data'
+import { createDataLayer, type CampaignRequest, type CampaignWithRole, type Profile } from '../../data'
 import { createFakeClient } from '../../data/testing/fakeClient'
 import { DataContext } from '../DataContext'
 import type { HubData } from '../hubData'
@@ -29,6 +29,22 @@ export function makeCampaign(over: Partial<CampaignWithRole> = {}): CampaignWith
     ...over,
   }
 }
+
+export const makeRequest = (over: Partial<CampaignRequest> = {}): CampaignRequest => ({
+  id: 1,
+  requester_id: ME,
+  name: 'Mi campaña',
+  slug_wanted: 'mi-campania',
+  message: null,
+  status: 'pending',
+  decision_note: null,
+  decided_by: null,
+  decided_at: null,
+  campaign_id: null,
+  created_at: '2026-01-02T00:00:00Z',
+  updated_at: '2026-01-02T00:00:00Z',
+  ...over,
+})
 
 export const makeProfile = (over: Partial<Profile> = {}): Profile => ({
   id: ME,
@@ -60,6 +76,13 @@ export function makeData(over: Partial<HubData> = {}): HubData {
     layer: createDataLayer(createFakeClient().db),
     listMyCampaigns: vi.fn(async () => [makeCampaign()]),
     createCampaign: vi.fn(async (slug: string, name: string) => makeCampaign({ slug, name })),
+    isHubOwner: vi.fn(async () => false),
+    listMyCampaignRequests: vi.fn(async () => []),
+    createCampaignRequest: vi.fn(async (request) => makeRequest({ name: request.name, slug_wanted: request.slug_wanted ?? null, message: request.message ?? null })),
+    cancelCampaignRequest: vi.fn(async () => true),
+    listAllCampaignRequests: vi.fn(async () => []),
+    approveCampaignRequest: vi.fn(async (_id: number, overrides?: { slug?: string }) => overrides?.slug ?? 'nueva'),
+    rejectCampaignRequest: vi.fn(async () => undefined),
     previewInvite: vi.fn(async () => ({
       campaign_name: 'Demo',
       campaign_slug: 'demo',
