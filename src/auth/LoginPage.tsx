@@ -139,6 +139,18 @@ export function LoginPage({ onEmailSubmit, onGoogle, googleEnabled = true, turns
       <h1 className="font-exo text-lg font-semibold tracking-[0.15em] uppercase text-txt-primary mb-5 text-center">
         Ingresar
       </h1>
+      {googleEnabled && (
+        <>
+          <button type="button" className={`${btnPrimary} w-full justify-center`} onClick={google} disabled={busy}>
+            {phase.name === 'redirecting' ? 'Redirigiendo a Google…' : 'Continuar con Google'}
+          </button>
+          <div className="flex items-center gap-3 my-5 text-xs text-txt-muted" role="separator">
+            <span className="flex-1 border-t border-border-base" />
+            <span>o con tu email</span>
+            <span className="flex-1 border-t border-border-base" />
+          </div>
+        </>
+      )}
       <form onSubmit={submit} noValidate>
         <label htmlFor={emailId} className={labelCls}>
           Email
@@ -174,15 +186,15 @@ export function LoginPage({ onEmailSubmit, onGoogle, googleEnabled = true, turns
             )}
           </div>
         )}
-        <button type="submit" className={`${btnPrimary} w-full justify-center mt-3`} disabled={busy || awaitingCaptcha}>
+        <button type="submit" className={`${googleEnabled ? btnSecondary : btnPrimary} w-full justify-center mt-3`} disabled={busy || awaitingCaptcha}>
           {phase.name === 'sending' ? 'Enviando…' : 'Enviar link mágico'}
         </button>
+        {googleEnabled && (
+          <p className="mt-3 text-xs text-txt-muted">
+            El email puede llegar a la carpeta de spam y tardar un minuto. Si no lo ves, revisá ahí.
+          </p>
+        )}
       </form>
-      {googleEnabled && (
-        <button type="button" className={`${btnSecondary} w-full justify-center mt-3`} onClick={google} disabled={busy}>
-          {phase.name === 'redirecting' ? 'Redirigiendo a Google…' : 'Continuar con Google'}
-        </button>
-      )}
       {phase.name === 'error' && (
         <p role="alert" className="mt-4 text-sm text-accent-bright">
           {phase.message}

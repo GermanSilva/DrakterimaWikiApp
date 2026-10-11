@@ -45,7 +45,12 @@ at `/auth/callback`. The provider uses `getSupabase()` unless a client is passed
 
 - `/auth/callback` must be listed in `supabase/config.toml` `additional_redirect_urls` (localhost and 127.0.0.1
   are there) and, on a hosted project, in Authentication > URL Configuration for every deployed origin.
-- `VITE_AUTH_GOOGLE_ENABLED=false` hides the Google button (anything else shows it).
+- `VITE_AUTH_GOOGLE_ENABLED=false` hides the Google button (anything else shows it; set it to `true` explicitly in Vercel).
+- **Login layout (Google first).** Google is the primary sign-in (product decision: no own domain, so the magic link is
+  best-effort and may land in spam). With Google enabled `LoginPage` renders, in order: the prominent "Continuar con Google"
+  button, a divider "o con tu email", the email form (Turnstile widget + the secondary "Enviar link mágico" button) and a short
+  note that the email can arrive in spam and take a minute. With Google disabled the page is the email form alone, exactly as before.
+  Turnstile gates only the magic-link submit; the Google button never waits for a token.
 - `VITE_TURNSTILE_SITE_KEY` (public) turns on the Cloudflare Turnstile captcha at login; unset or blank = no widget, no token
   (local dev, tests). When set, `LoginPage` renders the widget (`useTurnstile`: explicit render, dark theme, `es`, appearance
   `interaction-only`), keeps "Enviar link mágico" disabled until there is a token, sends it as `options.captchaToken` of
