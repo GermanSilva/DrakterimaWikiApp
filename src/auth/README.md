@@ -5,7 +5,7 @@ Additive (the Firebase app and its password modal are untouched). H6 mounts it i
 ```
 authConfig.ts          AUTH_CALLBACK_PATH, callbackUrl(), isGoogleEnabled(), turnstileSiteKey()
 authErrors.ts          AuthFlowError (invalid_email | rate_limited | provider_disabled | captcha_failed | network | unknown), normalizeEmail
-authActions.ts         requestMagicLink(client, email, captchaToken?), startGoogleSignIn(client)   (pure, client injected)
+authActions.ts         requestMagicLink(client, email, { captchaToken?, origin? }), startGoogleSignIn(client)   (pure, client injected)
 turnstile/             turnstileLoader.ts (script loaded once, lazily), useTurnstile.ts (widget + token hook), fakeTurnstile.ts (tests)
 AuthProvider.tsx       <AuthProvider client? profiles?> + useAuth(): { status, session, user, profile, profileError, profileStatus,
                        signInWithEmail, signInWithGoogle, signOut, refreshProfile }
@@ -51,7 +51,7 @@ at `/auth/callback`. The provider uses `getSupabase()` unless a client is passed
   `interaction-only`), keeps "Enviar link mágico" disabled until there is a token, sends it as `options.captchaToken` of
   `signInWithOtp` and resets the widget after every attempt (tokens are single use). The script
   (`https://challenges.cloudflare.com/turnstile/v0/api.js`, `async defer`, one tag) is injected only when the login page
-  mounts with a site key. If it cannot load, login stays blocked with a retry (it never silently skips the captcha). Token expiry
+  mounts with a site key. If it cannot load (blocked, offline, or no response within 10 s) or the widget cannot render, login stays blocked with a retry (it never silently skips the captcha). Token expiry
   or widget errors show a Spanish message with "Reintentar". The token is never logged. Google OAuth takes no token.
   The secret key lives only in Supabase (Authentication > Attack Protection); see `docs/hosting-and-cutover.md` d.5 and the
   commented `[auth.captcha]` block in `supabase/config.toml` (local test keys).

@@ -4,8 +4,8 @@ import { loadTurnstile, type TurnstileApi } from './turnstileLoader'
 /**
  * disabled: no site key (captcha not configured, nothing is loaded or required).
  * loading: script or widget not ready yet. waiting: widget rendered, no token yet.
- * ready: a fresh token is available. expired / error: the token is gone, retry() restarts it.
- * load_failed: the Cloudflare script could not be loaded (blocked or offline); retry() loads it again.
+ * ready: a fresh token is available. expired / error: the token is gone, reset() restarts it.
+ * load_failed: the Cloudflare script could not be loaded (blocked, offline or stalled); reset() loads it again.
  */
 export type TurnstileStatus = 'disabled' | 'loading' | 'waiting' | 'ready' | 'expired' | 'error' | 'load_failed'
 
@@ -37,7 +37,7 @@ export function useTurnstile({ siteKey, theme = 'dark', language = 'es' }: UseTu
   const [status, setStatus] = useState<TurnstileStatus>(key ? 'loading' : 'disabled')
   // Bumped to re-run the effect (reload after a script failure, or a hard restart of the widget).
   const [generation, setGeneration] = useState(0)
-  const [api, setApi] = useState<{ api: TurnstileApi; id: string } | null>(null)
+  const [widget, setWidget] = useState<{ api: TurnstileApi; id: string } | null>(null)
 
   useEffect(() => {
     if (!key || !container) return
@@ -46,48 +46,58 @@ export function useTurnstile({ siteKey, theme = 'dark', language = 'es' }: UseTu
     loadTurnstile().then(
       (turnstile) => {
         if (cancelled) return
-        const id = turnstile.render(container, {
-          sitekey: key,
-          theme,
-          language,
-          appearance: 'interaction-only',
-          callback: (t) => {
-            if (cancelled) return
-            setToken(t)
-            setStatus('ready')
-          },
-          'expired-callback': () => {
-            if (cancelled) return
-            setToken(null)
-            setStatus('expired')
-          },
-          'error-callback': () => {
-            if (cancelled) return
-            setToken(null)
-            setStatus('error')
-          },
-          'timeout-callback': () => {
-            if (cancelled) return
-            setToken(null)
-            setStatus('expired')
-          },
-        })
+        let id: string | undefined
+        try {
+          id = turnstile.render(container, {
+            sitekey: key,
+            theme,
+            language,
+            appearance: 'interaction-only',
+            callback: (t) => {
+              if (cancelled) return
+              setToken(t)
+              setStatus('ready')
+            },
+            'expired-callback': () => {
+              if (cancelled) return
+              setToken(null)
+              setStatus('expired')
+            },
+            'error-callback': () => {
+              if (cancelled) return
+              setToken(null)
+              setStatus('error')
+            },
+            'timeout-callback': () => {
+              if (cancelled) return
+              setToken(null)
+              setStatus('expired')
+            },
+          })
+        } catch {
+          // render() can throw (bad site key, detached container). Surface only the 'error' state:
+          // the error payload is deliberately not logged.
+          id = undefined
+        }
         if (!id) {
           setStatus('error')
           return
         }
         rendered = { api: turnstile, id }
-        setApi(rendered)
+        setWidget(rendered)
         setStatus((s) => (s === 'loading' ? 'waiting' : s))
       },
       () => {
         if (!cancelled) setStatus('load_failed')
       },
-    )
+    ).catch(() => {
+      // Anything thrown by the fulfilment handler must not leave the status stuck on 'loading'.
+      if (!cancelled) setStatus('error')
+    })
     return () => {
       cancelled = true
       // Back to the initial state for the next run (or for a later remount of the container).
-      setApi(null)
+      setWidget(null)
       setToken(null)
       setStatus('loading')
       if (rendered) {
@@ -103,17 +113,17 @@ export function useTurnstile({ siteKey, theme = 'dark', language = 'es' }: UseTu
   const reset = useCallback(() => {
     setToken(null)
     if (!key) return
-    if (api) {
+    if (widget) {
       setStatus('waiting')
       try {
-        api.api.reset(api.id)
+        widget.api.reset(widget.id)
       } catch {
         setGeneration((g) => g + 1)
       }
     } else {
       setGeneration((g) => g + 1)
     }
-  }, [key, api])
+  }, [key, widget])
 
   // Without a key nothing is rendered or required, whatever state a previous key left behind.
   if (!key) return { attach: setContainer, token: null, status: 'disabled', reset }

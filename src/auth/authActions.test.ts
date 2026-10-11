@@ -79,7 +79,7 @@ describe('toAuthFlowError', () => {
 describe('requestMagicLink', () => {
   it('sends a normalized email with the callback redirect and shouldCreateUser', async () => {
     const { client, auth } = createFakeAuth()
-    await requestMagicLink(client, ' Ana@Example.com ', undefined, 'https://hub.test')
+    await requestMagicLink(client, ' Ana@Example.com ', { origin: 'https://hub.test' })
     expect(auth.signInWithOtp).toHaveBeenCalledWith({
       email: 'ana@example.com',
       options: { emailRedirectTo: 'https://hub.test/auth/callback', shouldCreateUser: true },
@@ -87,20 +87,26 @@ describe('requestMagicLink', () => {
   })
   it('forwards a captcha token as options.captchaToken, and omits the key when there is none', async () => {
     const { client, auth } = createFakeAuth()
-    await requestMagicLink(client, 'a@b.co', 'tok-1', 'https://hub.test')
+    await requestMagicLink(client, 'a@b.co', { captchaToken: 'tok-1', origin: 'https://hub.test' })
     expect(auth.signInWithOtp).toHaveBeenCalledWith({
       email: 'a@b.co',
       options: { emailRedirectTo: 'https://hub.test/auth/callback', shouldCreateUser: true, captchaToken: 'tok-1' },
     })
-    await requestMagicLink(client, 'a@b.co', undefined, 'https://hub.test')
+    await requestMagicLink(client, 'a@b.co', { origin: 'https://hub.test' })
     expect(auth.signInWithOtp.mock.calls[1][0]).not.toHaveProperty('options.captchaToken')
   })
   it('maps a captcha rejection to its own Spanish message', async () => {
     const { client, auth } = createFakeAuth()
     auth.signInWithOtp.mockResolvedValueOnce({ data: {}, error: { status: 400, code: 'captcha_failed', message: 'captcha protection: request disallowed (invalid-input-response)' } })
-    expect(await kindOf(requestMagicLink(client, 'a@b.co', 'bad'))).toBe('captcha_failed')
+    expect(await kindOf(requestMagicLink(client, 'a@b.co', { captchaToken: 'bad' }))).toBe('captcha_failed')
     auth.signInWithOtp.mockResolvedValueOnce({ data: {}, error: { status: 400, message: 'captcha verification process failed' } })
-    expect(await kindOf(requestMagicLink(client, 'a@b.co', 'bad'))).toBe('captcha_failed')
+    expect(await kindOf(requestMagicLink(client, 'a@b.co', { captchaToken: 'bad' }))).toBe('captcha_failed')
+  })
+  it('rejects a stale positional caller at compile time (captcha token is not a 3rd string argument)', async () => {
+    const { client, auth } = createFakeAuth()
+    // @ts-expect-error a bare string in the options slot must not type-check
+    await requestMagicLink(client, 'a@b.co', 'tok-1')
+    expect(auth.signInWithOtp.mock.calls[0][0]).not.toHaveProperty('options.captchaToken')
   })
   it('rejects an invalid email without calling the server', async () => {
     const { client, auth } = createFakeAuth()

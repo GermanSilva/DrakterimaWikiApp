@@ -377,7 +377,7 @@ Pasos del OWNER:
    active a propósito (ver el comentario de `[auth.captcha]` en `supabase/config.toml`, con las claves de PRUEBA de Cloudflare).
 5. **CSP**: si se aplica la CSP de e.3, ver las directivas que Turnstile necesita.
 
-Fallos que verá el usuario: si el script de Cloudflare no carga (bloqueador de contenido, sin red) el login queda bloqueado con un
+Fallos que verá el usuario: si el script de Cloudflare no carga (bloqueador de contenido, sin red, o no responde en 10 s) el login queda bloqueado con un
 mensaje y un botón "Reintentar" (no se omite el captcha). Si el token vence o falla, mismo mensaje con reintento. Si Supabase
 rechaza el token, "La verificación de seguridad falló o venció".
 

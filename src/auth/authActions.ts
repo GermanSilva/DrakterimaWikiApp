@@ -2,6 +2,12 @@ import type { Db } from '../data'
 import { callbackUrl } from './authConfig'
 import { AuthFlowError, normalizeEmail, toAuthFlowError, toOAuthFlowError } from './authErrors'
 
+export interface MagicLinkOptions {
+  captchaToken?: string
+  /** Overrides the origin used to build the callback URL (tests). */
+  origin?: string
+}
+
 /**
  * Sends a magic link (creating the account on first use). Throws AuthFlowError.
  * `captchaToken` (a single-use Turnstile token) is forwarded as `options.captchaToken` only when
@@ -10,8 +16,7 @@ import { AuthFlowError, normalizeEmail, toAuthFlowError, toOAuthFlowError } from
 export async function requestMagicLink(
   client: Db,
   rawEmail: string,
-  captchaToken?: string,
-  origin?: string,
+  { captchaToken, origin }: MagicLinkOptions = {},
 ): Promise<void> {
   const email = normalizeEmail(rawEmail)
   let result

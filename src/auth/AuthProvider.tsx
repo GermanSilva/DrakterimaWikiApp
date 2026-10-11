@@ -115,7 +115,7 @@ export function AuthProvider({ children, client: clientProp, profiles: profilesP
   }, [profiles])
 
   const signInWithEmail = useCallback(
-    (email: string, captchaToken?: string) => requestMagicLink(client, email, captchaToken),
+    (email: string, captchaToken?: string) => requestMagicLink(client, email, { captchaToken }),
     [client],
   )
   const signInWithGoogle = useCallback(() => startGoogleSignIn(client), [client])
