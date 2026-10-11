@@ -617,7 +617,7 @@ $env:SUPABASE_DB_URL = '<cadena del pooler en modo sesión, con la contraseña>'
 $env:IMPORT_ALLOW_REMOTE = '<ref>.supabase.co'
 ```
 
-Dry run alojado (no escribe nada; muestra conteos y "rolled back"):
+Dry run alojado (no deja filas: todo se revierte; muestra conteos y "rolled back". Las secuencias de tablas con ids generados, `entity_dm_notes` y `game_logs`, pueden avanzar aunque la transacción se revierta: solo deja huecos en los ids, nada más cambia):
 
 ```powershell
 npm run db:import -- --remote --confirm-host <ref>.supabase.co --input C:\ruta\fuera\del\repo\export.json --dm-email <email-del-DM> --app-origin https://<dominio-de-producción> --lenient

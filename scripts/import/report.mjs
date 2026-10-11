@@ -150,4 +150,4 @@ export function formatReport(report) {
 }
 
 /** First console line of a finished run, shared by the import and --sync-claims (the integration tests match this wording). */
-export const completionBanner = (apply) => (apply ? 'Committed.' : 'Dry run complete: everything was rolled back, the database is unchanged.')
+export const completionBanner = (apply) => (apply ? 'Committed.' : 'Dry run complete: everything was rolled back (only generated-id sequences, e.g. entity_dm_notes and game_logs, may have advanced: id gaps, nothing else).')

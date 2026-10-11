@@ -42,6 +42,14 @@ function FaccionTags({ f }: { f: FlatEntity }) {
   )
 }
 
+/** 'Facción' once: legacy data stores tipo 'facción' (the old form default), which would repeat the word. */
+function faccionEyebrow(tipo: string): string {
+  const t = tipo.trim()
+  const plain = t.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+  if (plain === 'faccion') return 'Facción'
+  return `Facción · ${t || 'Organización'}`
+}
+
 function FaccionView({ entity, listPath }: EntityViewProps) {
   const { isDM } = useCampaign()
   const dm = useDmNotes('facciones', entity.id, entity.updated_at)
@@ -59,7 +67,7 @@ function FaccionView({ entity, listPath }: EntityViewProps) {
       </DetailBackBar>
 
       <DetailHeading
-        eyebrow={`Facción · ${str(entity.tipo) || 'Organización'}`}
+        eyebrow={faccionEyebrow(str(entity.tipo))}
         eyebrowColor={regionInfo(str(entity.region)).color || '#6e6e6e'}
         nameRef={nameRef}
         title={nombre}

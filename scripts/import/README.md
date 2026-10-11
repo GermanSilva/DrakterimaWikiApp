@@ -23,7 +23,7 @@ npm run db:import -- --input ./export.json --dm-email dm@example.com --app-origi
 ```
 
 Without `--apply` the whole import runs inside one transaction and is **rolled back**: you get the validation report and
-the would-be counts, and the database is unchanged. Strict mode (no `--lenient`) aborts on data the hub schema rejects;
+the would-be counts, and no row is kept. Sequences of tables with generated ids (`entity_dm_notes`, `game_logs`) can still advance in a dry run (`nextval` is not transactional): that only leaves id gaps, nothing else changes. Strict mode (no `--lenient`) aborts on data the hub schema rejects;
 real exports usually need `--lenient`, which downgrades those to warnings. `--allow-partial` accepts an export with
 missing collections.
 

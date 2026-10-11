@@ -1,8 +1,9 @@
 // Database writer for the legacy import. Takes a connected `pg` client and the output of buildImport().
 //
 // Everything runs in ONE transaction. The caller decides between COMMIT (apply) and ROLLBACK (dry run) through
-// `apply`. Sequences are not transactional and are NEVER rewound: a dry run does not touch them at all (the next
-// values are computed from the data), and an apply only moves them forward, so a rolled-back or possibly
+// `apply`. Sequences are not transactional and are NEVER rewound: a dry run does not advance the entity sequences (the next
+// values are computed from the data; sequences of generated-id tables such as entity_dm_notes and game_logs can still
+// move in a dry run, which only leaves id gaps), and an apply only moves them forward, so a rolled-back or possibly
 // committed run cannot make a live target hand out an id twice.
 //
 // Logging: this module returns counts and ids only. It never returns row text, and `ImportAbort` messages are

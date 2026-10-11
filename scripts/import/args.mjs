@@ -35,7 +35,7 @@ Notes:
   - The DM auth user is created OUTSIDE the transaction (only with --apply, when the e-mail has no user). If the
     import then aborts, that user stays; the report says "dmUser: created" when this run made it. Remove it from
     the Supabase dashboard (Authentication > Users) or with auth.admin.deleteUser; re-running just reuses it.
-  - Sequences are only ever advanced, never rewound; a dry run does not touch them.
+  - Sequences are only ever advanced, never rewound; the identity sequences of the entity tables are not touched by a dry run. Sequences of tables with generated ids (entity_dm_notes, game_logs) CAN advance in a dry run (nextval is not transactional): id gaps only.
   - Exit codes: 0 ok, 1 refused/failed, 2 bad arguments, 3 committed but a follow-up step failed (an output file could
     not be written, or the post-apply counts could not be read); the message names which. Re-run with --apply to
     regenerate the report and the invite CSV.`

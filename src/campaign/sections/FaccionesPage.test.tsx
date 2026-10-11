@@ -92,6 +92,13 @@ describe('Facciones detail (URL driven)', () => {
     expect(await screen.findByText('Facción · Organización')).toBeInTheDocument() // no tipo: legacy fallback
   })
 
+  it.each(['facción', 'Facción', ' FACCION '])('shows the subtitle once when tipo is the legacy default %j', async (tipo) => {
+    const { layer } = createFakeLayer({ entities: { facciones: [faccion(1, { nombre: 'Orden', tipo })] } })
+    renderSection('/c/demo/facciones/1', { layer })
+    const title = await screen.findByRole('heading', { level: 1, name: 'Orden' })
+    expect(title.previousElementSibling?.textContent).toBe('Facción') // the eyebrow, once
+  })
+
   it('unknown and non-numeric ids are "no encontrada" (no DM request); a load failure is retryable', async () => {
     const { layer, spies } = createFakeLayer({ entities: { facciones: FACCIONES } })
     const { router } = renderSection('/c/demo/facciones/77', { layer })
