@@ -38,7 +38,6 @@ export const makeRequest = (over: Partial<CampaignRequest> = {}): CampaignReques
   message: null,
   status: 'pending',
   decision_note: null,
-  decided_by: null,
   decided_at: null,
   campaign_id: null,
   created_at: '2026-01-02T00:00:00Z',

@@ -1444,6 +1444,7 @@ export type Database = {
       is_campaign_dm: { Args: { cid: string }; Returns: boolean }
       is_campaign_member: { Args: { cid: string }; Returns: boolean }
       is_hub_owner: { Args: never; Returns: boolean }
+      is_reserved_slug: { Args: { p_slug: string }; Returns: boolean }
       my_character_ids: { Args: { cid: string }; Returns: number[] }
       play_loteria: {
         Args: { p_campaign_id: string; p_character_id?: number }
@@ -1459,6 +1460,10 @@ export type Database = {
         Returns: number[]
       }
       shares_campaign_with: { Args: { uid: string }; Returns: boolean }
+      strip_control_chars: {
+        Args: { p_keep_newlines?: boolean; p_text: string }
+        Returns: string
+      }
       touch_campaign_presence: {
         Args: { p_campaign_id: string }
         Returns: undefined

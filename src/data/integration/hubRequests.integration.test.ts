@@ -93,7 +93,8 @@ describe('hub owner and campaign requests against the local stack', () => {
     expect((await ownerData.campaigns.listMyCampaigns(owner.id)).some((c) => c.slug === wanted)).toBe(false)
 
     const after = (await requesterData.campaignRequests.listMyCampaignRequests(requester.id)).find((r) => r.id === request.id)
-    expect(after).toMatchObject({ status: 'approved', decided_by: owner.id })
+    expect(after).toMatchObject({ status: 'approved' })
+    expect(after).not.toHaveProperty('decided_by')
     expect(after?.campaign_id).toBe(mine.find((c) => c.slug === wanted)?.id)
 
     await expect(ownerData.campaignRequests.approveCampaignRequest(request.id)).rejects.toMatchObject({ reason: 'request_not_pending' })
@@ -134,5 +135,14 @@ describe('hub owner and campaign requests against the local stack', () => {
     const mine = (await requesterData.campaignRequests.listMyCampaignRequests(requester.id))[0]
     const upd = await requester.client.from('campaign_requests').update({ status: 'approved' } as never).eq('id', mine.id)
     expect(upd.error?.code).toBe('42501')
+  })
+
+  it('decided_by is not readable and a DM cannot change the slug of their campaign', async () => {
+    const probe = await requester.client.from('campaign_requests').select('decided_by' as never)
+    expect(probe.error?.code).toBe('42501')
+    const mine = (await requesterData.campaigns.listMyCampaigns(requester.id)).find((c) => c.role === 'dm')
+    expect(mine).toBeDefined()
+    const patch = await requester.client.from('campaigns').update({ slug: 'admin' } as never).eq('id', mine!.id)
+    expect(patch.error?.code).toBe('42501')
   })
 })

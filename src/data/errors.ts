@@ -34,6 +34,7 @@ export const KNOWN_REASONS = [
   'owner_not_member',
   'hub_owner_only',
   'too_many_pending_requests',
+  'too_many_requests_recently',
   'request_not_pending',
   'request_not_found',
   'slug_taken',

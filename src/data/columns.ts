@@ -182,7 +182,6 @@ export const CAMPAIGN_REQUEST_COLUMNS = [
   'message',
   'status',
   'decision_note',
-  'decided_by',
   'decided_at',
   'campaign_id',
   'created_at',

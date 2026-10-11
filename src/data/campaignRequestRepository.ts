@@ -15,7 +15,6 @@ export interface CampaignRequest {
   message: string | null
   status: CampaignRequestStatus
   decision_note: string | null
-  decided_by: string | null
   decided_at: string | null
   campaign_id: string | null
   created_at: string
@@ -38,7 +37,7 @@ const PROFILE_EMBED = 'id, display_name, avatar_url'
 
 /**
  * Hub owner / campaign requests (H15). The database enforces every rule; `isHubOwner` is only a hint for the UI.
- * Errors keep their reason (see errors.ts): hub_owner_only, too_many_pending_requests, request_not_pending,
+ * Errors keep their reason (see errors.ts): hub_owner_only, too_many_pending_requests, too_many_requests_recently, request_not_pending,
  * request_not_found, slug_taken, invalid_slug, invalid_name, reserved_slug, campaign_limit_reached.
  */
 export function createCampaignRequestRepository(client: Db) {
@@ -61,7 +60,7 @@ export function createCampaignRequestRepository(client: Db) {
       )
     },
 
-    /** Always pending on creation (status is not insertable). Errors: too_many_pending_requests, reserved_slug. */
+    /** Always pending on creation (status is not insertable). Errors: too_many_pending_requests, too_many_requests_recently, reserved_slug. */
     async createCampaignRequest(request: NewCampaignRequest): Promise<CampaignRequest> {
       const payload = Object.fromEntries(
         CAMPAIGN_REQUEST_WRITE_COLUMNS.filter((k) => request[k] !== undefined).map((k) => [k, request[k]]),

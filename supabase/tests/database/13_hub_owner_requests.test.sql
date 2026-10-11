@@ -315,9 +315,12 @@ select tests.as_user('aaaaaaaa-2222-4000-8000-000000000002');
 -- Reject
 ------------------------------------------------------------------------------
 select lives_ok($$select public.reject_campaign_request(tests.rid('Req Delta'), '  no por ahora ')$$, 'a hub owner can reject');
+-- decided_by is not readable through the API (H15b): read it as postgres
+select tests.as_postgres();
 select is(
   (select concat_ws('|', status, decision_note, decided_by::text) from public.campaign_requests where name = 'Req Delta'),
   'rejected|no por ahora|aaaaaaaa-2222-4000-8000-000000000002', 'the rejection records note and decider');
+select tests.as_user('aaaaaaaa-2222-4000-8000-000000000002');
 select throws_ok(
   $$select public.approve_campaign_request(tests.rid('Req Delta'), 'delta-camp')$$, 'P0001', 'request_not_pending',
   'a rejected request cannot be approved');
