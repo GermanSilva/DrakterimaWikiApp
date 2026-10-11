@@ -5,7 +5,7 @@
 --
 -- Users (magic-link only: no password is set; read the link in the local Mailpit inbox,
 -- http://127.0.0.1:54324, after requesting a sign-in link for the address):
---   dm@example.test        DM of campaign A ("Drakterima Demo")  and PLAYER in campaign B
+--   dm@example.test        DM of campaign A ("Drakterima Demo")  and PLAYER in campaign B; HUB OWNER
 --   player1@example.test   player in A (owns Maisie)             and DM of campaign B ("Port Azure")
 --   player2@example.test   player in A (owns Eldric)
 --   outsider@example.test  member of nothing
@@ -199,3 +199,11 @@ select setval(pg_get_serial_sequence('public.items', 'id'),           (select co
 select setval(pg_get_serial_sequence('public.mapas', 'id'),           (select coalesce(max(id), 1) from public.mapas));
 select setval(pg_get_serial_sequence('public.map_points', 'id'),      (select coalesce(max(id), 1) from public.map_points));
 select setval(pg_get_serial_sequence('public.homebrew_rules', 'id'),  (select coalesce(max(id), 1) from public.homebrew_rules));
+
+------------------------------------------------------------------------------
+-- Hub owner (H15): dm@example.test can create campaigns directly and decide campaign requests.
+-- Everybody else in this seed requests a campaign instead. Dev only: in production the owner is
+-- assigned once with the SQL snippet in docs/hosting-and-cutover.md.
+------------------------------------------------------------------------------
+
+insert into public.hub_owners (user_id) values ('aaaaaaaa-0000-4000-8000-000000000001');

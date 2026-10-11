@@ -62,6 +62,9 @@ insert into auth.users (instance_id, id, aud, role, email, raw_user_meta_data) v
   ('00000000-0000-0000-0000-000000000000', 'bbbbbbbb-0000-4000-8000-000000000005', 'authenticated', 'authenticated', 'test-extra@example.test', '{}'),
   ('00000000-0000-0000-0000-000000000000', 'bbbbbbbb-0000-4000-8000-000000000006', 'authenticated', 'authenticated', 'test-late@example.test', '{}');
 
+-- H15: direct campaign creation is for hub owners only; the outsider is one here (see 13_hub_owner_requests).
+insert into public.hub_owners (user_id) values ('bbbbbbbb-0000-4000-8000-000000000004');
+
 insert into public.campaigns (id, slug, name) values
   ('dddddddd-0000-4000-8000-00000000000a', 'test-camp-a', 'Test Campaign A'),
   ('dddddddd-0000-4000-8000-00000000000b', 'test-camp-b', 'Test Campaign B');

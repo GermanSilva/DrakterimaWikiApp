@@ -199,6 +199,73 @@ export type Database = {
           },
         ]
       }
+      campaign_requests: {
+        Row: {
+          campaign_id: string | null
+          created_at: string
+          decided_at: string | null
+          decided_by: string | null
+          decision_note: string | null
+          id: number
+          message: string | null
+          name: string
+          requester_id: string
+          slug_wanted: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: never
+          message?: string | null
+          name: string
+          requester_id?: string
+          slug_wanted?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string | null
+          created_at?: string
+          decided_at?: string | null
+          decided_by?: string | null
+          decision_note?: string | null
+          id?: never
+          message?: string | null
+          name?: string
+          requester_id?: string
+          slug_wanted?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_requests_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_requests_decided_by_fkey"
+            columns: ["decided_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_requests_requester_id_fkey"
+            columns: ["requester_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       campaigns: {
         Row: {
           branding: Json
@@ -551,6 +618,29 @@ export type Database = {
             foreignKeyName: "homebrew_rules_created_by_fkey"
             columns: ["created_by"]
             isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      hub_owners: {
+        Row: {
+          created_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hub_owners_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1258,6 +1348,10 @@ export type Database = {
     }
     Functions: {
       accept_invite: { Args: { p_code: string }; Returns: Json }
+      approve_campaign_request: {
+        Args: { p_name?: string; p_request_id: number; p_slug?: string }
+        Returns: string
+      }
       assign_pot_to_character: {
         Args: { p_campaign_id: string; p_character_id: number; p_coins: Json }
         Returns: Json
@@ -1305,6 +1399,28 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_campaign_for: {
+        Args: { p_dm: string; p_name: string; p_slug: string }
+        Returns: {
+          branding: Json
+          character_custom_fields: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          regions: Json
+          settings: Json
+          slug: string
+          system: string
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "campaigns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       credit_character_coins: {
         Args: {
           p_campaign_id: string
@@ -1327,12 +1443,17 @@ export type Database = {
       }
       is_campaign_dm: { Args: { cid: string }; Returns: boolean }
       is_campaign_member: { Args: { cid: string }; Returns: boolean }
+      is_hub_owner: { Args: never; Returns: boolean }
       my_character_ids: { Args: { cid: string }; Returns: number[] }
       play_loteria: {
         Args: { p_campaign_id: string; p_character_id?: number }
         Returns: Json
       }
       preview_invite: { Args: { p_code: string }; Returns: Json }
+      reject_campaign_request: {
+        Args: { p_note?: string; p_request_id: number }
+        Returns: undefined
+      }
       set_entity_visibility: {
         Args: { p_entity_type: string; p_id: number; p_visible_to: number[] }
         Returns: number[]
