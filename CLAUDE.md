@@ -72,7 +72,9 @@ con un rol por campaña (DM o jugador). Documento de seguimiento de la migració
 | `/legacy/*` | app legacy Firebase, import dinámico |
 
 Todo salvo el login es lazy. `/`, `/invite/*`, `/profile` y `/c/*` exigen sesión (`RequireAuthRoute`). El parámetro `next` se
-valida (`safeNext.ts`). La app legacy **nunca** se importa de forma estática desde `routes.tsx` (hay test); no pasar
+valida (`safeNext.ts`) y, antes de iniciar sesión (magic link o Google), el login lo guarda en `localStorage`
+(`auth/postLoginRedirect.ts`, 30 min, un solo uso, revalidado al leerlo) para volver a ese link tras `/auth/callback`; el
+callback nunca lee un destino de su URL. La app legacy **nunca** se importa de forma estática desde `routes.tsx` (hay test); no pasar
 `import.meta.env` entero a ningún lado (Vite incrustaría todos los `VITE_*`): leer cada clave por separado.
 
 ### Mapa de carpetas

@@ -648,7 +648,8 @@ Opcional: snapshot previo de la base (`supabase db dump --linked -f backup.sql`,
 2. **Tratar el CSV como una lista de contraseñas**: en Windows el modo `0600` no se hace cumplir (NTFS); guardarlo en un disco
    cifrado, mandar a cada jugador **solo su link** por un canal privado y borrar el CSV al terminar.
 3. Cada jugador: abre su link `https://<dominio>/invite/<código>` en el navegador donde va a usar la app, inicia sesión
-   (magic link/Google), ve la pantalla de confirmación (con el aviso de que el DM ve su última conexión) y pulsa **Unirme**. Eso
+   (magic link/Google) y **vuelve solo a la pantalla de la invitación** (el login recuerda el destino en `localStorage` por 30 min;
+   si el magic link se abre en otro navegador no hay destino y cae en `/`: reabrir el link de la invitación), ve la pantalla de confirmación (con el aviso de que el DM ve su última conexión) y pulsa **Unirme**. Eso
    lo une a la campaña y lo hace dueño de su personaje.
 4. El DM entra con el mismo email que pasó a `--dm-email` (el usuario se creó sin contraseña).
 5. **Sync de datos de jugadores** (notas, lecturas, disponibilidad), repetible a medida que reclaman, mismas reglas de

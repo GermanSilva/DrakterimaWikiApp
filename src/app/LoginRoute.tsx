@@ -10,7 +10,7 @@ export function LoginRoute() {
   if (status === 'signed_in') return <Navigate to={safeNextPath(params.get('next'))} replace />
   return (
     <main id="main-content" tabIndex={-1}>
-      <ConnectedLoginPage />
+      <ConnectedLoginPage next={params.get('next')} />
     </main>
   )
 }

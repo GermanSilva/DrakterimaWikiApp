@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import type { Db } from '../data'
 import { AuthProvider } from './AuthProvider'
+import { NEXT_STORAGE_KEY, rememberNext } from './postLoginRedirect'
 import { createFakeAuth, fakeSession, profileRow } from './testing/fakeAuth'
 import { useAuth } from './useAuth'
 
@@ -148,6 +149,15 @@ describe('AuthProvider', () => {
     expect(result.current.profileStatus).toBe('loading')
     await act(async () => resolveSecond(profileRow('u1', 'Ana')))
     expect(result.current.profile?.display_name).toBe('Ana')
+  })
+
+  it('signOut discards a remembered post-login destination', async () => {
+    const { result, auth } = setup(fakeSession('u1'))
+    await waitFor(() => expect(result.current.status).toBe('signed_in'))
+    rememberNext('/invite/abc')
+    await act(async () => result.current.signOut())
+    expect(window.localStorage.getItem(NEXT_STORAGE_KEY)).toBeNull()
+    expect(auth.signOut).toHaveBeenCalledTimes(1)
   })
 
   it('signOut calls the client and surfaces its error', async () => {

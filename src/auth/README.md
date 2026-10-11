@@ -9,7 +9,8 @@ authActions.ts         requestMagicLink(client, email, { captchaToken?, origin? 
 turnstile/             turnstileLoader.ts (script loaded once, lazily), useTurnstile.ts (widget + token hook), fakeTurnstile.ts (tests)
 AuthProvider.tsx       <AuthProvider client? profiles?> + useAuth(): { status, session, user, profile, profileError, profileStatus,
                        signInWithEmail, signInWithGoogle, signOut, refreshProfile }
-completeAuthCallback.ts / AuthCallback.tsx   finish the sign-in at /auth/callback, then onDone('/')
+completeAuthCallback.ts / AuthCallback.tsx   finish the sign-in at /auth/callback, then onDone(<remembered path or '/'>)
+postLoginRedirect.ts   rememberNext(next) / consumeNext() / clearNext(): one-shot post-login destination (localStorage, 30 min TTL)
 LoginPage / UserMenu / ProfileForm           presentational (props only); ConnectedLoginPage wires LoginPage to useAuth
 RequireAuth.tsx        children when signed in, loading element, fallback (default: login page)
 ```
@@ -38,7 +39,14 @@ at `/auth/callback`. The provider uses `getSupabase()` unless a client is passed
 3. `onAuthStateChange` feeds the provider; the profile is loaded through `profileRepository` for the user id.
    The `profiles` row is created by the `handle_new_user` trigger.
 
-`onDone` always receives `'/'`: there is deliberately no caller-controlled `next` parameter (no open redirect).
+**Returning to the protected link** (e.g. `/invite/<code>`): the callback URL never carries a destination (no `next`, no open
+redirect). Instead `ConnectedLoginPage` receives the login URL's `?next=` and, BEFORE any sign-in starts (magic link send AND the
+Google redirect), calls `rememberNext(next)`: if `safeNextPath` accepts it, it is stored in same-origin `localStorage` (not
+`sessionStorage`: the magic link opens in a new tab) under `drakterima:post-login-next` as `{ path, expiresAt }` (30 min);
+otherwise any stored value is REMOVED, so a stale one can never steer a later unrelated login. After a successful exchange
+`AuthCallback` calls `consumeNext()`: it reads the value once, deletes it unconditionally, re-validates path and TTL and passes
+it to `onDone`; missing, expired or invalid gives `'/'`. A dismissed callback error and an explicit `signOut` clear it. Every
+storage access is try/catch (private mode or blocked storage degrades to `/`); the route layer validates once more.
 `redirectTo` is built from `window.location.origin` only and Supabase additionally allow-lists it.
 
 ## Configuration

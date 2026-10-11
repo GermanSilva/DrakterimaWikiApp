@@ -15,7 +15,7 @@ src/campaign/  CampaignLayout (loader + context), CampaignShell/Header/Sidebar/S
 | Path | Screen | Notes |
 | --- | --- | --- |
 | `/login` | `ConnectedLoginPage` | signed in: redirect to `?next=` if it is a safe same-origin path, else `/` |
-| `/auth/callback` | `AuthCallback` | `onDone` navigates (replace) to `/` |
+| `/auth/callback` | `AuthCallback` | `onDone` navigates (replace) to the one-shot destination the login page stored (`postLoginRedirect`, validated, 30 min) or `/`; never read from the callback URL |
 | `/` | `HubHome` | "Mis campañas", create campaign, join with a code |
 | `/invite/:code` | `InvitePage` | accepts once, then `/c/:slug` (replace) |
 | `/profile` | `ProfilePage` | H5 `ProfileForm` + `refreshProfile` |

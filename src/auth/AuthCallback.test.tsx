@@ -3,12 +3,16 @@ import { StrictMode } from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthCallback } from './AuthCallback'
 import { CALLBACK_WRONG_BROWSER, completeAuthCallback } from './completeAuthCallback'
+import { NEXT_STORAGE_KEY, NEXT_TTL_MS, rememberNext } from './postLoginRedirect'
 import { createFakeAuth, fakeSession } from './testing/fakeAuth'
 import { userEvent } from './testing/userEvent'
 
 const goto = (suffix: string) => window.history.replaceState({}, '', `/auth/callback${suffix}`)
 
-beforeEach(() => goto(''))
+beforeEach(() => {
+  goto('')
+  window.localStorage.clear()
+})
 
 describe('completeAuthCallback', () => {
   it('exchanges the PKCE code and clears it from the URL before the exchange resolves', async () => {
@@ -94,6 +98,66 @@ describe('AuthCallback', () => {
     render(<AuthCallback client={client} onDone={onDone} />)
     expect(screen.getByRole('status')).toBeInTheDocument()
     await waitFor(() => expect(onDone).toHaveBeenCalledWith('/'))
+  })
+
+  it('navigates to the stored invite path once after a successful exchange', async () => {
+    const { client } = createFakeAuth()
+    const onDone = vi.fn()
+    rememberNext('/invite/abc')
+    goto('?code=abc')
+    render(<AuthCallback client={client} onDone={onDone} />)
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith('/invite/abc'))
+    expect(onDone).toHaveBeenCalledTimes(1)
+    expect(window.localStorage.getItem(NEXT_STORAGE_KEY)).toBeNull()
+  })
+
+  it.each([
+    ['expired', () => vi.setSystemTime(Date.now() + NEXT_TTL_MS + 1)],
+    ['invalid', () => window.localStorage.setItem(NEXT_STORAGE_KEY, JSON.stringify({ path: '//evil.com', expiresAt: Date.now() + 1000 }))],
+    ['absent', () => window.localStorage.clear()],
+  ])('falls back to / when the stored path is %s', async (_name, arrange) => {
+    const { client } = createFakeAuth()
+    const onDone = vi.fn()
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      rememberNext('/invite/abc')
+      arrange()
+      goto('?code=abc')
+      render(<AuthCallback client={client} onDone={onDone} />)
+      await waitFor(() => expect(onDone).toHaveBeenCalledWith('/'))
+      expect(window.localStorage.getItem(NEXT_STORAGE_KEY)).toBeNull()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('ignores a ?next= in the callback URL (the destination only comes from storage)', async () => {
+    const { client } = createFakeAuth()
+    const onDone = vi.fn()
+    goto('?code=abc&next=%2Finvite%2Fevil&redirect_to=https%3A%2F%2Fevil.com')
+    render(<AuthCallback client={client} onDone={onDone} />)
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith('/'))
+    expect(onDone).not.toHaveBeenCalledWith(expect.stringContaining('evil'))
+  })
+
+  it('a ?next= in the callback URL does not override the stored destination either', async () => {
+    const { client } = createFakeAuth()
+    const onDone = vi.fn()
+    rememberNext('/invite/abc')
+    goto('?code=abc&next=%2Finvite%2Fevil')
+    render(<AuthCallback client={client} onDone={onDone} />)
+    await waitFor(() => expect(onDone).toHaveBeenCalledWith('/invite/abc'))
+  })
+
+  it('does not use or keep the stored destination when the sign-in fails', async () => {
+    const { client } = createFakeAuth()
+    const onDone = vi.fn()
+    rememberNext('/invite/abc')
+    goto('?error_description=expired')
+    render(<AuthCallback client={client} onDone={onDone} />)
+    await userEvent.click(await screen.findByRole('button', { name: /volver/i }))
+    expect(onDone).toHaveBeenCalledWith('/')
+    expect(window.localStorage.getItem(NEXT_STORAGE_KEY)).toBeNull()
   })
 
   it('shows the error and lets the user go back', async () => {

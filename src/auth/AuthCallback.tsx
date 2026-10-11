@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { btnSecondary } from '../constants'
 import { getSupabase, type Db } from '../data'
 import { CALLBACK_GENERIC, completeAuthCallback } from './completeAuthCallback'
+import { clearNext, consumeNext } from './postLoginRedirect'
 
 /** How long to wait for the code exchange before showing the error state with a way out. */
 export const CALLBACK_TIMEOUT_MS = 15000
@@ -9,9 +10,10 @@ export const CALLBACK_TIMEOUT_MESSAGE = 'Está tardando más de lo normal. Pedí
 
 export interface AuthCallbackProps {
   /**
-   * Called after a successful sign-in with the path to show next. Always '/' for now (no
-   * caller-supplied `next`, so the callback can never become an open redirect); also called with
-   * '/' when the user dismisses an error.
+   * Called after a successful sign-in with the path to show next: the one-shot destination the
+   * login page stored (postLoginRedirect, re-validated, 30 min TTL) or '/'. No URL parameter of
+   * the callback is ever read, so the callback cannot become an open redirect. Called with '/'
+   * when the user dismisses an error.
    */
   onDone: (path: string) => void
   /** Defaults to the shared client. */
@@ -32,11 +34,16 @@ export function AuthCallback({ onDone, client }: AuthCallbackProps) {
     onDoneRef.current = onDone
   }, [onDone])
 
-  /** onDone fires at most once, whichever path (success or the back button) gets there first. */
-  const finish = () => {
+  /**
+   * onDone fires at most once, whichever path (success or the back button) gets there first. After
+   * a success the destination is the one-shot value the login page stored (else '/'); a dismissed
+   * error discards it.
+   */
+  const finish = (signedIn: boolean) => {
     if (doneCalled.current) return
     doneCalled.current = true
-    onDoneRef.current('/')
+    if (!signedIn) clearNext()
+    onDoneRef.current(signedIn ? consumeNext() : '/')
   }
 
   useEffect(() => {
@@ -54,7 +61,7 @@ export function AuthCallback({ onDone, client }: AuthCallbackProps) {
             return
           }
           settled.current = true
-          if (result.ok) finish()
+          if (result.ok) finish(true)
           else setError(result.message)
         },
         () => {
@@ -84,7 +91,7 @@ export function AuthCallback({ onDone, client }: AuthCallbackProps) {
     return (
       <div role="status" className="max-w-sm mx-auto mt-24 px-4 text-center">
         <p className="text-sm text-txt-secondary mb-4">Ya iniciaste sesión.</p>
-        <button type="button" className={btnSecondary} onClick={finish}>
+        <button type="button" className={btnSecondary} onClick={() => finish(true)}>
           Continuar
         </button>
       </div>
@@ -94,7 +101,7 @@ export function AuthCallback({ onDone, client }: AuthCallbackProps) {
     return (
       <div role="alert" className="max-w-sm mx-auto mt-24 px-4 text-center">
         <p className="text-sm text-txt-secondary mb-4">{error}</p>
-        <button type="button" className={btnSecondary} onClick={finish}>
+        <button type="button" className={btnSecondary} onClick={() => finish(false)}>
           Volver al inicio
         </button>
       </div>

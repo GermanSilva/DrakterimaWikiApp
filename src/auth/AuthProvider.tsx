@@ -3,6 +3,7 @@ import type { Session } from '@supabase/supabase-js'
 import { createProfileRepository, getSupabase, type Db, type Profile, type ProfileRepository } from '../data'
 import { requestMagicLink, startGoogleSignIn } from './authActions'
 import { AuthContext, type AuthValue } from './AuthContext'
+import { clearNext } from './postLoginRedirect'
 
 export interface AuthProviderProps {
   children: ReactNode
@@ -122,6 +123,7 @@ export function AuthProvider({ children, client: clientProp, profiles: profilesP
   const signOut = useCallback(async () => {
     const { error } = await client.auth.signOut({ scope: 'local' })
     if (error) throw error
+    clearNext()
   }, [client])
 
   const value = useMemo<AuthValue>(() => {
