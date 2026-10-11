@@ -38,11 +38,11 @@ Resolverlas **antes** de crear los proyectos. Cada una indica la recomendación.
 | D1 | Región de Supabase | La más cercana a los jugadores (para Argentina, `South America (São Paulo)`). **No se puede cambiar después** sin migrar. | (b) |
 | D2 | Plan de Supabase | Free sirve para probar; los proyectos Free se **pausan** tras inactividad y no tienen backups diarios. Para datos reales de campaña, Pro. | (b) |
 | D3 | Un proyecto Supabase o dos (producción + staging) | Dos: staging (Free) sirve para ensayar migraciones, Realtime y el import completo, y para los deploys de preview de Vercel. | (b), (e) |
-| D4 | SMTP propio | **Obligatorio en la práctica**: el correo por defecto de Supabase es solo para pruebas y limita mucho el volumen y los destinatarios. Sin SMTP propio los jugadores no reciben el magic link. Verificar las condiciones vigentes en la doc de Supabase. | (d) |
-| D5 | Captcha | **Cloudflare Turnstile (plan gratis), decidido.** La app ya lo soporta: se activa definiendo `VITE_TURNSTILE_SITE_KEY` en Vercel y la clave secreta en Supabase (pasos en d.5). Sin esa variable la app funciona como antes (sin widget ni token). | (d), (e) |
+| D4 | SMTP / remitente | **Sin dominio propio** (decidido): el correo por defecto de Supabase es solo para pruebas y limita mucho el volumen y los destinatarios, así que hace falta un SMTP propio con **un único remitente verificado** (p. ej. Brevo, *Single sender*: confirmás una casilla tuya por correo). Sin dominio no hay SPF/DKIM propios, por lo que el magic link es *best-effort* y **puede caer en spam**: por eso el login principal es Google (D7). El dominio solo hace falta para firmar con SPF/DKIM propios y mejorar la entrega. Verificar las condiciones vigentes en la doc de Supabase y del proveedor. | (d) |
+| D5 | Captcha | **Cloudflare Turnstile (plan gratis), decidido.** No requiere dominio propio (el Site Key se registra para el host de Vercel). Protege solo el envío del magic link: el botón de Google no usa token. Se activa definiendo `VITE_TURNSTILE_SITE_KEY` en Vercel y la clave secreta en Supabase (pasos en d.5). Sin esa variable la app funciona como antes (sin widget ni token). | (d), (e) |
 | D6 | Registro abierto o cerrado | Cualquiera con un email puede crear cuenta, pero **ya no puede crear campañas**: solo puede *solicitarlas* y el Hub Owner las aprueba (H15, ver d.6). Opciones en (d). Recomendado para un grupo cerrado: registro abierto + SMTP propio + límites, y reevaluar si aparece abuso. | (d) |
-| D7 | Google login | Opcional. Si no se configura, poner `VITE_AUTH_GOOGLE_ENABLED=false` en Vercel. | (d), (e) |
-| D8 | Dominio | `*.vercel.app` o dominio propio. Cambiarlo después obliga a retocar Site URL, redirect URLs, Google y el origen de los links de invitación. | (d), (e) |
+| D7 | Google login | **Login principal (decidido)**: la pantalla muestra Google primero y el magic link por email debajo como alternativa. Configurar Google en d.7 y poner `VITE_AUTH_GOOGLE_ENABLED=true` en Vercel. Si no se configura, poner `false` (la pantalla queda solo con email). | (d), (e) |
+| D8 | Dominio | **Sin dominio propio por ahora (decidido): se usa `*.vercel.app`.** Consecuencias: la pantalla de consentimiento de Google muestra `<ref>.supabase.co` (no un dominio tuyo); no hay SPF/DKIM propios (D4). Cambiarlo después obliga a retocar Site URL, redirect URLs, los *Authorized JavaScript origins* de Google y el origen de los links de invitación. | (d), (e) |
 | D9 | ¿Staging separado para previews de Vercel? | Sí (D3). Si no, las previews usan la base de **producción**. | (e) |
 | D10 | Email real del DM para el import | Necesario para `--dm-email`. | (f) |
 | D11 | Ventana de calma y fecha de corte | Avisar a los jugadores; el import se hace con la app legacy congelada. | (f), (g) |
@@ -57,8 +57,8 @@ Resolverlas **antes** de crear los proyectos. Cada una indica la recomendación.
 
 - Cuenta de Supabase (organización con permiso para crear proyectos) y cuenta de Vercel conectada a GitHub.
 - Acceso admin al repo en GitHub y a la consola de Firebase del proyecto legacy.
-- Proyecto de Google Cloud (solo si se activa Google login).
-- Proveedor SMTP (D4): cuenta, dominio remitente verificado (SPF/DKIM) y credenciales SMTP.
+- Proyecto de Google Cloud (Google es el login principal, D7).
+- Proveedor SMTP (D4): cuenta y credenciales SMTP, con un remitente verificado (sin dominio propio alcanza un *single sender*).
 - Un gestor de contraseñas para: contraseña de la base, service role key, URL de la base, secreto de Google, credenciales SMTP.
 
 Herramientas locales (**[OWNER]**, en la máquina que ejecuta los comandos):
@@ -173,20 +173,20 @@ supabase link --project-ref <ref>
 
 ### c.2 Migraciones
 
-Las migraciones están en `supabase/migrations/` (14 archivos, de `20261006120000_campaign_hub_core.sql` a
-`20261012120000_hub_owner_requests.sql`). Ver qué se aplicaría, sin tocar nada:
+Las migraciones están en `supabase/migrations/` (15 archivos, de `20261006120000_campaign_hub_core.sql` a
+`20261013120000_hub_owner_hardening.sql`). Ver qué se aplicaría, sin tocar nada:
 
 ```powershell
 supabase db push --dry-run
 ```
 
-Aplicar (el resumen debe listar las 13, en orden):
+Aplicar (el resumen debe listar las 15, en orden):
 
 ```powershell
 supabase db push
 ```
 
-Confirmar que local y remoto coinciden (14 filas con ambas columnas llenas):
+Confirmar que local y remoto coinciden (15 filas con ambas columnas llenas):
 
 ```powershell
 supabase migration list
@@ -202,7 +202,7 @@ supabase migration list
 ### c.3 Smoke checks SQL (equivalentes a pgTAP, solo lectura)
 
 **[OWNER]** Dashboard > *SQL Editor* > pegar y ejecutar. Los resultados esperados se obtuvieron ejecutando las mismas consultas
-contra la base local con las 14 migraciones (con la salvedad de usuarios: la local tiene los 4 del seed, la alojada debe tener 0).
+contra la base local con las 15 migraciones (con la salvedad de usuarios: la local tiene los 4 del seed, la alojada debe tener 0).
 
 **1. Tablas publicadas en Realtime.** Esperado: exactamente estas **14** filas:
 `campaign_config, disponibilidad, facciones, game_pot, homebrew_rules, items, lore, lugares, map_points, mapas, pjs,
@@ -270,7 +270,7 @@ where n.nspname = 'public' and p.prosecdef
 select (select count(*) from auth.users) as users, (select count(*) from public.campaigns) as campaigns;
 ```
 
-**8. Migraciones registradas.** Esperado: `14`.
+**8. Migraciones registradas.** Esperado: `15`.
 
 ```sql
 select count(*) as migrations from supabase_migrations.schema_migrations;
@@ -340,10 +340,21 @@ Limitaciones que conviene avisar a los jugadores (ver también `src/auth/README.
 
 ### d.3 SMTP propio (D4)
 
-*Authentication > Emails > SMTP Settings* > *Enable Custom SMTP*: host, puerto, usuario, contraseña y remitente (dominio
-verificado con SPF/DKIM) de tu proveedor. Sin esto, el servicio por defecto de Supabase solo está pensado para pruebas
-(límite de envíos por hora muy bajo y, según la política vigente, solo a miembros del equipo del proyecto: **verificar en la doc
-actual**). Después de configurarlo, probar enviando un magic link a una dirección que **no** sea la del OWNER.
+*Authentication > Emails > SMTP Settings* > *Enable Custom SMTP*: host, puerto, usuario, contraseña y remitente de tu proveedor.
+Sin esto, el servicio por defecto de Supabase solo está pensado para pruebas (límite de envíos por hora muy bajo y, según
+la política vigente, solo a miembros del equipo del proyecto: **verificar en la doc actual**).
+
+**Sin dominio propio (caso actual):**
+
+- Con Brevo (u otro con el mismo modelo), registrar **un único remitente verificado** (*Senders* > *Add a sender*) y confirmar la
+  casilla desde el correo de verificación. Usar esa dirección como *Sender email* en Supabase. Verificar en la doc vigente del
+  proveedor qué direcciones acepta como remitente (algunas rechazan casillas de webmail genérico) y su cuota gratuita diaria.
+- El magic link es **best-effort**: sin SPF/DKIM propios el correo puede ir a spam o demorarse. Por eso Google es el login
+  principal y la pantalla avisa que el email puede llegar a spam y tardar un minuto. Los jugadores deben mirar spam.
+- Tener un dominio propio **solo** hace falta para autenticar el remitente con SPF/DKIM propios (mejor entrega); no es
+  requisito para nada más del despliegue. Si se compra después, verificar el dominio en el proveedor y cambiar el remitente.
+
+Después de configurarlo, probar enviando un magic link a una dirección que **no** sea la del OWNER y mirar también la carpeta de spam.
 
 ### d.4 Límites de frecuencia
 
@@ -401,18 +412,25 @@ app («Mis solicitudes»). La lista de owners (`public.hub_owners`) **no se pued
 sola vez, a mano, en *SQL Editor* de Supabase (rol `postgres`):
 
 ```sql
--- 1. Iniciá sesión en la app UNA vez con tu email (esto crea tu usuario y tu perfil).
--- 2. Ejecutá, con tu email real:
+-- 1. Iniciá sesión en la app UNA vez (Google o magic link): esto crea tu usuario y tu perfil.
+-- 2. Ejecutá, con tu email real (sin importar mayúsculas; el email debe estar confirmado):
 insert into public.hub_owners (user_id)
-select id from auth.users where email = '<tu email>';
--- 3. Verificá (debe devolver 1 fila):
+select id from auth.users
+where lower(email) = lower('<tu email>') and email_confirmed_at is not null;
+-- 3. El editor debe responder `INSERT 0 1`. Si responde `INSERT 0 0`, el email no coincide, no existe
+--    o no está confirmado: NO sigas, corregilo y repetí.
+-- 4. Verificá (debe devolver 1 fila):
 select u.email, h.created_at from public.hub_owners h join auth.users u on u.id = h.user_id;
 ```
 
 Para quitar el privilegio: `delete from public.hub_owners where user_id = (select id from auth.users where email = '<email>');`.
+**Orden obligatorio:** primero ejecutá el SQL de arriba (te asignás como owner) y **recién después** abrí el registro
+(opción A o el aviso a los jugadores). Antes de ese paso nadie, ni siquiera vos, puede crear campañas.
 Sin al menos un owner nadie puede crear campañas (el import usa la API de admin y no depende de esto). Si el email de
 `--dm-email` del import es el tuyo, hacelo antes o después del import: es independiente. Los usuarios de `supabase/seed.sql`
-(solo desarrollo local) incluyen a `dm@example.test` como owner.
+(solo desarrollo local) incluyen a `dm@example.test` como owner con un UUID fijo y conocido
+(`aaaaaaaa-0000-4000-8000-000000000001`): **el seed jamás debe llegar a una base alojada** (no ejecutar `supabase db reset`
+ni `seed.sql` contra el remoto; el smoke check 7 de c.3 lo detecta). Si alguna vez llegó, borrar esa fila de `hub_owners`.
 
 | Opción | Cómo | Costo |
 |--------|------|-------|
@@ -423,23 +441,32 @@ Sin al menos un owner nadie puede crear campañas (el import usa la API de admin
 Recomendación: A al inicio con SMTP propio y límites; pasar a B si se observa abuso. Nota: con B, el importer sigue funcionando
 (crea el usuario del DM por la API de admin, que no depende del registro público).
 
-### d.7 Google (D7, opcional)
+### d.7 Google (D7, login principal)
 
-1. **Google Cloud Console** > *APIs & Services* > *OAuth consent screen*: tipo *External*, nombre de la app, correo de soporte.
-   Publicar la pantalla de consentimiento (*In production*); en modo *Testing* solo entran los usuarios de prueba listados.
-   Con solo los scopes básicos (`openid`, `email`, `profile`) no requiere verificación de Google.
-2. *Credentials* > *Create credentials* > *OAuth client ID* > *Web application*.
-   **Authorized redirect URI**: `https://<ref>.supabase.co/auth/v1/callback` (el del proyecto Supabase, **no** el de la app).
-   *Authorized JavaScript origins*: el dominio de producción (y el de staging si aplica).
-3. **Supabase** > *Authentication > Sign In / Providers > Google*: activar; pegar *Client ID* y *Client Secret* (el secreto
+La pantalla de login muestra «Continuar con Google» primero y, debajo de «o con tu email», el magic link. Pasos:
+
+1. **Google Cloud Console** > crear (o elegir) un proyecto > *APIs & Services* > *OAuth consent screen*: tipo *External*, nombre de
+   la app, correo de soporte y de contacto. Los scopes que usa Supabase (`openid`, `email`, `profile`) **no son sensibles**:
+   no requieren verificación de Google.
+2. *Credentials* > *Create credentials* > *OAuth client ID* > tipo **Web application**:
+   - **Authorized JavaScript origins**: la URL de Vercel de producción (p. ej. `https://<proyecto>.vercel.app`, sin barra final;
+     y la de staging/preview si aplica).
+   - **Authorized redirect URIs**: `https://<ref>.supabase.co/auth/v1/callback` (el del proyecto Supabase, **no** el de la app).
+3. **Estado de publicación de la pantalla de consentimiento**: *In production* o *Testing*.
+   - *In production* (recomendado): cualquier cuenta de Google puede entrar.
+   - *Testing*: solo entran los *test users* que agregues a mano. **No verifiqué** los límites del modo *Testing* (tope de
+     usuarios de prueba, vencimiento de la autorización/tokens): confirmarlos en la documentación vigente de Google antes
+     de apoyarte en ese modo para jugadores reales.
+4. **Pantalla de consentimiento sin dominio propio**: Google muestra al usuario `<ref>.supabase.co` (el host del callback) como
+   destino al que se le concede acceso, no un dominio tuyo. Es esperable; avisar a los jugadores.
+5. **Supabase** > *Authentication > Sign In / Providers > Google*: activar; pegar *Client ID* y *Client Secret* (el secreto
    vive solo ahí y en el gestor de contraseñas).
-4. **Vercel**: `VITE_AUTH_GOOGLE_ENABLED` en `true` (o sin definir: el código lo trata como activo salvo que valga
-   literalmente `false`). Redeploy (las variables `VITE_*` se hornean en el build).
-5. Probar con una cuenta Google que **no** sea la del OWNER.
+6. **Vercel**: `VITE_AUTH_GOOGLE_ENABLED=true` (Production y Preview). Redeploy (las variables `VITE_*` se hornean en el build).
+7. Probar con una cuenta Google que **no** sea la del OWNER, y también el magic link (mirando spam).
 
-Si no se configura Google, definir `VITE_AUTH_GOOGLE_ENABLED=false` en Vercel para ocultar el botón.
+Si no se configura Google, definir `VITE_AUTH_GOOGLE_ENABLED=false` en Vercel: la pantalla queda solo con el formulario de email.
 
-**Go/no-go (d):** magic link recibido en un correo ajeno y completado en el mismo navegador; (si aplica) login con Google.
+**Go/no-go (d):** login con Google completado con una cuenta ajena; magic link recibido (revisar spam) y completado en el mismo navegador.
 
 ---
 
@@ -461,7 +488,7 @@ Si no se configura Google, definir `VITE_AUTH_GOOGLE_ENABLED=false` en Vercel pa
 |----------|:----------:|:-------:|-------|
 | `VITE_SUPABASE_URL` | sí | sí | `https://<ref>.supabase.co` (Preview: el de staging si D9) |
 | `VITE_SUPABASE_ANON_KEY` | sí | sí | clave anon/publishable (la del mismo proyecto) |
-| `VITE_AUTH_GOOGLE_ENABLED` | sí | sí | `true`/`false` según D7 |
+| `VITE_AUTH_GOOGLE_ENABLED` | sí | sí | `true` (Google es el login principal, D7); `false` oculta el botón |
 | `VITE_TURNSTILE_SITE_KEY` | sí | opcional | Site Key **pública** de Turnstile (d.5). Sin ella no hay captcha en el login. La clave secreta NO va aquí |
 
 **Nunca** definir en Vercel: la service role key, la URL de la base, la contraseña de la base, ninguna `VITE_DM_PASSWORD` /
@@ -652,7 +679,7 @@ hasta la fase de retiro. `.github/workflows/deploy.yml` no se modifica antes.
 | # | Fase | Quién | Gate |
 |---|------|-------|------|
 | 0 | Decisiones D1..D13 resueltas; suite local en verde (a) | OWNER | **GO 0** |
-| 1 | Crear Supabase (b), link y `db push` (c.1, c.2) | OWNER | **GO 1**: 14 migraciones aplicadas |
+| 1 | Crear Supabase (b), link y `db push` (c.1, c.2) | OWNER | **GO 1**: 15 migraciones aplicadas |
 | 2 | Smoke checks SQL (c.3) y chequeo Realtime (c.4) | OWNER | **GO 2**: todo PASA |
 | 3 | Auth: URL config, SMTP, límites, (Google) (d); **asignarte como Hub Owner (d.6)** antes de abrir el registro | OWNER | **GO 3**: magic link llega a un correo ajeno; `select ... from hub_owners` devuelve tu email |
 | 4 | Vercel: proyecto, variables, dominio, previews protegidas (e) | OWNER | **GO 4**: `/login` y un deep link cargan; sin "Falta configurar Supabase" |

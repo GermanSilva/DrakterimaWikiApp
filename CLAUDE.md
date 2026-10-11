@@ -140,7 +140,7 @@ Para agregar una tabla de entidad: migración (con RLS, y concesión de columnas
 ### Base de datos (`supabase/`)
 
 Migraciones en `supabase/migrations/` (identidad, campañas, miembros, invitaciones, entidades, notas, lecturas, calendario,
-juegos, mapas, presencia, endurecimientos). 25 tablas, todas con RLS. Modelo de privilegio de plataforma (H15): `hub_owners` (solo se escribe con service_role o SQL Editor; `is_hub_owner()`); `create_campaign` es solo para owners y las demás personas piden una campaña en `campaign_requests`, que el owner decide con `approve_campaign_request` (el SOLICITANTE queda como DM) o `reject_campaign_request`; la creación vive en `create_campaign_for` (no ejecutable por la API). RPC principales: `create_campaign`, `approve_campaign_request`, `reject_campaign_request`, `accept_invite`,
+juegos, mapas, presencia, endurecimientos). 25 tablas, todas con RLS. Modelo de privilegio de plataforma (H15): `hub_owners` (solo se escribe con service_role o SQL Editor; `is_hub_owner()`); `create_campaign` es solo para owners y las demás personas piden una campaña en `campaign_requests`, que el owner decide con `approve_campaign_request` (el SOLICITANTE queda como DM) o `reject_campaign_request`; la creación vive en `create_campaign_for` (no ejecutable por la API). Endurecimiento H15b: `campaigns.slug` es inmutable por la API (sin `update (slug)`; lista de reservados única en `is_reserved_slug()`), `decided_by` no es legible por la API (el `select` de `campaign_requests` lista columnas, nunca `*`), tope de 3 pendientes y 10 solicitudes por 24 h por persona (`too_many_requests_recently`) y se quitan caracteres de control/bidi del texto de la solicitud. El primer owner se asigna a mano con SQL ANTES de abrir el registro (`docs/hosting-and-cutover.md` d.6); el owner del seed (UUID fijo) nunca debe llegar a una base alojada. RPC principales: `create_campaign`, `approve_campaign_request`, `reject_campaign_request`, `accept_invite`,
 `preview_invite`, `play_loteria`, `assign_pot_to_character`, `delete_campaign`, `get/set_entity_visibility`. Las funciones
 `SECURITY DEFINER` fijan `search_path` vacío. Realtime publica 14 tablas (sin `entity_dm_notes`). Visibilidad de entidades:
 `estado` (`publicado` | `secreto` | `borrador`) + `visible_to` (ids de PJ), resuelto en `can_see_entity()`.
@@ -150,8 +150,8 @@ Pruebas: `supabase/tests/database/*.test.sql` (pgTAP, `supabase test db`). `seed
 
 ### Autenticación
 
-Supabase Auth: magic link (PKCE, debe abrirse en el mismo navegador) y Google OAuth (opcional, `VITE_AUTH_GOOGLE_ENABLED`).
-No hay contraseñas en el hub. Captcha opcional con Cloudflare Turnstile: si `VITE_TURNSTILE_SITE_KEY` (pública) está definida, la página de login muestra el widget, bloquea "Enviar link mágico" hasta tener token y lo envía como `options.captchaToken`; sin la variable no hay widget ni token (local y tests). La clave secreta va solo en Supabase (Authentication > Attack Protection), nunca en el repo ni en una `VITE_*`. El magic link queda protegido por el captcha de Supabase; Google OAuth no.
+Supabase Auth: **Google OAuth es el login principal** (decisión del owner, sin dominio propio; `VITE_AUTH_GOOGLE_ENABLED=true`) y el magic link por email es la alternativa (PKCE, debe abrirse en el mismo navegador; sin dominio propio es *best-effort* y puede caer en spam). Con Google activo, `LoginPage` muestra primero el botón de Google, el divisor «o con tu email» y debajo el formulario de email con un aviso de spam; con Google desactivado la página es solo el formulario de email.
+No hay contraseñas en el hub. Captcha opcional con Cloudflare Turnstile: si `VITE_TURNSTILE_SITE_KEY` (pública) está definida, la página de login muestra el widget, bloquea "Enviar link mágico" (solo ese envío; el botón de Google nunca espera token) hasta tener token y lo envía como `options.captchaToken`; sin la variable no hay widget ni token (local y tests). La clave secreta va solo en Supabase (Authentication > Attack Protection), nunca en el repo ni en una `VITE_*`. El magic link queda protegido por el captcha de Supabase; Google OAuth no.
 Detalle y límites en [`src/auth/README.md`](src/auth/README.md).
 
 ### Importador (`scripts/import-firestore.mjs`)
@@ -175,7 +175,7 @@ repo (`data/db.json`, `scripts/out/` y `*.drakterima-export.json` están en `.gi
 | Variable | Uso | Público |
 | --- | --- | --- |
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | cliente Supabase (`src/data/supabaseClient.ts`, `src/app/supabaseConfig.ts`) | sí |
-| `VITE_AUTH_GOOGLE_ENABLED` | `false` oculta el botón de Google | sí |
+| `VITE_AUTH_GOOGLE_ENABLED` | `true` (login principal); `false` oculta el botón de Google | sí |
 | `VITE_TURNSTILE_SITE_KEY` | site key de Cloudflare Turnstile; vacía/ausente = sin captcha (la clave secreta va solo en Supabase) | sí |
 | `VITE_FIREBASE_*`, `VITE_DM_PASSWORD`, `VITE_PLAYER_1..6_PASSWORD` | solo la app legacy | comprometidas, a retirar |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `IMPORT_ALLOW_REMOTE` | solo el importador contra un destino alojado | **secretas**, nunca en archivos |
