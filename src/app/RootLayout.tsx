@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { Outlet, useLocation } from 'react-router'
+import { hubTitleForPath, useDocumentTitle } from './documentTitle'
 
 /** Give up waiting for a lazy section's heading after this long. */
 export const FOCUS_WAIT_MS = 5000
@@ -52,6 +53,7 @@ function useFocusMainOnNavigation() {
 
 export function RootLayout() {
   useFocusMainOnNavigation()
+  useDocumentTitle(hubTitleForPath(useLocation().pathname))
   return (
     <>
       <a

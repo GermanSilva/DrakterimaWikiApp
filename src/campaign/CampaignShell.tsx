@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { Outlet, useParams } from 'react-router'
 import { ConnectedUserMenu } from '../app/ConnectedUserMenu'
+import { formatTitle, useDocumentTitle } from '../app/documentTitle'
 import type { CampaignWithRole } from '../data'
 import { PRESENCE_NOTICE } from '../hub/campaignSlug'
 import { accentStyle, parseLogoUrl } from './branding'
@@ -21,7 +22,9 @@ export interface CampaignShellProps {
 export function CampaignShell({ campaign, isDM, campaigns, userMenu }: CampaignShellProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const { section } = useParams()
-  const fullBleed = !!findSection(section)?.fullBleed && (isDM || !findSection(section)?.dmOnly)
+  const current = findSection(section)
+  useDocumentTitle(formatTitle(current && (!current.dmOnly || isDM) && current.label, campaign.name))
+  const fullBleed =!!findSection(section)?.fullBleed && (isDM || !findSection(section)?.dmOnly)
   return (
     <div style={accentStyle(campaign.branding)} className="min-h-screen bg-bg-deep">
       <CampaignHeader
