@@ -24,7 +24,8 @@ describe('returning to a protected link after signing in', () => {
     const { router, setAuth } = renderApp('/invite/abc', { auth: signedOut })
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
 
-    await userEvent.type(screen.getByLabelText('Email'), 'ana@test.co')
+    // The login page is a lazy route: wait for it instead of assuming it rendered with the redirect.
+    await userEvent.type(await screen.findByLabelText('Email'), 'ana@test.co')
     await userEvent.click(screen.getByRole('button', { name: 'Enviar link mágico' }))
 
     // The magic link opens (here: the same router) with the session available after the exchange.
@@ -40,7 +41,7 @@ describe('returning to a protected link after signing in', () => {
   it('works for the Google redirect too', async () => {
     const { router, setAuth } = renderApp('/invite/xyz', { auth: signedOut })
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
-    await userEvent.click(screen.getByRole('button', { name: 'Continuar con Google' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Continuar con Google' }))
 
     window.history.replaceState({}, '', '/auth/callback?code=abc')
     act(() => setAuth(makeAuth()))
@@ -53,12 +54,12 @@ describe('returning to a protected link after signing in', () => {
   it('a plain login (no next) after an earlier invite attempt lands on / (no stale hijack)', async () => {
     const first = renderApp('/invite/abc', { auth: signedOut })
     await waitFor(() => expect(first.router.state.location.pathname).toBe('/login'))
-    await userEvent.type(screen.getByLabelText('Email'), 'ana@test.co')
+    await userEvent.type(await screen.findByLabelText('Email'), 'ana@test.co')
     await userEvent.click(screen.getByRole('button', { name: 'Enviar link mágico' }))
     first.unmount()
 
     const second = renderApp('/login', { auth: signedOut })
-    await userEvent.type(screen.getByLabelText('Email'), 'ana@test.co')
+    await userEvent.type(await screen.findByLabelText('Email'), 'ana@test.co')
     await userEvent.click(screen.getByRole('button', { name: 'Enviar link mágico' }))
 
     window.history.replaceState({}, '', '/auth/callback?code=abc')
