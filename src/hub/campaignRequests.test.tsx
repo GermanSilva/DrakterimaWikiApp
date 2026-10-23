@@ -68,7 +68,14 @@ describe('hub home: ordinary user', () => {
     await fill(/Dirección preferida/, 'corona-rota')
     await fill(/Mensaje/, ' hola ')
     await click(/^Enviar solicitud$/)
-    expect(data.createCampaignRequest).toHaveBeenCalledWith({ name: 'La Corona Rota', slug_wanted: 'corona-rota', message: 'hola' })
+    expect(data.createCampaignRequest).toHaveBeenCalledWith({
+      name: 'La Corona Rota',
+      slug_wanted: 'corona-rota',
+      message: 'hola',
+      tagline: null,
+      accent_color: '#4a32ac',
+      logo_url: null,
+    })
     expect(await screen.findByText(/Solicitud enviada/)).toBeInTheDocument()
     await waitFor(() => expect(data.listMyCampaignRequests).toHaveBeenCalledTimes(2))
     expect(screen.getByLabelText(/^Nombre$/)).toHaveValue('')
@@ -90,7 +97,14 @@ describe('hub home: ordinary user', () => {
     expect(data.createCampaignRequest).not.toHaveBeenCalled()
     await fill(/Dirección preferida/, '')
     await click(/^Enviar solicitud$/)
-    expect(data.createCampaignRequest).toHaveBeenCalledWith({ name: 'Demo', slug_wanted: null, message: null })
+    expect(data.createCampaignRequest).toHaveBeenCalledWith({
+      name: 'Demo',
+      slug_wanted: null,
+      message: null,
+      tagline: null,
+      accent_color: '#4a32ac',
+      logo_url: null,
+    })
   })
 
   it.each([

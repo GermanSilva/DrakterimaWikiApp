@@ -43,11 +43,19 @@ export function validateCampaignForm(input: { name: string; slug: string }): Cam
   return errors
 }
 
+/** Spanish messages for the branding fields the database refused (the form validates them first). */
+const BRANDING_MESSAGES: Record<string, string> = {
+  invalid_tagline: 'El pre-título es demasiado largo (hasta 140 caracteres).',
+  invalid_accent_color: 'El color de acento no es válido. Elegí uno de la paleta.',
+  invalid_logo_url: 'La dirección del logo no es válida. Usá una imagen con dirección https://.',
+}
+
 /** Spanish message for a failed createCampaign. */
 export function createCampaignErrorMessage(error: unknown): string {
   if (error instanceof DataError) {
     if (error.reason === 'reserved_slug') return 'Esa dirección está reservada. Elegí otra.'
     if (error.reason === 'campaign_limit_reached') return 'Llegaste al máximo de campañas que podés crear.'
+    if (error.reason && BRANDING_MESSAGES[error.reason]) return BRANDING_MESSAGES[error.reason]
     if (error.reason === 'hub_owner_only') return 'Solo el administrador del sitio puede crear campañas directamente. Podés solicitar una.'
     // unique violation on campaigns.slug
     if (error.kind === 'conflict') return 'Ya existe una campaña con esa dirección. Elegí otra.'
@@ -75,6 +83,10 @@ export function campaignRequestErrorMessage(error: unknown, action: 'request' | 
         return 'La dirección no es válida o falta. Usá minúsculas, números y guiones (3 a 40 caracteres).'
       case 'invalid_name':
         return 'El nombre no es válido.'
+      case 'invalid_tagline':
+      case 'invalid_accent_color':
+      case 'invalid_logo_url':
+        return BRANDING_MESSAGES[error.reason]
       case 'campaign_limit_reached':
         return 'Esa persona llegó al máximo de campañas.'
       case 'request_not_pending':

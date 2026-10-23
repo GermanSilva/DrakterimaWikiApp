@@ -1,11 +1,14 @@
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { btnPrimary, inputCls, labelCls } from '../constants'
+import { AccentField, LogoField, TaglineField } from './BrandingFields'
+import { CampaignPreview } from './CampaignPreview'
+import { useBrandingFields, type BrandingValues } from './campaignBranding'
 import { createCampaignErrorMessage, NAME_MAX, SLUG_MAX, validateCampaignForm, type CampaignFormErrors } from './campaignSlug'
 import { useNameAndSlug } from './useNameAndSlug'
 
 export interface CreateCampaignFormProps {
   /** Resolves with the created campaign's slug; rejects with the data-layer error. */
-  onCreate: (slug: string, name: string) => Promise<string>
+  onCreate: (slug: string, name: string, branding: BrandingValues) => Promise<string>
   /** Called with the created slug (the caller navigates). */
   onCreated: (slug: string) => void
 }
@@ -15,6 +18,7 @@ export function CreateCampaignForm({ onCreate, onCreated }: CreateCampaignFormPr
   const slugId = useId()
   // Once the user edits the slug by hand it stops following the name.
   const { name, slug, changeName, changeSlug } = useNameAndSlug()
+  const branding = useBrandingFields()
   const [errors, setErrors] = useState<CampaignFormErrors>({})
   const [failure, setFailure] = useState<string | null>(null)
   const [pending, setPending] = useState(false)
@@ -25,14 +29,15 @@ export function CreateCampaignForm({ onCreate, onCreated }: CreateCampaignFormPr
     e.preventDefault()
     if (inFlight.current) return
     const found = validateCampaignForm({ name, slug })
+    const values = branding.validate()
     setFailure(null)
     setErrors(found)
-    if (found.name || found.slug) return
+    if (found.name || found.slug || !values) return
     inFlight.current = true
     setPending(true)
     let createdSlug: string
     try {
-      createdSlug = await onCreate(slug, name.trim())
+      createdSlug = await onCreate(slug, name.trim(), values)
     } catch (error) {
       setFailure(createCampaignErrorMessage(error))
       inFlight.current = false
@@ -45,6 +50,8 @@ export function CreateCampaignForm({ onCreate, onCreated }: CreateCampaignFormPr
 
   return (
     <form onSubmit={submit} noValidate aria-label="Crear campaña">
+      <CampaignPreview name={name} tagline={branding.tagline} accent={branding.accent} logo={branding.logo} />
+
       <label htmlFor={nameId} className={labelCls}>
         Nombre
       </label>
@@ -62,6 +69,8 @@ export function CreateCampaignForm({ onCreate, onCreated }: CreateCampaignFormPr
           {errors.name}
         </p>
       )}
+
+      <TaglineField fields={branding} />
 
       <label htmlFor={slugId} className={`${labelCls} mt-3`}>
         Dirección
@@ -85,6 +94,9 @@ export function CreateCampaignForm({ onCreate, onCreated }: CreateCampaignFormPr
           {errors.slug}
         </p>
       )}
+
+      <AccentField fields={branding} />
+      <LogoField fields={branding} />
 
       <button type="submit" className={`${btnPrimary} mt-4`} disabled={pending}>
         {pending ? 'Creando…' : 'Crear'}

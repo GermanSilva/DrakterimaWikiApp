@@ -1,5 +1,8 @@
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { btnPrimary, inputCls, labelCls } from '../constants'
+import { AccentField, LogoField, TaglineField } from './BrandingFields'
+import { CampaignPreview } from './CampaignPreview'
+import { useBrandingFields, type BrandingValues } from './campaignBranding'
 import {
   campaignRequestErrorMessage,
   NAME_MAX,
@@ -12,15 +15,16 @@ import { useNameAndSlug } from './useNameAndSlug'
 
 export interface RequestCampaignFormProps {
   /** Resolves when the request was stored; rejects with the data-layer error. */
-  onRequest: (request: { name: string; slug_wanted: string | null; message: string | null }) => Promise<void>
+  onRequest: (request: { name: string; slug_wanted: string | null; message: string | null } & BrandingValues) => Promise<void>
 }
 
-/** Ordinary users ask the hub owner for a campaign: name, preferred address (optional) and a note. */
+/** Ordinary users ask the hub owner for a campaign: name, pre-title, address (optional), accent colour, logo and a note. */
 export function RequestCampaignForm({ onRequest }: RequestCampaignFormProps) {
   const nameId = useId()
   const slugId = useId()
   const messageId = useId()
   const fields = useNameAndSlug()
+  const branding = useBrandingFields()
   const [message, setMessage] = useState('')
   const [errors, setErrors] = useState<CampaignFormErrors>({})
   const [failure, setFailure] = useState<string | null>(null)
@@ -36,14 +40,20 @@ export function RequestCampaignForm({ onRequest }: RequestCampaignFormProps) {
     const found = validateCampaignForm({ name: fields.name, slug })
     // The address is optional in a request: the owner can choose it when approving.
     if (slug === '') delete found.slug
+    const values = branding.validate()
     setFailure(null)
     setSent(false)
     setErrors(found)
-    if (found.name || found.slug) return
+    if (found.name || found.slug || !values) return
     inFlight.current = true
     setPending(true)
     try {
-      await onRequest({ name: fields.name.trim(), slug_wanted: slug === '' ? null : slug, message: message.trim() === '' ? null : message.trim() })
+      await onRequest({
+        name: fields.name.trim(),
+        slug_wanted: slug === '' ? null : slug,
+        message: message.trim() === '' ? null : message.trim(),
+        ...values,
+      })
     } catch (error) {
       setFailure(campaignRequestErrorMessage(error, 'request'))
       inFlight.current = false
@@ -51,6 +61,7 @@ export function RequestCampaignForm({ onRequest }: RequestCampaignFormProps) {
       return
     }
     fields.reset()
+    branding.reset()
     setMessage('')
     setSent(true)
     inFlight.current = false
@@ -59,6 +70,7 @@ export function RequestCampaignForm({ onRequest }: RequestCampaignFormProps) {
 
   return (
     <form onSubmit={submit} noValidate aria-label="Solicitar campaña">
+      <CampaignPreview name={fields.name} tagline={branding.tagline} accent={branding.accent} logo={branding.logo} />
       <p className="text-xs text-txt-muted mb-3">
         El administrador del sitio revisa cada solicitud. Si la aprueba, la campaña se crea y vos sos su DM. No te llega ningún mail: mirá el estado en «Mis solicitudes».
       </p>
@@ -79,6 +91,8 @@ export function RequestCampaignForm({ onRequest }: RequestCampaignFormProps) {
           {errors.name}
         </p>
       )}
+
+      <TaglineField fields={branding} />
 
       <label htmlFor={slugId} className={`${labelCls} mt-3`}>
         Dirección preferida (opcional)
@@ -102,6 +116,9 @@ export function RequestCampaignForm({ onRequest }: RequestCampaignFormProps) {
           {errors.slug}
         </p>
       )}
+
+      <AccentField fields={branding} />
+      <LogoField fields={branding} />
 
       <label htmlFor={messageId} className={`${labelCls} mt-3`}>
         Mensaje (opcional)

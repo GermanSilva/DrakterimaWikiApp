@@ -87,7 +87,7 @@ describe('create campaign', () => {
     await fill(/^Nombre$/, 'La Corona Rota')
     expect(screen.getByLabelText('Dirección')).toHaveValue('la-corona-rota')
     await submit(/^Crear$/)
-    expect(data.createCampaign).toHaveBeenCalledWith('la-corona-rota', 'La Corona Rota')
+    expect(data.createCampaign).toHaveBeenCalledWith('la-corona-rota', 'La Corona Rota', { tagline: null, accent_color: '#4a32ac', logo_url: null })
     await waitFor(() => expect(router.state.location.pathname).toBe('/c/la-corona-rota'))
   })
 

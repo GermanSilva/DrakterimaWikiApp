@@ -96,7 +96,7 @@ export function HubHome() {
       {modal === 'create' && (
         <ModalShell title="Crear campaña" onClose={closeModal}>
           <CreateCampaignForm
-            onCreate={async (slug, name) => (await data.createCampaign(slug, name)).slug}
+            onCreate={async (slug, name, branding) => (await data.createCampaign(slug, name, branding)).slug}
             onCreated={(slug) => navigate(`/c/${slug}`)}
           />
         </ModalShell>
