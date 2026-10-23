@@ -12,6 +12,12 @@
     --accent-bright-rgb: 239 68 68;
     --accent-dim-rgb: 153 27 27;
     --accent-subtle-rgb: 69 10 10;
+
+    /* RPG Quester brand gradient (sampled from the owner's gradient image). Hub screens use it; inside a campaign the accent above takes over. */
+    --brand-1: #9c2d8c;
+    --brand-2: #4a32ac;
+    --brand-3: #4aaed8;
+    --brand-gradient: linear-gradient(135deg, var(--brand-1) 0%, var(--brand-2) 50%, var(--brand-3) 100%);
   }
 
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -81,4 +87,17 @@
 @media (prefers-reduced-motion: reduce) {
   .skeleton-shimmer { animation: none; }
   .unread-dot { animation: none; opacity: 0.85; }
+}
+
+@layer components {
+  .brand-gradient-text {
+    background-image: var(--brand-gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    -webkit-text-fill-color: transparent;
+  }
+  .brand-gradient-bg {
+    background-image: var(--brand-gradient);
+  }
 }

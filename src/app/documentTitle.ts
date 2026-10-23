@@ -1,8 +1,8 @@
 import { useEffect } from 'react'
 
-export const APP_NAME = 'StoryCore'
+export const APP_NAME = 'RPG Quester'
 
-/** "Part · Part · StoryCore"; falsy parts are skipped. */
+/** "Part · Part · RPG Quester"; falsy parts are skipped. */
 export function formatTitle(...parts: Array<string | null | undefined | false>): string {
   return [...parts.filter((part): part is string => !!part), APP_NAME].join(' · ')
 }
