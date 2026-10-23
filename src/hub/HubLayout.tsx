@@ -11,10 +11,7 @@ export function HubLayout() {
           <DragonIcon width={28} height={28} className="text-accent" />
           <span className="font-exo text-[15px] font-bold tracking-[0.08em] uppercase max-md:hidden">Campañas</span>
         </Link>
-        <nav aria-label="Cuenta" className="ml-auto flex items-center gap-4">
-          <Link to="/profile" className="text-xs font-exo tracking-[0.1em] uppercase text-txt-secondary hover:text-txt-primary">
-            Mi perfil
-          </Link>
+        <nav aria-label="Cuenta" className="ml-auto flex items-center">
           <ConnectedUserMenu />
         </nav>
       </header>

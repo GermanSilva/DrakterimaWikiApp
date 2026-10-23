@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { AuthFlowError } from './authErrors'
 import { AuthProvider } from './AuthProvider'
@@ -97,25 +97,71 @@ describe('RequireAuth', () => {
 })
 
 describe('UserMenu', () => {
-  it('shows the display name and signs out', async () => {
-    const onSignOut = vi.fn().mockResolvedValue(undefined)
-    render(<UserMenu profile={profileRow()} onSignOut={onSignOut} />)
-    expect(screen.getByText('Ana')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
-    expect(onSignOut).toHaveBeenCalled()
+  const setup = (over: Partial<React.ComponentProps<typeof UserMenu>> = {}) => {
+    const props = {
+      profile: profileRow(),
+      onSignOut: vi.fn().mockResolvedValue(undefined),
+      onEditProfile: vi.fn(),
+      onMyCampaigns: vi.fn(),
+      ...over,
+    }
+    render(<UserMenu {...props} />)
+    return props
+  }
+  const trigger = (name: RegExp | string = /Ana/) => screen.getByRole('button', { name })
+
+  it('shows only the name and avatar until opened, then the three options', async () => {
+    setup()
+    expect(trigger()).toHaveAttribute('aria-haspopup', 'menu')
+    expect(trigger()).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Cerrar sesión' })).not.toBeInTheDocument()
+    await userEvent.click(trigger())
+    expect(trigger()).toHaveAttribute('aria-expanded', 'true')
+    expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Editar perfil', 'Ver mis campañas', 'Cerrar sesión'])
   })
 
-  it('falls back to the email and reports a sign-out failure', async () => {
-    const onSignOut = vi.fn().mockRejectedValue(new Error('x'))
-    render(<UserMenu profile={null} email="a@b.co" onSignOut={onSignOut} />)
-    expect(screen.getByText('a@b.co')).toBeInTheDocument()
-    await userEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
+  it('runs the profile and campaigns actions and closes the menu', async () => {
+    const props = setup()
+    await userEvent.click(trigger())
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Editar perfil' }))
+    expect(props.onEditProfile).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    await userEvent.click(trigger())
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Ver mis campañas' }))
+    expect(props.onMyCampaigns).toHaveBeenCalledTimes(1)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('closes on Escape (focus back on the trigger) and on an outside press', async () => {
+    setup()
+    await userEvent.click(trigger())
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' })
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+    expect(trigger()).toHaveFocus()
+    await userEvent.click(trigger())
+    fireEvent.mouseDown(document.body)
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument()
+  })
+
+  it('signs out', async () => {
+    const props = setup()
+    await userEvent.click(trigger())
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Cerrar sesión' }))
+    expect(props.onSignOut).toHaveBeenCalledTimes(1)
+  })
+
+  it('falls back to the email and reports a sign-out failure with the menu still open', async () => {
+    setup({ profile: null, email: 'a@b.co', onSignOut: vi.fn().mockRejectedValue(new Error('x')) })
+    await userEvent.click(trigger('a@b.co'))
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Cerrar sesión' }))
     expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(screen.getByRole('menu')).toBeInTheDocument()
   })
 
   it('renders an https avatar', () => {
     const { container } = render(
-      <UserMenu profile={{ ...profileRow(), avatar_url: 'https://x.test/a.png' }} onSignOut={vi.fn()} />,
+      <UserMenu profile={{ ...profileRow(), avatar_url: 'https://x.test/a.png' }} onSignOut={vi.fn()} onEditProfile={vi.fn()} onMyCampaigns={vi.fn()} />,
     )
     expect(container.querySelector('img')).toHaveAttribute('src', 'https://x.test/a.png')
   })

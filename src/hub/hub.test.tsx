@@ -186,7 +186,10 @@ describe('sign out', () => {
     flip = setAuth
     await screen.findByRole('heading', { name: 'Mis campañas' })
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
+      fireEvent.click(screen.getByRole('button', { name: /Ana|Usuario|@/ }))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Cerrar sesión' }))
     })
     expect(auth.signOut).toHaveBeenCalledTimes(1)
     // RequireAuth's redirect (with next) and the explicit navigation race; both land on /login.
@@ -199,7 +202,10 @@ describe('sign out', () => {
     const { router, setAuth } = renderApp('/', { auth })
     await screen.findByRole('heading', { name: 'Mis campañas' })
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
+      fireEvent.click(screen.getByRole('button', { name: /Ana|Usuario|@/ }))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Cerrar sesión' }))
     })
     expect(await screen.findByText('No pudimos cerrar la sesión. Volvé a intentar.')).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/')

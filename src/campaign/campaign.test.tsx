@@ -222,7 +222,10 @@ describe('campaign switcher and header', () => {
     flip = setAuth
     await screen.findByRole('heading', { level: 1, name: 'Demo' })
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Cerrar sesión' }))
+      fireEvent.click(screen.getByRole('button', { name: /Ana|Usuario|@/ }))
+    })
+    await act(async () => {
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Cerrar sesión' }))
     })
     await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
   })
