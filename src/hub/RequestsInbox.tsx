@@ -11,6 +11,7 @@ import {
   validateCampaignForm,
   type CampaignFormErrors,
 } from './campaignSlug'
+import { RequestTile } from './RequestTile'
 
 export interface RequestsInboxProps {
   /** Pending requests only. */
@@ -49,22 +50,26 @@ export function RequestsInbox({ requests, onApprove, onReject, onChanged }: Requ
       ) : (
         <ul className="grid gap-3">
           {requests.map((request) => (
-            <li key={request.id} className="bg-bg-card border border-border-base p-4">
-              <p className="font-exo text-sm font-semibold tracking-[0.08em] uppercase text-txt-primary">{request.name}</p>
+            <RequestTile
+              key={request.id}
+              request={request}
+              actions={
+                <>
+                  <button type="button" className={btnPrimary} onClick={() => setDialog({ kind: 'approve', request })}>
+                    Aprobar
+                  </button>
+                  <button type="button" className={btnDanger} onClick={() => setDialog({ kind: 'reject', request })}>
+                    Rechazar
+                  </button>
+                </>
+              }
+            >
               <p className="text-xs text-txt-muted mt-1">
                 Pide: {requesterName(request)} · {request.slug_wanted ? `/${request.slug_wanted}` : 'sin dirección preferida'} ·{' '}
                 {new Date(request.created_at).toLocaleDateString('es-AR')}
               </p>
               {request.message && <p className="text-sm text-txt-secondary mt-2 whitespace-pre-wrap">{request.message}</p>}
-              <div className="flex flex-wrap gap-2 mt-3">
-                <button type="button" className={btnPrimary} onClick={() => setDialog({ kind: 'approve', request })}>
-                  Aprobar
-                </button>
-                <button type="button" className={btnDanger} onClick={() => setDialog({ kind: 'reject', request })}>
-                  Rechazar
-                </button>
-              </div>
-            </li>
+            </RequestTile>
           ))}
         </ul>
       )}

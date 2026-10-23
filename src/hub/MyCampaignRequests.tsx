@@ -3,6 +3,7 @@ import { Link } from 'react-router'
 import { btnSecondary } from '../constants'
 import type { CampaignRequest, CampaignWithRole } from '../data'
 import { campaignRequestErrorMessage } from './campaignSlug'
+import { RequestTile } from './RequestTile'
 
 const STATUS_LABEL: Record<CampaignRequest['status'], string> = {
   pending: 'Pendiente',
@@ -58,19 +59,24 @@ export function MyCampaignRequests({ requests, campaigns, onCancel, onChanged }:
         {requests.map((request) => {
           const campaign = request.campaign_id ? campaigns.find((c) => c.id === request.campaign_id) : undefined
           return (
-            <li key={request.id} className="bg-bg-card border border-border-base p-4">
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="flex-1 min-w-0 font-exo text-sm font-semibold tracking-[0.08em] uppercase text-txt-primary truncate">
-                  {request.name}
-                </span>
-                <span
-                  className={`font-exo text-[10px] tracking-[0.15em] uppercase px-2 py-0.5 border ${
-                    request.status === 'rejected' ? 'border-accent-dim text-accent-bright' : 'border-border-light text-txt-secondary'
-                  }`}
-                >
-                  {STATUS_LABEL[request.status]}
-                </span>
-              </div>
+            <RequestTile
+              key={request.id}
+              request={request}
+              actions={
+                request.status === 'pending' ? (
+                  <button type="button" className={btnSecondary} disabled={busy !== null} onClick={() => cancel(request.id)}>
+                    {busy === request.id ? 'Cancelando…' : 'Cancelar solicitud'}
+                  </button>
+                ) : undefined
+              }
+            >
+              <span
+                className={`inline-block mt-1.5 font-exo text-[10px] tracking-[0.15em] uppercase px-2 py-0.5 border ${
+                  request.status === 'rejected' ? 'border-accent-dim text-accent-bright' : 'border-border-light text-txt-secondary'
+                }`}
+              >
+                {STATUS_LABEL[request.status]}
+              </span>
               {request.slug_wanted && <p className="text-xs text-txt-muted mt-1">Dirección pedida: /{request.slug_wanted}</p>}
               {request.status === 'approved' && (
                 <p className="text-sm text-txt-secondary mt-2">
@@ -92,12 +98,7 @@ export function MyCampaignRequests({ requests, campaigns, onCancel, onChanged }:
                   Rechazada{request.decision_note ? `: ${request.decision_note}` : '.'}
                 </p>
               )}
-              {request.status === 'pending' && (
-                <button type="button" className={`${btnSecondary} mt-3`} disabled={busy !== null} onClick={() => cancel(request.id)}>
-                  {busy === request.id ? 'Cancelando…' : 'Cancelar solicitud'}
-                </button>
-              )}
-            </li>
+            </RequestTile>
           )
         })}
       </ul>
