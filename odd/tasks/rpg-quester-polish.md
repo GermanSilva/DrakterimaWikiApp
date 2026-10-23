@@ -19,10 +19,10 @@ Classification: large (several sessions' worth, one unit touches the DB with sec
 
 | ID | Specs | Route | Commit | Done |
 |----|-------|-------|--------|------|
-| T1 | S1, S2, S7 | inline: rename, d20-Q favicon/logo SVG, gradient tokens, document titles, docs | | [ ] |
+| T1 | S1, S2, S7 | inline: rename, d20-Q favicon/logo SVG, gradient tokens, document titles, docs | 6771244 | [x] |
 | T2 | S6, S7 | inline, HIGH RISK (own commit, pgTAP, independent verify): `campaign_requests` gains optional `tagline`, `accent_color`, `logo_url` (insert grant + validation), `create_campaign` / `approve_campaign_request` / `create_campaign_for` write them into `campaigns.branding` | | [ ] |
-| T3 | S8 | inline: header user menu (name + avatar button, floating panel: editar perfil, ver mis campañas, cerrar sesión), keyboard/a11y | | [ ] |
-| T4 | S3, S4, S5 | inline: hub header "RPG / QUESTER", "Mis Campañas" title + two buttons opening modals (request/create for owners, join), tile list | | [ ] |
+| T3 | S8 | inline: header user menu (name + avatar button, floating panel: editar perfil, ver mis campañas, cerrar sesión), keyboard/a11y | 4aef7a9 | [x] |
+| T4 | S3, S4, S5 | inline: hub header "RPG / QUESTER", "Mis Campañas" title + two buttons opening modals (request/create for owners, join), tile list | ed48674 | [x] |
 | T5 | S6, S7 | inline: request/create modal with live preview header (placeholders), fields name, tagline, slug, accent colour, logo url | | [ ] |
 | T6 | S7 | inline: verify accent adoption on entering a campaign; browser check (Playwright) of all views | | [ ] |
 
