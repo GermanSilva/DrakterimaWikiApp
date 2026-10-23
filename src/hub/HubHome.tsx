@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router'
-import { btnSecondary } from '../constants'
+import { btnPrimary, btnSecondary } from '../constants'
+import { ModalShell } from '../campaign/calendar/ModalShell'
 import { useAuth } from '../auth'
 import { useHubData } from '../app/DataContext'
 import { CampaignList } from './CampaignList'
@@ -15,6 +16,8 @@ import { useMyCampaigns } from './useMyCampaigns'
 
 const NO_REQUESTS: never[] = []
 
+type HubModal = 'request' | 'create' | 'join' | null
+
 export function HubHome() {
   const data = useHubData()
   const navigate = useNavigate()
@@ -27,6 +30,8 @@ export function HubHome() {
   useEffect(() => {
     if (typeof incoming === 'string') navigate(location, { replace: true, state: null })
   }, [incoming, location, navigate])
+  const [modal, setModal] = useState<HubModal>(null)
+  const closeModal = useCallback(() => setModal(null), [])
   const { status, campaigns, reload } = useMyCampaigns()
   const { user } = useAuth()
   const userId = user?.id ?? null
@@ -38,7 +43,19 @@ export function HubHome() {
 
   return (
     <>
-      <h1 className="font-exo text-xl font-semibold tracking-[0.15em] uppercase text-txt-primary mb-5">Mis campañas</h1>
+      <div className="flex items-center justify-between gap-4 flex-wrap mb-6">
+        <h1 className="brand-gradient-text font-exo text-2xl font-bold tracking-[0.15em] uppercase">Mis campañas</h1>
+        <div className="flex items-center gap-2 flex-wrap">
+          {ownerReady && (
+            <button type="button" className={btnPrimary} onClick={() => setModal(isOwner ? 'create' : 'request')}>
+              {isOwner ? 'Crear campaña' : 'Solicitar campaña'}
+            </button>
+          )}
+          <button type="button" className={btnSecondary} onClick={() => setModal('join')}>
+            Unirme a campaña
+          </button>
+        </div>
+      </div>
       {deleted !== null && (
         <p role="status" className="mb-4 text-sm text-accent-bright">
           Se borró la campaña «{deleted}».
@@ -76,26 +93,29 @@ export function HubHome() {
         />
       )}
 
-      <div className="grid gap-8 md:grid-cols-2 mt-10 pt-6 border-t border-border-base">
-        {!ownerReady ? (
-          <p role="status" className="text-sm text-txt-muted">
-            Cargando…
-          </p>
-        ) : isOwner ? (
+      {modal === 'create' && (
+        <ModalShell title="Crear campaña" onClose={closeModal}>
           <CreateCampaignForm
             onCreate={async (slug, name) => (await data.createCampaign(slug, name)).slug}
             onCreated={(slug) => navigate(`/c/${slug}`)}
           />
-        ) : (
+        </ModalShell>
+      )}
+      {modal === 'request' && (
+        <ModalShell title="Solicitar campaña" onClose={closeModal}>
           <RequestCampaignForm
             onRequest={async (request) => {
               await data.createCampaignRequest(request)
               mine.reload()
             }}
           />
-        )}
-        <JoinWithCodeForm onJoin={(code) => navigate(`/invite/${encodeURIComponent(code)}`)} />
-      </div>
+        </ModalShell>
+      )}
+      {modal === 'join' && (
+        <ModalShell title="Unirme a campaña" onClose={closeModal}>
+          <JoinWithCodeForm onJoin={(code) => navigate(`/invite/${encodeURIComponent(code)}`)} />
+        </ModalShell>
+      )}
 
       {mine.status === 'error' && (
         <div role="alert" className="mt-6 text-sm text-accent-bright">

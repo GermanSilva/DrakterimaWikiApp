@@ -1,37 +1,38 @@
 import { Link } from 'react-router'
 import type { CampaignWithRole } from '../data'
 import { parseLogoUrl } from '../campaign/branding'
+import { BrandMark } from '../components/BrandMark'
 import { ROLE_LABEL } from './roles'
-import DragonIcon from '../svgs/dragonIcon'
 
-/** Presentational list of the user's campaigns. */
+/** Presentational list of the user's campaigns: subtitle small on top, the name large in the middle. */
 export function CampaignList({ campaigns, canCreate = false }: { campaigns: CampaignWithRole[]; canCreate?: boolean }) {
   if (campaigns.length === 0) {
     return <p className="text-sm text-txt-secondary">Todavía no sos parte de ninguna campaña. {canCreate ? 'Creá una' : 'Solicitá una'} o unite con un código.</p>
   }
   return (
-    <ul className="grid gap-3 sm:grid-cols-2">
+    <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {campaigns.map((campaign) => {
         const logo = parseLogoUrl(campaign.branding?.logo_url)
+        const tagline = typeof campaign.branding?.tagline === 'string' ? campaign.branding.tagline.trim() : ''
         return (
           <li key={campaign.id}>
             <Link
               to={`/c/${campaign.slug}`}
-              className="flex items-center gap-3 bg-bg-card border border-border-base p-4 hover:border-accent-dim transition-colors"
+              className="flex items-center gap-4 min-h-[128px] bg-bg-card border border-border-base p-5 hover:border-accent-dim transition-colors"
             >
               {logo ? (
-                <img src={logo} alt="" referrerPolicy="no-referrer" className="w-10 h-10 object-cover rounded" />
+                <img src={logo} alt="" referrerPolicy="no-referrer" className="w-12 h-12 object-cover rounded shrink-0" />
               ) : (
-                <DragonIcon width={32} height={32} className="text-accent shrink-0" />
+                <BrandMark size={44} className="shrink-0" />
               )}
-              <span className="flex-1 min-w-0">
-                <span className="block font-exo text-sm font-semibold tracking-[0.08em] uppercase text-txt-primary truncate">
+              <span className="flex-1 min-w-0 flex flex-col gap-1.5">
+                {tagline && (
+                  <span className="block font-exo text-[10px] tracking-[0.25em] uppercase text-txt-muted truncate">{tagline}</span>
+                )}
+                <span className="block font-exo text-xl font-bold tracking-[0.06em] uppercase text-txt-primary break-words">
                   {campaign.name}
                 </span>
-                <span className="block text-xs text-txt-muted truncate">/{campaign.slug}</span>
-              </span>
-              <span className="font-exo text-[10px] tracking-[0.15em] uppercase px-2 py-0.5 border border-border-light text-txt-secondary">
-                {ROLE_LABEL[campaign.role]}
+                <span className="font-exo text-[10px] tracking-[0.15em] uppercase text-txt-secondary">{ROLE_LABEL[campaign.role]}</span>
               </span>
             </Link>
           </li>

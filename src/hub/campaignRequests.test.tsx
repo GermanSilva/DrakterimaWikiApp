@@ -26,24 +26,32 @@ async function click(name: RegExp | string) {
   })
 }
 
+async function open(name: string) {
+  const opener = await screen.findByRole('button', { name })
+  await act(async () => {
+    fireEvent.click(opener)
+  })
+  await screen.findByRole('dialog', { name })
+}
+
 describe('hub home: ordinary user', () => {
   it('requests a campaign instead of creating one', async () => {
     renderApp('/')
-    expect(await screen.findByRole('heading', { name: 'Solicitar campaña' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Crear campaña' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Solicitar campaña' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Crear campaña' })).not.toBeInTheDocument()
     expect(screen.queryByRole('heading', { name: /Solicitudes pendientes/ })).not.toBeInTheDocument()
   })
 
   it('does not load the owner inbox', async () => {
     const data = makeData()
     renderApp('/', { data })
-    await screen.findByRole('heading', { name: 'Solicitar campaña' })
+    await open('Solicitar campaña')
     expect(data.listAllCampaignRequests).not.toHaveBeenCalled()
   })
 
   it('falls back to the request form when the owner check fails (the database enforces anyway)', async () => {
     renderApp('/', { data: makeData({ isHubOwner: vi.fn().mockRejectedValue(new Error('boom')) }) })
-    expect(await screen.findByRole('heading', { name: 'Solicitar campaña' })).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Solicitar campaña' })).toBeInTheDocument()
   })
 
   it('shows a neutral empty state that points to requesting', async () => {
@@ -54,7 +62,7 @@ describe('hub home: ordinary user', () => {
   it('sends the normalised request, confirms it and reloads "Mis solicitudes"', async () => {
     const data = makeData()
     renderApp('/', { data })
-    await screen.findByRole('heading', { name: 'Solicitar campaña' })
+    await open('Solicitar campaña')
     await fill(/^Nombre$/, '  La Corona Rota ')
     expect(screen.getByLabelText(/Dirección preferida/)).toHaveValue('la-corona-rota')
     await fill(/Dirección preferida/, 'corona-rota')
@@ -69,7 +77,7 @@ describe('hub home: ordinary user', () => {
   it('treats the address as optional but validates it when present; the name is required', async () => {
     const data = makeData()
     renderApp('/', { data })
-    await screen.findByRole('heading', { name: 'Solicitar campaña' })
+    await open('Solicitar campaña')
     await click(/^Enviar solicitud$/)
     expect(screen.getByText('Ingresá un nombre.')).toBeInTheDocument()
     await fill(/^Nombre$/, 'Demo')
@@ -93,7 +101,7 @@ describe('hub home: ordinary user', () => {
   ])('maps %s to a Spanish message and allows retrying', async (_name, error, message) => {
     const create = vi.fn().mockRejectedValueOnce(error).mockResolvedValue(makeRequest())
     renderApp('/', { data: makeData({ createCampaignRequest: create }) })
-    await screen.findByRole('heading', { name: 'Solicitar campaña' })
+    await open('Solicitar campaña')
     await fill(/^Nombre$/, 'Demo')
     await click(/^Enviar solicitud$/)
     expect(await screen.findByText(message, { selector: '[role=alert]' })).toBeInTheDocument()
@@ -107,7 +115,7 @@ describe('hub home: ordinary user', () => {
     const pending = deferred<ReturnType<typeof makeRequest>>()
     const create = vi.fn(() => pending.promise)
     renderApp('/', { data: makeData({ createCampaignRequest: create }) })
-    await screen.findByRole('heading', { name: 'Solicitar campaña' })
+    await open('Solicitar campaña')
     await fill(/^Nombre$/, 'Demo')
     const button = screen.getByRole('button', { name: /^Enviar solicitud$/ })
     await act(async () => {
@@ -154,7 +162,7 @@ describe('Mis solicitudes', () => {
 
   it('is hidden when there are no requests', async () => {
     renderApp('/')
-    await screen.findByRole('heading', { name: 'Solicitar campaña' })
+    await open('Solicitar campaña')
     expect(screen.queryByRole('heading', { name: 'Mis solicitudes' })).not.toBeInTheDocument()
   })
 })
@@ -169,8 +177,8 @@ describe('hub home: hub owner', () => {
       ]),
     })
     renderApp('/', { data })
-    expect(await screen.findByRole('heading', { name: 'Crear campaña' })).toBeInTheDocument()
-    expect(screen.queryByRole('heading', { name: 'Solicitar campaña' })).not.toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: 'Crear campaña' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Solicitar campaña' })).not.toBeInTheDocument()
     const inbox = (await screen.findByRole('heading', { name: /Solicitudes pendientes/ })).closest('section') as HTMLElement
     expect(within(inbox).getByLabelText('2 pendientes')).toBeInTheDocument()
     expect(within(inbox).getByText('La Corona Rota')).toBeInTheDocument()

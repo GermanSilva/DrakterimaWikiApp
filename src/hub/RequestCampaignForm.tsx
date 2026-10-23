@@ -58,10 +58,7 @@ export function RequestCampaignForm({ onRequest }: RequestCampaignFormProps) {
   }
 
   return (
-    <form onSubmit={submit} noValidate aria-labelledby={`${nameId}-title`}>
-      <h2 id={`${nameId}-title`} className="font-exo text-[13px] font-semibold tracking-[0.2em] uppercase text-accent-bright mb-3">
-        Solicitar campaña
-      </h2>
+    <form onSubmit={submit} noValidate aria-label="Solicitar campaña">
       <p className="text-xs text-txt-muted mb-3">
         El administrador del sitio revisa cada solicitud. Si la aprueba, la campaña se crea y vos sos su DM. No te llega ningún mail: mirá el estado en «Mis solicitudes».
       </p>

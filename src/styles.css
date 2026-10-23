@@ -100,4 +100,8 @@
   .brand-gradient-bg {
     background-image: var(--brand-gradient);
   }
+  /* Hub screens: filled accent surfaces use the brand gradient. */
+  .hub-surface .bg-accent {
+    background-image: var(--brand-gradient);
+  }
 }

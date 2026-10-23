@@ -170,7 +170,11 @@ describe('focus management', () => {
   it('does not steal focus on re-renders of the same page', async () => {
     renderApp('/', { auth, data: data() })
     await screen.findByRole('heading', { level: 1, name: 'Mis campañas' })
-    const name = screen.getByLabelText(/^Nombre$/)
+    const opener = await screen.findByRole('button', { name: 'Solicitar campaña' })
+    await act(async () => {
+      fireEvent.click(opener)
+    })
+    const name = await screen.findByLabelText(/^Nombre$/)
     name.focus()
     await act(async () => {
       fireEvent.change(name, { target: { value: 'Algo' } })

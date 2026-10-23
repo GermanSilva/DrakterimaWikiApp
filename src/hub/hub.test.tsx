@@ -19,6 +19,14 @@ async function submit(name: RegExp) {
   })
 }
 
+async function open(name: string) {
+  const opener = await screen.findByRole('button', { name })
+  await act(async () => {
+    fireEvent.click(opener)
+  })
+  await screen.findByRole('dialog', { name })
+}
+
 // H15: only hub owners get the direct create form; everybody else requests a campaign (see campaignRequests.test.tsx)
 const ownerData = (over: Parameters<typeof makeData>[0] = {}) => makeData({ isHubOwner: vi.fn(async () => true), ...over })
 
@@ -75,17 +83,17 @@ describe('create campaign', () => {
   it('suggests the slug from the name, creates and navigates to /c/:slug', async () => {
     const data = ownerData()
     const { router } = renderApp('/', { data })
-    await screen.findByRole('heading', { name: 'Crear campaña' })
+    await open('Crear campaña')
     await fill(/^Nombre$/, 'La Corona Rota')
     expect(screen.getByLabelText('Dirección')).toHaveValue('la-corona-rota')
-    await submit(/^Crear campaña$/)
+    await submit(/^Crear$/)
     expect(data.createCampaign).toHaveBeenCalledWith('la-corona-rota', 'La Corona Rota')
     await waitFor(() => expect(router.state.location.pathname).toBe('/c/la-corona-rota'))
   })
 
   it('stops following the name once the slug was edited by hand', async () => {
     renderApp('/', { data: ownerData() })
-    await screen.findByRole('heading', { name: 'Crear campaña' })
+    await open('Crear campaña')
     await fill(/^Nombre$/, 'Uno')
     await fill(/Dirección/, 'mi-slug')
     await fill(/^Nombre$/, 'Dos')
@@ -95,13 +103,13 @@ describe('create campaign', () => {
   it('validates client-side without calling the backend', async () => {
     const data = ownerData()
     renderApp('/', { data })
-    await screen.findByRole('heading', { name: 'Crear campaña' })
+    await open('Crear campaña')
     await fill(/^Nombre$/, 'Demo')
     await fill(/Dirección/, 'Bad Slug')
-    await submit(/^Crear campaña$/)
+    await submit(/^Crear$/)
     expect(screen.getByText(/minúsculas, números y guiones/i, { selector: '[role=alert]' })).toBeInTheDocument()
     await fill(/Dirección/, 'admin')
-    await submit(/^Crear campaña$/)
+    await submit(/^Crear$/)
     expect(screen.getByText(/reservada/, { selector: '[role=alert]' })).toBeInTheDocument()
     expect(data.createCampaign).not.toHaveBeenCalled()
   })
@@ -114,13 +122,13 @@ describe('create campaign', () => {
   ])('maps %s to a Spanish message and allows retrying', async (_name, error, message) => {
     const create = vi.fn().mockRejectedValueOnce(error).mockResolvedValue(makeCampaign({ slug: 'demo' }))
     const { router } = renderApp('/', { data: ownerData({ createCampaign: create }) })
-    await screen.findByRole('heading', { name: 'Crear campaña' })
+    await open('Crear campaña')
     await fill(/^Nombre$/, 'Demo')
-    await submit(/^Crear campaña$/)
+    await submit(/^Crear$/)
     expect(await screen.findByText(message, { selector: '[role=alert]' })).toBeInTheDocument()
     expect(router.state.location.pathname).toBe('/')
     expect(screen.queryByText(/boom/)).not.toBeInTheDocument()
-    await submit(/^Crear campaña$/)
+    await submit(/^Crear$/)
     await waitFor(() => expect(router.state.location.pathname).toBe('/c/demo'))
   })
 
@@ -128,9 +136,9 @@ describe('create campaign', () => {
     const pending = deferred<ReturnType<typeof makeCampaign>>()
     const create = vi.fn(() => pending.promise)
     renderApp('/', { data: ownerData({ createCampaign: create }), wrapper: (tree) => <StrictMode>{tree}</StrictMode> })
-    await screen.findByRole('heading', { name: 'Crear campaña' })
+    await open('Crear campaña')
     await fill(/^Nombre$/, 'Demo')
-    const button = screen.getByRole('button', { name: /^Crear campaña$/ })
+    const button = screen.getByRole('button', { name: /^Crear$/ })
     await act(async () => {
       fireEvent.click(button)
       fireEvent.click(button)
@@ -145,6 +153,7 @@ describe('join with a code', () => {
     const data = makeData()
     const { router } = renderApp('/', { data })
     await screen.findByRole('heading', { name: 'Mis campañas' })
+    await open('Unirme a campaña')
     await fill(/Código de invitación/, '  abc123  ')
     await submit(/^Ver invitación$/)
     await waitFor(() => expect(router.state.location.pathname).toBe('/invite/abc123'))
@@ -157,6 +166,7 @@ describe('join with a code', () => {
   it('rejects an empty or malformed code locally', async () => {
     const { router } = renderApp('/')
     await screen.findByRole('heading', { name: 'Mis campañas' })
+    await open('Unirme a campaña')
     await fill(/Código de invitación/, 'a/b ?')
     await submit(/^Ver invitación$/)
     expect(screen.getByText(/código de invitación válido/, { selector: '[role=alert]' })).toBeInTheDocument()

@@ -20,10 +20,7 @@ export function JoinWithCodeForm({ onJoin }: { onJoin: (code: string) => void })
   }
 
   return (
-    <form onSubmit={submit} noValidate aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`} className="font-exo text-[13px] font-semibold tracking-[0.2em] uppercase text-accent-bright mb-3">
-        Unirme con un código
-      </h2>
+    <form onSubmit={submit} noValidate aria-label="Unirme a campaña">
       <label htmlFor={id} className={labelCls}>
         Código de invitación
       </label>

@@ -44,10 +44,7 @@ export function CreateCampaignForm({ onCreate, onCreated }: CreateCampaignFormPr
   }
 
   return (
-    <form onSubmit={submit} noValidate aria-labelledby={`${nameId}-title`}>
-      <h2 id={`${nameId}-title`} className="font-exo text-[13px] font-semibold tracking-[0.2em] uppercase text-accent-bright mb-3">
-        Crear campaña
-      </h2>
+    <form onSubmit={submit} noValidate aria-label="Crear campaña">
       <label htmlFor={nameId} className={labelCls}>
         Nombre
       </label>
@@ -90,7 +87,7 @@ export function CreateCampaignForm({ onCreate, onCreated }: CreateCampaignFormPr
       )}
 
       <button type="submit" className={`${btnPrimary} mt-4`} disabled={pending}>
-        {pending ? 'Creando…' : 'Crear campaña'}
+        {pending ? 'Creando…' : 'Crear'}
       </button>
       {failure && (
         <p role="alert" className="mt-3 text-sm text-accent-bright">
