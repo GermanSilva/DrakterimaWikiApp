@@ -201,45 +201,54 @@ export type Database = {
       }
       campaign_requests: {
         Row: {
+          accent_color: string | null
           campaign_id: string | null
           created_at: string
           decided_at: string | null
           decided_by: string | null
           decision_note: string | null
           id: number
+          logo_url: string | null
           message: string | null
           name: string
           requester_id: string
           slug_wanted: string | null
           status: string
+          tagline: string | null
           updated_at: string
         }
         Insert: {
+          accent_color?: string | null
           campaign_id?: string | null
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
           decision_note?: string | null
           id?: never
+          logo_url?: string | null
           message?: string | null
           name: string
           requester_id?: string
           slug_wanted?: string | null
           status?: string
+          tagline?: string | null
           updated_at?: string
         }
         Update: {
+          accent_color?: string | null
           campaign_id?: string | null
           created_at?: string
           decided_at?: string | null
           decided_by?: string | null
           decision_note?: string | null
           id?: never
+          logo_url?: string | null
           message?: string | null
           name?: string
           requester_id?: string
           slug_wanted?: string | null
           status?: string
+          tagline?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -1378,7 +1387,13 @@ export type Database = {
       coin_amounts: { Args: { src: Json }; Returns: Json }
       coin_value: { Args: { v: string }; Returns: number }
       create_campaign: {
-        Args: { p_name: string; p_slug: string }
+        Args: {
+          p_accent_color?: string
+          p_logo_url?: string
+          p_name: string
+          p_slug: string
+          p_tagline?: string
+        }
         Returns: {
           branding: Json
           character_custom_fields: Json
@@ -1400,7 +1415,12 @@ export type Database = {
         }
       }
       create_campaign_for: {
-        Args: { p_dm: string; p_name: string; p_slug: string }
+        Args: {
+          p_branding?: Json
+          p_dm: string
+          p_name: string
+          p_slug: string
+        }
         Returns: {
           branding: Json
           character_custom_fields: Json

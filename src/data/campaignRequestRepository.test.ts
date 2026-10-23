@@ -41,6 +41,22 @@ describe('campaign request repository', () => {
     await expect(repo.createCampaignRequest({ name: 'B' })).rejects.toMatchObject({ kind: 'business', reason: 'too_many_pending_requests' })
   })
 
+  it('createCampaignRequest also sends the branding fields when given and omits them when not', async () => {
+    const fake = createFakeClient()
+    const repo = createCampaignRequestRepository(fake.db)
+    fake.enqueue({ data: { id: 1 } }, { data: { id: 2 } })
+    await repo.createCampaignRequest({ name: 'Alpha', tagline: 'Una historia', accent_color: '#aabbcc', logo_url: 'https://cdn.test/a.png' })
+    expect(opsNamed(fake.calls[0], 'insert')).toEqual([
+      [{ name: 'Alpha', tagline: 'Una historia', accent_color: '#aabbcc', logo_url: 'https://cdn.test/a.png' }],
+    ])
+    await repo.createCampaignRequest({ name: 'Beta' })
+    expect(opsNamed(fake.calls[1], 'insert')).toEqual([[{ name: 'Beta' }]])
+  })
+
+  it('selects the branding columns of a request', () => {
+    expect(CAMPAIGN_REQUEST_COLUMNS).toEqual(expect.arrayContaining(['tagline', 'accent_color', 'logo_url']))
+  })
+
   it('cancelCampaignRequest resolves whether a row was removed', async () => {
     const fake = createFakeClient()
     const repo = createCampaignRequestRepository(fake.db)

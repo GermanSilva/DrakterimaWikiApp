@@ -13,6 +13,10 @@ export interface CampaignRequest {
   name: string
   slug_wanted: string | null
   message: string | null
+  /** Pre-title shown above the campaign name (branding.tagline once approved). */
+  tagline: string | null
+  accent_color: string | null
+  logo_url: string | null
   status: CampaignRequestStatus
   decision_note: string | null
   decided_at: string | null
@@ -30,6 +34,9 @@ export interface NewCampaignRequest {
   name: string
   slug_wanted?: string | null
   message?: string | null
+  tagline?: string | null
+  accent_color?: string | null
+  logo_url?: string | null
 }
 
 const SELECT = join(CAMPAIGN_REQUEST_COLUMNS)

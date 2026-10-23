@@ -145,4 +145,25 @@ describe('hub owner and campaign requests against the local stack', () => {
     const patch = await requester.client.from('campaigns').update({ slug: 'admin' } as never).eq('id', mine!.id)
     expect(patch.error?.code).toBe('42501')
   })
+
+  it('carries tagline, accent colour and logo from a request into the approved campaign, and from a direct creation', async () => {
+    const wanted = slug('brand')
+    const request = await requesterData.campaignRequests.createCampaignRequest({
+      name: 'Branded',
+      slug_wanted: wanted,
+      tagline: 'Una historia de dragones',
+      accent_color: '#4A32AC',
+      logo_url: 'https://cdn.test/logo.png',
+    })
+    expect(request).toMatchObject({ tagline: 'Una historia de dragones', accent_color: '#4a32ac', logo_url: 'https://cdn.test/logo.png' })
+    await ownerData.campaignRequests.approveCampaignRequest(request.id)
+    const approved = (await requesterData.campaigns.listMyCampaigns(requester.id)).find((c) => c.slug === wanted)
+    expect(approved?.branding).toEqual({ tagline: 'Una historia de dragones', accent_color: '#4a32ac', logo_url: 'https://cdn.test/logo.png' })
+
+    const direct = slug('brand-direct')
+    const created = await ownerData.campaigns.createCampaign(direct, 'Direct', { tagline: 'Lema', accent_color: '#102030' })
+    expect(created.branding).toEqual({ tagline: 'Lema', accent_color: '#102030' })
+    await expect(ownerData.campaigns.createCampaign(slug('brand-bad'), 'Bad', { accent_color: 'red' })).rejects.toMatchObject({ reason: 'invalid_accent_color' })
+    await expect(requesterData.campaignRequests.createCampaignRequest({ name: 'Bad logo', logo_url: 'http://x.test/a.png' })).rejects.toMatchObject({ reason: 'invalid_logo_url' })
+  })
 })

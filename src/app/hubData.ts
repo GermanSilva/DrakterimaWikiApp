@@ -8,6 +8,7 @@ import {
   type DataLayer,
   type Db,
   type InvitePreview,
+  type NewCampaignBranding,
   type NewCampaignRequest,
   type Profile,
 } from '../data'
@@ -24,7 +25,7 @@ export interface HubData {
   readonly layer: DataLayer
   listMyCampaigns(userId: string): Promise<CampaignWithRole[]>
   /** Hub owners only (the database refuses everybody else with reason hub_owner_only). */
-  createCampaign(slug: string, name: string): Promise<Campaign>
+  createCampaign(slug: string, name: string, branding?: NewCampaignBranding): Promise<Campaign>
   /** UI hint only: the database enforces the privilege. */
   isHubOwner(): Promise<boolean>
   listMyCampaignRequests(userId: string): Promise<CampaignRequest[]>
@@ -49,7 +50,7 @@ export function createHubData(client?: Db): HubData {
   return {
     layer,
     listMyCampaigns: (userId) => layer.campaigns.listMyCampaigns(userId),
-    createCampaign: (slug, name) => layer.campaigns.createCampaign(slug, name),
+    createCampaign: (slug, name, branding) => layer.campaigns.createCampaign(slug, name, branding),
     isHubOwner: () => layer.campaignRequests.isHubOwner(),
     listMyCampaignRequests: (userId) => layer.campaignRequests.listMyCampaignRequests(userId),
     createCampaignRequest: (request) => layer.campaignRequests.createCampaignRequest(request),

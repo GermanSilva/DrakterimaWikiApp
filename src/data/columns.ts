@@ -180,6 +180,9 @@ export const CAMPAIGN_REQUEST_COLUMNS = [
   'name',
   'slug_wanted',
   'message',
+  'tagline',
+  'accent_color',
+  'logo_url',
   'status',
   'decision_note',
   'decided_at',
@@ -189,7 +192,7 @@ export const CAMPAIGN_REQUEST_COLUMNS = [
 ] as const
 
 /** The only columns a requester may send (column grant). */
-export const CAMPAIGN_REQUEST_WRITE_COLUMNS = ['name', 'slug_wanted', 'message'] as const
+export const CAMPAIGN_REQUEST_WRITE_COLUMNS = ['name', 'slug_wanted', 'message', 'tagline', 'accent_color', 'logo_url'] as const
 
 export const CAMPAIGN_MEMBER_COLUMNS = ['campaign_id', 'user_id', 'role', 'created_at', 'updated_at'] as const
 

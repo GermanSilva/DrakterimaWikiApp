@@ -204,7 +204,7 @@ supabase migration list
 ### c.3 Smoke checks SQL (equivalentes a pgTAP, solo lectura)
 
 **[OWNER]** Dashboard > *SQL Editor* > pegar y ejecutar. Los resultados esperados se obtuvieron ejecutando las mismas consultas
-contra la base local con las 15 migraciones (con la salvedad de usuarios: la local tiene los 4 del seed, la alojada debe tener 0).
+contra la base local con las 16 migraciones (con la salvedad de usuarios: la local tiene los 4 del seed, la alojada debe tener 0).
 
 **1. Tablas publicadas en Realtime.** Esperado: exactamente estas **14** filas:
 `campaign_config, disponibilidad, facciones, game_pot, homebrew_rules, items, lore, lugares, map_points, mapas, pjs,
@@ -682,7 +682,7 @@ hasta la fase de retiro. `.github/workflows/deploy.yml` no se modifica antes.
 | # | Fase | Quién | Gate |
 |---|------|-------|------|
 | 0 | Decisiones D1..D13 resueltas; suite local en verde (a) | OWNER | **GO 0** |
-| 1 | Crear Supabase (b), link y `db push` (c.1, c.2) | OWNER | **GO 1**: 15 migraciones aplicadas |
+| 1 | Crear Supabase (b), link y `db push` (c.1, c.2) | OWNER | **GO 1**: 16 migraciones aplicadas |
 | 2 | Smoke checks SQL (c.3) y chequeo Realtime (c.4) | OWNER | **GO 2**: todo PASA |
 | 3 | Auth: URL config, SMTP, límites, (Google) (d); **asignarte como Hub Owner (d.6)** antes de abrir el registro | OWNER | **GO 3**: magic link llega a un correo ajeno; `select ... from hub_owners` devuelve tu email |
 | 4 | Vercel: proyecto, variables, dominio, previews protegidas (e) | OWNER | **GO 4**: `/login` y un deep link cargan; sin "Falta configurar Supabase" |

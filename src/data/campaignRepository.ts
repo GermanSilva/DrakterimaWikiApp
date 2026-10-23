@@ -101,6 +101,13 @@ export interface CampaignPatch {
 const CAMPAIGN_SELECT = join(CAMPAIGN_COLUMNS)
 const PROFILE_EMBED = 'id, display_name, avatar_url'
 
+/** Optional branding for a new campaign (stored in campaigns.branding). */
+export interface NewCampaignBranding {
+  tagline?: string | null
+  accent_color?: string | null
+  logo_url?: string | null
+}
+
 /** Campaigns, membership and invites. */
 export function createCampaignRepository(client: Db) {
   async function removeMembership(campaignId: string, userId: string): Promise<void> {
@@ -136,9 +143,19 @@ export function createCampaignRepository(client: Db) {
       )
     },
 
-    /** RPC: creates the campaign and makes the caller its DM. Errors: reserved_slug, campaign_limit_reached. */
-    async createCampaign(slug: string, name: string): Promise<Campaign> {
-      return unwrap(await client.rpc('create_campaign', { p_slug: slug, p_name: name })) as unknown as Campaign
+    /**
+     * RPC (hub owners): creates the campaign and makes the caller its DM. Optional branding is validated by the database.
+     * Errors: reserved_slug, campaign_limit_reached, invalid_tagline, invalid_accent_color, invalid_logo_url.
+     */
+    async createCampaign(slug: string, name: string, branding: NewCampaignBranding = {}): Promise<Campaign> {
+      const args = {
+        p_slug: slug,
+        p_name: name,
+        ...(branding.tagline != null && { p_tagline: branding.tagline }),
+        ...(branding.accent_color != null && { p_accent_color: branding.accent_color }),
+        ...(branding.logo_url != null && { p_logo_url: branding.logo_url }),
+      }
+      return unwrap(await client.rpc('create_campaign', args)) as unknown as Campaign
     },
 
     /**

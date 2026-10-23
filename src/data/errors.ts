@@ -40,6 +40,9 @@ export const KNOWN_REASONS = [
   'slug_taken',
   'invalid_slug',
   'invalid_name',
+  'invalid_tagline',
+  'invalid_accent_color',
+  'invalid_logo_url',
 ] as const
 
 export type DataErrorReason = (typeof KNOWN_REASONS)[number]

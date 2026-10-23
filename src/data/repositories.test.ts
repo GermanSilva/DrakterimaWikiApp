@@ -128,9 +128,19 @@ describe('campaign repository', () => {
     await repo.createCampaign('alpha', 'Alpha')
     expect(fake.calls[0]).toMatchObject({ kind: 'rpc', name: 'create_campaign', args: { p_slug: 'alpha', p_name: 'Alpha' } })
 
+    // the previous call shape sends nothing else
+    expect(fake.calls[0].args).toEqual({ p_slug: 'alpha', p_name: 'Alpha' })
+
+    fake.enqueue({ data: { id: 'b', slug: 'beta' } })
+    await repo.createCampaign('beta', 'Beta', { tagline: 'Lema', accent_color: '#102030', logo_url: 'https://cdn.test/b.png' })
+    expect(fake.calls[1]).toMatchObject({
+      name: 'create_campaign',
+      args: { p_slug: 'beta', p_name: 'Beta', p_tagline: 'Lema', p_accent_color: '#102030', p_logo_url: 'https://cdn.test/b.png' },
+    })
+
     fake.enqueue({ data: { joined: true, claimed: false, campaign_id: 'a', slug: 'alpha', role: 'player', character_id: null } })
     expect((await repo.acceptInvite('code')).joined).toBe(true)
-    expect(fake.calls[1]).toMatchObject({ name: 'accept_invite', args: { p_code: 'code' } })
+    expect(fake.calls[2]).toMatchObject({ name: 'accept_invite', args: { p_code: 'code' } })
 
     fake.enqueue({ error: { message: 'invite_expired', code: 'P0001' } })
     await expect(repo.acceptInvite('old')).rejects.toMatchObject({ kind: 'business', message: 'invite_expired' })

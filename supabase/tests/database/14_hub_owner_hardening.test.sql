@@ -121,9 +121,9 @@ select ok(
   (select bool_and(p.proconfig = array['search_path=""'])
      from pg_proc p
     where p.oid in ('public.is_reserved_slug(text)'::regprocedure, 'public.strip_control_chars(text, boolean)'::regprocedure,
-                    'public.create_campaign_for(uuid, text, text)'::regprocedure,
+                    'public.create_campaign_for(uuid, text, text, jsonb)'::regprocedure,
                     'public.reject_campaign_request(bigint, text)'::regprocedure))
-  and (select p.prosecdef from pg_proc p where p.oid = 'public.create_campaign_for(uuid, text, text)'::regprocedure)
+  and (select p.prosecdef from pg_proc p where p.oid = 'public.create_campaign_for(uuid, text, text, jsonb)'::regprocedure)
   and (select p.prosecdef from pg_proc p where p.oid = 'public.reject_campaign_request(bigint, text)'::regprocedure),
   'the helpers and the decision functions have an empty search_path; the creators stay SECURITY DEFINER');
 select ok(

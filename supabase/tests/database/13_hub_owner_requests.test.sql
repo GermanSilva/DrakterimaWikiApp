@@ -85,18 +85,18 @@ select ok(
   and not has_column_privilege('authenticated', 'public.campaign_requests', 'status', 'insert')
   and not has_column_privilege('authenticated', 'public.campaign_requests', 'requester_id', 'insert')
   and not has_column_privilege('authenticated', 'public.campaign_requests', 'campaign_id', 'insert'),
-  'only name, slug_wanted and message are insertable');
+  'only name, slug_wanted, message and the branding fields (tagline, accent_color, logo_url) are insertable');
 select ok(
   not has_table_privilege('authenticated', 'public.campaigns', 'insert')
-  and not has_function_privilege('authenticated', 'public.create_campaign_for(uuid, text, text)', 'execute')
-  and not has_function_privilege('anon', 'public.create_campaign_for(uuid, text, text)', 'execute')
-  and not has_function_privilege('public', 'public.create_campaign_for(uuid, text, text)', 'execute'),
+  and not has_function_privilege('authenticated', 'public.create_campaign_for(uuid, text, text, jsonb)', 'execute')
+  and not has_function_privilege('anon', 'public.create_campaign_for(uuid, text, text, jsonb)', 'execute')
+  and not has_function_privilege('public', 'public.create_campaign_for(uuid, text, text, jsonb)', 'execute'),
   'campaigns has no INSERT privilege and the internal creator is not callable through the API');
 select ok(
   (select bool_and(p.prosecdef and p.proconfig = array['search_path=""'])
      from pg_proc p
-    where p.oid in ('public.is_hub_owner()'::regprocedure, 'public.create_campaign(text, text)'::regprocedure,
-                    'public.create_campaign_for(uuid, text, text)'::regprocedure,
+    where p.oid in ('public.is_hub_owner()'::regprocedure, 'public.create_campaign(text, text, text, text, text)'::regprocedure,
+                    'public.create_campaign_for(uuid, text, text, jsonb)'::regprocedure,
                     'public.approve_campaign_request(bigint, text, text)'::regprocedure,
                     'public.reject_campaign_request(bigint, text)'::regprocedure)),
   'every new function is SECURITY DEFINER with an empty search_path');
@@ -111,7 +111,7 @@ select ok(
   and not has_function_privilege('anon', 'public.is_hub_owner()', 'execute')
   and not has_function_privilege('anon', 'public.approve_campaign_request(bigint, text, text)', 'execute')
   and not has_function_privilege('anon', 'public.reject_campaign_request(bigint, text)', 'execute')
-  and not has_function_privilege('anon', 'public.create_campaign(text, text)', 'execute')
+  and not has_function_privilege('anon', 'public.create_campaign(text, text, text, text, text)', 'execute')
   and not has_function_privilege('public', 'public.approve_campaign_request(bigint, text, text)', 'execute'),
   'RPCs are callable by authenticated only');
 
