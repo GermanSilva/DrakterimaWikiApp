@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { Menu } from 'lucide-react'
 import type { CampaignWithRole } from '../data'
-import DragonIcon from '../svgs/dragonIcon'
+import { BrandMark } from '../components/BrandMark'
 import { CampaignSwitcher } from './CampaignSwitcher'
 
 export interface CampaignHeaderProps {
@@ -34,7 +34,7 @@ export function CampaignHeader({ name, logoUrl, currentSlug, campaigns, menuOpen
         {logoUrl ? (
           <img src={logoUrl} alt="" referrerPolicy="no-referrer" className="w-7 h-7 object-contain shrink-0" />
         ) : (
-          <DragonIcon width={28} height={28} className="text-accent shrink-0" />
+          <BrandMark size={28} className="shrink-0" />
         )}
         <span className="font-exo text-[17px] font-bold text-accent-bright tracking-[0.08em] uppercase truncate">{name}</span>
       </Link>

@@ -87,7 +87,7 @@ export function UserMenu({ profile, email, onSignOut, onEditProfile, onMyCampaig
         {profile?.avatar_url ? (
           <img src={profile.avatar_url} alt="" referrerPolicy="no-referrer" className="w-8 h-8 rounded-full object-cover" />
         ) : (
-          <span aria-hidden="true" className="w-8 h-8 rounded-full bg-bg-mid text-txt-secondary flex items-center justify-center text-xs font-exo">
+          <span aria-hidden="true" className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center text-xs font-exo font-semibold">
             {name.charAt(0).toUpperCase()}
           </span>
         )}

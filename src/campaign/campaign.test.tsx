@@ -170,13 +170,14 @@ describe('branding', () => {
   )
 
   it.each(['http://cdn.test/l.png', 'javascript:alert(1)', 'data:image/png;base64,AAAA', '/relative.png', 'not a url'])(
-    'falls back to the default dragon for the logo %j',
+    'falls back to the RPG Quester mark for the logo %j',
     async (logo) => {
       const branded = makeCampaign({ branding: { logo_url: logo } })
       renderApp('/c/demo', { data: dataFor(branded) })
       await screen.findByRole('heading', { level: 1, name: 'Demo' })
       expect(document.querySelector('header img')).toBeNull()
-      expect(document.querySelector('header svg.text-accent')).not.toBeNull()
+      expect(document.querySelector('header a svg[viewBox="0 0 64 64"]')).not.toBeNull()
+      expect(document.querySelector('header svg.text-accent')).toBeNull()
     },
   )
 

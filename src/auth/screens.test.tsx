@@ -159,6 +159,14 @@ describe('UserMenu', () => {
     expect(screen.getByRole('menu')).toBeInTheDocument()
   })
 
+  it('draws the initial on the accent colour so it stays readable on the dark header', () => {
+    const { container } = render(<UserMenu profile={profileRow()} onSignOut={vi.fn()} onEditProfile={vi.fn()} onMyCampaigns={vi.fn()} />)
+    const initial = container.querySelector('button span[aria-hidden="true"]') as HTMLElement
+    expect(initial.textContent).toBe('A')
+    expect(initial.className).toContain('bg-accent')
+    expect(initial.className).toContain('text-white')
+  })
+
   it('renders an https avatar', () => {
     const { container } = render(
       <UserMenu profile={{ ...profileRow(), avatar_url: 'https://x.test/a.png' }} onSignOut={vi.fn()} onEditProfile={vi.fn()} onMyCampaigns={vi.fn()} />,
