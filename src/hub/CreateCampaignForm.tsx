@@ -1,5 +1,6 @@
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { btnPrimary, inputCls, labelCls } from '../constants'
+import { DialogActions } from '../components/DialogActions'
 import { AccentField, LogoField, TaglineField } from './BrandingFields'
 import { CampaignPreview } from './CampaignPreview'
 import { useBrandingFields, type BrandingValues } from './campaignBranding'
@@ -98,9 +99,11 @@ export function CreateCampaignForm({ onCreate, onCreated }: CreateCampaignFormPr
       <AccentField fields={branding} />
       <LogoField fields={branding} />
 
-      <button type="submit" className={`${btnPrimary} mt-4`} disabled={pending}>
-        {pending ? 'Creando…' : 'Crear'}
-      </button>
+      <DialogActions align="center">
+        <button type="submit" className={btnPrimary} disabled={pending}>
+          {pending ? 'Creando…' : 'Crear'}
+        </button>
+      </DialogActions>
       {failure && (
         <p role="alert" className="mt-3 text-sm text-accent-bright">
           {failure}

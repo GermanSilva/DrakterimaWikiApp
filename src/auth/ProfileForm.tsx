@@ -1,4 +1,5 @@
 import { useId, useState, type FormEvent } from 'react'
+import { DialogActions } from '../components/DialogActions'
 import { btnPrimary, inputCls, labelCls } from '../constants'
 import type { Profile, ProfileRepository } from '../data'
 import { sanitizeForLog } from './authErrors'
@@ -91,9 +92,11 @@ export function ProfileForm({ profile, repository, onSaved }: ProfileFormProps) 
         Máximo {DISPLAY_NAME_MAX} caracteres para el nombre y {AVATAR_URL_MAX} para la URL.
       </p>
 
-      <button type="submit" className={`${btnPrimary} mt-4`} disabled={saving}>
-        {saving ? 'Guardando…' : 'Guardar'}
-      </button>
+      <DialogActions align="center">
+        <button type="submit" className={btnPrimary} disabled={saving}>
+          {saving ? 'Guardando…' : 'Guardar'}
+        </button>
+      </DialogActions>
       {status?.kind === 'saved' && (
         <p role="status" className="mt-3 text-sm text-txt-secondary">
           Perfil guardado.

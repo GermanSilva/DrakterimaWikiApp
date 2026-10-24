@@ -1,5 +1,6 @@
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { btnPrimary, inputCls, labelCls } from '../constants'
+import { DialogActions } from '../components/DialogActions'
 import { AccentField, LogoField, TaglineField } from './BrandingFields'
 import { CampaignPreview } from './CampaignPreview'
 import { useBrandingFields, type BrandingValues } from './campaignBranding'
@@ -131,9 +132,11 @@ export function RequestCampaignForm({ onRequest }: RequestCampaignFormProps) {
         onChange={(e) => setMessage(e.target.value)}
       />
 
-      <button type="submit" className={`${btnPrimary} mt-4`} disabled={pending}>
-        {pending ? 'Enviando…' : 'Enviar solicitud'}
-      </button>
+      <DialogActions align="center">
+        <button type="submit" className={btnPrimary} disabled={pending}>
+          {pending ? 'Enviando…' : 'Enviar solicitud'}
+        </button>
+      </DialogActions>
       {sent && (
         <p role="status" className="mt-3 text-sm text-txt-secondary">
           Solicitud enviada. Queda pendiente hasta que el administrador la resuelva.

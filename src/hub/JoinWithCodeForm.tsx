@@ -1,5 +1,6 @@
 import { useId, useState, type FormEvent } from 'react'
 import { btnSecondary, inputCls, labelCls } from '../constants'
+import { DialogActions } from '../components/DialogActions'
 import { normalizeInviteCode } from './campaignSlug'
 
 /** Collects an invite code and hands the normalised code to the caller (which navigates). */
@@ -39,9 +40,11 @@ export function JoinWithCodeForm({ onJoin }: { onJoin: (code: string) => void })
           {error}
         </p>
       )}
-      <button type="submit" className={`${btnSecondary} mt-4`}>
-        Ver invitación
-      </button>
+      <DialogActions align="center">
+        <button type="submit" className={btnSecondary}>
+          Ver invitación
+        </button>
+      </DialogActions>
     </form>
   )
 }

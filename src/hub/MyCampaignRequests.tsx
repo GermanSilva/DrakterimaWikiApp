@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { Link } from 'react-router'
-import { btnSecondary } from '../constants'
+import { btnNeutral } from '../constants'
 import type { CampaignRequest, CampaignWithRole } from '../data'
 import { campaignRequestErrorMessage } from './campaignSlug'
 import { RequestTile } from './RequestTile'
@@ -64,7 +64,7 @@ export function MyCampaignRequests({ requests, campaigns, onCancel, onChanged }:
               request={request}
               actions={
                 request.status === 'pending' ? (
-                  <button type="button" className={btnSecondary} disabled={busy !== null} onClick={() => cancel(request.id)}>
+                  <button type="button" className={btnNeutral} disabled={busy !== null} onClick={() => cancel(request.id)}>
                     {busy === request.id ? 'Cancelando…' : 'Cancelar solicitud'}
                   </button>
                 ) : undefined

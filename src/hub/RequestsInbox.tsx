@@ -1,5 +1,6 @@
 import { useId, useRef, useState, type FormEvent } from 'react'
-import { btnDanger, btnPrimary, btnSecondary, inputCls, labelCls } from '../constants'
+import { btnDanger, btnNeutral, btnPrimary, btnSecondary, inputCls, labelCls } from '../constants'
+import { DialogActions } from '../components/DialogActions'
 import { ModalShell } from '../campaign/calendar/ModalShell'
 import type { CampaignRequestWithRequester } from '../data'
 import {
@@ -58,7 +59,7 @@ export function RequestsInbox({ requests, onApprove, onReject, onChanged }: Requ
                   <button type="button" className={btnPrimary} onClick={() => setDialog({ kind: 'approve', request })}>
                     Aprobar
                   </button>
-                  <button type="button" className={btnSecondary} onClick={() => setDialog({ kind: 'reject', request })}>
+                  <button type="button" className={btnNeutral} onClick={() => setDialog({ kind: 'reject', request })}>
                     Rechazar
                   </button>
                 </>
@@ -184,14 +185,14 @@ function ApproveDialog({
             {failure}
           </p>
         )}
-        <div className="flex gap-2 mt-5">
-          <button type="submit" className={btnPrimary} disabled={pending}>
-            {pending ? 'Creando…' : 'Aprobar y crear'}
-          </button>
+        <DialogActions>
           <button type="button" className={btnSecondary} onClick={onClose} disabled={pending}>
             Cancelar
           </button>
-        </div>
+          <button type="submit" className={btnPrimary} disabled={pending}>
+            {pending ? 'Creando…' : 'Aprobar y crear'}
+          </button>
+        </DialogActions>
       </form>
     </ModalShell>
   )
@@ -248,14 +249,14 @@ function RejectDialog({
             {failure}
           </p>
         )}
-        <div className="flex gap-2 mt-5">
-          <button type="submit" className={btnDanger} disabled={pending}>
-            {pending ? 'Rechazando…' : 'Rechazar solicitud'}
-          </button>
+        <DialogActions>
           <button type="button" className={btnSecondary} onClick={onClose} disabled={pending}>
             Cancelar
           </button>
-        </div>
+          <button type="submit" className={btnDanger} disabled={pending}>
+            {pending ? 'Rechazando…' : 'Rechazar solicitud'}
+          </button>
+        </DialogActions>
       </form>
     </ModalShell>
   )
