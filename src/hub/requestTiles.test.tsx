@@ -44,6 +44,19 @@ describe('owner inbox tile', () => {
     expect(name.className).toContain('uppercase')
   })
 
+  it.each([
+    ['a branded request', branded],
+    ['a request without branding', inboxRow()],
+  ])('always draws Rechazar as a secondary button, whatever the tile colour (%s)', (_name, row) => {
+    renderInbox([row])
+    const reject = screen.getByRole('button', { name: 'Rechazar' })
+    const classes = reject.className.split(/\s+/)
+    expect(classes).toContain('text-txt-secondary')
+    expect(classes).toContain('border-border-light')
+    expect(classes).not.toContain('text-accent')
+    expect(classes).not.toContain('border-accent-dim')
+  })
+
   it('draws a left border in the chosen colour', () => {
     renderInbox([branded])
     const tile = screen.getByTestId('request-tile')

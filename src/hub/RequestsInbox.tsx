@@ -58,7 +58,7 @@ export function RequestsInbox({ requests, onApprove, onReject, onChanged }: Requ
                   <button type="button" className={btnPrimary} onClick={() => setDialog({ kind: 'approve', request })}>
                     Aprobar
                   </button>
-                  <button type="button" className={btnDanger} onClick={() => setDialog({ kind: 'reject', request })}>
+                  <button type="button" className={btnSecondary} onClick={() => setDialog({ kind: 'reject', request })}>
                     Rechazar
                   </button>
                 </>
