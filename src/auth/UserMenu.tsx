@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
-import { ChevronDown } from 'lucide-react'
 import type { Profile } from '../data'
 
 export interface UserMenuProps {
@@ -81,17 +80,21 @@ export function UserMenu({ profile, email, onSignOut, onEditProfile, onMyCampaig
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}
-        className="flex items-center gap-2.5 bg-transparent border-none cursor-pointer text-txt-primary p-0"
+        className="group relative flex items-center bg-transparent border-none cursor-pointer text-txt-primary p-0"
       >
-        <span className="text-sm max-md:hidden">{name}</span>
+        <span
+          data-testid="user-menu-hover"
+          aria-hidden="true"
+          className="absolute inset-y-0 left-0 right-4 rounded-l-full bg-bg-card-hover opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+        />
+        <span className="relative text-sm max-md:hidden pl-4 pr-3">{name}</span>
         {profile?.avatar_url ? (
-          <img src={profile.avatar_url} alt="" referrerPolicy="no-referrer" className="w-8 h-8 rounded-full object-cover" />
+          <img src={profile.avatar_url} alt="" referrerPolicy="no-referrer" className="relative w-8 h-8 rounded-full object-cover" />
         ) : (
-          <span aria-hidden="true" className="w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center text-xs font-exo font-semibold">
+          <span aria-hidden="true" className="relative w-8 h-8 rounded-full bg-accent text-white flex items-center justify-center text-xs font-exo font-semibold">
             {name.charAt(0).toUpperCase()}
           </span>
         )}
-        <ChevronDown size={14} aria-hidden="true" className="text-txt-muted" />
       </button>
       {open && (
         <div

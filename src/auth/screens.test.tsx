@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import { AuthFlowError } from './authErrors'
 import { AuthProvider } from './AuthProvider'
@@ -121,6 +121,16 @@ describe('UserMenu', () => {
     expect(screen.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Editar perfil', 'Ver mis campañas', 'Cerrar sesión'])
   })
 
+  it('has no dropdown chevron, and its hover background runs from the left edge to the centre of the avatar', () => {
+    setup()
+    expect(trigger().querySelector('svg')).toBeNull()
+    const hover = within(trigger()).getByTestId('user-menu-hover')
+    // the avatar is 32px wide: stopping 16px (right-4) short of the right edge ends the background at its centre
+    expect(hover.className).toContain('left-0')
+    expect(hover.className).toContain('right-4')
+    expect(hover.className).toContain('group-hover:opacity-100')
+  })
+
   it('runs the profile and campaigns actions and closes the menu', async () => {
     const props = setup()
     await userEvent.click(trigger())
@@ -161,7 +171,7 @@ describe('UserMenu', () => {
 
   it('draws the initial on the accent colour so it stays readable on the dark header', () => {
     const { container } = render(<UserMenu profile={profileRow()} onSignOut={vi.fn()} onEditProfile={vi.fn()} onMyCampaigns={vi.fn()} />)
-    const initial = container.querySelector('button span[aria-hidden="true"]') as HTMLElement
+    const initial = container.querySelector('button span[aria-hidden="true"]:not([data-testid])') as HTMLElement
     expect(initial.textContent).toBe('A')
     expect(initial.className).toContain('bg-accent')
     expect(initial.className).toContain('text-white')
