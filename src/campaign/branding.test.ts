@@ -26,3 +26,18 @@ describe('accentStyle', () => {
     }
   })
 })
+
+describe('topbarTagline', () => {
+  it('returns the trimmed pre-title', () => {
+    expect(topbarTagline({ tagline: '  Que empiece  ' })).toBe('Que empiece')
+  })
+
+  it.each([[{}], [{ tagline: '' }], [{ tagline: '   ' }], [{ tagline: { x: 1 } }], [{ tagline: 5 }], [null]])('is null for %j', (branding) => {
+    expect(topbarTagline(branding as never)).toBeNull()
+  })
+
+  it('keeps 35 characters and cuts a longer legacy value to 35 with an ellipsis', () => {
+    expect(topbarTagline({ tagline: 'x'.repeat(35) })).toBe('x'.repeat(35))
+    expect(topbarTagline({ tagline: 'x'.repeat(36) })).toBe('x'.repeat(34) + '…')
+  })
+})

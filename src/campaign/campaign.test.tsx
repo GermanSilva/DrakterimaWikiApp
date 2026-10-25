@@ -73,6 +73,24 @@ describe('topbar pre-title', () => {
   })
 })
 
+describe('sidebar toggle', () => {
+  it('has a floating button that hides and shows the sidebar', async () => {
+    renderApp('/c/demo', { data: dataFor(dm) })
+    const nav = await screen.findByRole('navigation', { name: 'Secciones de la campaña' })
+    const toggle = screen.getByRole('button', { name: 'Ocultar menú lateral' })
+    expect(toggle).toHaveAttribute('aria-expanded', 'true')
+    expect(toggle).toHaveAttribute('aria-controls', 'campaign-nav')
+    expect(nav).toHaveAttribute('data-collapsed', 'false')
+
+    fireEvent.click(toggle)
+    expect(screen.getByRole('button', { name: 'Mostrar menú lateral' })).toHaveAttribute('aria-expanded', 'false')
+    expect(nav).toHaveAttribute('data-collapsed', 'true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar menú lateral' }))
+    expect(nav).toHaveAttribute('data-collapsed', 'false')
+  })
+})
+
 describe('role-based navigation', () => {
   it('shows Ajustes to a DM', async () => {
     renderApp('/c/demo', { data: dataFor(dm) })

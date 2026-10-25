@@ -7,6 +7,8 @@ export interface CampaignSidebarProps {
   /** Already filtered for the viewer's role (sectionsFor). */
   sections: SectionDef[]
   open: boolean
+  /** Desktop only: the menu is slid out of view (the mobile drawer uses `open`). */
+  collapsed?: boolean
   onNavigate: () => void
   /** A small standing note at the foot of the menu (shown to players: the DM sees their last connection). */
   notice?: string
@@ -23,15 +25,17 @@ const linkCls = ({ isActive }: { isActive: boolean }) =>
 const labelCls = 'font-exo text-[11px] tracking-[0.06em] font-medium uppercase'
 
 /** Presentational: the campaign's section navigation (NavLinks give aria-current for free). */
-export function CampaignSidebar({ slug, sections, open, onNavigate, notice }: CampaignSidebarProps) {
+export function CampaignSidebar({ slug, sections, open, collapsed = false, onNavigate, notice }: CampaignSidebarProps) {
   return (
     <nav
       id="campaign-nav"
       aria-label="Secciones de la campaña"
+      data-collapsed={collapsed}
       className={[
         'fixed left-0 top-[60px] w-[240px] h-[calc(100vh-60px)]',
         'bg-bg-mid border-r border-border-base py-5 z-[200] overflow-y-auto flex flex-col',
-        'transition-transform duration-[250ms] ease-in-out md:translate-x-0',
+        'transition-[transform,visibility] duration-[250ms] ease-in-out',
+        collapsed ? 'md:-translate-x-full md:invisible' : 'md:translate-x-0',
         open ? 'max-md:translate-x-0' : 'max-md:-translate-x-full',
       ].join(' ')}
     >
