@@ -33,7 +33,7 @@ export function CampaignList({ campaigns, canCreate = false }: { campaigns: Camp
                 <span className="block font-exo text-xl font-bold tracking-[0.06em] uppercase text-txt-primary break-words">
                   {campaign.name}
                 </span>
-                <span className="font-exo text-[10px] tracking-[0.15em] uppercase text-txt-secondary">{ROLE_LABEL[campaign.role]}</span>
+                <span className="font-exo text-[10px] tracking-[0.15em] uppercase text-txt-secondary">{campaign.viaHubOwner ? 'Hub Owner' : ROLE_LABEL[campaign.role]}</span>
               </span>
             </Link>
           </li>

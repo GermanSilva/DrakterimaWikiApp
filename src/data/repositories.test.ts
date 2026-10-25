@@ -113,6 +113,15 @@ describe('campaign repository', () => {
     expect(out.map((c) => [c.slug, c.role])).toEqual([['alpha', 'dm'], ['beta', 'player']])
   })
 
+  it('listAllCampaigns reads the campaigns table (RLS decides which ones) with explicit columns, by name', async () => {
+    const fake = createFakeClient()
+    fake.enqueue({ data: [{ id: 'b', name: 'Beta', slug: 'beta' }, { id: 'a', name: 'Alpha', slug: 'alpha' }] })
+    const out = await createCampaignRepository(fake.db).listAllCampaigns()
+    expect(fake.calls[0].name).toBe('campaigns')
+    expect(opsNamed(fake.calls[0], 'select')).toEqual([[join(CAMPAIGN_COLUMNS)]])
+    expect(out.map((c) => c.slug)).toEqual(['alpha', 'beta'])
+  })
+
   it('getCampaignBySlug filters by slug with explicit columns', async () => {
     const fake = createFakeClient()
     fake.enqueue({ data: { id: 'a' } })

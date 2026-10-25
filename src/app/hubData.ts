@@ -45,11 +45,23 @@ export interface HubData {
   updateProfile(userId: string, patch: { display_name?: string; avatar_url?: string | null }): Promise<Profile>
 }
 
+/** My memberships plus, for a hub owner, every other campaign (shown as DM through the privilege), sorted by name. */
+export function withHubOwnerCampaigns(mine: CampaignWithRole[], all: Campaign[]): CampaignWithRole[] {
+  const own = new Set(mine.map((c) => c.id))
+  const extra = all.filter((c) => !own.has(c.id)).map((c): CampaignWithRole => ({ ...c, role: 'dm', viaHubOwner: true }))
+  return [...mine, ...extra].sort((a, b) => a.name.localeCompare(b.name))
+}
+
 export function createHubData(client?: Db): HubData {
   const layer = createDataLayer(client)
   return {
     layer,
-    listMyCampaigns: (userId) => layer.campaigns.listMyCampaigns(userId),
+    async listMyCampaigns(userId) {
+      const mine = await layer.campaigns.listMyCampaigns(userId)
+      // The privilege is only a hint here (the database decides what comes back): when the check itself fails, show my own.
+      const isOwner = await layer.campaignRequests.isHubOwner().catch(() => false)
+      return isOwner ? withHubOwnerCampaigns(mine, await layer.campaigns.listAllCampaigns()) : mine
+    },
     createCampaign: (slug, name, branding) => layer.campaigns.createCampaign(slug, name, branding),
     isHubOwner: () => layer.campaignRequests.isHubOwner(),
     listMyCampaignRequests: (userId) => layer.campaignRequests.listMyCampaignRequests(userId),

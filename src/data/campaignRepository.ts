@@ -29,7 +29,8 @@ export interface Campaign {
   updated_at: string
 }
 
-export type CampaignWithRole = Campaign & { role: CampaignRole }
+/** `viaHubOwner`: I am not a member; I reach this campaign through the Hub Owner privilege (role is then 'dm'). */
+export type CampaignWithRole = Campaign & { role: CampaignRole; viaHubOwner?: boolean }
 
 export interface Member {
   campaign_id: string
@@ -136,7 +137,19 @@ export function createCampaignRepository(client: Db) {
         .sort((a, b) => a.name.localeCompare(b.name))
     },
 
-    /** RLS only returns campaigns the caller belongs to, so a stranger's slug yields null. */
+    /**
+     * Every campaign RLS lets the caller read: their own, or ALL of them for a hub owner. Callers that are not hub owners
+     * never need it (listMyCampaigns already covers them).
+     */
+    async listAllCampaigns(): Promise<Campaign[]> {
+      const rows = await pagedList<Campaign>(
+        () => fromTable(client, 'campaigns').select(join(CAMPAIGN_COLUMNS)).order('id', { ascending: true }),
+        'campaigns',
+      )
+      return rows.sort((a, b) => a.name.localeCompare(b.name))
+    },
+
+    /** RLS only returns campaigns the caller belongs to (or all of them for a hub owner); a stranger's slug yields null. */
     async getCampaignBySlug(slug: string): Promise<Campaign | null> {
       return unwrap<Campaign | null>(
         await fromTable(client, 'campaigns').select(CAMPAIGN_SELECT).eq('slug', slug).maybeSingle(),

@@ -57,6 +57,20 @@ describe('hub home', () => {
     expect(alfa.style.getPropertyValue('--accent-rgb')).toBe('0 170 85')
   })
 
+  it('labels a campaign reached only through the Hub Owner privilege', async () => {
+    const data = makeData({
+      listMyCampaigns: vi.fn(async () => [
+        makeCampaign({ id: 'a', slug: 'alfa', name: 'Alfa', role: 'dm' }),
+        makeCampaign({ id: 'z', slug: 'zeta', name: 'Zeta', role: 'dm', viaHubOwner: true }),
+      ]),
+    })
+    renderApp('/', { data })
+    const zeta = await screen.findByRole('link', { name: /Zeta/ })
+    expect(within(zeta).getByText('Hub Owner')).toBeInTheDocument()
+    expect(within(zeta).queryByText('DM')).toBeNull()
+    expect(within(screen.getByRole('link', { name: /Alfa/ })).getByText('DM')).toBeInTheDocument()
+  })
+
   it('shows an empty state', async () => {
     renderApp('/', { data: makeData({ listMyCampaigns: vi.fn(async () => []) }) })
     expect(await screen.findByText(/Todavía no sos parte de ninguna campaña/)).toBeInTheDocument()
