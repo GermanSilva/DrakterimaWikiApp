@@ -25,7 +25,7 @@ screenshot had a hardcoded subtitle there). The banner is set in Ajustes as an h
 | T1 | S1 | inline: rename Lema → Pre-título, 35-char limit in forms, topbar shows it above the name | f71678b | [x] |
 | T2 | S2 | inline: floating show/hide button for the sidebar | 4969def | [x] |
 | T3a | S4 | inline: Ajustes field + parser for `banner_url` (`parseBannerUrl`) | 9e2ba51 | [x] |
-| T3b/T4 | S3, S4, S5, S6, S7 | worker: rewrite `CampaignDashboard` (header with icon + banner, compact stats, Sesiones tiles, PNJs recientes, Últimos artículos) | | [ ] |
+| T3b/T4 | S3, S4, S5, S6, S7 | inline (the worker was unavailable: writer repository preparation failed): rewrite `CampaignDashboard` (header with icon + banner, compact stats, Sesiones tiles, PNJs recientes, Últimos artículos) | fd8733d | [x] |
 
 ### Design for T3b/T4 (decided by the parent after reading the code)
 
@@ -38,6 +38,10 @@ screenshot had a hardcoded subtitle there). The banner is set in Ajustes as an h
 - Últimos artículos (S7): up to 5 across lugares, facciones, lore, items, newest `created_at` first; row = icon + type label (Lugar, Facción, Lore, Ítem), date (es-AR, "28 may 2026"), name (`nombre` or `titulo`), one-line `plainText(descripcion)` preview; link to the entity detail. Empty state text without the legacy "Zona DM" hint.
 - Existing tests that depend on the old dashboard: src/campaign/campaign.test.tsx and src/app/hardening.test.tsx (they look for h1 named after the campaign and for "Tu rol"); update them to the new header (h1 "Panel de campaña"; the role is no longer shown on the dashboard, keep role coverage through the sidebar/Ajustes assertions).
 - Copy is Spanish (the app's UI language); identifiers and comments are English.
+
+## Evidence
+
+- 2026-10-25: vitest src/campaign + src/app 951 tests (one assertion that depended on the old h1 was updated), tsc and eslint clean. RED observed for every unit (pre-título topbar, sidebar toggle, banner field, dashboard data + page). Browser check on the local stack (Playwright, DM): pre-título above the name in the topbar, floating sidebar button hides/shows the menu and the content reflows, panel header with the icon at the left and the banner image behind it, compact stats in one row, Sesiones tiles in two columns, PNJs recientes, Últimos artículos (5). Not verified: mobile layout, a player view in the browser, a very long banner image, a real logo URL. Pre-existing: the h1 shows a focus ring after navigation (focus management moves to the heading).
 
 ## Log
 

@@ -108,7 +108,7 @@ function CampaignForm({ campaign, notice, onSave }: { campaign: Campaign; notice
         />
       </Field>
 
-      <Field id="campaign-logo" label="Logo (URL https, opcional)" hint={`Hasta ${LOGO_MAX} caracteres. Dejalo vacío para usar el dragón por defecto.`} error={errors.logoUrl}>
+      <Field id="campaign-logo" label="Logo (URL https, opcional)" hint={`Hasta ${LOGO_MAX} caracteres. Dejalo vacío para usar el ícono de RPG Quester.`} error={errors.logoUrl}>
         <input
           id="campaign-logo"
           type="url"
