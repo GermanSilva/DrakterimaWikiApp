@@ -1,7 +1,7 @@
 -- pgTAP: the Hub Owner reaches every campaign (DM-level) without being a member. Self-contained fixture, rolled back at the end.
 begin;
 
-select plan(35);
+select plan(47);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -50,6 +50,9 @@ insert into public.pnjs (id, campaign_id, nombre, estado, visible_to) values
   (94002, 'bbbbbbbb-3333-4000-8000-00000000000a', 'Borrador', 'borrador', '{}'),
   (94003, 'bbbbbbbb-3333-4000-8000-00000000000a', 'Secreto', 'secreto', '{999}'),
   (94004, 'bbbbbbbb-3333-4000-8000-00000000000b', 'En B', 'publicado', '{}');
+insert into public.player_availability (id, user_id, campaign_id, tipo, fecha_inicio, fecha_fin, hora_inicio, hora_fin) values
+  (95001, 'aaaaaaaa-3333-4000-8000-000000000004', 'bbbbbbbb-3333-4000-8000-00000000000a', 'personal', '2026-12-01', '2026-12-01', '18:00', '20:00'),
+  (95002, 'aaaaaaaa-3333-4000-8000-000000000004', null, 'personal', '2026-12-02', '2026-12-02', '18:00', '20:00');
 insert into public.entity_dm_notes (campaign_id, entity_type, entity_id, secreto) values
   ('bbbbbbbb-3333-4000-8000-00000000000a', 'pnjs', 94001, 'solo el DM');
 
@@ -82,6 +85,12 @@ select is((select count(*) from public.campaign_members where user_id = 'aaaaaaa
 select is((select count(*) from public.profiles where id in ('aaaaaaaa-3333-4000-8000-000000000003', 'aaaaaaaa-3333-4000-8000-000000000004')), 2::bigint, 'hub owner reads the profiles of the members of any campaign');
 select is((select count(*) from public.profiles where id = 'aaaaaaaa-3333-4000-8000-000000000002'), 0::bigint, 'but not the profile of somebody who belongs to no campaign');
 
+select is((select count(*) from public.player_availability where id = 95001), 1::bigint, 'hub owner reads the campaign-pinned availability of a member, like a DM');
+select is((select count(*) from public.player_availability where id = 95002), 0::bigint, 'but not the personal, campaign-less calendar of that member');
+select throws_ok(
+  $$insert into public.hub_owners (user_id) values ('aaaaaaaa-3333-4000-8000-000000000002')$$, '42501', null,
+  'the hub owner cannot write hub_owners either (nobody can through the API)');
+
 -- nobody else gains anything
 select tests.as_user('aaaaaaaa-3333-4000-8000-000000000002');
 select is((select count(*) from public.campaigns where slug in ('all-a', 'all-b')), 0::bigint, 'ordinary non-member reads no campaign');
@@ -89,7 +98,13 @@ select is((select count(*) from public.pnjs where campaign_id in ('bbbbbbbb-3333
 select is((select count(*) from public.entity_dm_notes where campaign_id = 'bbbbbbbb-3333-4000-8000-00000000000a'), 0::bigint, 'ordinary non-member reads no DM note');
 select is((select count(*) from public.profiles where id in ('aaaaaaaa-3333-4000-8000-000000000003', 'aaaaaaaa-3333-4000-8000-000000000004')), 0::bigint, 'ordinary non-member reads no member profile');
 
+select is((select count(*) from public.player_availability where id in (95001, 95002)), 0::bigint, 'ordinary non-member reads no availability');
+
 select tests.as_user('aaaaaaaa-3333-4000-8000-000000000004');
+select throws_ok(
+  $$insert into public.hub_owners (user_id) values ('aaaaaaaa-3333-4000-8000-000000000004')$$, '42501', null,
+  'a member cannot make themselves a hub owner');
+select is((select count(*) from public.player_availability where id in (95001, 95002)), 2::bigint, 'a member still reads their own availability');
 select is((select count(*) from public.pnjs where campaign_id = 'bbbbbbbb-3333-4000-8000-00000000000a'), 1::bigint, 'a player still reads only the published entity');
 select is((select count(*) from public.entity_dm_notes where campaign_id = 'bbbbbbbb-3333-4000-8000-00000000000a'), 0::bigint, 'a player still reads no DM note');
 select is((select count(*) from public.campaigns where slug in ('all-a', 'all-b')), 1::bigint, 'a player still reads only their own campaign');
@@ -112,6 +127,14 @@ select is((select name from public.campaigns where id = 'bbbbbbbb-3333-4000-8000
 select lives_ok(
   $$insert into public.entity_dm_notes (campaign_id, entity_type, entity_id, notas) values ('bbbbbbbb-3333-4000-8000-00000000000b', 'pnjs', 94004, 'nota del owner')$$,
   'hub owner writes a DM note');
+
+select throws_ok(
+  $$update public.campaign_members set role = 'player' where campaign_id = 'bbbbbbbb-3333-4000-8000-00000000000a' and user_id = 'aaaaaaaa-3333-4000-8000-000000000003'$$, '23514', null,
+  'the owner cannot demote the last DM of a campaign');
+select lives_ok(
+  $$update public.campaign_members set role = 'dm' where campaign_id = 'bbbbbbbb-3333-4000-8000-00000000000a' and user_id = 'aaaaaaaa-3333-4000-8000-000000000004'$$,
+  'the owner promotes a player to DM');
+select is((select role from public.campaign_members where campaign_id = 'bbbbbbbb-3333-4000-8000-00000000000a' and user_id = 'aaaaaaaa-3333-4000-8000-000000000004'), 'dm', 'the promotion was applied');
 
 select tests.as_user('aaaaaaaa-3333-4000-8000-000000000002');
 select throws_ok(
@@ -147,9 +170,12 @@ select lives_ok(
   'the hub owner can delete a campaign they are not in (slug confirmation still required)');
 
 select tests.as_postgres();
+select is((select count(*) from public.campaigns where id = 'bbbbbbbb-3333-4000-8000-00000000000b'), 0::bigint, 'the campaign is really gone after the owner deleted it');
 delete from public.hub_owners where user_id = 'aaaaaaaa-3333-4000-8000-000000000001';
 select tests.as_user('aaaaaaaa-3333-4000-8000-000000000001');
 select is((select count(*) from public.campaigns where slug in ('all-a', 'all-b')), 0::bigint, 'once removed from hub_owners the access is gone');
+select is((select public.is_campaign_dm('bbbbbbbb-3333-4000-8000-00000000000a')), false, 'and the helpers answer false again');
+select is((select count(*) from public.pnjs where campaign_id = 'bbbbbbbb-3333-4000-8000-00000000000a'), 0::bigint, 'and so do the entities');
 
 select * from finish();
 rollback;

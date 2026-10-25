@@ -9,8 +9,10 @@
 -- character ownership checks (which read the table directly) keep describing only real members.
 --
 -- Also here:
---   * shares_campaign_with(): a hub owner can read the profile (name, avatar) of anybody who belongs to at least one
---     campaign, so rosters, author names and the players list render. Somebody who belongs to no campaign stays hidden.
+--   * profiles: a dedicated policy lets a hub owner read the profile (name, avatar) of anybody who belongs to at least one
+--     campaign, so rosters and the players list render. shares_campaign_with() is NOT widened: it also gates the
+--     personal, campaign-less calendar rows of player_availability, which the owner has no reason to read.
+--   * campaign_has_member(): the owner reads the campaign-pinned availability of the members of any campaign, like a DM does.
 --   * touch_campaign_presence(): records presence for REAL members only. Without this the owner would pass the new
 --     member check and show up in the DM's "last connection" list of every campaign they browse.
 --
@@ -59,7 +61,7 @@ as $$
   );
 $$;
 
-create or replace function public.shares_campaign_with(uid uuid)
+create or replace function public.campaign_has_member(cid uuid, uid uuid)
 returns boolean
 language sql
 stable
@@ -68,15 +70,27 @@ set search_path = ''
 as $$
   select exists (
     select 1
-    from public.campaign_members a
-    join public.campaign_members b on b.campaign_id = a.campaign_id
-    where a.user_id = (select auth.uid())
-      and b.user_id = uid
-  ) or (
-    exists (select 1 from public.hub_owners h where h.user_id = (select auth.uid()))
-    and exists (select 1 from public.campaign_members b where b.user_id = uid)
+    from public.campaign_members them
+    where them.campaign_id = cid
+      and them.user_id = uid
+      and (
+        exists (
+          select 1 from public.campaign_members me
+          where me.campaign_id = cid and me.user_id = (select auth.uid())
+        )
+        or exists (select 1 from public.hub_owners h where h.user_id = (select auth.uid()))
+      )
   );
 $$;
+
+-- A hub owner reads the profile of anybody who belongs to at least one campaign (same shape as
+-- profiles_select_requesters_for_hub_owner). Somebody who belongs to no campaign stays hidden.
+create policy profiles_select_members_for_hub_owner on public.profiles
+  for select to authenticated
+  using (
+    (select public.is_hub_owner())
+    and exists (select 1 from public.campaign_members m where m.user_id = profiles.id)
+  );
 
 create or replace function public.touch_campaign_presence(p_campaign_id uuid)
 returns void
