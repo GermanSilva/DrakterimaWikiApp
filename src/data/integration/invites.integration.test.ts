@@ -150,8 +150,11 @@ describe('invites: preview, accept and revoke against the local stack', () => {
 
   it('the DM of another campaign cannot list or revoke these invites', async () => {
     const invite = await dmData.campaigns.createInvite({ campaign_id: campaignId, max_uses: 1 })
-    const otherDm = createDataLayer((await newUser('inv-otherdm', true)).client)
+    const other = await newUser('inv-otherdm', true)
+    const otherDm = createDataLayer(other.client)
     const mine = await otherDm.campaigns.createCampaign(`h10c-${randomBytes(4).toString('hex')}`, 'Other DM campaign')
+    // Creating needed the hub owner privilege; drop it so this is an ORDINARY DM (a hub owner reads every campaign).
+    await createAdminClient(env).from('hub_owners').delete().eq('user_id', other.id)
     try {
       expect(await otherDm.campaigns.listInvites(campaignId)).toEqual([])
       await expect(otherDm.campaigns.revokeInvite(invite.id)).rejects.toMatchObject({ kind: 'not_found' })

@@ -158,8 +158,10 @@ select throws_ok(
 
 ------------------------------------------------------------------------------
 -- Outsider: sees nothing, cannot join by writing rows
+-- (the sees-nothing checks use `extra`, who belongs to nothing and is not a hub owner: the outsider IS a hub owner
+-- since H15, and a hub owner reads every campaign, see 16_hub_owner_all_campaigns)
 ------------------------------------------------------------------------------
-select tests.as_user('bbbbbbbb-0000-4000-8000-000000000004');
+select tests.as_user('bbbbbbbb-0000-4000-8000-000000000005');
 
 select is(
   (select count(*) from public.campaigns), 0::bigint,
@@ -170,8 +172,10 @@ select is(
   'outsider sees no members');
 
 select is(
-  (select count(*) from public.profiles where id <> 'bbbbbbbb-0000-4000-8000-000000000004'), 0::bigint,
+  (select count(*) from public.profiles where id <> 'bbbbbbbb-0000-4000-8000-000000000005'), 0::bigint,
   'outsider sees no profiles of other users');
+
+select tests.as_user('bbbbbbbb-0000-4000-8000-000000000004');
 
 select throws_ok(
   $$insert into public.campaign_members (campaign_id, user_id, role)
