@@ -10,7 +10,7 @@ afterEach(() => vi.restoreAllMocks())
 
 const STORED = {
   name: 'Drakterima',
-  branding: { logo_url: 'https://x.test/old.png', accent_color: '#dc2626', tagline: 'Old tagline', future_key: 'keep' },
+  branding: { logo_url: 'https://x.test/old.png', accent_color: '#dc2626', tagline: 'Old tagline', banner_url: 'https://x.test/old-banner.jpg', future_key: 'keep' },
 }
 
 function setup({ isDM = true, campaign = STORED }: { isDM?: boolean; campaign?: Partial<typeof STORED> } = {}) {
@@ -35,6 +35,7 @@ describe('Ajustes: campaign section', () => {
     expect(await field('Nombre')).toHaveValue('Drakterima')
     expect(await field('Pre-título (opcional)')).toHaveValue('Old tagline')
     expect(await field('Logo (URL https, opcional)')).toHaveValue('https://x.test/old.png')
+    expect(await field('Banner (URL https, opcional)')).toHaveValue('https://x.test/old-banner.jpg')
     expect(await field('Color de acento (opcional)')).toHaveValue('#dc2626')
     const slug = await field('Identificador (slug)')
     expect(slug).toHaveValue('demo')
@@ -67,7 +68,7 @@ describe('Ajustes: campaign section', () => {
     expect(await within(await section()).findByText('Campaña guardada.')).toBeInTheDocument()
     expect(spies.updateCampaign).toHaveBeenCalledWith(
       'c1',
-      { name: 'Leyendas', branding: { logo_url: 'https://x.test/old.png', accent_color: '#0ea5e9', tagline: null } },
+      { name: 'Leyendas', branding: { logo_url: 'https://x.test/old.png', banner_url: 'https://x.test/old-banner.jpg', accent_color: '#0ea5e9', tagline: null } },
       '2026-01-01T00:00:00Z',
     )
     // header refreshed without a page reload
@@ -79,6 +80,7 @@ describe('Ajustes: campaign section', () => {
     const { spies } = setup()
     type(await field('Nombre'), '   ')
     type(await field('Logo (URL https, opcional)'), 'javascript:alert(1)')
+    type(await field('Banner (URL https, opcional)'), 'http://x.test/b.jpg')
     type(await field('Color de acento (opcional)'), 'red')
     type(await field('Pre-título (opcional)'), 'x'.repeat(36))
     fireEvent.click(within(await section()).getByRole('button', { name: 'Guardar campaña' }))
@@ -87,6 +89,7 @@ describe('Ajustes: campaign section', () => {
     await waitFor(() => expect(name).toHaveAttribute('aria-invalid', 'true'))
     expect(name).toHaveAccessibleDescription('El nombre es obligatorio.')
     expect(await field('Logo (URL https, opcional)')).toHaveAccessibleDescription(expect.stringContaining('URL https válida'))
+    expect(await field('Banner (URL https, opcional)')).toHaveAccessibleDescription(expect.stringContaining('URL https válida'))
     expect(await field('Color de acento (opcional)')).toHaveAccessibleDescription(expect.stringContaining('#rrggbb'))
     expect(await field('Pre-título (opcional)')).toHaveAccessibleDescription(expect.stringContaining('35'))
     expect(spies.updateCampaign).not.toHaveBeenCalled()

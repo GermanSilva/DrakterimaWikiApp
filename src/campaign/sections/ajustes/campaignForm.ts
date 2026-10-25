@@ -1,5 +1,5 @@
 import { TAGLINE_MAX } from '../../../hub/campaignBranding'
-import { parseAccentColor, parseLogoUrl } from '../../branding'
+import { parseAccentColor, parseBannerUrl, parseLogoUrl } from '../../branding'
 
 export const NAME_MAX = 120
 export { TAGLINE_MAX } from '../../../hub/campaignBranding'
@@ -8,6 +8,7 @@ export const LOGO_MAX = 500
 export interface CampaignFormInput {
   name: string
   logoUrl: string
+  bannerUrl: string
   accentColor: string
   tagline: string
 }
@@ -15,6 +16,7 @@ export interface CampaignFormInput {
 export interface CampaignFormErrors {
   name?: string
   logoUrl?: string
+  bannerUrl?: string
   accentColor?: string
   tagline?: string
 }
@@ -22,7 +24,7 @@ export interface CampaignFormErrors {
 export interface CampaignFormValues {
   name: string
   /** Branding keys to set: a string sets the key, null removes it. */
-  branding: { logo_url: string | null; accent_color: string | null; tagline: string | null }
+  branding: { logo_url: string | null; banner_url: string | null; accent_color: string | null; tagline: string | null }
 }
 
 export type CampaignFormResult = { ok: true; values: CampaignFormValues } | { ok: false; errors: CampaignFormErrors }
@@ -39,6 +41,7 @@ export function validateCampaignForm(input: CampaignFormInput): CampaignFormResu
   const errors: CampaignFormErrors = {}
   const name = input.name.trim()
   const logo = input.logoUrl.trim()
+  const banner = input.bannerUrl.trim()
   const accent = input.accentColor.trim()
   const tagline = input.tagline.trim()
 
@@ -51,6 +54,14 @@ export function validateCampaignForm(input: CampaignFormInput): CampaignFormResu
     logoUrl = parseLogoUrl(logo)
     if (logoUrl === null) {
       errors.logoUrl = logo.length > LOGO_MAX ? `La URL puede tener hasta ${LOGO_MAX} caracteres.` : 'El logo debe ser una URL https válida (https://…).'
+    }
+  }
+
+  let bannerUrl: string | null = null
+  if (banner.length > 0) {
+    bannerUrl = parseBannerUrl(banner)
+    if (bannerUrl === null) {
+      errors.bannerUrl = banner.length > LOGO_MAX ? `La URL puede tener hasta ${LOGO_MAX} caracteres.` : 'El banner debe ser una URL https válida (https://…).'
     }
   }
 
@@ -68,7 +79,7 @@ export function validateCampaignForm(input: CampaignFormInput): CampaignFormResu
     ok: true,
     values: {
       name,
-      branding: { logo_url: logoUrl, accent_color: accentColor, tagline: tagline.length > 0 ? tagline : null },
+      branding: { logo_url: logoUrl, banner_url: bannerUrl, accent_color: accentColor, tagline: tagline.length > 0 ? tagline : null },
     },
   }
 }
@@ -79,6 +90,7 @@ export function campaignFormInput(campaign: { name: string; branding: Record<str
   return {
     name: campaign.name,
     logoUrl: text(campaign.branding?.logo_url),
+    bannerUrl: text(campaign.branding?.banner_url),
     accentColor: text(campaign.branding?.accent_color),
     tagline: text(campaign.branding?.tagline),
   }

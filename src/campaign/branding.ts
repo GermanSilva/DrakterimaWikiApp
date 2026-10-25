@@ -33,6 +33,9 @@ export function topbarTagline(branding: Campaign['branding'] | null | undefined)
   return text.length > TOPBAR_TAGLINE_MAX ? text.slice(0, TOPBAR_TAGLINE_MAX - 1) + '…' : text
 }
 
+/** The panel banner image: an https URL, same rule as the logo. */
+export const parseBannerUrl = parseHttpsUrl
+
 type Rgb = [number, number, number]
 
 function toRgb(hex: string): Rgb {

@@ -121,6 +121,19 @@ function CampaignForm({ campaign, notice, onSave }: { campaign: Campaign; notice
         />
       </Field>
 
+      <Field id="campaign-banner" label="Banner (URL https, opcional)" hint={`Hasta ${LOGO_MAX} caracteres. Imagen de fondo del encabezado del panel.`} error={errors.bannerUrl}>
+        <input
+          id="campaign-banner"
+          type="url"
+          inputMode="url"
+          value={values.bannerUrl}
+          onChange={(e) => set('bannerUrl')(e.target.value)}
+          aria-invalid={errors.bannerUrl ? true : undefined}
+          aria-describedby={described('campaign-banner', true, errors.bannerUrl)}
+          className={inputCls}
+        />
+      </Field>
+
       <Field id="campaign-accent" label="Color de acento (opcional)" hint="Formato #rrggbb. Dejalo vacío para usar el color por defecto." error={errors.accentColor}>
         <div className="flex items-center gap-3">
           <input
