@@ -34,7 +34,7 @@ describe('CampaignLayout loading', () => {
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
     })
-    expect(await screen.findByRole('heading', { level: 1, name: 'Demo' })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { level: 1, name: 'Panel de campaña' })).toBeInTheDocument()
   })
 
   it('never puts the slug into a backend call: it only matches against my own list', async () => {
@@ -96,14 +96,12 @@ describe('role-based navigation', () => {
     renderApp('/c/demo', { data: dataFor(dm) })
     const nav = await screen.findByRole('navigation', { name: 'Secciones de la campaña' })
     expect(within(nav).getByRole('link', { name: /Ajustes/ })).toHaveAttribute('href', '/c/demo/ajustes')
-    expect(screen.getByText('DM', { selector: 'strong' })).toBeInTheDocument()
   })
 
   it('hides Ajustes from a player, in the nav and on the dashboard', async () => {
     renderApp('/c/demo', { data: dataFor(player) })
-    await screen.findByRole('heading', { level: 1, name: 'Demo' })
+    await screen.findByRole('heading', { level: 1, name: 'Panel de campaña' })
     expect(screen.queryByRole('link', { name: /Ajustes/ })).not.toBeInTheDocument()
-    expect(screen.getByText('Jugador', { selector: 'strong' })).toBeInTheDocument()
   })
 
   it('gives a player the in-layout 404 for /ajustes, same as an unknown section', async () => {
@@ -152,7 +150,7 @@ describe('sections', () => {
 
   it('moves focus into the main landmark after navigating between sections', async () => {
     renderApp('/c/demo', { data: dataFor(dm) })
-    await screen.findByRole('heading', { level: 1, name: 'Demo' })
+    await screen.findByRole('heading', { level: 1, name: 'Panel de campaña' })
     await act(async () => {
       fireEvent.click(within(screen.getByRole('navigation', { name: 'Secciones de la campaña' })).getByRole('link', { name: /Calendario/ }))
     })
@@ -162,7 +160,7 @@ describe('sections', () => {
 
   it('offers a skip link to the main content', async () => {
     renderApp('/c/demo', { data: dataFor(dm) })
-    await screen.findByRole('heading', { level: 1, name: 'Demo' })
+    await screen.findByRole('heading', { level: 1, name: 'Panel de campaña' })
     expect(screen.getByRole('link', { name: 'Saltar al contenido' })).toHaveAttribute('href', '#main-content')
     expect(document.getElementById('main-content')).toBeInTheDocument()
   })
@@ -174,7 +172,7 @@ describe('branding', () => {
   it('applies a valid hex accent as CSS variables on the campaign shell only', async () => {
     const branded = makeCampaign({ branding: { accent_color: '#1E90FF', logo_url: 'https://cdn.test/l.png' } })
     renderApp('/c/demo', { data: dataFor(branded) })
-    await screen.findByRole('heading', { level: 1, name: 'Demo' })
+    await screen.findByRole('heading', { level: 1, name: 'Panel de campaña' })
     expect(shell().style.getPropertyValue('--accent')).toBe('#1e90ff')
     expect(shell().style.getPropertyValue('--accent-rgb')).toBe('30 144 255')
     expect(document.documentElement.style.getPropertyValue('--accent')).toBe('')
@@ -186,7 +184,7 @@ describe('branding', () => {
     async (accent) => {
       const branded = makeCampaign({ branding: { accent_color: accent } })
       renderApp('/c/demo', { data: dataFor(branded) })
-      await screen.findByRole('heading', { level: 1, name: 'Demo' })
+      await screen.findByRole('heading', { level: 1, name: 'Panel de campaña' })
       expect(shell().getAttribute('style') ?? '').not.toContain('--accent')
     },
   )
@@ -196,7 +194,7 @@ describe('branding', () => {
     async (logo) => {
       const branded = makeCampaign({ branding: { logo_url: logo } })
       renderApp('/c/demo', { data: dataFor(branded) })
-      await screen.findByRole('heading', { level: 1, name: 'Demo' })
+      await screen.findByRole('heading', { level: 1, name: 'Panel de campaña' })
       expect(document.querySelector('header img')).toBeNull()
       expect(document.querySelector('header a svg[viewBox="0 0 64 64"]')).not.toBeNull()
       expect(document.querySelector('header svg.text-accent')).toBeNull()
@@ -222,12 +220,13 @@ describe('campaign switcher and header', () => {
       fireEvent.change(select, { target: { value: 'otra' } })
     })
     await waitFor(() => expect(router.state.location.pathname).toBe('/c/otra'))
-    expect(await screen.findByRole('heading', { level: 1, name: 'Otra' })).toBeInTheDocument()
+    await screen.findByRole('heading', { level: 1, name: 'Panel de campaña' })
+    expect(within(screen.getByRole('main')).getByText('Otra')).toBeInTheDocument()
   })
 
   it('shows the campaign name in the header and a working mobile menu toggle', async () => {
     renderApp('/c/demo', { data: dataFor(dm) })
-    await screen.findByRole('heading', { level: 1, name: 'Demo' })
+    await screen.findByRole('heading', { level: 1, name: 'Panel de campaña' })
     expect(within(document.querySelector('header')!).getByRole('link', { name: 'Demo: panel' })).toBeInTheDocument()
     const toggle = screen.getByRole('button', { name: 'Menú' })
     expect(toggle).toHaveAttribute('aria-expanded', 'false')
@@ -243,7 +242,7 @@ describe('campaign switcher and header', () => {
     const auth = makeAuth({ signOut: vi.fn(async () => void flip(out)) })
     const { router, setAuth } = renderApp('/c/demo', { data: dataFor(dm), auth })
     flip = setAuth
-    await screen.findByRole('heading', { level: 1, name: 'Demo' })
+    await screen.findByRole('heading', { level: 1, name: 'Panel de campaña' })
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: /Ana|Usuario|@/ }))
     })

@@ -158,7 +158,7 @@ describe('focus management', () => {
 
   it('focuses the new page heading once lazy content resolves', async () => {
     renderApp('/c/demo', { auth, data: data() })
-    await screen.findByRole('heading', { level: 1, name: 'Demo' })
+    await screen.findByRole('heading', { level: 1, name: 'Panel de campaña' })
     const nav = screen.getByRole('navigation', { name: 'Secciones de la campaña' })
     await act(async () => {
       fireEvent.click(within(nav).getByRole('link', { name: /Calendario/ }))
