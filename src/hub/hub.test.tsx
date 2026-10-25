@@ -49,6 +49,14 @@ describe('hub home', () => {
     expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1)
   })
 
+  it('draws the default tile icon with the campaign accent colour', async () => {
+    const data = makeData({ listMyCampaigns: vi.fn(async () => [makeCampaign({ id: 'a', slug: 'alfa', name: 'Alfa', role: 'dm', branding: { accent_color: '#00aa55' } })]) })
+    renderApp('/', { data })
+    const alfa = await screen.findByRole('link', { name: /Alfa/ })
+    expect(alfa.querySelector('svg g')).toHaveAttribute('stroke', 'rgb(var(--accent-rgb))')
+    expect(alfa.style.getPropertyValue('--accent-rgb')).toBe('0 170 85')
+  })
+
   it('shows an empty state', async () => {
     renderApp('/', { data: makeData({ listMyCampaigns: vi.fn(async () => []) }) })
     expect(await screen.findByText(/Todavía no sos parte de ninguna campaña/)).toBeInTheDocument()

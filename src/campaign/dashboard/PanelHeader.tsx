@@ -32,7 +32,7 @@ export function PanelHeader({ name, slug, branding, isDM }: PanelHeaderProps) {
           {logo ? (
             <img src={logo} alt="" referrerPolicy="no-referrer" className="h-full w-full object-contain" />
           ) : (
-            <BrandMark size={72} className="h-full w-full" />
+            <BrandMark size={72} accent className="h-full w-full" />
           )}
         </div>
         <div className="min-w-0 flex-1 flex flex-col justify-center">

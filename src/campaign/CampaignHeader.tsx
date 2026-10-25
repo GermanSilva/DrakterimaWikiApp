@@ -33,7 +33,7 @@ export function CampaignHeader({ name, tagline, logoUrl, currentSlug, menuOpen, 
         {logoUrl ? (
           <img src={logoUrl} alt="" referrerPolicy="no-referrer" className="w-7 h-7 object-contain shrink-0" />
         ) : (
-          <BrandMark size={28} className="shrink-0" />
+          <BrandMark size={28} accent className="shrink-0" />
         )}
         <span className="flex flex-col min-w-0 gap-0.5">
           {tagline && (

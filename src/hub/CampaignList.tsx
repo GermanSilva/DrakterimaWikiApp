@@ -1,6 +1,6 @@
 import { Link } from 'react-router'
 import type { CampaignWithRole } from '../data'
-import { parseLogoUrl } from '../campaign/branding'
+import { accentStyle, parseLogoUrl } from '../campaign/branding'
 import { BrandMark } from '../components/BrandMark'
 import { ROLE_LABEL } from './roles'
 
@@ -18,12 +18,13 @@ export function CampaignList({ campaigns, canCreate = false }: { campaigns: Camp
           <li key={campaign.id}>
             <Link
               to={`/c/${campaign.slug}`}
+              style={accentStyle(campaign.branding)}
               className="flex items-center gap-4 min-h-[128px] bg-bg-card border border-border-base p-5 hover:border-accent-dim transition-colors"
             >
               {logo ? (
                 <img src={logo} alt="" referrerPolicy="no-referrer" className="w-12 h-12 object-cover rounded shrink-0" />
               ) : (
-                <BrandMark size={44} className="shrink-0" />
+                <BrandMark size={44} accent className="shrink-0" />
               )}
               <span className="flex-1 min-w-0 flex flex-col gap-1.5">
                 {tagline && (

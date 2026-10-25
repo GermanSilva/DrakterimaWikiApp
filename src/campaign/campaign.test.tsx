@@ -303,6 +303,14 @@ describe('campaign switcher and header', () => {
     expect(sidebar.getByRole('button', { name: 'Cambiar de campaña' })).toBeInTheDocument()
   })
 
+  it('draws the default topbar icon in the accent colour, and keeps a custom logo as an image', async () => {
+    renderApp('/c/demo', { data: dataFor(makeCampaign({ branding: { accent_color: '#00aa55' } })) })
+    await screen.findByRole('heading', { level: 1, name: 'Panel de campaña' })
+    const link = within(document.querySelector('header')!).getByRole('link', { name: 'Demo: panel' })
+    expect(link.querySelector('svg g')).toHaveAttribute('stroke', 'rgb(var(--accent-rgb))')
+    expect(link.closest('div[style]')?.getAttribute('style') ?? document.querySelector('[style*="--accent-rgb"]')?.getAttribute('style')).toContain('--accent-rgb: 0 170 85')
+  })
+
   it('shows the campaign name in the header and a working mobile menu toggle', async () => {
     renderApp('/c/demo', { data: dataFor(dm) })
     await screen.findByRole('heading', { level: 1, name: 'Panel de campaña' })

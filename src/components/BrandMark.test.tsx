@@ -18,6 +18,17 @@ describe('BrandMark', () => {
     expect(svg.getAttribute('width')).toBe('24')
   })
 
+  it('keeps the brand gradient by default', () => {
+    const { container } = render(<BrandMark />)
+    expect(container.querySelector('g')?.getAttribute('stroke')).toMatch(/^url\(#/)
+  })
+
+  it('takes the campaign accent colour instead of the gradient when asked', () => {
+    const { container } = render(<BrandMark accent />)
+    expect(container.querySelector('g')?.getAttribute('stroke')).toBe('rgb(var(--accent-rgb))')
+    expect(container.querySelector('linearGradient')).toBeNull()
+  })
+
   it('gives every instance its own gradient id', () => {
     const { container } = render(
       <>

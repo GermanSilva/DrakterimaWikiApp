@@ -31,7 +31,7 @@ export function RequestTile({
       {logo ? (
         <img src={logo} alt="" referrerPolicy="no-referrer" className="w-10 h-10 object-cover rounded shrink-0" />
       ) : (
-        <BrandMark size={40} className="shrink-0" />
+        <BrandMark size={40} accent className="shrink-0" />
       )}
       <div className="flex-1 min-w-0">
         {tagline && <p className="font-exo text-[10px] tracking-[0.25em] uppercase text-txt-muted truncate mb-1">{tagline}</p>}

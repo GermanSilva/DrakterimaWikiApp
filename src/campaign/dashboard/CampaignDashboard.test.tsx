@@ -52,6 +52,7 @@ describe('dashboard header', () => {
     setup()
     const main = await panel()
     expect(main.getByTestId('panel-icon').querySelector('svg')).not.toBeNull()
+    expect(main.getByTestId('panel-icon').querySelector('g')).toHaveAttribute('stroke', 'rgb(var(--accent-rgb))')
     expect(main.getByTestId('panel-icon').querySelector('img')).toBeNull()
   })
 

@@ -23,7 +23,7 @@ export function CampaignPreview({ name, tagline, accent, logo }: { name: string;
       {showLogo ? (
         <img src={logoUrl} alt="" referrerPolicy="no-referrer" onError={() => setBroken(logoUrl)} className="w-12 h-12 object-cover rounded shrink-0" />
       ) : (
-        <BrandMark size={44} className="shrink-0" />
+        <BrandMark size={44} accent className="shrink-0" />
       )}
       <div className="min-w-0 flex flex-col gap-1.5">
         <span className="block font-exo text-[10px] tracking-[0.25em] uppercase text-txt-muted truncate">
