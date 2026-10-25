@@ -46,7 +46,7 @@ describe('validateCampaignForm', () => {
 
   it('limits the tagline and rejects control characters', () => {
     expect(validateCampaignForm({ ...valid, tagline: 'x'.repeat(TAGLINE_MAX) }).ok).toBe(true)
-    expect(validateCampaignForm({ ...valid, tagline: 'x'.repeat(TAGLINE_MAX + 1) })).toMatchObject({ ok: false, errors: { tagline: expect.stringContaining('140') } })
+    expect(validateCampaignForm({ ...valid, tagline: 'x'.repeat(TAGLINE_MAX + 1) })).toMatchObject({ ok: false, errors: { tagline: expect.stringContaining('35') } })
     expect(validateCampaignForm({ ...valid, tagline: 'a\tb' })).toMatchObject({ ok: false, errors: { tagline: expect.any(String) } })
   })
 

@@ -7,6 +7,8 @@ import { CampaignSwitcher } from './CampaignSwitcher'
 
 export interface CampaignHeaderProps {
   name: string
+  /** Pre-título shown small above the name (see topbarTagline), or null. */
+  tagline?: string | null
   /** Validated https URL or null (see parseLogoUrl). */
   logoUrl: string | null
   currentSlug: string
@@ -17,7 +19,7 @@ export interface CampaignHeaderProps {
   userMenu: ReactNode
 }
 
-export function CampaignHeader({ name, logoUrl, currentSlug, campaigns, menuOpen, onToggleMenu, userMenu }: CampaignHeaderProps) {
+export function CampaignHeader({ name, tagline, logoUrl, currentSlug, campaigns, menuOpen, onToggleMenu, userMenu }: CampaignHeaderProps) {
   return (
     <header className="fixed top-0 left-0 right-0 h-[60px] bg-bg-mid border-b border-border-base flex items-center px-6 z-[100] gap-4">
       <button
@@ -36,7 +38,14 @@ export function CampaignHeader({ name, logoUrl, currentSlug, campaigns, menuOpen
         ) : (
           <BrandMark size={28} className="shrink-0" />
         )}
-        <span className="font-exo text-[17px] font-bold text-accent-bright tracking-[0.08em] uppercase truncate">{name}</span>
+        <span className="flex flex-col min-w-0 gap-0.5">
+          {tagline && (
+            <span data-testid="topbar-pretitle" className="font-exo text-[9px] font-medium tracking-[0.3em] uppercase text-txt-muted truncate">
+              {tagline}
+            </span>
+          )}
+          <span className="font-exo text-[17px] font-bold text-accent-bright tracking-[0.08em] uppercase truncate">{name}</span>
+        </span>
       </Link>
       <div className="ml-auto flex items-center gap-4">
         <CampaignSwitcher campaigns={campaigns} currentSlug={currentSlug} />

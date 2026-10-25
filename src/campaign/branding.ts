@@ -22,6 +22,17 @@ export function parseHttpsUrl(value: unknown): string | null {
 /** The campaign logo: an https URL (the same rule applies to every external image the hub renders). */
 export const parseLogoUrl = parseHttpsUrl
 
+const TOPBAR_TAGLINE_MAX = 35
+
+/** The pre-título (branding.tagline) for the topbar: trimmed, null when absent or not text, cut to 35 characters. */
+export function topbarTagline(branding: Campaign['branding'] | null | undefined): string | null {
+  const value = branding?.tagline
+  if (typeof value !== 'string') return null
+  const text = value.trim()
+  if (text === '') return null
+  return text.length > TOPBAR_TAGLINE_MAX ? text.slice(0, TOPBAR_TAGLINE_MAX - 1) + '…' : text
+}
+
 type Rgb = [number, number, number]
 
 function toRgb(hex: string): Rgb {

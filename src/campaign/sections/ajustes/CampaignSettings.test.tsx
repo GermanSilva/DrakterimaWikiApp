@@ -33,7 +33,7 @@ describe('Ajustes: campaign section', () => {
   it('shows the stored values and a read-only slug', async () => {
     setup()
     expect(await field('Nombre')).toHaveValue('Drakterima')
-    expect(await field('Lema (opcional)')).toHaveValue('Old tagline')
+    expect(await field('Pre-título (opcional)')).toHaveValue('Old tagline')
     expect(await field('Logo (URL https, opcional)')).toHaveValue('https://x.test/old.png')
     expect(await field('Color de acento (opcional)')).toHaveValue('#dc2626')
     const slug = await field('Identificador (slug)')
@@ -45,7 +45,7 @@ describe('Ajustes: campaign section', () => {
     setup()
     const preview = within(await section()).getByRole('group', { name: 'Vista previa' })
     type(await field('Nombre'), 'Nueva')
-    type(await field('Lema (opcional)'), 'Un lema')
+    type(await field('Pre-título (opcional)'), 'Un lema')
     type(await field('Color de acento (opcional)'), '#00ff00')
     expect(within(preview).getByText('Nueva')).toBeInTheDocument()
     expect(within(preview).getByText('Un lema')).toBeInTheDocument()
@@ -57,7 +57,7 @@ describe('Ajustes: campaign section', () => {
   it('saves trimmed values, keeps unknown branding keys, and reloads the header', async () => {
     const { spies, data } = setup()
     type(await field('Nombre'), '  Leyendas  ')
-    type(await field('Lema (opcional)'), '')
+    type(await field('Pre-título (opcional)'), '')
     type(await field('Color de acento (opcional)'), '#0EA5E9')
     // the loader returns the saved campaign on reload
     const saved = makeCampaign({ name: 'Leyendas', branding: { ...STORED.branding, accent_color: '#0ea5e9' }, updated_at: 'u1' })
@@ -80,7 +80,7 @@ describe('Ajustes: campaign section', () => {
     type(await field('Nombre'), '   ')
     type(await field('Logo (URL https, opcional)'), 'javascript:alert(1)')
     type(await field('Color de acento (opcional)'), 'red')
-    type(await field('Lema (opcional)'), 'x'.repeat(141))
+    type(await field('Pre-título (opcional)'), 'x'.repeat(36))
     fireEvent.click(within(await section()).getByRole('button', { name: 'Guardar campaña' }))
 
     const name = await field('Nombre')
@@ -88,7 +88,7 @@ describe('Ajustes: campaign section', () => {
     expect(name).toHaveAccessibleDescription('El nombre es obligatorio.')
     expect(await field('Logo (URL https, opcional)')).toHaveAccessibleDescription(expect.stringContaining('URL https válida'))
     expect(await field('Color de acento (opcional)')).toHaveAccessibleDescription(expect.stringContaining('#rrggbb'))
-    expect(await field('Lema (opcional)')).toHaveAccessibleDescription(expect.stringContaining('140'))
+    expect(await field('Pre-título (opcional)')).toHaveAccessibleDescription(expect.stringContaining('35'))
     expect(spies.updateCampaign).not.toHaveBeenCalled()
   })
 

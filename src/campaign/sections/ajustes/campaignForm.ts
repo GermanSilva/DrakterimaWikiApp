@@ -1,7 +1,8 @@
+import { TAGLINE_MAX } from '../../../hub/campaignBranding'
 import { parseAccentColor, parseLogoUrl } from '../../branding'
 
 export const NAME_MAX = 120
-export const TAGLINE_MAX = 140
+export { TAGLINE_MAX } from '../../../hub/campaignBranding'
 export const LOGO_MAX = 500
 
 export interface CampaignFormInput {
@@ -59,8 +60,8 @@ export function validateCampaignForm(input: CampaignFormInput): CampaignFormResu
     if (accentColor === null) errors.accentColor = 'El color debe tener el formato #rrggbb (por ejemplo #dc2626).'
   }
 
-  if (tagline.length > TAGLINE_MAX) errors.tagline = `El lema puede tener hasta ${TAGLINE_MAX} caracteres.`
-  else if (CONTROL_CHARS.test(tagline)) errors.tagline = 'El lema no puede tener saltos de línea ni caracteres de control.'
+  if (tagline.length > TAGLINE_MAX) errors.tagline = `El pre-título puede tener hasta ${TAGLINE_MAX} caracteres.`
+  else if (CONTROL_CHARS.test(tagline)) errors.tagline = 'El pre-título no puede tener saltos de línea ni caracteres de control.'
 
   if (Object.keys(errors).length > 0) return { ok: false, errors }
   return {

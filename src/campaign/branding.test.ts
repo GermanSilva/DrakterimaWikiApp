@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { accentStyle } from './branding'
+import { accentStyle, topbarTagline } from './branding'
 
 describe('accentStyle', () => {
   it('sets the hex and every RGB triplet together, from the same parsed value', () => {

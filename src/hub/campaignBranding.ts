@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { parseAccentColor, parseHttpsUrl } from '../campaign/branding'
 
-/** Mirrors the database check (campaign_requests.tagline / branding.tagline). */
-export const TAGLINE_MAX = 140
+/** Longest pre-título the forms accept (the database check is wider, 140, so older longer values stay valid). */
+export const TAGLINE_MAX = 35
 /** The brand indigo: the colour a new campaign starts with until the requester picks another. */
 export const DEFAULT_ACCENT = '#4a32ac'
 

@@ -4,7 +4,7 @@ import { ConnectedUserMenu } from '../app/ConnectedUserMenu'
 import { formatTitle, useDocumentTitle } from '../app/documentTitle'
 import type { CampaignWithRole } from '../data'
 import { PRESENCE_NOTICE } from '../hub/campaignSlug'
-import { accentStyle, parseLogoUrl } from './branding'
+import { accentStyle, parseLogoUrl, topbarTagline } from './branding'
 import { CampaignHeader } from './CampaignHeader'
 import { CampaignSidebar } from './CampaignSidebar'
 import { findSection, sectionsFor } from './sections'
@@ -29,6 +29,7 @@ export function CampaignShell({ campaign, isDM, campaigns, userMenu }: CampaignS
     <div style={accentStyle(campaign.branding)} className="min-h-screen bg-bg-deep">
       <CampaignHeader
         name={campaign.name}
+        tagline={topbarTagline(campaign.branding)}
         logoUrl={parseLogoUrl(campaign.branding?.logo_url)}
         currentSlug={campaign.slug}
         campaigns={campaigns}

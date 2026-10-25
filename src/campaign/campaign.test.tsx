@@ -46,26 +46,30 @@ describe('CampaignLayout loading', () => {
   })
 })
 
-describe('dashboard tagline', () => {
-  it('shows the branding tagline under the name, and nothing when it is missing or not text', async () => {
+describe('topbar pre-title', () => {
+  const topbar = () => within(document.querySelector('header')!)
+
+  it('shows the branding pre-title in the topbar, above the name', async () => {
     renderApp('/c/demo', { data: dataFor(makeCampaign({ branding: { tagline: '  Que empiece la aventura ' } })) })
-    expect(await screen.findByText('Que empiece la aventura')).toBeInTheDocument()
+    await screen.findByRole('heading', { level: 1 })
+    expect(topbar().getByText('Que empiece la aventura')).toBeInTheDocument()
+  })
+
+  it('cuts a legacy pre-title longer than 35 characters', async () => {
+    renderApp('/c/demo', { data: dataFor(makeCampaign({ branding: { tagline: 'y'.repeat(50) } })) })
+    await screen.findByRole('heading', { level: 1 })
+    expect(topbar().getByText('y'.repeat(34) + '…')).toBeInTheDocument()
   })
 
   it.each([
     ['missing', {}],
     ['empty', { tagline: '' }],
     ['whitespace-only', { tagline: '   	 ' }],
-  ])('renders nothing for a %s tagline', async (_name, branding) => {
-    const { container } = renderApp('/c/demo', { data: dataFor(makeCampaign({ branding })) })
-    await screen.findByRole('heading', { level: 1, name: 'Demo' })
-    expect(container.querySelector('p.italic')).toBeNull()
-  })
-
-  it('ignores a non-string tagline', async () => {
-    const { container } = renderApp('/c/demo', { data: dataFor(makeCampaign({ branding: { tagline: { x: 1 } } })) })
-    await screen.findByRole('heading', { level: 1, name: 'Demo' })
-    expect(container.querySelector('p.italic')).toBeNull()
+    ['not text', { tagline: { x: 1 } }],
+  ])('renders no pre-title for a %s value', async (_name, branding) => {
+    renderApp('/c/demo', { data: dataFor(makeCampaign({ branding })) })
+    await screen.findByRole('heading', { level: 1 })
+    expect(document.querySelector('header [data-testid="topbar-pretitle"]')).toBeNull()
   })
 })
 

@@ -96,7 +96,7 @@ function CampaignForm({ campaign, notice, onSave }: { campaign: Campaign; notice
         />
       </Field>
 
-      <Field id="campaign-tagline" label="Lema (opcional)" hint={`Hasta ${TAGLINE_MAX} caracteres. Se muestra en el panel de la campaña.`} error={errors.tagline}>
+      <Field id="campaign-tagline" label="Pre-título (opcional)" hint={`Hasta ${TAGLINE_MAX} caracteres. Se muestra sobre el nombre en la barra superior.`} error={errors.tagline}>
         <input
           id="campaign-tagline"
           type="text"
