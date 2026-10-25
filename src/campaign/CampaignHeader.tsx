@@ -1,9 +1,7 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router'
 import { Menu } from 'lucide-react'
-import type { CampaignWithRole } from '../data'
 import { BrandMark } from '../components/BrandMark'
-import { CampaignSwitcher } from './CampaignSwitcher'
 
 export interface CampaignHeaderProps {
   name: string
@@ -12,14 +10,13 @@ export interface CampaignHeaderProps {
   /** Validated https URL or null (see parseLogoUrl). */
   logoUrl: string | null
   currentSlug: string
-  campaigns: CampaignWithRole[]
   menuOpen: boolean
   onToggleMenu: () => void
   /** Rendered at the right edge (the connected UserMenu). */
   userMenu: ReactNode
 }
 
-export function CampaignHeader({ name, tagline, logoUrl, currentSlug, campaigns, menuOpen, onToggleMenu, userMenu }: CampaignHeaderProps) {
+export function CampaignHeader({ name, tagline, logoUrl, currentSlug, menuOpen, onToggleMenu, userMenu }: CampaignHeaderProps) {
   return (
     <header className="fixed top-0 left-0 right-0 h-[60px] bg-bg-mid border-b border-border-base flex items-center px-6 z-[100] gap-4">
       <button
@@ -48,7 +45,6 @@ export function CampaignHeader({ name, tagline, logoUrl, currentSlug, campaigns,
         </span>
       </Link>
       <div className="ml-auto flex items-center gap-4">
-        <CampaignSwitcher campaigns={campaigns} currentSlug={currentSlug} />
         {userMenu}
       </div>
     </header>

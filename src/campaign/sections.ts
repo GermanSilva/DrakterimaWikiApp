@@ -54,6 +54,8 @@ const section = (
 
 /** Single registry of campaign sections: nav, routing and role gating all read it. */
 export const SECTIONS: readonly SectionDef[] = [
+  section('sesion-en-vivo', 'Sesión en vivo', 'Administración', Swords, { dmOnly: true, fullBleed: true, Component: SesionEnVivo }),
+  section('ajustes', 'Ajustes', 'Administración', SlidersHorizontal, { dmOnly: true, Component: Ajustes }),
   section('notas', 'Notas', 'Principal', NotebookPen, { Component: Notas }),
   section('sesiones', 'Sesiones', 'Principal', Scroll, { Component: Sesiones }),
   section('calendario', 'Calendario', 'Principal', CalendarDays, { Component: Calendario }),
@@ -67,8 +69,6 @@ export const SECTIONS: readonly SectionDef[] = [
   section('items', 'Ítems', 'Homebrew', Gem, { Component: Items }),
   section('juegos', 'Juegos', 'Homebrew', Dices, { Component: Juegos }),
   section('srd', 'SRD / Reglas', 'Referencia', BookMarked),
-  section('sesion-en-vivo', 'Sesión en vivo', 'Administración', Swords, { dmOnly: true, fullBleed: true, Component: SesionEnVivo }),
-  section('ajustes', 'Ajustes', 'Administración', SlidersHorizontal, { dmOnly: true, Component: Ajustes }),
 ]
 
 export function findSection(path: string | undefined): SectionDef | undefined {

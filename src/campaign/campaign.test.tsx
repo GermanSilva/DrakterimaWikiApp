@@ -92,6 +92,22 @@ describe('sidebar toggle', () => {
 })
 
 describe('role-based navigation', () => {
+  const groupLabels = (nav: HTMLElement) => Array.from(nav.querySelectorAll('[data-testid="sidebar-scroll"] > div > div:first-child')).map((el) => el.textContent)
+
+  it('puts Administración right below Panel for a DM', async () => {
+    renderApp('/c/demo', { data: dataFor(dm) })
+    const nav = await screen.findByRole('navigation', { name: 'Secciones de la campaña' })
+    expect(groupLabels(nav).slice(0, 2)).toEqual(['Administración', 'Principal'])
+    const links = within(nav).getAllByRole('link').map((l) => l.textContent)
+    expect(links.slice(0, 3)).toEqual(['Panel', 'Sesión en vivo', 'Ajustes'])
+  })
+
+  it('starts with Principal for a player (no Administración)', async () => {
+    renderApp('/c/demo', { data: dataFor(player) })
+    const nav = await screen.findByRole('navigation', { name: 'Secciones de la campaña' })
+    expect(groupLabels(nav)[0]).toBe('Principal')
+  })
+
   it('shows Ajustes to a DM', async () => {
     renderApp('/c/demo', { data: dataFor(dm) })
     const nav = await screen.findByRole('navigation', { name: 'Secciones de la campaña' })
@@ -211,17 +227,80 @@ describe('branding', () => {
 })
 
 describe('campaign switcher and header', () => {
-  it('lists my campaigns and navigates to the chosen one', async () => {
-    const other = makeCampaign({ id: 'c2', slug: 'otra', name: 'Otra', role: 'player' })
+  const other = makeCampaign({ id: 'c2', slug: 'otra', name: 'Otra', role: 'player' })
+  const nav = async () => within(await screen.findByRole('navigation', { name: 'Secciones de la campaña' }))
+
+  it('lives in the sidebar footer, not in the header', async () => {
+    renderApp('/c/demo', { data: dataFor(dm, other) })
+    const sidebar = await nav()
+    expect(sidebar.getByRole('button', { name: 'Cambiar de campaña' })).toHaveTextContent('Demo')
+    expect(within(document.querySelector('header')!).queryByRole('button', { name: 'Cambiar de campaña' })).toBeNull()
+    expect(within(document.querySelector('header')!).queryByRole('combobox')).toBeNull()
+  })
+
+  it('lists my campaigns upward, marks the current one and navigates to the chosen one', async () => {
     const { router } = renderApp('/c/demo', { data: dataFor(dm, other) })
-    const select = await screen.findByRole('combobox', { name: 'Cambiar de campaña' })
-    expect(within(select).getAllByRole('option').map((o) => o.textContent)).toEqual(['Demo', 'Otra', 'Todas mis campañas…'])
+    const trigger = (await nav()).getByRole('button', { name: 'Cambiar de campaña' })
+    expect(trigger).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(trigger)
+    expect(trigger).toHaveAttribute('aria-expanded', 'true')
+    const menu = within(screen.getByRole('menu', { name: 'Campañas' }))
+    expect(menu.getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Demo', 'Otra', 'Todas mis campañas'])
+    expect(menu.getByRole('menuitem', { name: 'Demo' })).toHaveAttribute('aria-current', 'true')
+    expect(screen.getByRole('menu', { name: 'Campañas' }).className).toContain('bottom-full')
+    expect(menu.getByRole('menuitem', { name: 'Todas mis campañas' })).toHaveAttribute('href', '/')
+
     await act(async () => {
-      fireEvent.change(select, { target: { value: 'otra' } })
+      fireEvent.click(menu.getByRole('menuitem', { name: 'Otra' }))
     })
     await waitFor(() => expect(router.state.location.pathname).toBe('/c/otra'))
     await screen.findByRole('heading', { level: 1, name: 'Panel de campaña' })
     expect(within(screen.getByRole('main')).getByText('Otra')).toBeInTheDocument()
+    expect(screen.queryByRole('menu', { name: 'Campañas' })).toBeNull()
+  })
+
+  it('closes with Escape and gives the focus back to the trigger', async () => {
+    renderApp('/c/demo', { data: dataFor(dm, other) })
+    const trigger = (await nav()).getByRole('button', { name: 'Cambiar de campaña' })
+    fireEvent.click(trigger)
+    fireEvent.keyDown(screen.getByRole('menu', { name: 'Campañas' }), { key: 'Escape' })
+    expect(screen.queryByRole('menu', { name: 'Campañas' })).toBeNull()
+    expect(trigger).toHaveFocus()
+  })
+
+  it('closes with Escape while the focus is still on the trigger', async () => {
+    renderApp('/c/demo', { data: dataFor(dm, other) })
+    const trigger = (await nav()).getByRole('button', { name: 'Cambiar de campaña' })
+    fireEvent.click(trigger)
+    fireEvent.keyDown(trigger, { key: 'Escape' })
+    expect(screen.queryByRole('menu', { name: 'Campañas' })).toBeNull()
+  })
+
+  it('moves through the items with the arrow keys from the trigger', async () => {
+    renderApp('/c/demo', { data: dataFor(dm, other) })
+    const trigger = (await nav()).getByRole('button', { name: 'Cambiar de campaña' })
+    fireEvent.click(trigger)
+    fireEvent.keyDown(trigger, { key: 'ArrowDown' })
+    expect(screen.getByRole('menuitem', { name: 'Demo' })).toHaveFocus()
+    fireEvent.keyDown(screen.getByRole('menuitem', { name: 'Demo' }), { key: 'ArrowUp' })
+    expect(screen.getByRole('menuitem', { name: 'Todas mis campañas' })).toHaveFocus()
+  })
+
+  it('closes when pressing outside of it', async () => {
+    renderApp('/c/demo', { data: dataFor(dm, other) })
+    fireEvent.click((await nav()).getByRole('button', { name: 'Cambiar de campaña' }))
+    fireEvent.mouseDown(screen.getByRole('main'))
+    expect(screen.queryByRole('menu', { name: 'Campañas' })).toBeNull()
+  })
+
+  it('stays fixed: the section links scroll in their own area, the switcher does not', async () => {
+    renderApp('/c/demo', { data: dataFor(dm, other) })
+    const sidebar = await nav()
+    const scroller = screen.getByTestId('sidebar-scroll')
+    expect(scroller.className).toContain('overflow-y-auto')
+    expect(within(scroller).getByRole('link', { name: /Notas/ })).toBeInTheDocument()
+    expect(within(scroller).queryByRole('button', { name: 'Cambiar de campaña' })).toBeNull()
+    expect(sidebar.getByRole('button', { name: 'Cambiar de campaña' })).toBeInTheDocument()
   })
 
   it('shows the campaign name in the header and a working mobile menu toggle', async () => {

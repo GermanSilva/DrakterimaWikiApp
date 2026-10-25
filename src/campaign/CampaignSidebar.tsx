@@ -1,9 +1,12 @@
-import { Link, NavLink } from 'react-router'
+import { NavLink } from 'react-router'
 import { LayoutDashboard } from 'lucide-react'
+import type { CampaignWithRole } from '../data'
+import { CampaignSwitcher } from './CampaignSwitcher'
 import { groupSections, type SectionDef } from './sections'
 
 export interface CampaignSidebarProps {
   slug: string
+  campaigns: CampaignWithRole[]
   /** Already filtered for the viewer's role (sectionsFor). */
   sections: SectionDef[]
   open: boolean
@@ -25,7 +28,7 @@ const linkCls = ({ isActive }: { isActive: boolean }) =>
 const labelCls = 'font-exo text-[11px] tracking-[0.06em] font-medium uppercase'
 
 /** Presentational: the campaign's section navigation (NavLinks give aria-current for free). */
-export function CampaignSidebar({ slug, sections, open, collapsed = false, onNavigate, notice }: CampaignSidebarProps) {
+export function CampaignSidebar({ slug, campaigns, sections, open, collapsed = false, onNavigate, notice }: CampaignSidebarProps) {
   return (
     <nav
       id="campaign-nav"
@@ -33,12 +36,13 @@ export function CampaignSidebar({ slug, sections, open, collapsed = false, onNav
       data-collapsed={collapsed}
       className={[
         'fixed left-0 top-[60px] w-[240px] h-[calc(100vh-60px)]',
-        'bg-bg-mid border-r border-border-base py-5 z-[200] overflow-y-auto flex flex-col',
+        'bg-bg-mid border-r border-border-base z-[200] flex flex-col',
         'transition-[transform,visibility] duration-[250ms] ease-in-out',
         collapsed ? 'md:-translate-x-full md:invisible' : 'md:translate-x-0',
         open ? 'max-md:translate-x-0' : 'max-md:-translate-x-full',
       ].join(' ')}
     >
+      <div data-testid="sidebar-scroll" className="flex-1 min-h-0 overflow-y-auto py-5">
       <NavLink to={`/c/${slug}`} end className={linkCls} onClick={onNavigate}>
         <LayoutDashboard size={15} className="w-5 flex-shrink-0" aria-hidden="true" />
         <span className={labelCls}>Panel</span>
@@ -57,11 +61,10 @@ export function CampaignSidebar({ slug, sections, open, collapsed = false, onNav
           })}
         </div>
       ))}
-      <div className="mt-auto pt-4 border-t border-border-base">
-        {notice && <p className="px-[18px] pb-3 text-[11px] leading-snug text-txt-muted">{notice}</p>}
-        <Link to="/" className={linkCls({ isActive: false })} onClick={onNavigate}>
-          <span className={labelCls}>Mis campañas</span>
-        </Link>
+      </div>
+      <div className="shrink-0 border-t border-border-base">
+        {notice && <p className="px-[18px] pt-3 text-[11px] leading-snug text-txt-muted">{notice}</p>}
+        <CampaignSwitcher campaigns={campaigns} currentSlug={slug} onNavigate={onNavigate} />
       </div>
     </nav>
   )

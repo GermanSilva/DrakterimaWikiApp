@@ -53,3 +53,4 @@ screenshot had a hardcoded subtitle there). The banner is set in Ajustes as an h
 - Las estadísticas deben mostrarse en un formato más compacto que el de la captura, ocupando no más de dos lineas.
 - La sección "Última sesión" Debe llamarse en realidad "Sesiones", incluyendo en su sección tiles (en dos columnas) para "Última sesión" y "Próxima sesión" (Tomando la siguiente sesión registrada en calendario desde el día actual)
 - Incluir secciones "PNJs Recientes" y "Últimos Artículos" (máximo 5 entradas) como se muestra en la captura"
+- L2 (user, 2026-10-25): campaign switcher moves from the topbar to the sidebar footer (menu opens upward, footer fixed while the links scroll), and Administración goes right below Panel. Done inline; vitest src/campaign + src/app 959 passing, tsc and eslint clean; browser check: menu opens upward, Escape closes it, choosing a campaign navigates.

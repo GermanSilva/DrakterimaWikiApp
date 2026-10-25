@@ -34,13 +34,13 @@ export function CampaignShell({ campaign, isDM, campaigns, userMenu }: CampaignS
         tagline={topbarTagline(campaign.branding)}
         logoUrl={parseLogoUrl(campaign.branding?.logo_url)}
         currentSlug={campaign.slug}
-        campaigns={campaigns}
         menuOpen={menuOpen}
         onToggleMenu={() => setMenuOpen((open) => !open)}
         userMenu={userMenu ?? <ConnectedUserMenu />}
       />
       <CampaignSidebar
         slug={campaign.slug}
+        campaigns={campaigns}
         sections={sectionsFor(isDM)}
         open={menuOpen}
         collapsed={collapsed}
