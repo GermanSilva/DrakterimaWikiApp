@@ -409,7 +409,9 @@ y envía correos de acceso desde tu SMTP.
 #### Hub Owner: paso obligatorio ANTES de abrir el registro (H15)
 
 El **Hub Owner** (vos) es el único que crea campañas directamente (queda como su DM) y el que aprueba o rechaza las
-solicitudes (la campaña se crea con el *solicitante* como DM). No se envían correos: cada persona ve el estado en la
+solicitudes (la campaña se crea con el *solicitante* como DM). Además tiene **acceso total (nivel DM) a todas las campañas
+sin ser miembro**, y puede borrarlas: tratá esa cuenta como la llave maestra de la plataforma (activá 2FA en el proveedor
+de login y no compartas la sesión). No se envían correos: cada persona ve el estado en la
 app («Mis solicitudes»). La lista de owners (`public.hub_owners`) **no se puede escribir desde la API**: se asigna una
 sola vez, a mano, en *SQL Editor* de Supabase (rol `postgres`):
 
