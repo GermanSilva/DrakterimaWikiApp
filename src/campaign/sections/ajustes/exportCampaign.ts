@@ -28,7 +28,7 @@ export interface CampaignExport {
   format: typeof EXPORT_FORMAT
   version: typeof EXPORT_VERSION
   exportedAt: string
-  campaign: Pick<Campaign, 'id' | 'slug' | 'name' | 'system' | 'branding' | 'regions' | 'character_custom_fields' | 'settings'>
+  campaign: Pick<Campaign, 'id' | 'slug' | 'name' | 'system' | 'system_profile' | 'branding' | 'regions' | 'character_custom_fields' | 'settings'>
   entities: Record<EntityTable, FlatEntity[]>
   /** `visible_to` of the `secreto` entities: table -> entity id -> character ids. */
   visibility: Partial<Record<EntityTable, Record<number, number[]>>>
@@ -78,6 +78,7 @@ export async function buildCampaignExport(layer: DataLayer, campaign: Campaign, 
       slug: campaign.slug,
       name: campaign.name,
       system: campaign.system,
+      system_profile: campaign.system_profile,
       branding: campaign.branding,
       regions: campaign.regions,
       character_custom_fields: campaign.character_custom_fields,

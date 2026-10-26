@@ -20,6 +20,8 @@ export interface Campaign {
   slug: string
   name: string
   system: string
+  /** The system document (version 1); read it through `useSystem` / `parseSystemProfile`, never directly. */
+  system_profile: Record<string, unknown>
   branding: Record<string, unknown>
   regions: unknown[]
   character_custom_fields: unknown[]

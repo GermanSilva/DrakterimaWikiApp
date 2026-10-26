@@ -18,6 +18,7 @@ export function makeCampaign(over: Partial<CampaignWithRole> = {}): CampaignWith
     slug: 'demo',
     name: 'Demo',
     system: 'dnd5e',
+    system_profile: { version: 1 },
     branding: {},
     regions: [],
     character_custom_fields: [],

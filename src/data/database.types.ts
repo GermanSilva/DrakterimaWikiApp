@@ -287,6 +287,7 @@ export type Database = {
           settings: Json
           slug: string
           system: string
+          system_profile: Json
           updated_at: string
         }
         Insert: {
@@ -300,6 +301,7 @@ export type Database = {
           settings?: Json
           slug: string
           system?: string
+          system_profile?: Json
           updated_at?: string
         }
         Update: {
@@ -313,6 +315,7 @@ export type Database = {
           settings?: Json
           slug?: string
           system?: string
+          system_profile?: Json
           updated_at?: string
         }
         Relationships: [
@@ -1405,6 +1408,7 @@ export type Database = {
           settings: Json
           slug: string
           system: string
+          system_profile: Json
           updated_at: string
         }
         SetofOptions: {
@@ -1432,6 +1436,7 @@ export type Database = {
           settings: Json
           slug: string
           system: string
+          system_profile: Json
           updated_at: string
         }
         SetofOptions: {

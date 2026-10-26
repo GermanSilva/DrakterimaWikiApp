@@ -165,6 +165,7 @@ export const CAMPAIGN_COLUMNS = [
   'slug',
   'name',
   'system',
+  'system_profile',
   'branding',
   'regions',
   'character_custom_fields',

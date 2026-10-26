@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { downloadJson, exportFilename } from './exportCampaign'
+import { makeCampaign } from '../../../app/testing/renderApp'
+import { createFakeLayer } from '../../testing/fakeLayer'
+import { buildCampaignExport, downloadJson, exportFilename } from './exportCampaign'
 
 afterEach(() => {
   vi.useRealTimers()
@@ -35,5 +37,16 @@ describe('downloadJson', () => {
     expect(revoke).not.toHaveBeenCalled()
     vi.advanceTimersByTime(1000)
     expect(revoke).toHaveBeenCalledWith('blob:fake')
+  })
+})
+
+describe('buildCampaignExport', () => {
+  it('carries the system document of the campaign, so a backup keeps the system definition', async () => {
+    const { layer } = createFakeLayer()
+    const profile = { version: 1, currency: { enabled: false } }
+    const campaign = makeCampaign({ system: 'mi-sistema', system_profile: profile })
+    const out = await buildCampaignExport(layer, campaign)
+    expect(out.campaign.system).toBe('mi-sistema')
+    expect(out.campaign.system_profile).toEqual(profile)
   })
 })
