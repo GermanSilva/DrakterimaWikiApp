@@ -549,7 +549,7 @@ Hechos del código que la sustentan (verificados en el repo):
 - Imágenes: logos, avatares e imágenes de mapa/entidades son URLs https **arbitrarias** que ponen los DM (`imagen_url`,
   `logo_url`); Leaflet usa `ImageOverlay` (sin tiles) y los pins son `divIcon`. → `img-src 'self' data: blob: https:`.
 - Red: `supabase-js` habla con `https://<ref>.supabase.co` (REST/Auth) y `wss://<ref>.supabase.co` (Realtime). La app no
-  llama a otros hosts (la página SRD de la app legacy usa open5e, pero en el hub la sección SRD es un placeholder).
+  llama a otros hosts (la página SRD de la app legacy usa open5e; el hub no tiene sección SRD).
 - Turnstile (captcha del login, d.5): el script se carga de `https://challenges.cloudflare.com` (`script-src`), el widget es un
   iframe de ese origen (`frame-src`) y habla con él (`connect-src`). Si no se usa captcha, esas tres entradas sobran. No se
   verificó contra un navegador con CSP real: por eso se prueba primero en Report-Only.

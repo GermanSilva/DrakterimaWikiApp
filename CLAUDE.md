@@ -102,7 +102,7 @@ branding (`accent_color` `#rrggbb`, `logo_url` https), regiones y campos de pers
 
 `src/campaign/sections.ts` es el **registro único** (`SECTIONS`) que usan el sidebar, el dashboard y el router:
 `notas`, `sesiones`, `calendario`, `pjs`, `pnjs`, `mapas`, `lugares`, `facciones`, `lore`, `homerules`, `items`, `juegos`,
-`srd` (placeholder: la referencia SRD solo existe en la app legacy), y las `dmOnly` `sesion-en-vivo` y `ajustes`. `dmOnly`
+y las `dmOnly` `sesion-en-vivo` y `ajustes`. `dmOnly`
 oculta el enlace y da 404 al jugador, pero el límite real es RLS. Las páginas viven en `src/campaign/sections/`.
 
 - **Lista y detalle son una sola ruta** (`/c/:slug/<sección>[/:id]`), con filtros en query params. `EntitySectionRoute`

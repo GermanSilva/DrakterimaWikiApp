@@ -1,6 +1,6 @@
 import { lazy, type ComponentType } from 'react'
 import {
-  BookMarked, BookOpen, CalendarDays, Dices, Gem, Hammer, Landmark, Map, NotebookPen, Scroll, Shield,
+  BookOpen, CalendarDays, Dices, Gem, Hammer, Landmark, Map, NotebookPen, Scroll, Shield,
   SlidersHorizontal, Swords, Users, type LucideIcon,
 } from 'lucide-react'
 
@@ -68,7 +68,6 @@ export const SECTIONS: readonly SectionDef[] = [
   section('homerules', 'Homerules', 'Homebrew', Hammer, { Component: Homerules }),
   section('items', 'Ítems', 'Homebrew', Gem, { Component: Items }),
   section('juegos', 'Juegos', 'Homebrew', Dices, { Component: Juegos }),
-  section('srd', 'SRD / Reglas', 'Referencia', BookMarked),
 ]
 
 export function findSection(path: string | undefined): SectionDef | undefined {
