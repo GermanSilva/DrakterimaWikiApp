@@ -43,6 +43,8 @@ export const KNOWN_REASONS = [
   'invalid_tagline',
   'invalid_accent_color',
   'invalid_logo_url',
+  'invalid_system_profile',
+  'campaign_not_found',
 ] as const
 
 export type DataErrorReason = (typeof KNOWN_REASONS)[number]

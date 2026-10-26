@@ -155,6 +155,32 @@ describe('campaign repository', () => {
     await expect(repo.acceptInvite('old')).rejects.toMatchObject({ kind: 'business', message: 'invite_expired' })
   })
 
+  it('setSystemProfile calls the RPC with the document and the base version; a stale base is a ConflictError', async () => {
+    const fake = createFakeClient()
+    const repo = createCampaignRepository(fake.db)
+    const profile = { version: 1 }
+    fake.enqueue({ data: { id: 'a', slug: 'alpha', system_profile: profile, updated_at: '2026-10-27T10:00:00.123456+00:00' } })
+    const row = await repo.setSystemProfile('a', profile, '2026-10-26T10:00:00.789108+00:00')
+    expect(fake.calls[0]).toMatchObject({
+      kind: 'rpc',
+      name: 'set_system_profile',
+      args: { p_campaign_id: 'a', p_profile: profile, p_base: '2026-10-26T10:00:00.789108+00:00' },
+    })
+    expect(row.updated_at).toBe('2026-10-27T10:00:00.123456+00:00')
+
+    fake.enqueue({ error: { message: 'campaign_conflict', code: 'P0001' } })
+    await expect(repo.setSystemProfile('a', profile, 'old')).rejects.toBeInstanceOf(ConflictError)
+  })
+
+  it('setSystemProfile keeps the invalid_system_profile reason and the offending path', async () => {
+    const fake = createFakeClient()
+    const repo = createCampaignRepository(fake.db)
+    fake.enqueue({ error: { message: 'invalid_system_profile', code: 'P0001', details: 'character.builtins.nivel.range' } })
+    await expect(repo.setSystemProfile('a', {}, 'base')).rejects.toMatchObject({ reason: 'invalid_system_profile', details: 'character.builtins.nivel.range' })
+    fake.enqueue({ error: { message: 'dm_only', code: '42501' } })
+    await expect(repo.setSystemProfile('a', {}, 'base')).rejects.toMatchObject({ kind: 'permission', reason: 'dm_only' })
+  })
+
   it('listMembers embeds profiles; createInvite sends only writable columns', async () => {
     const fake = createFakeClient()
     const repo = createCampaignRepository(fake.db)

@@ -219,6 +219,19 @@ export function createCampaignRepository(client: Db) {
       throw new ConflictError()
     },
 
+    /**
+     * DM only (a hub owner counts): the ONLY way to write the system document of a campaign. `profile` is the whole
+     * document (the database validates it and stores the normalised one) and `base` the `updated_at` string the editor
+     * was built from, passed through UNCHANGED (a JS Date would cut it to milliseconds and every save would conflict).
+     * A different stored version throws ConflictError and writes nothing. Errors: invalid_system_profile (details = the
+     * path of the offending part), dm_only, campaign_not_found. Returns the updated row.
+     */
+    async setSystemProfile(campaignId: string, profile: unknown, base: string): Promise<Campaign> {
+      const res = await client.rpc('set_system_profile', { p_campaign_id: campaignId, p_profile: profile as never, p_base: base })
+      if (res.error?.code === 'P0001' && res.error.message === 'campaign_conflict') throw new ConflictError()
+      return unwrap(res) as unknown as Campaign
+    },
+
     async listMembers(campaignId: string): Promise<Member[]> {
       return pagedList<Member>(
         () =>

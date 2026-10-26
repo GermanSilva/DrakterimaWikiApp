@@ -19,6 +19,10 @@ export interface LevelField extends BuiltinField {
   max: number
 }
 
+/** The blocks of the character sheet a system can switch on or off (order = display order). */
+export const SECTION_KEYS = ['stats', 'habilidades', 'ataques', 'hechizos', 'recursos', 'equipo', 'rasgos', 'narrativa', 'apariencia'] as const
+export type SectionKey = (typeof SECTION_KEYS)[number]
+
 export interface Denomination {
   key: CoinKey
   label: string
@@ -26,7 +30,7 @@ export interface Denomination {
 
 export interface SystemProfile {
   version: 1
-  character: { builtins: { clase: BuiltinField; raza: BuiltinField; nivel: LevelField } }
+  character: { builtins: { clase: BuiltinField; raza: BuiltinField; nivel: LevelField }; sections: Record<SectionKey, boolean> }
   currency: { enabled: boolean; denominations: Denomination[] }
   modules: { juegos: boolean; sesion_en_vivo: boolean; mapas: boolean; calendario: boolean }
 }
@@ -42,6 +46,7 @@ const DND5E: SystemProfile = {
       raza: { enabled: true, label: 'Raza' },
       nivel: { enabled: true, label: 'Nivel', min: 1, max: 20 },
     },
+    sections: { stats: true, habilidades: true, ataques: true, hechizos: true, recursos: true, equipo: true, rasgos: true, narrativa: true, apariencia: true },
   },
   currency: {
     enabled: true,
@@ -73,11 +78,21 @@ export const dnd5eProfile = (): SystemProfile => JSON.parse(JSON.stringify(DND5E
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const bool = (value: unknown, fallback: boolean) => (typeof value === 'boolean' ? value : fallback)
 
-function label(value: unknown, fallback: string): string {
-  if (typeof value !== 'string') return fallback
-  const text = value.trim()
-  return text === '' || text.length > LABEL_MAX ? fallback : text
+// Same set the database refuses in labels (public.strip_control_chars): controls, soft hyphen, bidi and zero-width marks.
+// eslint-disable-next-line no-control-regex -- the point is to detect control characters
+const HIDDEN_CHARS = /[\u0000-\u001f\u007f-\u009f\u00ad\u061c\u200b-\u200f\u202a-\u202e\u2060-\u206f\ufeff]/
+// What the database trims (white space, no-break and ideographic spaces); NOT the BOM, which it then rejects as hidden.
+const EDGE_BLANKS = /^[\t\n\v\f\r \u00a0\u3000]+|[\t\n\v\f\r \u00a0\u3000]+$/g
+
+/** A label as the database accepts it: trimmed, 1..60 characters (code points), no hidden characters. null when not valid. */
+function cleanLabel(value: unknown): string | null {
+  if (typeof value !== 'string') return null
+  const text = value.replace(EDGE_BLANKS, '')
+  if (text === '' || HIDDEN_CHARS.test(text) || Array.from(text).length > LABEL_MAX) return null
+  return text
 }
+
+const label = (value: unknown, fallback: string): string => cleanLabel(value) ?? fallback
 
 const isLevel = (value: unknown): value is number => typeof value === 'number' && Number.isInteger(value) && value >= 0 && value <= LEVEL_LIMIT
 
@@ -100,8 +115,8 @@ function denominations(raw: unknown, fallback: Denomination[]): Denomination[] {
   const out: Denomination[] = []
   for (const item of raw) {
     if (!isRecord(item) || typeof item.key !== 'string' || !(COIN_KEYS as readonly string[]).includes(item.key) || seen.has(item.key)) continue
-    const text = typeof item.label === 'string' ? item.label.trim() : ''
-    if (text === '' || text.length > LABEL_MAX) continue
+    const text = cleanLabel(item.label)
+    if (text === null) continue
     seen.add(item.key)
     out.push({ key: item.key as CoinKey, label: text })
   }
@@ -114,6 +129,7 @@ export function parseSystemProfile(raw: unknown): SystemProfile {
   const builtins = isRecord(raw.character) && isRecord(raw.character.builtins) ? raw.character.builtins : {}
   const currency = isRecord(raw.currency) ? raw.currency : {}
   const modules = isRecord(raw.modules) ? raw.modules : {}
+  const sections = isRecord(raw.character) && isRecord(raw.character.sections) ? raw.character.sections : {}
   const enabled = bool(currency.enabled, defaults.currency.enabled)
   const parsed = denominations(currency.denominations, defaults.currency.denominations)
   return {
@@ -124,6 +140,7 @@ export function parseSystemProfile(raw: unknown): SystemProfile {
         raza: builtin(builtins.raza, defaults.character.builtins.raza),
         nivel: level(builtins.nivel, defaults.character.builtins.nivel),
       },
+      sections: Object.fromEntries(SECTION_KEYS.map((key) => [key, bool(sections[key], defaults.character.sections[key])])) as Record<SectionKey, boolean>,
     },
     currency: { enabled, denominations: enabled && parsed.length === 0 ? defaults.currency.denominations : parsed },
     modules: {

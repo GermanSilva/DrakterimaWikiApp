@@ -12,7 +12,7 @@ export interface RecordedCall {
 
 export interface FakeResult {
   data?: unknown
-  error?: { message: string; code?: string } | null
+  error?: { message: string; code?: string; details?: string | null } | null
 }
 
 /** Minimal channel fake: records `.on` registrations and lets tests emit payloads. */

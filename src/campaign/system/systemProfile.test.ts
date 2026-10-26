@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DND5E_PROFILE, parseSystemProfile } from './systemProfile'
+import { DND5E_PROFILE, SECTION_KEYS, parseSystemProfile } from './systemProfile'
 
 describe('DND5E_PROFILE', () => {
   it('is exactly what the application hard-codes today', () => {
@@ -7,6 +7,8 @@ describe('DND5E_PROFILE', () => {
     expect(DND5E_PROFILE.character.builtins.clase).toEqual({ enabled: true, label: 'Clase' })
     expect(DND5E_PROFILE.character.builtins.raza).toEqual({ enabled: true, label: 'Raza' })
     expect(DND5E_PROFILE.currency.denominations.map((d) => d.key)).toEqual(['pp', 'gp', 'ep', 'sp', 'cp'])
+    expect(DND5E_PROFILE.character.sections).toEqual(Object.fromEntries(SECTION_KEYS.map((key) => [key, true])))
+    expect(SECTION_KEYS).toEqual(['stats', 'habilidades', 'ataques', 'hechizos', 'recursos', 'equipo', 'rasgos', 'narrativa', 'apariencia'])
     expect(DND5E_PROFILE.modules).toEqual({ juegos: true, sesion_en_vivo: true, mapas: true, calendario: true })
   })
 })
@@ -43,6 +45,23 @@ describe('parseSystemProfile', () => {
     expect(profile.character.builtins.nivel).toEqual({ enabled: true, label: 'Rango', min: 0, max: 5 })
     expect(profile.currency.denominations).toEqual([{ key: 'gp', label: 'créditos' }])
     expect(profile.modules).toEqual({ juegos: false, sesion_en_vivo: true, mapas: true, calendario: false })
+  })
+
+  it('reads the sheet sections, defaulting every missing or mistyped one to on', () => {
+    const profile = parseSystemProfile({ version: 1, character: { sections: { hechizos: false, stats: 'no', ataques: false } } })
+    expect(profile.character.sections).toEqual({ ...DND5E_PROFILE.character.sections, hechizos: false, ataques: false })
+  })
+
+  it('rejects, like the database does, labels with control, bidi or zero-width characters and labels that are only blank-looking', () => {
+    for (const label of ['ab\u202Ecd', '\u200B', 'a\u200Bb', 'a\nb', '\u3000\u00A0', 'x\uFEFF']) {
+      expect(parseSystemProfile({ version: 1, character: { builtins: { raza: { label } } } }).character.builtins.raza.label).toBe('Raza')
+    }
+  })
+
+  it('counts a label in characters, not in UTF-16 units (60 emoji are allowed, 61 are not)', () => {
+    const sixty = '😀'.repeat(60)
+    expect(parseSystemProfile({ version: 1, character: { builtins: { raza: { label: sixty } } } }).character.builtins.raza.label).toBe(sixty)
+    expect(parseSystemProfile({ version: 1, character: { builtins: { raza: { label: sixty + '😀' } } } }).character.builtins.raza.label).toBe('Raza')
   })
 
   it('can switch the currency off', () => {

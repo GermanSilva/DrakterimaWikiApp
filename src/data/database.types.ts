@@ -1484,6 +1484,29 @@ export type Database = {
         Args: { p_entity_type: string; p_id: number; p_visible_to: number[] }
         Returns: number[]
       }
+      set_system_profile: {
+        Args: { p_base: string; p_campaign_id: string; p_profile: Json }
+        Returns: {
+          branding: Json
+          character_custom_fields: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          regions: Json
+          settings: Json
+          slug: string
+          system: string
+          system_profile: Json
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "campaigns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       shares_campaign_with: { Args: { uid: string }; Returns: boolean }
       strip_control_chars: {
         Args: { p_keep_newlines?: boolean; p_text: string }
@@ -1493,6 +1516,7 @@ export type Database = {
         Args: { p_campaign_id: string }
         Returns: undefined
       }
+      validate_system_profile: { Args: { p: Json }; Returns: Json }
     }
     Enums: {
       [_ in never]: never
