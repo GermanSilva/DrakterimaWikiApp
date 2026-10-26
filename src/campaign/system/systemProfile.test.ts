@@ -18,6 +18,15 @@ describe('parseSystemProfile', () => {
     }
   })
 
+  it('never hands out the shared default: mutating a result cannot change the next one', () => {
+    const first = parseSystemProfile(null)
+    first.currency.denominations.push({ key: 'gp', label: 'x' })
+    first.character.builtins.nivel.max = 99
+    expect(parseSystemProfile(null)).toEqual(DND5E_PROFILE)
+    expect(parseSystemProfile({ version: 1 }).currency.denominations).toHaveLength(5)
+    expect(parseSystemProfile(null)).not.toBe(parseSystemProfile(null))
+  })
+
   it('round-trips the stored D&D 5e document', () => {
     expect(parseSystemProfile(JSON.parse(JSON.stringify(DND5E_PROFILE)))).toEqual(DND5E_PROFILE)
   })

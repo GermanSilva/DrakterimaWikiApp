@@ -32,3 +32,8 @@ None.
 - L2 (user, 2026-10-26): "Me interesa poder albergar rápidamente campañas de otros sistemas, sin ningúno particular en mente. Me interesa tambien poder contener sistemas derivados o intensamente modificados de un sistema original."
 - L3 (user, 2026-10-26): chose "copia al crear" (no inheritance) when asked whether template improvements must propagate to campaigns that use them.
 - L4 (user, 2026-10-26): "si" to keeping clase/raza/nivel as optional, renamable built-ins (S6). E1 started: `campaigns.system_profile` jsonb with the D&D 5e document as default, `system` relaxed to a format-checked identifier, no API write path yet.
+
+## Evidence
+
+- E1 (2026-10-26): pgTAP 17_system_profile 37 assertions (RED first: the column did not exist), full `supabase test db` 17 files / 648 PASS, integration 92/92, vitest 1704, tsc clean, eslint 0 errors. Independent read-only verification (gentle-ai-verify): no blocker; the API cannot write `system_profile` (no insert/update grant, checked live), the SQL default equals DND5E_PROFILE field by field, the `system` regex is anchored/bounded. Applied: the parser no longer hands out the shared default (deep-frozen constant + fresh copy per call, test written first), pgTAP gained the full-document backfill, 40-char/newline/edge identifiers and a document just under 64 KB.
+- Carry-overs for E2: the pjs.nivel CHECK (1..20) must be relaxed before a profile can use another range; "currency on with an empty list" falls back to the five D&D coins (decide in E3 whether "on, no coins" is a state); labels are measured in UTF-16 units.

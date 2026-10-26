@@ -2,7 +2,7 @@
 -- `system` identifier and the fact that the API cannot write the document yet. Self-contained fixture, rolled back.
 begin;
 
-select plan(30);
+select plan(37);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -54,6 +54,23 @@ select is(
   (select count(*) from public.campaigns where system_profile ->> 'version' is distinct from '1'),
   0::bigint, 'every campaign in the database has a version 1 profile (existing ones were backfilled)');
 select is(
+  (select count(*) from public.campaigns where system_profile is distinct from $profile${
+    "version": 1,
+    "character": {"builtins": {
+      "clase": {"enabled": true, "label": "Clase"},
+      "raza": {"enabled": true, "label": "Raza"},
+      "nivel": {"enabled": true, "label": "Nivel", "min": 1, "max": 20}}},
+    "currency": {"enabled": true, "denominations": [
+      {"key": "pp", "label": "platino"}, {"key": "gp", "label": "oro"}, {"key": "ep", "label": "electrum"},
+      {"key": "sp", "label": "plata"}, {"key": "cp", "label": "bronce"}]},
+    "modules": {"juegos": true, "sesion_en_vivo": true, "mapas": true, "calendario": true}
+  }$profile$::jsonb),
+  0::bigint, 'every campaign in the database (seed rows and the fixture) carries the FULL D&D 5e document, not just a version');
+select is(
+  (select system_profile #> '{character,builtins}' from public.campaigns where id = 'bbbbbbbb-4444-4000-8000-00000000000a'),
+  '{"clase": {"enabled": true, "label": "Clase"}, "raza": {"enabled": true, "label": "Raza"}, "nivel": {"enabled": true, "label": "Nivel", "min": 1, "max": 20}}'::jsonb,
+  'D&D 5e preset: clase, raza and nivel are all enabled with their labels');
+select is(
   (select system_profile #>> '{character,builtins,clase,label}' from public.campaigns where id = 'bbbbbbbb-4444-4000-8000-00000000000a'),
   'Clase', 'D&D 5e preset: clase is enabled with its label');
 select is(
@@ -90,6 +107,9 @@ select throws_ok(
 select throws_ok(
   $$update public.campaigns set system_profile = null where id = 'bbbbbbbb-4444-4000-8000-00000000000a'$$, '23502', null,
   'NULL is rejected');
+select lives_ok(
+  $$update public.campaigns set system_profile = ('{"version": 1, "pad": "' || repeat('x', 65500) || '"}')::jsonb where id = 'bbbbbbbb-4444-4000-8000-00000000000a'$$,
+  'a document just under 64 KB is accepted');
 select throws_ok(
   $$update public.campaigns set system_profile = ('{"version": 1, "pad": "' || repeat('x', 70000) || '"}')::jsonb where id = 'bbbbbbbb-4444-4000-8000-00000000000a'$$, '23514', null,
   'a document over 64 KB is rejected');
@@ -142,6 +162,18 @@ select throws_ok(
 select throws_ok(
   $$update public.campaigns set system = repeat('a', 41) where id = 'bbbbbbbb-4444-4000-8000-00000000000a'$$, '23514', null,
   'an identifier over 40 characters is rejected');
+select lives_ok(
+  $$update public.campaigns set system = repeat('a', 40) where id = 'bbbbbbbb-4444-4000-8000-00000000000a'$$,
+  'an identifier of exactly 40 characters is accepted');
+select throws_ok(
+  $$update public.campaigns set system = E'dnd5e\n' where id = 'bbbbbbbb-4444-4000-8000-00000000000a'$$, '23514', null,
+  'a trailing newline is rejected');
+select throws_ok(
+  $$update public.campaigns set system = 'a-' where id = 'bbbbbbbb-4444-4000-8000-00000000000a'$$, '23514', null,
+  'an identifier ending in a dash is rejected');
+select throws_ok(
+  $$update public.campaigns set system = '_a' where id = 'bbbbbbbb-4444-4000-8000-00000000000a'$$, '23514', null,
+  'an identifier starting with an underscore is rejected');
 select throws_ok(
   $$update public.campaigns set system = 'x; drop table campaigns' where id = 'bbbbbbbb-4444-4000-8000-00000000000a'$$, '23514', null,
   'an identifier with punctuation is rejected');

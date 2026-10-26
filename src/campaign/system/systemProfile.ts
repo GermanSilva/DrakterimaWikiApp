@@ -34,7 +34,7 @@ export interface SystemProfile {
 export const LABEL_MAX = 60
 const LEVEL_LIMIT = 1000
 
-export const DND5E_PROFILE: SystemProfile = {
+const DND5E: SystemProfile = {
   version: 1,
   character: {
     builtins: {
@@ -55,6 +55,20 @@ export const DND5E_PROFILE: SystemProfile = {
   },
   modules: { juegos: true, sesion_en_vivo: true, mapas: true, calendario: true },
 }
+
+function deepFreeze<T>(value: T): T {
+  if (typeof value === 'object' && value !== null) {
+    for (const child of Object.values(value)) deepFreeze(child)
+    Object.freeze(value)
+  }
+  return value
+}
+
+/** The D&D 5e document, deeply frozen: a reference to compare against, never something to hand out or edit. */
+export const DND5E_PROFILE: Readonly<SystemProfile> = deepFreeze(DND5E)
+
+/** A fresh, editable copy of the D&D 5e document. */
+export const dnd5eProfile = (): SystemProfile => JSON.parse(JSON.stringify(DND5E)) as SystemProfile
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const bool = (value: unknown, fallback: boolean) => (typeof value === 'boolean' ? value : fallback)
@@ -95,8 +109,8 @@ function denominations(raw: unknown, fallback: Denomination[]): Denomination[] {
 }
 
 export function parseSystemProfile(raw: unknown): SystemProfile {
-  if (!isRecord(raw) || raw.version !== 1) return DND5E_PROFILE
-  const defaults = DND5E_PROFILE
+  const defaults = dnd5eProfile()
+  if (!isRecord(raw) || raw.version !== 1) return defaults
   const builtins = isRecord(raw.character) && isRecord(raw.character.builtins) ? raw.character.builtins : {}
   const currency = isRecord(raw.currency) ? raw.currency : {}
   const modules = isRecord(raw.modules) ? raw.modules : {}
