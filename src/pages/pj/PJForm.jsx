@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'lucide-react'
-import { useFormActions, useFormPort } from '../../ports'
+import { useFormActions, useFormPort, useFormSystem } from '../../ports'
 import PJIdentityTab from './form/PJIdentityTab'
 import PJMechanicsTab from './form/PJMechanicsTab'
 import PJInventoryTab from './form/PJInventoryTab'
@@ -17,13 +17,12 @@ export default function PJForm({ item, openPicker }) {
   const { save, remove, closeForm, saving } = useFormActions()
   const { isDM, regions, ownCharacterIds = [], characterFields = [], playerAccess = false } = useFormPort()
   const isOwnPlayer = !isDM && item != null && ownCharacterIds.includes(item.id)
+  const { sections } = useFormSystem().character
 
   const TABS = [
     { id: 'identidad', label: 'Identidad' },
-    ...(!isOwnPlayer ? [
-      { id: 'mecanicas', label: 'Mecánicas' },
-      { id: 'inventario', label: 'Equipo & Rasgos' },
-    ] : []),
+    ...(!isOwnPlayer && (sections.stats || sections.habilidades || sections.hechizos) ? [{ id: 'mecanicas', label: 'Mecánicas' }] : []),
+    ...(!isOwnPlayer && (sections.ataques || sections.hechizos || sections.recursos || sections.equipo || sections.rasgos) ? [{ id: 'inventario', label: 'Equipo & Rasgos' }] : []),
   ]
   const [tab, setTab] = useState('identidad')
 

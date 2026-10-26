@@ -3,6 +3,8 @@ import { Lock, Shield } from 'lucide-react'
 import { ABILITY_SCORES } from './pjConstants'
 import { abilityMod, signedBonus } from '../../helpers/pjCalc'
 import { plainText } from '../../helpers'
+import { DND5E_PROFILE } from '../../campaign/system/systemProfile'
+import { identityTag } from './pjIdentity'
 
 function ModStatBox({ label, base }) {
   const mod = abilityMod(base)
@@ -22,9 +24,11 @@ function ModStatBox({ label, base }) {
  * `hasDmNotes` shows the DM lock; `regionTag` is the host's region tag (legacy palette / campaign regions).
  */
 /**
- * @param {{ pj: Record<string, any>, hasDmNotes?: boolean, regionTag?: import('react').ReactNode }} props
+ * @param {{ pj: Record<string, any>, hasDmNotes?: boolean, regionTag?: import('react').ReactNode, system?: import('../../campaign/system/systemProfile').SystemProfile }} props
  */
-export function PJCardContent({ pj, hasDmNotes = false, regionTag = null }) {
+export function PJCardContent({ pj, hasDmNotes = false, regionTag = null, system = DND5E_PROFILE }) {
+  const { builtins } = system.character
+  const identity = identityTag(pj, builtins)
   const hasStats = pj.stat_hp || pj.stat_ac || pj.stat_str || pj.stat_dex || pj.stat_con || pj.stat_int || pj.stat_wis || pj.stat_cha
 
   return (
@@ -44,8 +48,8 @@ export function PJCardContent({ pj, hasDmNotes = false, regionTag = null }) {
         {pj.jugador || <span className="text-txt-muted">Sin asignar</span>}
       </div>
       <div className="flex flex-wrap gap-[5px] mb-2.5">
-        <Tag cls="pj" text={`${pj.clase || '?'} - Nv. ${pj.nivel || 1}`} />
-        {pj.raza && <Tag cls="neutral" text={pj.raza} />}
+        {identity && <Tag cls="pj" text={identity} />}
+        {builtins.raza.enabled && pj.raza && <Tag cls="neutral" text={pj.raza} />}
         {pj.region && regionTag}
         {pj.estado === 'borrador' && <Tag cls="borrador" text="Borrador" />}
         {pj.estado === 'secreto' && <Tag cls="secreto" text="Secreto" />}

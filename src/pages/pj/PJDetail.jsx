@@ -1,4 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
+import { DND5E_PROFILE } from '../../campaign/system/systemProfile'
+import { identityTag } from './pjIdentity'
 import { useUnreadPort } from '../../ports'
 import useStickyTitle, { HEADER_H } from '../../hooks/useStickyTitle'
 import { Tag } from '../../components/Shared'
@@ -52,12 +54,15 @@ const SECTION_ID_PREFIX = 'pj-section-'
  * @param {import('react').ReactNode} [props.regionTag]
  * @param {string} [props.regionColor] CSS colour of the "Personaje Jugador" eyebrow
  * @param {{key: string, label: string, flat?: boolean}[]} [props.customFields] campaign character fields
+ * @param {import('../../campaign/system/systemProfile').SystemProfile} [props.system] system document of the campaign: its built-ins name the identity tags and its sheet blocks decide which sections exist (default: D&D 5e)
  * @param {string} [props.motivoLabel] title of the narrative `motivo` section (the narrative section defaults to "Motivación")
  */
-export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = false, back, actions = null, regionTag = null, regionColor, customFields = LEGACY_CHARACTER_FIELDS, motivoLabel }) {
+export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = false, back, actions = null, regionTag = null, regionColor, customFields = LEGACY_CHARACTER_FIELDS, motivoLabel, system = DND5E_PROFILE }) {
   const unreadPort = useUnreadPort()
 
-  const visibleSections = SECTIONS.filter(s => s.show(pj))
+  const visibleSections = SECTIONS.filter(s => system.character.sections[s.id] && s.show(pj))
+  const { builtins } = system.character
+  const identity = identityTag(pj, builtins)
   const hasDMNotes = isDM && !!notas
 
   const unread = Object.fromEntries(
@@ -200,8 +205,8 @@ export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = f
             <h1 ref={nameRef} className="font-exo text-[26px] font-bold text-txt-primary uppercase">{pj.nombre}</h1>
             <div className="font-exo text-[16px] font-semibold uppercase text-txt-muted -mt-1">{pj.jugador}</div>
             <div className="flex flex-wrap gap-1.5 mt-2.5">
-              <Tag cls="pj" text={`${pj.clase || '?'} - Nv. ${pj.nivel || 1}`} />
-              {pj.raza && <Tag cls="neutral" text={pj.raza} />}
+              {identity && <Tag cls="pj" text={identity} />}
+              {builtins.raza.enabled && pj.raza && <Tag cls="neutral" text={pj.raza} />}
               {pj.region && regionTag}
               {pj.alineamiento && <Tag cls="neutral" text={pj.alineamiento} />}
               {pj.estado === 'borrador' && <Tag cls="borrador" text="Borrador" />}

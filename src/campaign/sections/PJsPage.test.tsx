@@ -4,6 +4,7 @@ import { here } from '../../app/testing/renderApp'
 import type { EntityFormRequest } from '../entityFormContext'
 import { createFakeLayer } from '../testing/fakeLayer'
 import { entity, observers, renderSection } from '../testing/renderSection'
+import { dnd5eProfile, type SystemProfile } from '../system/systemProfile'
 
 configure({ asyncUtilTimeout: 5000 })
 
@@ -470,5 +471,60 @@ describe('PJ detail', () => {
     const { router } = renderSection('/c/demo/pjs/1', { layer })
     fireEvent.click(await screen.findByText('Kardevir', { selector: 'span.cursor-pointer' }))
     expect(here(router)).toBe('/c/demo/pnjs/4')
+  })
+})
+
+describe('PJs under a campaign system document', () => {
+  const profile = (edit: (system: SystemProfile) => void) => {
+    const system = dnd5eProfile()
+    edit(system)
+    return { system_profile: system as unknown as Record<string, unknown> }
+  }
+  const SPELLS = pj(7, { nombre: 'Lira', jugador: 'Eva', clase: 'Maga', raza: 'Elfa', nivel: 4, hechizos: [{ id: 1, nombre: 'Rayo', nivel: 1, preparado: true }], spell_slots: { '1': 2 } })
+
+  it('the card uses the renamed level and drops a disabled class', async () => {
+    const { layer } = createFakeLayer({ entities: { pjs: [ELDRIC] } })
+    renderSection('/c/demo/pjs', { layer, campaign: profile((s) => { s.character.builtins.clase.enabled = false; s.character.builtins.nivel.label = 'Rango' }) })
+    await waitFor(() => expect(cards()).toHaveLength(1))
+    const card = within(cards()[0])
+    expect(card.getByText('Rango 5')).toBeInTheDocument()
+    expect(card.queryByText(/Paladín/)).toBeNull()
+    expect(card.getByText('Humano')).toBeInTheDocument()
+  })
+
+  it('the card shows no identity tag for a disabled level and class, and no race when disabled', async () => {
+    const { layer } = createFakeLayer({ entities: { pjs: [ELDRIC] } })
+    renderSection('/c/demo/pjs', { layer, campaign: profile((s) => { s.character.builtins.clase.enabled = false; s.character.builtins.nivel.enabled = false; s.character.builtins.raza.enabled = false }) })
+    await waitFor(() => expect(cards()).toHaveLength(1))
+    const card = within(cards()[0])
+    expect(card.queryByText(/Nv./)).toBeNull()
+    expect(card.queryByText('Humano')).toBeNull()
+    expect(card.getByText('Ana')).toBeInTheDocument()
+  })
+
+  it('the search only reads the built-ins that are on, and says so', async () => {
+    const { layer } = createFakeLayer({ entities: { pjs: PJS } })
+    renderSection('/c/demo/pjs?q=Paladín', { layer, campaign: profile((s) => { s.character.builtins.clase.enabled = false }) })
+    expect(await screen.findByPlaceholderText('Buscar por nombre, raza o jugador…')).toBeInTheDocument()
+    await waitFor(() => expect(main().queryAllByText('No hay personajes que coincidan.').length + cards().length).toBeGreaterThan(-1))
+    expect(cards()).toHaveLength(0)
+  })
+
+  it('the detail header follows the document and a switched-off block disappears from the sheet and the nav', async () => {
+    const { layer } = createFakeLayer({ entities: { pjs: [SPELLS] } })
+    renderSection('/c/demo/pjs/7', { layer, campaign: profile((s) => { s.character.builtins.nivel.label = 'Rango'; s.character.sections.hechizos = false }) })
+    await screen.findByRole('heading', { level: 1, name: 'Lira' })
+    expect(screen.getByText('Maga - Rango 4')).toBeInTheDocument()
+    expect(document.getElementById('pj-section-hechizos')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Hechizos/ })).toBeNull()
+    expect(document.getElementById('pj-section-stats')).not.toBeNull()
+  })
+
+  it('without a document the sheet still shows the spells block of a character that has spells', async () => {
+    const { layer } = createFakeLayer({ entities: { pjs: [SPELLS] } })
+    renderSection('/c/demo/pjs/7', { layer })
+    await screen.findByRole('heading', { level: 1, name: 'Lira' })
+    expect(document.getElementById('pj-section-hechizos')).not.toBeNull()
+    expect(screen.getByText('Maga - Nv. 4')).toBeInTheDocument()
   })
 })

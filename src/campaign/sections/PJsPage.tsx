@@ -8,6 +8,8 @@ import type { FlatEntity } from '../../data'
 import { isPjUnreadVia } from '../../helpers/pjSections'
 import PJDetail from '../../pages/pj/PJDetail'
 import { PJCardContent } from '../../pages/pj/PJCardContent'
+import { useSystem } from '../system/useSystem'
+import type { SystemProfile } from '../system/systemProfile'
 import { useUnreadPort } from '../../ports'
 import { parseCharacterFields } from '../adapters/hubFormPort'
 import { useCampaign, type CampaignContextValue } from '../CampaignContext'
@@ -40,6 +42,13 @@ const LABELS: EntityLabels = {
 const canViewPj = (pj: FlatEntity, { isDM, myCharacterIds }: CampaignContextValue): boolean =>
   isDM || pj.estado !== 'borrador' || myCharacterIds.includes(pj.id)
 
+/** The search box says which of the built-in fields it reads (the ones the campaign's system uses). */
+function searchPlaceholder(system: SystemProfile): string {
+  const { clase, raza } = system.character.builtins
+  const fields = ['nombre', ...(clase.enabled ? ['clase'] : []), ...(raza.enabled ? ['raza'] : []), 'jugador']
+  return `Buscar por ${fields.slice(0, -1).join(', ')} o ${fields[fields.length - 1]}…`
+}
+
 function PjView({ entity, listPath }: EntityViewProps) {
   const { campaign, isDM, myCharacterIds } = useCampaign()
   const navigate = useNavigate()
@@ -48,6 +57,7 @@ function PjView({ entity, listPath }: EntityViewProps) {
   const dm = useDmNotes('pjs', entity.id, entity.updated_at)
   const regionInfo = useRegionInfo()
   const customFields = useMemo(() => parseCharacterFields(campaign.character_custom_fields), [campaign.character_custom_fields])
+  const system = useSystem()
   const isOwnPlayer = !isDM && myCharacterIds.includes(entity.id)
 
   const edit = () => openForm({ type: 'pjs', id: entity.id, onRemoved: () => navigate(listPath) })
@@ -87,6 +97,7 @@ function PjView({ entity, listPath }: EntityViewProps) {
         regionTag={<RegionTag region={str(entity.region)} />}
         regionColor={regionInfo(str(entity.region)).color}
         customFields={customFields}
+        system={system}
       />
       {isDM && dm.status === 'error' && <DmNotice onRetry={dm.refresh}>No pudimos cargar las notas del DM.</DmNotice>}
     </>
@@ -95,10 +106,11 @@ function PjView({ entity, listPath }: EntityViewProps) {
 
 function PjCard({ pj, slug, hasDmNotes, dmStamp, search }: { pj: FlatEntity; slug: string; hasDmNotes: boolean; dmStamp: string | null; search: string }) {
   const unread = isPjUnreadVia(useUnreadPort(), pj, hasDmNotes, dmStamp)
+  const system = useSystem()
   return (
     <Link to={withSearch(entityPath(slug, 'pjs', pj.id), search)} className={`block ${entityCardCls}`}>
       <UnreadDot unread={unread} className="absolute top-2 right-2" />
-      <PJCardContent pj={pj} hasDmNotes={hasDmNotes} regionTag={<RegionTag region={str(pj.region)} />} />
+      <PJCardContent pj={pj} hasDmNotes={hasDmNotes} regionTag={<RegionTag region={str(pj.region)} />} system={system} />
     </Link>
   )
 }
@@ -108,6 +120,7 @@ function PjList() {
   const { campaign, isDM } = viewer
   const { items, loading, error, reload } = useEntities('pjs')
   const { openForm } = useEntityForm()
+  const system = useSystem()
   const { search } = useLocation()
   const [query, setQuery] = useUrlParam('q', '')
 
@@ -116,8 +129,9 @@ function PjList() {
   const lista = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return visible
-    return visible.filter((p) => [p.nombre, p.clase, p.raza, p.jugador].some((v) => str(v).toLowerCase().includes(q)))
-  }, [visible, query])
+    const { clase, raza } = system.character.builtins
+    return visible.filter((p) => [p.nombre, clase.enabled ? p.clase : '', raza.enabled ? p.raza : '', p.jugador].some((v) => str(v).toLowerCase().includes(q)))
+  }, [visible, query, system])
 
   return (
     <div>
@@ -134,7 +148,7 @@ function PjList() {
           type="search"
           aria-label="Buscar PJs"
           className="w-full bg-bg-card border border-border-light text-txt-primary px-3.5 py-2.5 font-barlow text-[13px] outline-none transition-colors focus:border-accent-dim placeholder:text-txt-muted"
-          placeholder="Buscar por nombre, clase, raza o jugador…"
+          placeholder={searchPlaceholder(system)}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />

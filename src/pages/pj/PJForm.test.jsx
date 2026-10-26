@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { FormActionsContext, FormPortContext } from '../../ports'
 import { createLegacyFormPort } from '../../legacy/legacyPorts'
 import PJForm from './PJForm'
+import { dnd5eProfile } from '../../campaign/system/systemProfile'
 
 function renderForm(item, port) {
   const actions = { save: vi.fn(), remove: vi.fn(), closeForm: vi.fn(), saving: false, activeFieldRef: createRef() }
@@ -76,5 +77,86 @@ describe('PJForm over a hub-style port', () => {
       </FormActionsContext.Provider>,
     )
     expect(screen.getByRole('button', { name: 'Guardar' })).toBeDisabled()
+  })
+})
+
+describe('PJForm over a campaign system document', () => {
+  const db = { pjs: [ELDRIC], sesiones: [] }
+  const withSystem = (edit) => {
+    const system = dnd5eProfile()
+    edit(system)
+    return { ...createLegacyFormPort({ db, isDM: true }), system }
+  }
+  const open = (edit) => renderForm(ELDRIC, withSystem(edit))
+  const tab = (name) => screen.queryByRole('button', { name })
+
+  it('without a document the form is the D&D 5e one', () => {
+    renderForm(ELDRIC, createLegacyFormPort({ db, isDM: true }))
+    expect(screen.getByText('Clase')).toBeInTheDocument()
+    expect(screen.getByText('Raza / Especie')).toBeInTheDocument()
+    expect(screen.getByText('Nivel')).toBeInTheDocument()
+    expect(screen.getByText('Experiencia (XP)')).toBeInTheDocument()
+    expect(tab('Mecánicas')).not.toBeNull()
+    expect(tab('Equipo & Rasgos')).not.toBeNull()
+  })
+
+  it('uses the names of the document, the level range, and drops a disabled built-in', () => {
+    open((s) => {
+      s.character.builtins.clase.enabled = false
+      s.character.builtins.raza.label = 'Ocupación'
+      s.character.builtins.nivel = { enabled: true, label: 'Rango', min: 0, max: 5 }
+    })
+    expect(screen.queryByText('Clase')).toBeNull()
+    expect(screen.getByText('Ocupación')).toBeInTheDocument()
+    const rango = screen.getByText('Rango').parentElement.querySelector('input')
+    expect(rango).toHaveAttribute('min', '0')
+    expect(rango).toHaveAttribute('max', '5')
+  })
+
+  it('drops the level when the built-in is disabled', () => {
+    open((s) => { s.character.builtins.nivel.enabled = false })
+    expect(screen.queryByText('Nivel')).toBeNull()
+  })
+
+  it('drops the D&D identity extras and the mechanics tab when the stats block is off', () => {
+    open((s) => { for (const k of ['stats', 'habilidades', 'hechizos']) s.character.sections[k] = false })
+    expect(screen.queryByText('Experiencia (XP)')).toBeNull()
+    expect(screen.queryByText('Trasfondo D&D')).toBeNull()
+    expect(screen.queryByText('Alineamiento')).toBeNull()
+    expect(tab('Mecánicas')).toBeNull()
+  })
+
+  it('keeps the mechanics tab while any of its blocks is on, and hides only the blocks that are off', () => {
+    open((s) => { s.character.sections.stats = false; s.character.sections.hechizos = false })
+    fireEvent.click(tab('Mecánicas'))
+    expect(screen.queryByText('Atributos')).toBeNull()
+    expect(screen.queryByText('Hechicería (opcional)')).toBeNull()
+    expect(screen.getByText('Habilidades')).toBeInTheDocument()
+  })
+
+  it('drops the equipment tab when none of its blocks is on, and the blocks that are off inside it', () => {
+    open((s) => { for (const k of ['ataques', 'hechizos', 'recursos', 'equipo', 'rasgos']) s.character.sections[k] = false })
+    expect(tab('Equipo & Rasgos')).toBeNull()
+  })
+
+  it('hides single blocks of the equipment tab', () => {
+    open((s) => { s.character.sections.ataques = false; s.character.sections.rasgos = false })
+    fireEvent.click(tab('Equipo & Rasgos'))
+    expect(screen.queryByText('Ataques')).toBeNull()
+    expect(screen.queryByText('Proficiencias & Rasgos')).toBeNull()
+    expect(screen.getByText('Equipo')).toBeInTheDocument()
+  })
+
+  it('drops the appearance and narrative blocks of the identity tab', () => {
+    open((s) => { s.character.sections.apariencia = false; s.character.sections.narrativa = false })
+    expect(screen.queryByText('Apariencia Física')).toBeNull()
+    expect(screen.queryByText('Personalidad')).toBeNull()
+    expect(screen.queryByText('Trasfondo & Campaña')).toBeNull()
+  })
+
+  it('a disabled built-in keeps its stored value in the payload (nothing is erased by switching it off)', () => {
+    const actions = open((s) => { s.character.builtins.clase.enabled = false })
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
+    expect(actions.save.mock.calls[0][1]).toMatchObject({ clase: 'Paladín', nivel: 5 })
   })
 })

@@ -1,4 +1,5 @@
 import { createContext, useContext, type MutableRefObject } from 'react'
+import { DND5E_PROFILE, type SystemProfile } from '../campaign/system/systemProfile'
 
 export interface Region {
   key: string
@@ -44,6 +45,8 @@ export interface FormPort {
   characterFields?: readonly CharacterField[]
   /** Label of the narrative `motivo` field (default "Motivación"; the legacy Drakterima app keeps its guild wording). */
   motivoLabel?: string
+  /** The system document of the campaign (character built-ins and sheet blocks). Absent = the D&D 5e document (legacy app). */
+  system?: Readonly<SystemProfile>
   /** Legacy only: the password-based player access of the Firebase app (hub: false, replaced by Auth). */
   playerAccess?: boolean
 }
@@ -54,6 +57,11 @@ export function useFormPort(): FormPort {
   const port = useContext(FormPortContext)
   if (!port) throw new Error('useFormPort must be used inside a FormPortContext provider (legacy or hub adapter)')
   return port
+}
+
+/** The system document the forms follow (D&D 5e when the host installs none). */
+export function useFormSystem(): Readonly<SystemProfile> {
+  return useFormPort().system ?? DND5E_PROFILE
 }
 
 export function regionLabelOf(regions: Region[], key: string | null | undefined): string {
