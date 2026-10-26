@@ -33,7 +33,7 @@ export function CampaignDashboard() {
 
   return (
     <>
-      <PanelHeader name={campaign.name} slug={campaign.slug} branding={campaign.branding} isDM={isDM} />
+      <PanelHeader name={campaign.name} branding={campaign.branding} />
       <StatsRow slug={campaign.slug} stats={stats} />
       <PanelSection id="panel-sesiones" title="Sesiones">
         <SessionTiles slug={campaign.slug} last={last} next={next} nextNumber={lastNumero + 1} />

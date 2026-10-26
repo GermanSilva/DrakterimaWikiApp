@@ -1,14 +1,9 @@
-import { Link } from 'react-router'
-import { MonitorPlay } from 'lucide-react'
 import { BrandMark } from '../../components/BrandMark'
-import { btnPrimary } from '../../constants'
 import { parseBannerUrl, parseLogoUrl } from '../branding'
 
 export interface PanelHeaderProps {
   name: string
-  slug: string
   branding: Record<string, unknown> | null | undefined
-  isDM: boolean
 }
 
 /**
@@ -16,7 +11,7 @@ export interface PanelHeaderProps {
  * campaign name, over an optional banner image. The banner is an <img>, never a CSS url(), so a stored value cannot
  * inject styles; only a strict https URL is rendered.
  */
-export function PanelHeader({ name, slug, branding, isDM }: PanelHeaderProps) {
+export function PanelHeader({ name, branding }: PanelHeaderProps) {
   const logo = parseLogoUrl(branding?.logo_url)
   const banner = parseBannerUrl(branding?.banner_url)
   return (
@@ -40,11 +35,6 @@ export function PanelHeader({ name, slug, branding, isDM }: PanelHeaderProps) {
           <h1 className="font-exo text-[26px] font-bold text-txt-primary tracking-[0.04em] uppercase leading-tight">Panel de campaña</h1>
           <p className="text-sm text-txt-secondary italic mt-1 truncate">{name}</p>
         </div>
-        {isDM && (
-          <Link to={`/c/${encodeURIComponent(slug)}/sesion-en-vivo`} className={`${btnPrimary} self-start inline-flex items-center gap-1.5 flex-shrink-0`}>
-            <MonitorPlay size={14} aria-hidden="true" /> Pantalla de sesión
-          </Link>
-        )}
       </div>
     </div>
   )

@@ -26,7 +26,7 @@ export function CampaignShell({ campaign, isDM, campaigns, userMenu }: CampaignS
   const { section } = useParams()
   const current = findSection(section)
   useDocumentTitle(formatTitle(current && (!current.dmOnly || isDM) && current.label, campaign.name))
-  const fullBleed =!!findSection(section)?.fullBleed && (isDM || !findSection(section)?.dmOnly)
+  const fullBleed = !!findSection(section)?.fullBleed && (isDM || !findSection(section)?.dmOnly)
   return (
     <div style={accentStyle(campaign.branding)} className="min-h-screen bg-bg-deep">
       <CampaignHeader
@@ -57,7 +57,7 @@ export function CampaignShell({ campaign, isDM, campaigns, userMenu }: CampaignS
           'max-md:hidden fixed top-[72px] z-[210] flex h-8 w-8 items-center justify-center',
           'bg-bg-card border border-border-base text-txt-secondary cursor-pointer shadow-lg',
           'transition-[left] duration-[250ms] ease-in-out hover:text-txt-primary hover:border-accent-dim',
-          collapsed ? 'left-2' : 'left-[248px]',
+          collapsed ? 'left-0' : 'left-[239px]',
         ].join(' ')}
       >
         {collapsed ? <PanelLeftOpen size={16} aria-hidden="true" /> : <PanelLeftClose size={16} aria-hidden="true" />}

@@ -67,16 +67,6 @@ describe('dashboard header', () => {
     const main = await panel()
     expect(main.queryByTestId('panel-banner')).toBeNull()
   })
-
-  it('offers the live session screen to the DM only', async () => {
-    setup({ isDM: true })
-    expect((await panel()).getByRole('link', { name: /Pantalla de sesión/i })).toHaveAttribute('href', '/c/demo/sesion-en-vivo')
-  })
-
-  it('hides the live session screen from a player', async () => {
-    setup({ isDM: false })
-    expect((await panel()).queryByRole('link', { name: /Pantalla de sesión/i })).toBeNull()
-  })
 })
 
 describe('dashboard stats', () => {
