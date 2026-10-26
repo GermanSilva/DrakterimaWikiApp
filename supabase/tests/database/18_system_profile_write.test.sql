@@ -2,7 +2,7 @@
 -- validate_system_profile() and the DM-only write RPC set_system_profile(). Self-contained fixture, rolled back at the end.
 begin;
 
-select plan(42);
+select plan(52);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -40,12 +40,12 @@ create function tests.valid() returns jsonb language sql immutable as $$
       "builtins": {
         "clase": {"enabled": false, "label": "Clase"},
         "raza": {"enabled": true, "label": "  Ocupación  "},
-        "nivel": {"enabled": true, "label": "Rango", "min": 0, "max": 5}
+        "nivel": {"enabled": true, "label": "Rango", "min": 0, "max": 5, "unknown_nested": 1}
       },
       "sections": {"stats": true, "habilidades": false, "ataques": false, "hechizos": false, "recursos": true,
                    "equipo": true, "rasgos": true, "narrativa": true, "apariencia": false}
     },
-    "currency": {"enabled": true, "denominations": [{"key": "gp", "label": "  créditos "}, {"key": "cp", "label": "chatarra"}]},
+    "currency": {"enabled": true, "denominations": [{"key": "gp", "label": "  créditos ", "unknown_nested": 2}, {"key": "cp", "label": "chatarra"}]},
     "modules": {"juegos": false, "sesion_en_vivo": true, "mapas": true, "calendario": true},
     "unknown_top_level": {"dropped": true}
   }$profile$::jsonb;
@@ -67,15 +67,20 @@ grant execute on all functions in schema tests to anon, authenticated;
 insert into auth.users (instance_id, id, aud, role, email, raw_user_meta_data)
 select '00000000-0000-0000-0000-000000000000', ('aaaaaaaa-5555-4000-8000-00000000000' || n)::uuid,
        'authenticated', 'authenticated', 'sysw-u' || n || '@example.test', json_build_object('full_name', 'Sysw User ' || n)::jsonb
-from generate_series(1, 4) as n;
+from generate_series(1, 5) as n;
 
 insert into public.hub_owners (user_id) values ('aaaaaaaa-5555-4000-8000-000000000001');
 
 insert into public.campaigns (id, slug, name, created_by) values
   ('bbbbbbbb-5555-4000-8000-00000000000a', 'sysw-a', 'Sysw A', 'aaaaaaaa-5555-4000-8000-000000000002');
+insert into public.campaigns (id, slug, name, created_by) values
+  ('bbbbbbbb-5555-4000-8000-00000000000b', 'sysw-b', 'Sysw B', 'aaaaaaaa-5555-4000-8000-000000000005');
 insert into public.campaign_members (campaign_id, user_id, role) values
   ('bbbbbbbb-5555-4000-8000-00000000000a', 'aaaaaaaa-5555-4000-8000-000000000002', 'dm'),
-  ('bbbbbbbb-5555-4000-8000-00000000000a', 'aaaaaaaa-5555-4000-8000-000000000003', 'player');
+  ('bbbbbbbb-5555-4000-8000-00000000000a', 'aaaaaaaa-5555-4000-8000-000000000003', 'player'),
+  ('bbbbbbbb-5555-4000-8000-00000000000b', 'aaaaaaaa-5555-4000-8000-000000000005', 'dm');
+-- user 3 owns a character of campaign A
+insert into public.pjs (id, campaign_id, owner_id, nombre) values (96001, 'bbbbbbbb-5555-4000-8000-00000000000a', 'aaaaaaaa-5555-4000-8000-000000000003', 'Pj del jugador');
 
 ------------------------------------------------------------------------------
 -- Structure and privileges
@@ -148,6 +153,14 @@ select throws_ok(
   $$select public.set_system_profile('bbbbbbbb-5555-4000-8000-00000000000a', tests.valid(), now())$$,
   '42501', null, 'anon cannot call it');
 
+select tests.as_user('aaaaaaaa-5555-4000-8000-000000000005');
+select throws_ok($$select tests.try(tests.valid())$$, '42501', 'dm_only', 'the DM of ANOTHER campaign cannot write this one');
+select tests.as_user('aaaaaaaa-5555-4000-8000-000000000003');
+select throws_ok($$select tests.try(tests.valid())$$, '42501', 'dm_only', 'the owner of a character of the campaign cannot write it');
+select throws_ok(
+  $$select public.set_system_profile('bbbbbbbb-5555-4000-8000-0000000000ff', tests.valid(), now())$$,
+  '42501', 'dm_only', 'a non-DM learns nothing about whether a campaign id exists');
+
 ------------------------------------------------------------------------------
 -- set_system_profile as the DM
 ------------------------------------------------------------------------------
@@ -175,15 +188,21 @@ select is(
     "modules": {"juegos": false, "sesion_en_vivo": true, "mapas": true, "calendario": true}
   }$profile$::jsonb,
   'the stored document is the NORMALISED one: labels trimmed, unknown keys dropped');
+create temp table snap as select system_profile from public.campaigns where id = 'bbbbbbbb-5555-4000-8000-00000000000a';
+grant select on snap to authenticated;
 select throws_ok(
-  $$select public.set_system_profile('bbbbbbbb-5555-4000-8000-00000000000a', tests.valid(), (select updated_at - interval '1 day' from base))$$,
-  'P0001', 'campaign_conflict', 'a stale base is a conflict and writes nothing');
+  $$select public.set_system_profile('bbbbbbbb-5555-4000-8000-00000000000a', jsonb_set(tests.valid(), '{modules,mapas}', 'false'), (select updated_at - interval '1 day' from base))$$,
+  'P0001', 'campaign_conflict', 'a stale base is a conflict');
+select throws_ok(
+  $$select public.set_system_profile('bbbbbbbb-5555-4000-8000-00000000000a', jsonb_set(tests.valid(), '{modules,mapas}', 'false'), (select updated_at - interval '1 microsecond' from base))$$,
+  'P0001', 'campaign_conflict', 'a base only one microsecond off is a conflict too');
+select is((select system_profile from public.campaigns where id = 'bbbbbbbb-5555-4000-8000-00000000000a'), (select system_profile from snap), 'the conflicts wrote nothing');
 select throws_ok(
   $$select public.set_system_profile('bbbbbbbb-5555-4000-8000-00000000000a', tests.valid(), null)$$,
   'P0001', 'campaign_conflict', 'the base version is required');
 select is(
-  (select (public.set_system_profile('bbbbbbbb-5555-4000-8000-00000000000a', tests.valid(), (select updated_at from public.campaigns where id = 'bbbbbbbb-5555-4000-8000-00000000000a'))).slug),
-  'sysw-a', 'it returns the updated campaign row');
+  (select (public.set_system_profile('bbbbbbbb-5555-4000-8000-00000000000a', tests.valid(), (select updated_at from public.campaigns where id = 'bbbbbbbb-5555-4000-8000-00000000000a'))).system_profile #>> '{character,builtins,raza,label}'),
+  'Ocupación', 'it returns the updated campaign row, with the normalised document');
 
 ------------------------------------------------------------------------------
 -- Validation: every one of these is rejected with invalid_system_profile and writes nothing
@@ -195,6 +214,11 @@ select throws_ok($$select tests.try(jsonb_set(tests.valid(), '{character,builtin
 select throws_ok($$select tests.try(jsonb_set(tests.valid(), '{character,builtins,raza,label}', to_jsonb(repeat('x', 61))))$$, 'P0001', 'invalid_system_profile', 'a 61-character label is rejected');
 select lives_ok($$select tests.try(jsonb_set(tests.valid(), '{character,builtins,raza,label}', to_jsonb(repeat('x', 60))))$$, 'a 60-character label is accepted');
 select throws_ok($$select tests.try(jsonb_set(tests.valid(), '{character,builtins,raza,label}', to_jsonb(E'Oficio\nmalo'::text)))$$, 'P0001', 'invalid_system_profile', 'a label with a control character is rejected');
+select throws_ok($$select tests.try(jsonb_set(tests.valid(), '{character,builtins,raza,label}', to_jsonb(U&'ab\202Ecd'::text)))$$, 'P0001', 'invalid_system_profile', 'a bidi override in a label is rejected');
+select throws_ok($$select tests.try(jsonb_set(tests.valid(), '{character,builtins,raza,label}', to_jsonb(U&'\200B'::text)))$$, 'P0001', 'invalid_system_profile', 'a zero-width-only label is rejected');
+select throws_ok($$select tests.try(jsonb_set(tests.valid(), '{character,builtins,raza,label}', to_jsonb(U&'\3000\00A0'::text)))$$, 'P0001', 'invalid_system_profile', 'a label made only of ideographic and non-breaking spaces is rejected');
+select lives_ok($$select tests.try(jsonb_set(tests.valid(), '{character,builtins,raza,label}', to_jsonb(repeat(U&'\00E9', 60))))$$, 'a label of 60 multi-byte characters is accepted (the limit counts characters)');
+select throws_ok($$select tests.try(jsonb_set(tests.valid(), '{character,builtins,nivel,max}', '1e400'))$$, 'P0001', 'invalid_system_profile', 'a huge nivel max is a clean rejection');
 select throws_ok($$select tests.try(jsonb_set(jsonb_set(tests.valid(), '{character,builtins,nivel,min}', '9'), '{character,builtins,nivel,max}', '3'))$$, 'P0001', 'invalid_system_profile', 'a nivel range with min > max is rejected');
 select throws_ok($$select tests.try(jsonb_set(tests.valid(), '{character,builtins,nivel,max}', '1001'))$$, 'P0001', 'invalid_system_profile', 'a nivel max above 1000 is rejected');
 select throws_ok($$select tests.try(jsonb_set(tests.valid(), '{character,builtins,nivel,min}', '-1'))$$, 'P0001', 'invalid_system_profile', 'a negative nivel min is rejected');

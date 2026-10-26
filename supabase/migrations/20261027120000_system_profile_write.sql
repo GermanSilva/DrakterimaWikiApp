@@ -7,7 +7,9 @@
 --   * pjs.nivel: the table check becomes 0..1000. The real range of a campaign is character.builtins.nivel.min/max of its
 --     document (enforced by the form and the DM-only write; a level of a character is never writable by its owner).
 --   * validate_system_profile(jsonb): INTERNAL (no API execute). Checks every part of the document and returns the
---     NORMALISED one: only the known keys survive, labels are trimmed. Errors are `invalid_system_profile` (P0001)
+--     NORMALISED one: only the known keys survive, labels are trimmed (spaces, no-break and ideographic spaces) and are
+--     rejected when they hold control, bidi or zero-width characters (the set public.strip_control_chars removes), so a
+--     label can never be blank-looking or spoof the text around it. Errors are `invalid_system_profile` (P0001)
 --     with the offending path in DETAIL.
 --   * set_system_profile(campaign, profile, base): the ONLY way to write campaigns.system_profile. DM of the campaign
 --     (a hub owner counts, see 20261025120000) only; `base` is the updated_at the editor was built from, a different
@@ -106,8 +108,8 @@ begin
     if jsonb_typeof(v_node -> 'label') is distinct from 'string' then
       raise exception 'invalid_system_profile' using detail = 'character.builtins.' || v_builtin || '.label';
     end if;
-    v_label := btrim(v_node ->> 'label');
-    if char_length(v_label) < 1 or char_length(v_label) > 60 or v_label ~ '[[:cntrl:]]' then
+    v_label := regexp_replace(v_node ->> 'label', '^[[:space:] 　]+|[[:space:] 　]+$', '', 'g');
+    if char_length(v_label) < 1 or char_length(v_label) > 60 or v_label <> public.strip_control_chars(v_label) then
       raise exception 'invalid_system_profile' using detail = 'character.builtins.' || v_builtin || '.label';
     end if;
     v_enabled := v_node -> 'enabled';
@@ -151,8 +153,8 @@ begin
        or jsonb_typeof(v_denom -> 'label') is distinct from 'string' then
       raise exception 'invalid_system_profile' using detail = 'currency.denominations';
     end if;
-    v_label := btrim(v_denom ->> 'label');
-    if char_length(v_label) < 1 or char_length(v_label) > 60 or v_label ~ '[[:cntrl:]]' then
+    v_label := regexp_replace(v_denom ->> 'label', '^[[:space:] 　]+|[[:space:] 　]+$', '', 'g');
+    if char_length(v_label) < 1 or char_length(v_label) > 60 or v_label <> public.strip_control_chars(v_label) then
       raise exception 'invalid_system_profile' using detail = 'currency.denominations';
     end if;
     v_seen := v_seen || v_key;
