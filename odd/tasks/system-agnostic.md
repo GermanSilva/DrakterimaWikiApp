@@ -18,9 +18,13 @@ campaign data change shape). Status: design agreed, nothing implemented yet.
 | ID | Specs | Scope | Commit | Done |
 |----|-------|-------|--------|------|
 | E1 | S1, S5 | Schema of the system document + migration: existing campaigns get the D&D 5e preset; drop the `system in ('dnd5e')` check. No visible change. | | [ ] |
-| E2 | S1-S3 | Configurable character sheet read from the document (types beyond text, more than 10 fields, built-in `clase`/`raza`/`nivel` become optional/renamable). | | [ ] |
+| E2a | S1-S3, S6 | HIGH RISK DB unit: profile gains `character.sections` (which sheet blocks exist: stats, habilidades, ataques, hechizos, recursos, equipo, rasgos, narrativa, apariencia; default all on, backfilled), `pjs.nivel` check relaxed 1..20 -> 0..1000, `validate_system_profile()` + the DM-only RPC `set_system_profile(campaign, profile, base)` (optimistic concurrency). | | [ ] |
+| E2b | S1-S3, S6 | Client: "Sistema" section in Ajustes (enable/rename clase, raza, nivel + range, toggle sheet blocks) and the form, detail, list and search honouring the document. | | [ ] |
+| E2c | S1-S3 | Typed custom fields (text, long text, number, choice) and more than 10 per campaign. | | [ ] |
 | E3 | S1-S3 | Configurable currency (or none) and vocabulary (labels for level, region, relations, roles). | | [ ] |
 | E4 | S1-S5 | Optional modules (Juegos/d20, Sesión en vivo, Mapas, Calendario) and templates (create from template, save as template). | | [ ] |
+
+Finding while scoping E2 (2026-10-26): the character sheet is far more D&D-specific than the three built-in columns: the form has Mecánicas (abilities str/dex/con/int/wis/cha, HP, skills, attacks, spells, resources) and Equipo & Rasgos tabs, the detail page has nine sections (stats, habilidades, ataques, hechizos, recursos, equipo, rasgos, narrativa, apariencia) and the identity tab has "Trasfondo D&D", "Alineamiento" and XP. Making the page agnostic therefore needs those blocks to be switchable per system, which is why E2 is split in E2a/E2b/E2c and the document gets `character.sections`.
 
 ## Open decisions
 

@@ -59,13 +59,15 @@ select is(
     "character": {"builtins": {
       "clase": {"enabled": true, "label": "Clase"},
       "raza": {"enabled": true, "label": "Raza"},
-      "nivel": {"enabled": true, "label": "Nivel", "min": 1, "max": 20}}},
+      "nivel": {"enabled": true, "label": "Nivel", "min": 1, "max": 20}},
+      "sections": {"stats": true, "habilidades": true, "ataques": true, "hechizos": true, "recursos": true,
+                   "equipo": true, "rasgos": true, "narrativa": true, "apariencia": true}},
     "currency": {"enabled": true, "denominations": [
       {"key": "pp", "label": "platino"}, {"key": "gp", "label": "oro"}, {"key": "ep", "label": "electrum"},
       {"key": "sp", "label": "plata"}, {"key": "cp", "label": "bronce"}]},
     "modules": {"juegos": true, "sesion_en_vivo": true, "mapas": true, "calendario": true}
   }$profile$::jsonb),
-  0::bigint, 'every campaign in the database (seed rows and the fixture) carries the FULL D&D 5e document, not just a version');
+  0::bigint, 'every campaign in the database (seed rows and the fixture) carries the FULL D&D 5e document (E1 parts plus the E2a sections), not just a version');
 select is(
   (select system_profile #> '{character,builtins}' from public.campaigns where id = 'bbbbbbbb-4444-4000-8000-00000000000a'),
   '{"clase": {"enabled": true, "label": "Clase"}, "raza": {"enabled": true, "label": "Raza"}, "nivel": {"enabled": true, "label": "Nivel", "min": 1, "max": 20}}'::jsonb,
