@@ -85,7 +85,7 @@ const HIDDEN_CHARS = /[\u0000-\u001f\u007f-\u009f\u00ad\u061c\u200b-\u200f\u202a
 const EDGE_BLANKS = /^[\t\n\v\f\r \u00a0\u3000]+|[\t\n\v\f\r \u00a0\u3000]+$/g
 
 /** A label as the database accepts it: trimmed, 1..60 characters (code points), no hidden characters. null when not valid. */
-function cleanLabel(value: unknown): string | null {
+export function cleanLabel(value: unknown): string | null {
   if (typeof value !== 'string') return null
   const text = value.replace(EDGE_BLANKS, '')
   if (text === '' || HIDDEN_CHARS.test(text) || Array.from(text).length > LABEL_MAX) return null

@@ -14,6 +14,7 @@ import { PlayersSettings } from './ajustes/PlayersSettings'
 import { PotSettings } from './ajustes/PotSettings'
 import { RegionsSettings } from './ajustes/RegionsSettings'
 import { SavedCampaignProvider } from './ajustes/SavedCampaignProvider'
+import { SystemSettings } from './ajustes/SystemSettings'
 
 /**
  * The stacked sections of the settings page. Each is one self-contained block that owns its data
@@ -31,6 +32,10 @@ function AjustesSections() {
 
       <AdminSection title="Regiones">
         <RegionsSettings />
+      </AdminSection>
+
+      <AdminSection title="Sistema">
+        <SystemSettings />
       </AdminSection>
 
       <AdminSection title="Campos de personaje">

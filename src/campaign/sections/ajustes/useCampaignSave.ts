@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ConflictError, type CampaignPatch } from '../../../data'
+import { ConflictError, DataError, type Campaign, type CampaignPatch } from '../../../data'
 import { useCampaign } from '../../CampaignContext'
 import { useCampaignServices } from '../../entities/campaignServicesContext'
 import { describeDataError } from '../../entities/errorMessages'
@@ -26,10 +26,11 @@ export function useCampaignSave() {
   const [saves, setSaves] = useState(0)
   const [notice, setNotice] = useState<Notice | null>(null)
 
-  async function save(patch: CampaignPatch, okText: string, failText: string): Promise<boolean> {
+  /** The guarded write shared by every editor: `write` gets the version to write against and returns the saved row. */
+  async function commit(write: (base: string) => Promise<Campaign>, okText: string, failText: string): Promise<boolean> {
     setNotice(null)
     try {
-      const row = await layer.campaigns.updateCampaign(campaignId, patch, campaign.updated_at)
+      const row = await write(campaign.updated_at)
       setSaved({ row, over: loaded })
       setSaves((n) => n + 1)
       setNotice({ kind: 'ok', text: okText })
@@ -41,11 +42,18 @@ export function useCampaignSave() {
         setNotice({ kind: 'error', text: 'La campaña cambió mientras la editabas. Cargamos los valores actuales: revisalos y guardá de nuevo.' })
         reload()
       } else {
-        setNotice({ kind: 'error', text: describeDataError(e, failText) })
+        const refused = e instanceof DataError && e.reason === 'invalid_system_profile'
+        setNotice({ kind: 'error', text: refused ? `El servidor no aceptó el sistema (parte: ${e.details ?? 'documento'}). Revisá los valores.` : describeDataError(e, failText) })
       }
       return false
     }
   }
 
-  return { campaign, notice, setNotice, saves, save }
+  const save = (patch: CampaignPatch, okText: string, failText: string) =>
+    commit((base) => layer.campaigns.updateCampaign(campaignId, patch, base), okText, failText)
+  /** Writes the whole system document through the validated RPC (the only door to `campaigns.system_profile`). */
+  const saveSystem = (profile: unknown, okText: string, failText: string) =>
+    commit((base) => layer.campaigns.setSystemProfile(campaignId, profile, base), okText, failText)
+
+  return { campaign, notice, setNotice, saves, save, saveSystem }
 }

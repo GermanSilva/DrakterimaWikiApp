@@ -94,6 +94,12 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
     campaignRow = { ...campaignRow, name: patch.name ?? campaignRow.name, branding, regions: patch.regions ?? campaignRow.regions, character_custom_fields: patch.character_custom_fields ?? campaignRow.character_custom_fields, updated_at: `u${++campaignVersion}` }
     return campaignRow
   })
+  // campaigns.setSystemProfile: same version guard as updateCampaign; stores the document it was given
+  const setSystemProfile = vi.fn(async (_id: string, profile: unknown, base: string) => {
+    if (campaignRow.updated_at !== base) throw new ConflictError()
+    campaignRow = { ...campaignRow, system_profile: profile as Campaign['system_profile'], updated_at: `u${++campaignVersion}` }
+    return campaignRow
+  })
   // invites: an in-memory table; create/revoke change what the next list returns, like the real repository
   let inviteRows = [...(options.invites ?? [])]
   let inviteSeq = 0
@@ -163,12 +169,12 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
       remove: vi.fn(async () => undefined),
       busySlots: busySlotsList,
     },
-    campaigns: { listMembers: membersList, updateMemberRole, removeMember, setPjOwner, deleteCampaign, updateCampaign, listInvites: invitesList, createInvite: invitesCreate, revokeInvite: invitesRevoke },
+    campaigns: { listMembers: membersList, updateMemberRole, removeMember, setPjOwner, deleteCampaign, updateCampaign, setSystemProfile, listInvites: invitesList, createInvite: invitesCreate, revokeInvite: invitesRevoke },
     games: { getPot: potGet, listLogs: gameLogsList, playLoteria: vi.fn(), assignPotToCharacter: vi.fn(), removeLog: vi.fn(async () => undefined) },
     presence: { touch: presenceTouch, list: presenceList },
     playerNotes: { list: playerNotesList, upsert: vi.fn(), update: vi.fn(), remove: vi.fn() },
   } as unknown as DataLayer
-  return { layer, fake, spies: { updateMemberRole, removeMember, setPjOwner, deleteCampaign, updateCampaign, invitesList, invitesCreate, invitesRevoke, presenceTouch, presenceList, membersList, busySlotsList, disponibilidadList, playerAvailabilityList, potGet, gameLogsList, playerNotesList, configGet, configPatch, configRows, entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
+  return { layer, fake, spies: { updateMemberRole, removeMember, setPjOwner, deleteCampaign, updateCampaign, setSystemProfile, invitesList, invitesCreate, invitesRevoke, presenceTouch, presenceList, membersList, busySlotsList, disponibilidadList, playerAvailabilityList, potGet, gameLogsList, playerNotesList, configGet, configPatch, configRows, entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
 }
 
 export const fakeUnread = (): UnreadPort & { markRead: ReturnType<typeof vi.fn> } => ({
