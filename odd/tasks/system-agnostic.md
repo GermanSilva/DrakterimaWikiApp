@@ -18,6 +18,8 @@ campaign data change shape). Status: design agreed, nothing implemented yet.
 
 - S9 (decision, user, 2026-10-27): "No, vamos con la segunda opción": the D&D 5e sheet is REBUILT with the builder (no legacy mode) and the existing character data is MIGRATED to the new structure. Consequence: parity with today's sheet (equipment subtotals and coins, passive perception, spell slots, suggested proficiency bonus, skills grid, attacks, resources, narrative, appearance) is a requirement of the preset, and the migration is a high-risk unit (reversible, dry-run first, own commit, independent verify).
 
+- S10 (design, 2026-10-27): the builder design lives in odd/design/sheet-builder.md (stages F1-F8 replace E2c/E3-sheet parts; E3 currency/vocabulary and E4 templates are folded in). Key idea: keys are identifiers, the D&D preset reuses today's data keys, so existing characters need no data rewrite beyond item id backfill.
+
 ## Stages (each its own reviewable unit; the DB ones are high risk: own commit, pgTAP, independent verify)
 
 | ID | Specs | Scope | Commit | Done |
