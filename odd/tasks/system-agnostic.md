@@ -16,6 +16,8 @@ campaign data change shape). Status: design agreed, nothing implemented yet.
 - S7 (user, 2026-10-26, verbatim in Log L5): the sheet structure is built freely by the DM: Categories (tabs of the character editor, not shown in the sheet) > Sections (groups of fields/tables) > display blocks. Fixed Identity category (Visibilidad, Nombre, Jugador, URL de imagen: not deletable). Data types: short text, paragraph, number, boolean; each datum custom or formula (formulas may reference compatible fields); per-field "editable por" (DM only / the character's player). Table types: Stat, Capacidades (linked to a Stat), Habilidad (Nombre, Categoría, free columns), Libre. Block display modes: Stat, Tile, Capacidades, Plano, Modal (Habilidad tables; the block names the categories to filter).
 - S8 (consequence): this supersedes the E2 approach of switching D&D blocks on and off and the old E2c (typed custom fields): typed fields become part of the builder. E2a/E2b stay valid for campaigns that keep the legacy D&D sheet.
 
+- S9 (decision, user, 2026-10-27): "No, vamos con la segunda opción": the D&D 5e sheet is REBUILT with the builder (no legacy mode) and the existing character data is MIGRATED to the new structure. Consequence: parity with today's sheet (equipment subtotals and coins, passive perception, spell slots, suggested proficiency bonus, skills grid, attacks, resources, narrative, appearance) is a requirement of the preset, and the migration is a high-risk unit (reversible, dry-run first, own commit, independent verify).
+
 ## Stages (each its own reviewable unit; the DB ones are high risk: own commit, pgTAP, independent verify)
 
 | ID | Specs | Scope | Commit | Done |
@@ -67,3 +69,4 @@ None.
    - Capacidades: (para tablas) Tiles con encabezado y lista vertical de filas (como actualmente se ven las Habilidades)
    - Plano: Tabla o campo sin estilo especial
    - Modal: (Para tablas Habilidad) Botón que abre un modal con sus datos ordenados según su tipo (Como funciona actualmente la visualización de hechizos). Un bloque con este tipo debe indicar qué categorias filtrar.
+- L6 (user, 2026-10-27): "No, vamos con la segunda opción." (in answer to: legacy mode + builder for new campaigns vs. rebuild D&D with the builder and migrate the data).
