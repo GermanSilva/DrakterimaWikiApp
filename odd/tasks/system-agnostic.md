@@ -13,6 +13,9 @@ campaign data change shape). Status: design agreed, nothing implemented yet.
 - S6 (decision, user): E2 keeps `clase`, `raza` and `nivel` as built-in columns that the profile can disable, rename, and (nivel) give a range; they are not moved into `data`.
 - S5 (design): the system is a document (jsonb) stored in the campaign: character fields, currency, vocabulary, active modules. Templates are the same document at hub level ("D&D 5e", "Genérico"); "basado en" is informational only; a campaign can be saved as a new template.
 
+- S7 (user, 2026-10-26, verbatim in Log L5): the sheet structure is built freely by the DM: Categories (tabs of the character editor, not shown in the sheet) > Sections (groups of fields/tables) > display blocks. Fixed Identity category (Visibilidad, Nombre, Jugador, URL de imagen: not deletable). Data types: short text, paragraph, number, boolean; each datum custom or formula (formulas may reference compatible fields); per-field "editable por" (DM only / the character's player). Table types: Stat, Capacidades (linked to a Stat), Habilidad (Nombre, Categoría, free columns), Libre. Block display modes: Stat, Tile, Capacidades, Plano, Modal (Habilidad tables; the block names the categories to filter).
+- S8 (consequence): this supersedes the E2 approach of switching D&D blocks on and off and the old E2c (typed custom fields): typed fields become part of the builder. E2a/E2b stay valid for campaigns that keep the legacy D&D sheet.
+
 ## Stages (each its own reviewable unit; the DB ones are high risk: own commit, pgTAP, independent verify)
 
 | ID | Specs | Scope | Commit | Done |
@@ -45,3 +48,22 @@ None.
 - Carry-over for E2b (from the verifier): send `updated_at` back as the string PostgREST returned (never through a JS Date: milliseconds would make every save a conflict); a save by another DM edit (name, settings, regions) also bumps updated_at and conflicts harmlessly.
 - E2b (2026-10-26): Ajustes "Sistema" section (rename/switch clase, raza, nivel, level range, nine sheet blocks) writes the whole document through set_system_profile with the version guard; the form port carries the document (`FormPort.system`, default D&D 5e) and the character form (identity, mechanics, equipment tabs), the detail sections, the list cards and the search follow it (sections off disappear, stored data is kept; the stats block also governs XP, "Trasfondo D&D" and "Alineamiento"; the stock labels keep their wording). vitest src 1747 passing, tsc clean, eslint 0 errors; checked in the browser against the local database (saved a customised document, the list shows "RANGO 1" without class, the search placeholder drops "clase", the detail has no spells block).
 - Open for E2c/E3: typed custom fields and more than 10 of them; the narrative/appearance fields of the form are still fixed D&D-style text boxes (only switchable as a block); the detail "Stats" block still labels HP/AC/abilities in D&D terms.
+- L5 (user, 2026-10-26):
+  Para que sea realmente agnóstico, la estructura de la ficha debe construirse libremente. El DM debe poder configurar "Categorías" (No visibles en la ficha) que funcionen como bloques que determinan las pestañas de la edición de personaje. Las Categorías contienen "Secciones", que son grupos de campos de información que pueden configurarse según cada necesidad, definiendo tipo de dato, tipo de visualización, Personalizable o de formula (Permitiendo incluir otros campos compatibles en la fórmula), y "editable por" para definir si el jugador del personaje puede editarlo.
+  La categoría por defecto y no eliminable debe ser identidad, con "Visibilidad", "Nombre", "Jugador" (Automático al asignar usuario) y "URL de imagen" como campos no eliminables.
+  Los tipos de Dato pueden ser Texto corto, Parrafo, Número, Verdadero/Falso (Boolean).
+  Cada dato puede ser: Personalizado o Formula.
+  Las tablas pueden ser de tipo:
+  - Stat: Nombre (Texto), Valor (Número), Modificador (Número o Formula).
+  - Capacidades: Nombre (Texto), Vinculado a Stat (Selector de stat para vincular Valor o Modificador), Valores (Columnas libres)
+  - Habilidad: Nombre (Texto), Categoría (Texto), Valores (columnas libres)
+  - Libre: Columnas con nombre y tipo de dato libre.
+  
+  Cada Sección puede ser configurada para determinar cómo se mostrarán sus datos:
+  - Se pueden configurar bloques para agrupar campos o títulos bajo una misma modalidad de visualización.
+  - Cada bloque puede tener los siguientes modos de visualización:
+   - Stat: (Para tablas) Tiles con orden vertical de contenido (como se ven actualmente los stats)
+   - Tile: (Para campos) Tiles con orden horizontal de contenido (como los tiles de Apariencia)
+   - Capacidades: (para tablas) Tiles con encabezado y lista vertical de filas (como actualmente se ven las Habilidades)
+   - Plano: Tabla o campo sin estilo especial
+   - Modal: (Para tablas Habilidad) Botón que abre un modal con sus datos ordenados según su tipo (Como funciona actualmente la visualización de hechizos). Un bloque con este tipo debe indicar qué categorias filtrar.
