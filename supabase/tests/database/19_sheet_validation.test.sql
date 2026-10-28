@@ -3,7 +3,7 @@
 -- which is the same path format the client validator (src/campaign/system/sheet/sheetModel.ts) reports.
 begin;
 
-select plan(41);
+select plan(45);
 
 create schema tests;
 
@@ -157,6 +157,12 @@ select is(tests.detail(tests.mut('{roles}', '{"nonsense":"extra"}')), 'sheet.rol
 -- 40-41: the sheet cannot be smuggled through the old validation
 select is(tests.detail(tests.doc() || '{"sheet":null}'::jsonb), 'sheet', 'a null sheet is rejected, not ignored');
 select is(tests.detail(tests.mut('{categories,0,sections,0,items,2,default}', to_jsonb(repeat('x', 4001)))), 'sheet.categories[0].sections[0].items[2].default', 'a default that does not match the type is rejected');
+
+-- 42-45: verifier findings (F1 DoS, F2 tab, F3 data slot collision, F5 default length in code points)
+select is(tests.detail(tests.mut('{categories,0,sections,0,items,3,formula}', to_jsonb('2 +' || chr(9) || '1'))), null, 'a tab inside a formula is accepted, as the client language allows it');
+select is(tests.detail(tests.mut('{categories,0,sections,0,items,2,key}', '"skill_athletics__bonus"')), 'sheet.categories[0].sections[0].items[2].key', 'a top level key cannot hold a double underscore, which separates row and column in data');
+select is(tests.detail(tests.with_sheet(jsonb_set(tests.sheet(), '{categories,0,label}', to_jsonb(repeat('x', 50000))))), 'sheet', 'a sheet over 48 KB is refused before it is walked');
+select is(tests.detail(tests.mut('{categories,0,sections,0,items,2}', jsonb_build_object('kind','field','key','bio','label','Bio','type','short','editableBy','dm','default',repeat(chr(128512),4001)))), 'sheet.categories[0].sections[0].items[2].default', 'a default over 4000 characters is rejected whatever they are');
 
 select * from finish();
 rollback;

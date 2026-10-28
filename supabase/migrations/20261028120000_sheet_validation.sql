@@ -65,10 +65,11 @@ begin
   if v_key !~ '^[a-z][a-z0-9_]{0,39}$' or v_key in ('constructor', 'prototype') then
     perform public._sheet_fail(p_path);
   end if;
-  if not p_scoped and v_key = any (array[
+  -- '__' separates a row from its column in `data` (row__col), so no top level key may hold it
+  if not p_scoped and (strpos(v_key, '__') > 0 or v_key = any (array[
        'nombre', 'jugador', 'imagen_url', 'visible_to', 'monedas', 'monedas_guardado', 'notas', 'sections_updated', 'id', 'nivel',
        'clase', 'raza', 'region', 'estado', 'owner_id', 'campaign_id', 'created_by', 'created_at', 'updated_at', 'data',
-       'valor', 'modificador']) then
+       'valor', 'modificador'])) then
     perform public._sheet_fail(p_path);
   end if;
   return v_key;
@@ -103,7 +104,9 @@ begin
     perform public._sheet_fail(p_path);
   end if;
   v_text := v #>> '{}';
-  if char_length(v_text) < 1 or char_length(v_text) > 500 or v_text !~ '^[a-z0-9_{}.+*/%()<>=!, -]+$' or btrim(v_text) = '' then
+  if char_length(v_text) < 1 or char_length(v_text) > 500
+     or v_text !~ ('^[a-z0-9_{}.+*/%()<>=!,' || chr(9) || ' -]+$')
+     or btrim(v_text, chr(9) || ' ') = '' then
     perform public._sheet_fail(p_path);
   end if;
   return v_text;
@@ -191,6 +194,10 @@ declare
   v_field jsonb; v_value jsonb; v_values numeric[]; v_col_keys text[]; v_cleaned text; v_ref_text text;
   v_item_count int;
 begin
+  -- Bound the work before walking anything: the loops below are quadratic in the number of keys.
+  if octet_length(p::text) > 49152 then
+    perform public._sheet_fail('');
+  end if;
   if jsonb_typeof(p) is distinct from 'object' then
     perform public._sheet_fail('');
   end if;
