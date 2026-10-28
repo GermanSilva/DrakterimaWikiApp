@@ -9,7 +9,8 @@ import type { Block, Category, Column, Field, Item, Sheet, Table } from './sheet
 
 /**
  * Keys of today's sheet with no counterpart yet:
- *  - spell_slots / spell_slots_current: objects keyed by spell level, not a scalar or a row list (F4/F5 decide).
+ *  - spell_slots / spell_slots_current: today objects keyed by spell level; the preset keeps them as the free table
+ *    `espacios_conjuro` (one row per level: level, total, spent). The data conversion belongs to the stored-data migration.
  *  - monedas / monedas_guardado: stored in their own jsonb columns, written by the DM and by the lottery/pot RPCs;
  *    the coin table below describes the denominations only (S12, S14).
  *  - custom_fields: the per-campaign custom fields, superseded by the builder itself.
@@ -83,6 +84,8 @@ const equipment = table('libre', 'equipo', 'Equipo', [
   col('portando', 'Portando', 'boolean'),
 ])
 
+const spellSlots: Table = { ...table('libre', 'espacios_conjuro', 'Espacios de conjuro', [col('nivel', 'Nivel', 'number', 'dm'), col('total', 'Total', 'number', 'dm'), col('gastados', 'Gastados', 'number', 'dm')]), editableBy: 'dm' } as Table
+
 const spells = table('habilidad', 'hechizos', 'Hechizos', [
   col('nombre', 'Nombre', 'short'),
   col('categoria', 'Categoría', 'short'),
@@ -155,8 +158,8 @@ const categories: Category[] = [
       {
         key: 'hechizos',
         label: 'Hechizos',
-        items: [...casting, spells],
-        blocks: [tiles('b_casting', casting), { key: 'b_spells', mode: 'modal', items: keys(spells), filterCategories: SPELL_CATEGORIES }],
+        items: [...casting, spellSlots, spells],
+        blocks: [tiles('b_casting', casting), plain('b_slots', spellSlots), { key: 'b_spells', mode: 'modal', items: keys(spells), filterCategories: SPELL_CATEGORIES }],
       },
     ],
   },

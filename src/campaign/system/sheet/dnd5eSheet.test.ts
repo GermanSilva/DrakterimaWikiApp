@@ -98,6 +98,14 @@ describe('the D&D 5e sheet preset', () => {
     })
   })
 
+  it('keeps spell slots as a free table with one row per spell level (level, total, spent)', () => {
+    const slots = items(DND5E_SHEET).find((item) => item.key === 'espacios_conjuro')
+    expect(slots).toMatchObject({ kind: 'table', type: 'libre', editableBy: 'dm' })
+    expect(slots && slots.kind === 'table' && 'columns' in slots && slots.columns.map((c) => c.key)).toEqual(['nivel', 'total', 'gastados'])
+    const section = DND5E_SHEET.categories.flatMap((c) => c.sections).find((s) => s.key === 'hechizos')
+    expect(section?.blocks.some((b) => b.mode === 'plano' && b.items.includes('espacios_conjuro'))).toBe(true)
+  })
+
   it('shows the spell list as a modal filtered by spell level', () => {
     const section = DND5E_SHEET.categories.flatMap((c) => c.sections).find((s) => s.key === 'hechizos')
     const modal = section?.blocks.find((b) => b.mode === 'modal')
