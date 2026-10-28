@@ -100,6 +100,7 @@ export const SHEET_LIMITS = {
   filterCategories: 20,
   coinValue: 1_000_000_000,
   text: 4000,
+  bytes: 40_000,
 } as const
 
 const KEY = /^[a-z][a-z0-9_]{0,39}$/
@@ -120,11 +121,13 @@ export function validateSheet(raw: unknown): SheetResult {
   const errors: SheetError[] = []
   const fail = (path: string, message: string) => void errors.push({ path, message })
 
+  // Bound the work before any walk: the database applies a (looser) cap too.
+  if (JSON.stringify(raw ?? null).length > SHEET_LIMITS.bytes) return { ok: false, errors: [{ path: '', message: 'the sheet is too large' }] }
   if (!isRecord(raw) || !Array.isArray(raw.categories)) return { ok: false, errors: [{ path: '', message: 'a sheet needs categories' }] }
 
   const globalKeys = new Map<string, string>() // key -> path, items, tables and rows share one namespace
   const claim = (key: unknown, path: string): string | null => {
-    if (typeof key !== 'string' || !KEY.test(key)) return void fail(path, 'invalid key'), null
+    if (typeof key !== 'string' || !KEY.test(key) || key.includes('__')) return void fail(path, 'invalid key'), null // '__' separates row and column in data
     if (RESERVED_KEYS.has(key)) return void fail(path, 'reserved key'), null
     if (globalKeys.has(key)) return void fail(path, `key already used at ${globalKeys.get(key)}`), null
     globalKeys.set(key, path)
@@ -232,7 +235,7 @@ export function validateSheet(raw: unknown): SheetResult {
               const ok =
                 (type === 'number' && typeof d === 'number' && Number.isFinite(d)) ||
                 (type === 'boolean' && typeof d === 'boolean') ||
-                ((type === 'short' || type === 'paragraph') && typeof d === 'string' && d.length <= SHEET_LIMITS.text)
+                ((type === 'short' || type === 'paragraph') && typeof d === 'string' && Array.from(d).length <= SHEET_LIMITS.text)
               if (ok) field.default = d as string | number | boolean
               else fail(`${ipath}.default`, 'default does not match the type')
             }

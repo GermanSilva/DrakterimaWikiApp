@@ -149,7 +149,7 @@ export function parseSystemProfile(raw: unknown): SystemProfile {
       sections: Object.fromEntries(SECTION_KEYS.map((key) => [key, bool(sections[key], defaults.character.sections[key])])) as Record<SectionKey, boolean>,
     },
     currency: { enabled, denominations: enabled && parsed.length === 0 ? defaults.currency.denominations : parsed },
-    ...(isRecord(raw.sheet) ? { sheet: raw.sheet } : {}),
+    ...(isRecord(raw.sheet) ? { sheet: JSON.parse(JSON.stringify(raw.sheet)) as Record<string, unknown> } : {}),
     modules: {
       juegos: bool(modules.juegos, defaults.modules.juegos),
       sesion_en_vivo: bool(modules.sesion_en_vivo, defaults.modules.sesion_en_vivo),

@@ -123,6 +123,14 @@ describe('parseSystemProfile', () => {
       expect(parseSystemProfile({ version: 1, sheet }).sheet).toEqual(sheet)
     })
 
+    it('hands over a copy, so editing the profile never edits the stored document', () => {
+      const stored = { version: 1, sheet: { categories: [], roles: {} } }
+      const profile = parseSystemProfile(stored)
+      expect(profile.sheet).not.toBe(stored.sheet)
+      ;(profile.sheet as { roles: Record<string, string> }).roles.hp = 'x'
+      expect(stored.sheet.roles).toEqual({})
+    })
+
     it('keeps a sheet this client would not accept instead of silently dropping it', () => {
       const odd = { categories: 'nope' }
       expect(parseSystemProfile({ version: 1, sheet: odd }).sheet).toEqual(odd)

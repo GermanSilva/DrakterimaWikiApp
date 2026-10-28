@@ -119,6 +119,36 @@ describe('validateSheet', () => {
     })
   })
 
+  describe('verifier findings', () => {
+    it('accepts a tab inside a formula', () => {
+      const sheet = base()
+      const field = sheet.categories[0].sections[0].items[3]
+      if (field.kind === 'field') field.formula = '2 +	1'
+      expect(validateSheet(sheet).ok).toBe(true)
+    })
+
+    it('rejects a top level key with a double underscore (it is the row/column separator in data)', () => {
+      const sheet = base()
+      sheet.categories[0].sections[0].items[2] = { kind: 'field', key: 'skill_athletics__bonus', label: 'X', type: 'number', editableBy: 'player' }
+      expect(errorsOf(sheet)).toContain('categories[0].sections[0].items[2].key')
+    })
+
+    it('rejects a sheet over the size cap before walking it', () => {
+      const sheet = base()
+      sheet.categories[0].label = 'x'.repeat(50000)
+      expect(errorsOf(sheet)).toContain('')
+    })
+
+    it('measures a text default in characters, not UTF-16 units', () => {
+      const sheet = base()
+      const field = (default_: string): Sheet['categories'][number]['sections'][number]['items'][number] => ({ kind: 'field', key: 'nivel_extra', label: 'Extra', type: 'short', editableBy: 'dm', default: default_ })
+      sheet.categories[0].sections[0].items[2] = field('😀'.repeat(2001))
+      expect(validateSheet(sheet).ok).toBe(true)
+      sheet.categories[0].sections[0].items[2] = field('😀'.repeat(4001))
+      expect(validateSheet(sheet).ok).toBe(false)
+    })
+  })
+
   describe('labels', () => {
     it.each(['', '   ', 'x'.repeat(61), 'a\u200bb', 'a\u202eb'])('rejects the label %j', (label) => {
       const sheet = base()
