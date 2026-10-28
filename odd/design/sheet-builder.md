@@ -43,7 +43,7 @@ Reproduces today's sheet: Identidad (+ Clase/Raza/Nivel/XP/Trasfondo/Alineamient
 ## 5. Security changes (HIGH RISK, own commits, pgTAP, independent verification)
 
 - `guard_pj_player_update`: the owner may write identity columns (nombre, imagen_url...) and the `data` keys the definition marks `editableBy: 'player'`, validated by type, range and size (strings capped, numbers finite, arrays of known item shapes, total size cap). The DM bypass stays. The SQL, `pjOwnerFields.ts` and its sync test are replaced by a derived rule.
-- The definition itself is DM-only through `set_system_profile` (already validated, optimistic concurrency); v2 validator in SQL checks structure, key uniqueness/format/reserved keys, references, cycles-free formulas (reference graph), limits (categories, sections, items, columns, formula length).
+- The definition itself is DM-only through `set_system_profile` (already validated, optimistic concurrency); v2 validator in SQL checks structure, key uniqueness/format/reserved keys, references, formula references that exist (charset and size; parsing and cycles stay in the client, the only evaluator) (reference graph), limits (categories, sections, items, columns, formula length).
 
 ## 6. Stages (each reviewable; DB ones also independently verified)
 
