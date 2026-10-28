@@ -22,6 +22,10 @@ campaign data change shape). Status: design agreed, nothing implemented yet.
 
 - S11 (decision, user, 2026-10-28, verbatim in Log L7): rows of Stat and Capacidades tables are defined by the DM in the sheet template (same rows for every character). The DM chooses whether the player may edit the non-structural values of those rows. Structural parts are editable ONLY from the sheet template, never on a character: Stat = "Nombre" and the modifier formula; Capacidades = "Stat asociado" and the capability name.
 
+- S12 (decision, user, 2026-10-28, verbatim in Log L8): coins are a SPECIAL TABLE that comes built in by default in every template; its rows define the denominations (for example oro/plata/bronce or Galeon/sickle/knut). Until the denominations are defined, lottery prizes cannot be defined and therefore the lottery game does not appear until the configuration is complete.
+
+- S13 (decision, user, 2026-10-28, verbatim in Log L8): the unread dot is per Section.
+
 ## Stages (each its own reviewable unit; the DB ones are high risk: own commit, pgTAP, independent verify)
 
 | ID | Specs | Scope | Commit | Done |
@@ -75,6 +79,7 @@ None.
    - Modal: (Para tablas Habilidad) Botón que abre un modal con sus datos ordenados según su tipo (Como funciona actualmente la visualización de hechizos). Un bloque con este tipo debe indicar qué categorias filtrar.
 - L6 (user, 2026-10-27): "No, vamos con la segunda opción." (in answer to: legacy mode + builder for new campaigns vs. rebuild D&D with the builder and migrate the data).
 - L7 (user, 2026-10-28, answer to design CONFIRM 1): "Las filas de tablas de stats y habilidades las define el DM, pero puede definir si el jugador puede editar sus valores no estructurales (\"Nombre\" y \"formula de modificador\" en Stats, y \"Stat asociado\" y \"Nombre de capacidad\" en Capacidades son estructurales y deben ser solo editables desde la plantilla de hoja de personaje)"
+- L8 (user, 2026-10-28, answer to design CONFIRM 2 and 3): "Creo que las monedas deben ser una tabla especial que viene integrada por defecto en las plantillas, y que esta pueda tener filas que definan sus diferentes denominaciones (por ejemplo: oro, plata, y bronce, o Galeon, sickle, y knut). Hasta no definir esto, que no se pueda definir los premios de la lotería, y por ende, que no figure el juego hasta completar la configuración. Para lo no leido, el punto puede ir por sección"
 
 ## Builder stages (odd/design/sheet-builder.md section 6)
 

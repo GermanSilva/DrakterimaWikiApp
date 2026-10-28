@@ -63,5 +63,6 @@ Order matters: F2/F3 do not change behaviour (the preset reproduces it); F4/F5 s
 ## 7. Open questions
 
 - **[CONFIRM 1] RESOLVED (S11/L7, 2026-10-28)**: Stat and Capacidades rows are defined in the sheet template. Per row, the DM decides `editableBy` for the non-structural values (Stat: Valor; Capacidades: the free value columns). Structural parts (Stat name + modifier formula; Capacidades linked stat + name) are never written on a character, only by the DM through `set_system_profile`. Habilidad and Libre rows still belong to each character (not covered by the answer; reopen if that was not the intent).
-- **[CONFIRM 2]** Coins as a special built-in item (proposal above) vs. dropping coins from the sheet and treating them as a Libre table (would lose the lottery/pot integration).
-- **[CONFIRM 3]** Unread dots per Section (proposal) vs. per Category.
+- **[CONFIRM 2] RESOLVED (S12/L8)**: coins are a special built-in table (kind `monedas`) present by default in every template; its rows are the denominations. No denominations => lottery prizes cannot be defined and the lottery game is hidden until configured. Still open: see CONFIRM 4.
+- **[CONFIRM 3] RESOLVED (S13/L8)**: unread dots per Section.
+- **[CONFIRM 4]** Do denominations have a conversion value (e.g. 1 oro = 10 plata = 100 bronce)? The pot, the lottery prizes and any total need a common base unit.
