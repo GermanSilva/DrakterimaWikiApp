@@ -33,6 +33,12 @@ export interface SystemProfile {
   character: { builtins: { clase: BuiltinField; raza: BuiltinField; nivel: LevelField }; sections: Record<SectionKey, boolean> }
   currency: { enabled: boolean; denominations: Denomination[] }
   modules: { juegos: boolean; sesion_en_vivo: boolean; mapas: boolean; calendario: boolean }
+  /**
+   * The character sheet as data (odd/design/sheet-builder.md), optional. Carried verbatim: the database validates it and
+   * rebuilds the document on every write, so a client that dropped it here would erase it on the next save. Read it
+   * through `validateSheet` (system/sheet/sheetModel.ts).
+   */
+  sheet?: Record<string, unknown>
 }
 
 export const LABEL_MAX = 60
@@ -143,6 +149,7 @@ export function parseSystemProfile(raw: unknown): SystemProfile {
       sections: Object.fromEntries(SECTION_KEYS.map((key) => [key, bool(sections[key], defaults.character.sections[key])])) as Record<SectionKey, boolean>,
     },
     currency: { enabled, denominations: enabled && parsed.length === 0 ? defaults.currency.denominations : parsed },
+    ...(isRecord(raw.sheet) ? { sheet: raw.sheet } : {}),
     modules: {
       juegos: bool(modules.juegos, defaults.modules.juegos),
       sesion_en_vivo: bool(modules.sesion_en_vivo, defaults.modules.sesion_en_vivo),

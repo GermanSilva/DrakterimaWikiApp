@@ -87,4 +87,10 @@ describe('validateSystem', () => {
     expect(result.ok).toBe(false)
     if (!result.ok) expect(Object.keys(result.errors).sort()).toEqual(['clase', 'range'])
   })
+
+  it('sends the stored sheet back untouched, so saving the Sistema section never erases it', () => {
+    const stored = { ...base(), sheet: { categories: [], roles: {} } }
+    const result = validateSystem(systemDraft(stored), stored)
+    expect(result.ok && result.profile.sheet).toEqual({ categories: [], roles: {} })
+  })
 })

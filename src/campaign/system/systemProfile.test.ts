@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DND5E_PROFILE, SECTION_KEYS, parseSystemProfile } from './systemProfile'
+import { DND5E_PROFILE, SECTION_KEYS, dnd5eProfile, parseSystemProfile } from './systemProfile'
 
 describe('DND5E_PROFILE', () => {
   it('is exactly what the application hard-codes today', () => {
@@ -114,5 +114,25 @@ describe('parseSystemProfile', () => {
   it('only keeps the five coin keys the character and pot columns can store', () => {
     const profile = parseSystemProfile({ version: 1, currency: { enabled: true, denominations: [{ key: 'zz', label: 'x' }, { key: 'ep', label: 'e' }] } })
     expect(profile.currency.denominations).toEqual([{ key: 'ep', label: 'e' }])
+  })
+
+  describe('sheet passthrough', () => {
+    const sheet = { categories: [{ key: 'c', label: 'C', sections: [] }], roles: {} }
+
+    it('hands the stored sheet over untouched, because the database is who validates it', () => {
+      expect(parseSystemProfile({ version: 1, sheet }).sheet).toEqual(sheet)
+    })
+
+    it('keeps a sheet this client would not accept instead of silently dropping it', () => {
+      const odd = { categories: 'nope' }
+      expect(parseSystemProfile({ version: 1, sheet: odd }).sheet).toEqual(odd)
+    })
+
+    it('has no sheet when the document has none or it is not an object', () => {
+      expect('sheet' in parseSystemProfile({ version: 1 })).toBe(false)
+      expect('sheet' in parseSystemProfile({ version: 1, sheet: [] })).toBe(false)
+      expect('sheet' in parseSystemProfile({ version: 1, sheet: null })).toBe(false)
+      expect('sheet' in dnd5eProfile()).toBe(false)
+    })
   })
 })
