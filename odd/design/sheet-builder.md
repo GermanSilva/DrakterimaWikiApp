@@ -62,6 +62,6 @@ Order matters: F2/F3 do not change behaviour (the preset reproduces it); F4/F5 s
 
 ## 7. Open questions
 
-- **[CONFIRM 1]** Are the ROWS of a Stat or Capacidades table defined by the DM in the sheet (same rows for every character: FUE, DES... and the skill list) with the values per character, or does each character add its own rows? Proposal: Stat and Capacidades rows are defined in the sheet; Habilidad and Libre rows belong to each character.
+- **[CONFIRM 1] RESOLVED (S11/L7, 2026-10-28)**: Stat and Capacidades rows are defined in the sheet template. Per row, the DM decides `editableBy` for the non-structural values (Stat: Valor; Capacidades: the free value columns). Structural parts (Stat name + modifier formula; Capacidades linked stat + name) are never written on a character, only by the DM through `set_system_profile`. Habilidad and Libre rows still belong to each character (not covered by the answer; reopen if that was not the intent).
 - **[CONFIRM 2]** Coins as a special built-in item (proposal above) vs. dropping coins from the sheet and treating them as a Libre table (would lose the lottery/pot integration).
 - **[CONFIRM 3]** Unread dots per Section (proposal) vs. per Category.

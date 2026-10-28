@@ -20,6 +20,8 @@ campaign data change shape). Status: design agreed, nothing implemented yet.
 
 - S10 (design, 2026-10-27): the builder design lives in odd/design/sheet-builder.md (stages F1-F8 replace E2c/E3-sheet parts; E3 currency/vocabulary and E4 templates are folded in). Key idea: keys are identifiers, the D&D preset reuses today's data keys, so existing characters need no data rewrite beyond item id backfill.
 
+- S11 (decision, user, 2026-10-28, verbatim in Log L7): rows of Stat and Capacidades tables are defined by the DM in the sheet template (same rows for every character). The DM chooses whether the player may edit the non-structural values of those rows. Structural parts are editable ONLY from the sheet template, never on a character: Stat = "Nombre" and the modifier formula; Capacidades = "Stat asociado" and the capability name.
+
 ## Stages (each its own reviewable unit; the DB ones are high risk: own commit, pgTAP, independent verify)
 
 | ID | Specs | Scope | Commit | Done |
@@ -72,3 +74,4 @@ None.
    - Plano: Tabla o campo sin estilo especial
    - Modal: (Para tablas Habilidad) Botón que abre un modal con sus datos ordenados según su tipo (Como funciona actualmente la visualización de hechizos). Un bloque con este tipo debe indicar qué categorias filtrar.
 - L6 (user, 2026-10-27): "No, vamos con la segunda opción." (in answer to: legacy mode + builder for new campaigns vs. rebuild D&D with the builder and migrate the data).
+- L7 (user, 2026-10-28, answer to design CONFIRM 1): "Las filas de tablas de stats y habilidades las define el DM, pero puede definir si el jugador puede editar sus valores no estructurales (\"Nombre\" y \"formula de modificador\" en Stats, y \"Stat asociado\" y \"Nombre de capacidad\" en Capacidades son estructurales y deben ser solo editables desde la plantilla de hoja de personaje)"
