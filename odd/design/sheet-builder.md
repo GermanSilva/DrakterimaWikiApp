@@ -66,3 +66,11 @@ Order matters: F2/F3 do not change behaviour (the preset reproduces it); F4/F5 s
 - **[CONFIRM 2] RESOLVED (S12/L8)**: coins are a special built-in table (kind `monedas`) present by default in every template; its rows are the denominations. No denominations => lottery prizes cannot be defined and the lottery game is hidden until configured. Still open: see CONFIRM 4.
 - **[CONFIRM 3] RESOLVED (S13/L8)**: unread dots per Section.
 - **[CONFIRM 4] RESOLVED (S14/L9)**: denominations have DM-defined equivalences. Model: each denomination row carries `value` = how many units of the base (smallest) denomination it is worth; the base row has value 1. The lottery stays hidden until denominations AND their values are defined.
+
+## 8. Decisions taken while implementing F2 (2026-10-28, reversible)
+
+- The sheet is stored as an OPTIONAL `sheet` key inside the existing `version: 1` document (not a version bump). The E2 components keep reading the document unchanged until F8; absent `sheet` = legacy behaviour. F2 adds no visible change.
+- Identity category is implicit (never stored). `sheet = { categories, roles }`.
+- Item kinds: field, table (stat | capacidades | habilidad | libre | monedas). Row values of Stat and Capacidades tables live flat at `data[row.key]` (Stat: valor; Capacidades: the first value column); extra Capacidades columns at `data[row.key + "__" + col.key]`. Habilidad and Libre rows are arrays at `data[table.key]`. Coins keep the `monedas` / `monedas_guardado` columns, keyed by the denomination row keys (S12/S14: each denomination row has `label` and integer `value` in base units).
+- Stat row: `{key,label,modifier:formula,editableBy}`; `editableBy` governs the value only. Capacidades row: `{key,label,stat,use:valor|modificador,editableBy}` (S11: label, stat and use are structural).
+- Formula scope: global refs are field keys, row keys, `{row.col}` and `nivel`; inside a table row, bare column names (and `valor` in a Stat modifier) resolve to that row first.
