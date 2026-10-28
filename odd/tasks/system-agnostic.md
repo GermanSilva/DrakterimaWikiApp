@@ -28,6 +28,8 @@ campaign data change shape). Status: design agreed, nothing implemented yet.
 
 - S14 (decision, user, 2026-10-28, verbatim in Log L9): denominations have conversion equivalences between them (for example 1 oro = 10 plata = 100 bronce), and the DM defines those equivalences too when configuring the campaign.
 
+- S15 (decision, user, 2026-10-28, verbatim in Log L10): spell slots are a free (Libre) table, one row per spell level (level, total, spent). Libre rows belong to each character, so the DM adds the levels on each sheet; the preset keeps the table editable by the DM only, as today.
+
 ## Stages (each its own reviewable unit; the DB ones are high risk: own commit, pgTAP, independent verify)
 
 | ID | Specs | Scope | Commit | Done |
@@ -83,9 +85,11 @@ None.
 - L7 (user, 2026-10-28, answer to design CONFIRM 1): "Las filas de tablas de stats y habilidades las define el DM, pero puede definir si el jugador puede editar sus valores no estructurales (\"Nombre\" y \"formula de modificador\" en Stats, y \"Stat asociado\" y \"Nombre de capacidad\" en Capacidades son estructurales y deben ser solo editables desde la plantilla de hoja de personaje)"
 - L8 (user, 2026-10-28, answer to design CONFIRM 2 and 3): "Creo que las monedas deben ser una tabla especial que viene integrada por defecto en las plantillas, y que esta pueda tener filas que definan sus diferentes denominaciones (por ejemplo: oro, plata, y bronce, o Galeon, sickle, y knut). Hasta no definir esto, que no se pueda definir los premios de la lotería, y por ende, que no figure el juego hasta completar la configuración. Para lo no leido, el punto puede ir por sección"
 - L9 (user, 2026-10-28, answer to design CONFIRM 4): "Si, pero esas equivalencias deben ser definidas tambien por el DM al configurar la campaña."
+- L10 (user, 2026-10-28, answer to: spell slots as a free table with one row per level, or a fixed 9-level D&D table): "Si, tabla libre."
 
 ## Builder stages (odd/design/sheet-builder.md section 6)
 
 - F1 (formula engine, pure TS, src/campaign/system/formula): done, commit 610df93. 44 tests written first (RED: module missing), vitest 141 files / 1943 PASS, tsc and eslint clean. Reserved reference segments (__proto__, constructor, prototype) are rejected at parse time; cycles are found with an iterative DFS. Risk: none (new unused module).
 - F2a (TS model + validator + D&D preset, src/campaign/system/sheet): done, commits 5e1c755 and 929f8fa. 62 + 11 tests written first (RED: modules missing; a defect found by the preset, column keys wrongly checked against app-owned names, fixed with a test first). The preset reuses today data keys and today unread section keys; parity tests compare it with pjConstants and pjOwnerFields (player-editable keys equal the owner guard list). Risk: none (unused module, nothing stored).
+- F2a addendum: spell slots added to the preset as table espacios_conjuro (S15), commit 62b4832, RED first, system tests 135 PASS, tsc and eslint clean.
 - F2b (SQL validator + backfill) DEFERRED on purpose: nothing writes a sheet until the builder UI (F7) and the preset has known gaps the model must still absorb (spell slots keyed by level, equipment price/coin conversion, spell category derived from level). Freezing the stored shape now would force a migration per model change. It moves just before F3, when the shape is stable. Known gaps are listed in DND5E_SHEET_GAPS.
