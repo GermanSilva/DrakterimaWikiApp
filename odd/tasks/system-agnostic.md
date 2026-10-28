@@ -26,6 +26,8 @@ campaign data change shape). Status: design agreed, nothing implemented yet.
 
 - S13 (decision, user, 2026-10-28, verbatim in Log L8): the unread dot is per Section.
 
+- S14 (decision, user, 2026-10-28, verbatim in Log L9): denominations have conversion equivalences between them (for example 1 oro = 10 plata = 100 bronce), and the DM defines those equivalences too when configuring the campaign.
+
 ## Stages (each its own reviewable unit; the DB ones are high risk: own commit, pgTAP, independent verify)
 
 | ID | Specs | Scope | Commit | Done |
@@ -80,6 +82,7 @@ None.
 - L6 (user, 2026-10-27): "No, vamos con la segunda opción." (in answer to: legacy mode + builder for new campaigns vs. rebuild D&D with the builder and migrate the data).
 - L7 (user, 2026-10-28, answer to design CONFIRM 1): "Las filas de tablas de stats y habilidades las define el DM, pero puede definir si el jugador puede editar sus valores no estructurales (\"Nombre\" y \"formula de modificador\" en Stats, y \"Stat asociado\" y \"Nombre de capacidad\" en Capacidades son estructurales y deben ser solo editables desde la plantilla de hoja de personaje)"
 - L8 (user, 2026-10-28, answer to design CONFIRM 2 and 3): "Creo que las monedas deben ser una tabla especial que viene integrada por defecto en las plantillas, y que esta pueda tener filas que definan sus diferentes denominaciones (por ejemplo: oro, plata, y bronce, o Galeon, sickle, y knut). Hasta no definir esto, que no se pueda definir los premios de la lotería, y por ende, que no figure el juego hasta completar la configuración. Para lo no leido, el punto puede ir por sección"
+- L9 (user, 2026-10-28, answer to design CONFIRM 4): "Si, pero esas equivalencias deben ser definidas tambien por el DM al configurar la campaña."
 
 ## Builder stages (odd/design/sheet-builder.md section 6)
 
