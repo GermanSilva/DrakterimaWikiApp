@@ -149,6 +149,48 @@ describe('validateSheet', () => {
     })
   })
 
+  describe('F3 findings (access rules)', () => {
+    it('rejects the key custom_fields: the guard always opens that legacy key to players', () => {
+      const sheet = base()
+      sheet.categories[0].sections[0].items[2] = { kind: 'field', key: 'custom_fields', label: 'X', type: 'short', editableBy: 'dm' }
+      expect(errorsOf(sheet)).toContain('categories[0].sections[0].items[2].key')
+    })
+
+    it('rejects a section keyed dm: its unread stamp is frozen for players', () => {
+      const sheet = base()
+      sheet.categories[0].sections[0].key = 'dm'
+      expect(errorsOf(sheet)).toContain('categories[0].sections[0].key')
+    })
+
+    it('rejects a DM column inside a table that the player may edit', () => {
+      const sheet = base()
+      sheet.categories[0].sections[0].items[2] = {
+        kind: 'table',
+        type: 'libre',
+        key: 'inv',
+        label: 'Inv',
+        columns: [{ key: 'price', label: 'Price', type: 'number', editableBy: 'dm' }],
+        editableBy: 'player',
+      }
+      expect(errorsOf(sheet)).toContain('categories[0].sections[0].items[2].columns[0].editableBy')
+    })
+
+    it('accepts a DM column inside a table only the DM edits', () => {
+      const sheet = base()
+      sheet.categories[0].sections[0].items[2] = {
+        kind: 'table',
+        type: 'libre',
+        key: 'inv',
+        label: 'Inv',
+        columns: [{ key: 'price', label: 'Price', type: 'number', editableBy: 'dm' }],
+        editableBy: 'dm',
+      }
+      sheet.categories[0].sections[0].blocks[2].items = ['prof'] // the replaced field is no longer there
+      const result = validateSheet(sheet)
+      expect(result.ok, JSON.stringify(result.ok ? [] : result.errors)).toBe(true)
+    })
+  })
+
   describe('labels', () => {
     it.each(['', '   ', 'x'.repeat(61), 'a\u200bb', 'a\u202eb'])('rejects the label %j', (label) => {
       const sheet = base()

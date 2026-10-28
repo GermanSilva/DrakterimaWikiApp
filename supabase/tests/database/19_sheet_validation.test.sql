@@ -3,7 +3,7 @@
 -- which is the same path format the client validator (src/campaign/system/sheet/sheetModel.ts) reports.
 begin;
 
-select plan(45);
+select plan(48);
 
 create schema tests;
 
@@ -163,6 +163,11 @@ select is(tests.detail(tests.mut('{categories,0,sections,0,items,3,formula}', to
 select is(tests.detail(tests.mut('{categories,0,sections,0,items,2,key}', '"skill_athletics__bonus"')), 'sheet.categories[0].sections[0].items[2].key', 'a top level key cannot hold a double underscore, which separates row and column in data');
 select is(tests.detail(tests.with_sheet(jsonb_set(tests.sheet(), '{categories,0,label}', to_jsonb(repeat('x', 50000))))), 'sheet', 'a sheet over 48 KB is refused before it is walked');
 select is(tests.detail(tests.mut('{categories,0,sections,0,items,2}', jsonb_build_object('kind','field','key','bio','label','Bio','type','short','editableBy','dm','default',repeat(chr(128512),4001)))), 'sheet.categories[0].sections[0].items[2].default', 'a default over 4000 characters is rejected whatever they are');
+
+-- 46-48: F3 findings (the access rules rely on these)
+select is(tests.detail(tests.mut('{categories,0,sections,0,items,2,key}', '"custom_fields"')), 'sheet.categories[0].sections[0].items[2].key', 'custom_fields is a reserved key: the guard always opens it to players');
+select is(tests.detail(tests.mut('{categories,0,sections,0,key}', '"dm"')), 'sheet.categories[0].sections[0].key', 'a section cannot be keyed dm (its unread stamp is frozen for players)');
+select is(tests.detail(tests.mut('{categories,0,sections,0,items,2}', '{"kind":"table","type":"libre","key":"inv","label":"Inv","columns":[{"key":"p","label":"P","type":"number","editableBy":"dm"}],"editableBy":"player"}')), 'sheet.categories[0].sections[0].items[2].columns[0].editableBy', 'a table open to players cannot hold a DM column');
 
 select * from finish();
 rollback;

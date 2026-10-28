@@ -8,7 +8,7 @@
 --     not restricted by the sheet (unchanged).
 --   * Values: only the keys a player CHANGES are judged, by the type the sheet gives them: short text <= 500 characters,
 --     paragraph <= 20000, number within +-1e12 (and the field min/max), boolean, table = array <= 500 rows / 200 KB whose
---     rows only use the columns the sheet defines (plus a numeric or string id). A value already stored is never
+--     rows only use the non-formula columns the sheet defines (plus a numeric or string id). A value already stored is never
 --     re-judged unless the player touches that key. Total character data may not grow past 256 KB.
 --   * Unread dots: the sections a player may stamp are the sheet's sections plus 'general' (never 'dm').
 --   * A campaign WITHOUT a sheet (or a caller that is not a member) keeps the legacy fixed lists, byte for byte.
@@ -137,7 +137,7 @@ begin
     union all
     select i ->> 'key',
            jsonb_build_object('t', 'table',
-             'cols', (select coalesce(jsonb_object_agg(c ->> 'key', c ->> 'type'), '{}'::jsonb) from jsonb_array_elements(i -> 'columns') c))
+             'cols', (select coalesce(jsonb_object_agg(c ->> 'key', c ->> 'type'), '{}'::jsonb) from jsonb_array_elements(i -> 'columns') c where not (c ? 'formula')))
       from jsonb_path_query(v_sheet, '$.categories[*].sections[*].items[*]') i
      where i ->> 'kind' = 'table' and i ->> 'type' in ('libre', 'habilidad') and i ->> 'editableBy' = 'player'
   ) q;
@@ -224,7 +224,9 @@ begin
       from jsonb_array_elements_text(v_access -> 'keys') k;
     select coalesce(array_agg(s), '{}'::text[]) into v_stampable
       from jsonb_array_elements_text(v_access -> 'sections') s;
-    v_max_stamps := greatest(16, cardinality(v_stampable));
+    -- stamps already stored cannot be removed, so they count against the cap besides every stampable section
+    v_max_stamps := greatest(16, cardinality(v_stampable)
+      + (select count(*) from jsonb_object_keys(old.sections_updated) k where not (k = any (v_stampable)))::int);
   end if;
 
   if (to_jsonb(new) - allowed_columns) is distinct from (to_jsonb(old) - allowed_columns)

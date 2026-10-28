@@ -1,6 +1,6 @@
 /**
  * Who may write which `pjs.data` key, derived from the sheet (odd/design/sheet-builder.md sections 5 and 8). The database
- * derives the same list in `sheet_player_data_keys()` (migration 20261028140000); pgTAP 21 and the parity test in
+ * derives the same list in `sheet_guard_access()` (migration 20261028140000); pgTAP 21 and the parity test in
  * dnd5eSheet.test.ts keep the two from drifting apart. The DM is never restricted by the sheet.
  *
  * Where a value lives in `data`:

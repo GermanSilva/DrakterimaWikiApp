@@ -69,7 +69,7 @@ begin
   if not p_scoped and (strpos(v_key, '__') > 0 or v_key = any (array[
        'nombre', 'jugador', 'imagen_url', 'visible_to', 'monedas', 'monedas_guardado', 'notas', 'sections_updated', 'id', 'nivel',
        'clase', 'raza', 'region', 'estado', 'owner_id', 'campaign_id', 'created_by', 'created_at', 'updated_at', 'data',
-       'valor', 'modificador'])) then
+       'valor', 'modificador', 'custom_fields'])) then
     perform public._sheet_fail(p_path);
   end if;
   return v_key;
@@ -227,6 +227,9 @@ begin
         perform public._sheet_fail(v_spath);
       end if;
       v_key := public._sheet_key(v_sec.value -> 'key', v_spath || '.key', true);
+      if v_key = 'dm' then
+        perform public._sheet_fail(v_spath || '.key'); -- the dm unread stamp is frozen for players
+      end if;
       if v_key = any (v_sec_keys) then
         perform public._sheet_fail(v_spath || '.key');
       end if;
@@ -311,6 +314,14 @@ begin
             v_field := v_field || jsonb_build_object(
               'columns', public._sheet_columns(v_it.value -> 'columns', v_ipath || '.columns'),
               'editableBy', public._sheet_editor(v_it.value -> 'editableBy', v_ipath || '.editableBy'));
+            -- the guard judges these tables as one value, so a table the player writes cannot hold a DM column
+            if v_field ->> 'editableBy' = 'player' then
+              for v_row in select value, ordinality - 1 as i from jsonb_array_elements(v_field -> 'columns') with ordinality loop
+                if v_row.value ->> 'editableBy' = 'dm' then
+                  perform public._sheet_fail(v_ipath || '.columns[' || v_row.i || '].editableBy');
+                end if;
+              end loop;
+            end if;
             for v_row in select value, ordinality - 1 as i from jsonb_array_elements(v_field -> 'columns') with ordinality loop
               if v_row.value ? 'formula' then
                 select coalesce(array_agg(c ->> 'key'), '{}') into v_col_keys from jsonb_array_elements(v_field -> 'columns') c;

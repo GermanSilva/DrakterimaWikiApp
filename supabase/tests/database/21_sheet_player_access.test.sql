@@ -3,7 +3,7 @@
 -- sections. A campaign WITHOUT a sheet keeps the legacy fixed lists. Self-contained fixture, rolled back at the end.
 begin;
 
-select plan(42);
+select plan(45);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -80,7 +80,8 @@ create function tests.custom_profile() returns jsonb language sql stable as $$
           {"key": "sk_b", "label": "B", "stat": "str", "use": "modificador", "editableBy": "dm"}]},
         {"kind": "table", "type": "libre", "key": "inv", "label": "Inv", "columns": [
           {"key": "nombre", "label": "N", "type": "short", "editableBy": "player"},
-          {"key": "qty", "label": "Q", "type": "number", "editableBy": "player"}], "editableBy": "player"}
+          {"key": "qty", "label": "Q", "type": "number", "editableBy": "player"},
+          {"key": "total", "label": "T", "type": "number", "formula": "1", "editableBy": "player"}], "editableBy": "player"}
       ], "blocks": []},
       {"key": "beta", "label": "Beta", "items": [], "blocks": []}]}],
     "roles": {}
@@ -124,6 +125,7 @@ select is(tests.try($$ update public.pjs set data = data || '{"luck": "5"}' wher
 select is(tests.try($$ update public.pjs set data = data || '{"flag": "yes"}' where id = 97001 $$), '42501', 'a boolean sent as text is rejected');
 select is(tests.try($$ update public.pjs set data = data || '{"str": 10000000000000}' where id = 97001 $$), '42501', 'an absurdly large number is rejected');
 select is(tests.try($$ update public.pjs set data = data || '{"inv": [{"id": 1, "nombre": "x", "evil": 1}]}' where id = 97001 $$), '42501', 'a table row with a column the sheet does not define is rejected');
+select is(tests.try($$ update public.pjs set data = data || '{"inv": [{"id": 1, "nombre": "x", "total": 5}]}' where id = 97001 $$), '42501', 'a formula column value is never writable, even inside an open table');
 select is(tests.try($$ update public.pjs set data = data || '{"inv": {"a": 1}}' where id = 97001 $$), '42501', 'a table value that is not an array is rejected');
 select is(tests.try($$ update public.pjs set data = data || '{"inv": [1]}' where id = 97001 $$), '42501', 'a table row that is not an object is rejected');
 select is(tests.try($$ update public.pjs set data = data || jsonb_build_object('inv', (select jsonb_agg(jsonb_build_object('nombre', 'x')) from generate_series(1, 501))) where id = 97001 $$), '42501', 'a table with more than 500 rows is rejected');
@@ -166,6 +168,16 @@ update public.campaigns set system_profile = system_profile - 'sheet' where id =
 select tests.as_user('eeeeeeee-0000-4000-8000-000000000002');
 select is(tests.try($$ update public.pjs set data = data || '{"alineamiento": "LB"}' where id = 97002 $$), 'ok', 'no sheet: the legacy identity keys are writable');
 select is(tests.try($$ update public.pjs set data = data || '{"ataques": [{"nombre": "sword"}]}' where id = 97002 $$), '42501', 'no sheet: the legacy restrictions still hold');
+
+------------------------------------------------------------------------------
+-- Stamps already stored never block the sections of the sheet (S13)
+------------------------------------------------------------------------------
+select tests.as_postgres();
+update public.pjs set sections_updated = (select jsonb_object_agg(k, '2020-01-01T00:00:00Z') from unnest(array['stats', 'habilidades', 'ataques', 'hechizos', 'recursos', 'equipo', 'rasgos', 'narrativa', 'apariencia', 'general', 'dm']) k) where id = 97002;
+update public.campaigns set system_profile = system_profile || jsonb_build_object('sheet', jsonb_build_object('categories', jsonb_build_array(jsonb_build_object('key', 'c', 'label', 'C', 'sections', (select jsonb_agg(jsonb_build_object('key', 'n' || s, 'label', 'S', 'items', '[]'::jsonb, 'blocks', '[]'::jsonb)) from generate_series(1, 8) s))), 'roles', '{}'::jsonb)) where id = 'ffffffff-0000-4000-8000-00000000000b';
+select tests.as_user('eeeeeeee-0000-4000-8000-000000000002');
+select is(tests.try($$ update public.pjs set sections_updated = sections_updated || (select jsonb_object_agg('n' || s, to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')) from generate_series(1, 8) s) where id = 97002 $$), 'ok', 'all eight sheet sections are stampable although eleven legacy stamps are already stored');
+select is(tests.try($$ update public.pjs set sections_updated = sections_updated || jsonb_build_object('n9', to_char(now() at time zone 'utc', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')) where id = 97002 $$), '42501', 'but a section the sheet does not define is still refused');
 
 ------------------------------------------------------------------------------
 -- The helper that exposes the rule

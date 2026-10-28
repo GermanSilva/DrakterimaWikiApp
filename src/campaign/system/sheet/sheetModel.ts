@@ -109,6 +109,7 @@ export const RESERVED_KEYS: ReadonlySet<string> = new Set([
   'nombre', 'jugador', 'imagen_url', 'visible_to', 'monedas', 'monedas_guardado', 'notas', 'sections_updated', 'id', 'nivel',
   'clase', 'raza', 'region', 'estado', 'owner_id', 'campaign_id', 'created_by', 'created_at', 'updated_at', 'data',
   'valor', 'modificador', 'constructor', 'prototype',
+  'custom_fields', // the legacy per-campaign custom fields: guard_pj_player_update always opens that key to players
 ])
 
 const PROTOTYPE_KEYS: ReadonlySet<string> = new Set(['constructor', 'prototype'])
@@ -290,7 +291,11 @@ export function validateSheet(raw: unknown): SheetResult {
               columns.forEach((col, ci2) => {
                 if (col.formula !== undefined) formulas.push({ path: `${ipath}.columns[${ci2}].formula`, key: `col:${key}.${col.key}`, text: col.formula, locals: columns.map((x) => x.key) })
               })
-              return { kind: 'table', type: item.type, key, label: name, columns, editableBy: editor(item.editableBy, `${ipath}.editableBy`) }
+              const tableEditor = editor(item.editableBy, `${ipath}.editableBy`)
+              // Rows of these tables belong to the character and the guard judges the table as one value, so a table the
+              // player can write cannot also hold a column only the DM may write.
+              if (tableEditor === 'player') columns.forEach((c, ci2) => c.editableBy === 'dm' && fail(`${ipath}.columns[${ci2}].editableBy`, 'a table the player edits cannot hold a DM column'))
+              return { kind: 'table', type: item.type, key, label: name, columns, editableBy: tableEditor }
             }
             if (item.type === 'monedas') {
               coinTables += 1
@@ -352,7 +357,9 @@ export function validateSheet(raw: unknown): SheetResult {
           }
           return block
         })
-        return { key: plainKey(sec.key, `${spath}.key`, sectionKeys), label: label(sec.label, `${spath}.label`), items, blocks }
+        const sectionKey = plainKey(sec.key, `${spath}.key`, sectionKeys)
+        if (sectionKey === 'dm') fail(`${spath}.key`, 'reserved key') // the dm unread stamp is frozen for players
+        return { key: sectionKey, label: label(sec.label, `${spath}.label`), items, blocks }
       }),
     }
   })
