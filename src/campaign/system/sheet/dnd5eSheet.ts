@@ -53,7 +53,9 @@ const skillsTable: Table = {
   ),
 }
 
-const table = (type: 'libre' | 'habilidad', key: string, label: string, columns: Column[]): Table => ({ kind: 'table', type, key, label, columns, editableBy: 'player' })
+// Today a player cannot write attacks, equipment, resources or spells (guard_pj_player_update lists identity and
+// narrative keys only), so the preset keeps every table DM-only; a DM may open one to players in the builder.
+const table = (type: 'libre' | 'habilidad', key: string, label: string, columns: Column[]): Table => ({ kind: 'table', type, key, label, columns, editableBy: 'dm' })
 
 const priceColumns = [col('precio', 'Precio', 'number'), col('precio_moneda', 'Moneda', 'short')]
 

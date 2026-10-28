@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { ABILITY_SCORES, SECTION_FIELDS, SKILLS_BY_ABILITY } from '../../../pages/pj/pjConstants'
 import { OWNER_DATA_KEYS, STAMPABLE_SECTIONS } from '../../pjOwnerFields'
 import { DND5E_SHEET, DND5E_SHEET_GAPS } from './dnd5eSheet'
+import { playerWritableKeys } from './sheetAccess'
 import { validateSheet, type Item, type Sheet } from './sheetModel'
 
 /** Every key the sheet can store a value under: fields, tables, and the rows of Stat and Capacidades tables. */
@@ -72,12 +73,9 @@ describe('the D&D 5e sheet preset', () => {
     }
   })
 
-  it('lets players edit exactly the data keys the owner guard allows today', () => {
-    const playerKeys = items(DND5E_SHEET)
-      .filter((item) => item.kind === 'field' && item.editableBy === 'player')
-      .map((item) => item.key)
+  it('lets players write exactly the data keys the owner guard allows today (no table, no coin, no stat)', () => {
     const wanted = OWNER_DATA_KEYS.filter((key) => key !== 'custom_fields')
-    expect([...playerKeys].sort()).toEqual([...wanted].sort())
+    expect(playerWritableKeys(DND5E_SHEET)).toEqual([...wanted].sort())
   })
 
   it('computes the ability modifier the way the application does', () => {
