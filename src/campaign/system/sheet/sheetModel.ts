@@ -110,6 +110,8 @@ export const RESERVED_KEYS: ReadonlySet<string> = new Set([
   'valor', 'modificador', 'constructor', 'prototype',
 ])
 
+const PROTOTYPE_KEYS: ReadonlySet<string> = new Set(['constructor', 'prototype'])
+
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const isEditor = (value: unknown): value is EditableBy => value === 'dm' || value === 'player'
 const isFieldType = (value: unknown): value is FieldType => (FIELD_TYPES as readonly unknown[]).includes(value)
@@ -134,7 +136,8 @@ export function validateSheet(raw: unknown): SheetResult {
     return text ?? ''
   }
   const plainKey = (key: unknown, path: string, seen: Set<string>): string => {
-    if (typeof key !== 'string' || !KEY.test(key) || RESERVED_KEYS.has(key)) fail(path, 'invalid key')
+    // Scoped keys (columns, categories, sections, blocks) never become a top level `data` key, so only prototype names are off limits.
+    if (typeof key !== 'string' || !KEY.test(key) || PROTOTYPE_KEYS.has(key)) fail(path, 'invalid key')
     else if (seen.has(key)) fail(path, 'repeated key')
     else seen.add(key)
     return typeof key === 'string' ? key : ''

@@ -91,6 +91,24 @@ describe('validateSheet', () => {
       expect(errorsOf(sheet)).toContain('categories[0].sections[0].items[2].key')
     })
 
+    it('accepts application-owned names as column keys, since a column lives inside a row', () => {
+      const sheet = base()
+      const table = sheet.categories[0].sections[0].items[1]
+      if (table.kind === 'table' && table.type === 'capacidades') {
+        table.columns.push({ key: 'nombre', label: 'Nombre', type: 'short', editableBy: 'dm' })
+      }
+      expect(validateSheet(sheet).ok).toBe(true)
+    })
+
+    it('still rejects prototype names as column keys', () => {
+      const sheet = base()
+      const table = sheet.categories[0].sections[0].items[1]
+      if (table.kind === 'table' && table.type === 'capacidades') {
+        table.columns.push({ key: 'constructor', label: 'X', type: 'short', editableBy: 'dm' })
+      }
+      expect(validateSheet(sheet).ok).toBe(false)
+    })
+
     it('rejects a repeated column key inside one table', () => {
       const sheet = base()
       const table = sheet.categories[0].sections[0].items[1]
