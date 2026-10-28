@@ -54,7 +54,7 @@ select is(
   (select count(*) from public.campaigns where system_profile ->> 'version' is distinct from '1'),
   0::bigint, 'every campaign in the database has a version 1 profile (existing ones were backfilled)');
 select is(
-  (select count(*) from public.campaigns where system_profile is distinct from $profile${
+  (select count(*) from public.campaigns where (system_profile - 'sheet') is distinct from $profile${
     "version": 1,
     "character": {"builtins": {
       "clase": {"enabled": true, "label": "Clase"},
@@ -67,7 +67,7 @@ select is(
       {"key": "sp", "label": "plata"}, {"key": "cp", "label": "bronce"}]},
     "modules": {"juegos": true, "sesion_en_vivo": true, "mapas": true, "calendario": true}
   }$profile$::jsonb),
-  0::bigint, 'every campaign in the database (seed rows and the fixture) carries the FULL D&D 5e document (E1 parts plus the E2a sections), not just a version');
+  0::bigint, 'every campaign in the database (seed rows and the fixture) carries the FULL D&D 5e document (E1 parts plus the E2a sections), not just a version (the optional sheet of F2c is compared in 20_dnd5e_sheet_backfill)');
 select is(
   (select system_profile #> '{character,builtins}' from public.campaigns where id = 'bbbbbbbb-4444-4000-8000-00000000000a'),
   '{"clase": {"enabled": true, "label": "Clase"}, "raza": {"enabled": true, "label": "Raza"}, "nivel": {"enabled": true, "label": "Nivel", "min": 1, "max": 20}}'::jsonb,
