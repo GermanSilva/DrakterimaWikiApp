@@ -75,3 +75,7 @@ None.
    - Modal: (Para tablas Habilidad) Botón que abre un modal con sus datos ordenados según su tipo (Como funciona actualmente la visualización de hechizos). Un bloque con este tipo debe indicar qué categorias filtrar.
 - L6 (user, 2026-10-27): "No, vamos con la segunda opción." (in answer to: legacy mode + builder for new campaigns vs. rebuild D&D with the builder and migrate the data).
 - L7 (user, 2026-10-28, answer to design CONFIRM 1): "Las filas de tablas de stats y habilidades las define el DM, pero puede definir si el jugador puede editar sus valores no estructurales (\"Nombre\" y \"formula de modificador\" en Stats, y \"Stat asociado\" y \"Nombre de capacidad\" en Capacidades son estructurales y deben ser solo editables desde la plantilla de hoja de personaje)"
+
+## Builder stages (odd/design/sheet-builder.md section 6)
+
+- F1 (formula engine, pure TS, src/campaign/system/formula): done, commit 610df93. 44 tests written first (RED: module missing), vitest 141 files / 1943 PASS, tsc and eslint clean. Reserved reference segments (__proto__, constructor, prototype) are rejected at parse time; cycles are found with an iterative DFS. Risk: none (new unused module).
