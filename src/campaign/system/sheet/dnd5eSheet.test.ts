@@ -104,6 +104,21 @@ describe('the D&D 5e sheet preset', () => {
     expect(section?.blocks.some((b) => b.mode === 'plano' && b.items.includes('espacios_conjuro'))).toBe(true)
   })
 
+  it('declares the skill and save bonus as a signed formula column over the linked modifier', () => {
+    for (const key of ['tabla_habilidades', 'tabla_salvaciones']) {
+      const table = items(DND5E_SHEET).find((item) => item.key === key)
+      const bonus = table && table.kind === 'table' && table.type === 'capacidades' ? table.columns.find((c) => c.key === 'bono') : undefined
+      expect(bonus, key).toMatchObject({ type: 'number', format: 'signed' })
+      expect(bonus?.formula, key).toContain('{modificador}')
+      expect(bonus?.formula, key).toContain('{stat_proficiency_bonus}')
+    }
+  })
+
+  it('keeps a stored proficiency bonus above the one suggested by level', () => {
+    const field = items(DND5E_SHEET).find((item) => item.key === 'stat_proficiency_bonus')
+    expect(field).toMatchObject({ kind: 'field', overridable: true, format: 'signed', formula: '2 + floor(({nivel} - 1) / 4)' })
+  })
+
   it('shows the spell list as a modal filtered by spell level', () => {
     const section = DND5E_SHEET.categories.flatMap((c) => c.sections).find((s) => s.key === 'hechizos')
     const modal = section?.blocks.find((b) => b.mode === 'modal')

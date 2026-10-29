@@ -15,12 +15,15 @@ export type BlockMode = (typeof BLOCK_MODES)[number]
 export const ROLE_NAMES = ['hp', 'hp_current', 'ac', 'speed', 'initiative'] as const
 export type RoleName = (typeof ROLE_NAMES)[number]
 
+export type NumberFormat = 'signed'
+
 export interface Column {
   key: string
   label: string
   type: FieldType
   formula?: string
   editableBy: EditableBy
+  format?: NumberFormat
 }
 export interface Field {
   kind: 'field'
@@ -28,6 +31,9 @@ export interface Field {
   label: string
   type: FieldType
   formula?: string
+  /** With a formula: the value stored on the character, when there is one, wins over the formula (D&D proficiency bonus). */
+  overridable?: boolean
+  format?: NumberFormat
   editableBy: EditableBy
   min?: number
   max?: number
@@ -150,6 +156,14 @@ export function validateSheet(raw: unknown): SheetResult {
     if (!isEditor(value)) fail(path, 'editableBy must be dm or player')
     return isEditor(value) ? value : 'dm'
   }
+  const formatOf = (value: unknown, type: FieldType, path: string): NumberFormat | undefined => {
+    if (value === undefined) return undefined
+    if (value !== 'signed' || type !== 'number') {
+      fail(path, 'format signed needs a number')
+      return undefined
+    }
+    return value
+  }
   const formulaOf = (value: unknown, path: string): string | undefined => {
     if (value === undefined) return undefined
     if (typeof value !== 'string' || !parseFormula(value).ok) {
@@ -168,11 +182,13 @@ export function validateSheet(raw: unknown): SheetResult {
       const type = isFieldType(col.type) ? col.type : (fail(`${at}.type`, 'invalid type'), 'short' as FieldType)
       const formula = formulaOf(col.formula, `${at}.formula`)
       if (formula !== undefined && type !== 'number' && type !== 'boolean') fail(`${at}.formula`, 'formula needs a number or boolean column')
+      const format = formatOf(col.format, type, `${at}.format`)
       return {
         key: plainKey(col.key, `${at}.key`, seen),
         label: label(col.label, `${at}.label`),
         type,
         ...(formula !== undefined ? { formula } : {}),
+        ...(format !== undefined ? { format } : {}),
         editableBy: editor(col.editableBy, `${at}.editableBy`),
       }
     })
@@ -225,6 +241,12 @@ export function validateSheet(raw: unknown): SheetResult {
             }
             fieldTypes.set(key, type)
             const field: Field = { kind: 'field', key, label: name, type, editableBy, ...(formula !== undefined ? { formula } : {}) }
+            const format = formatOf(item.format, type, `${ipath}.format`)
+            if (format !== undefined) field.format = format
+            if (item.overridable !== undefined) {
+              if (typeof item.overridable !== 'boolean' || formula === undefined) fail(`${ipath}.overridable`, 'overridable is a boolean and needs a formula')
+              else field.overridable = item.overridable
+            }
             for (const bound of ['min', 'max'] as const) {
               const value = item[bound]
               if (value === undefined) continue
@@ -281,7 +303,7 @@ export function validateSheet(raw: unknown): SheetResult {
               })
               for (const [c, col] of local.entries()) {
                 const ci2 = columns.indexOf(col)
-                formulas.push({ path: `${ipath}.columns[${ci2}].formula`, key: `col:${key}.${col.key}`, text: col.formula as string, locals: columns.map((x) => x.key) })
+                formulas.push({ path: `${ipath}.columns[${ci2}].formula`, key: `col:${key}.${col.key}`, text: col.formula as string, locals: [...columns.map((x) => x.key), 'valor', 'modificador'] })
                 void c
               }
               return { kind: 'table', type: 'capacidades', key, label: name, columns, rows }

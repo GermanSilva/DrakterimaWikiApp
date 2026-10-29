@@ -191,6 +191,86 @@ describe('validateSheet', () => {
     })
   })
 
+  describe('F4 refinements', () => {
+    const skills = (sheet: Sheet) => {
+      const table = sheet.categories[0].sections[0].items[1]
+      if (table.kind !== 'table' || table.type !== 'capacidades') throw new Error('fixture changed')
+      return table
+    }
+    const prof = (sheet: Sheet) => {
+      const field = sheet.categories[0].sections[0].items[3]
+      if (field.kind !== 'field') throw new Error('fixture changed')
+      return field
+    }
+
+    it.each(['{modificador}', '{valor}'])('lets a capacidades column formula read the linked stat through %s', (ref) => {
+      const sheet = base()
+      skills(sheet).columns.push({ key: 'total', label: 'Total', type: 'number', formula: `${ref} + {bonus}`, editableBy: 'dm' })
+      const result = validateSheet(sheet)
+      expect(result.ok, JSON.stringify(result.ok ? [] : result.errors)).toBe(true)
+    })
+
+    it('does not let a free table column read a linked stat (it has none)', () => {
+      const sheet = base()
+      sheet.categories[0].sections[0].items[2] = {
+        kind: 'table',
+        type: 'libre',
+        key: 'inv',
+        label: 'Inv',
+        columns: [{ key: 'total', label: 'T', type: 'number', formula: '{modificador}', editableBy: 'dm' }],
+        editableBy: 'dm',
+      }
+      sheet.categories[0].sections[0].blocks[2].items = ['prof']
+      expect(errorsOf(sheet)).toContain('categories[0].sections[0].items[2].columns[0].formula')
+    })
+
+    it('does not let a plain field formula read {modificador}', () => {
+      const sheet = base()
+      prof(sheet).formula = '{modificador} + 1'
+      expect(errorsOf(sheet)).toContain('categories[0].sections[0].items[3].formula')
+    })
+
+    it('keeps an overridable formula field as it came', () => {
+      const sheet = base()
+      prof(sheet).overridable = true
+      const result = validateSheet(sheet)
+      expect(result.ok && (result.sheet.categories[0].sections[0].items[3] as { overridable?: boolean }).overridable).toBe(true)
+    })
+
+    it('rejects overridable on a field with no formula, or with a non boolean value', () => {
+      const sheet = base()
+      const plain = sheet.categories[0].sections[0].items[2]
+      if (plain.kind === 'field') plain.overridable = true
+      expect(errorsOf(sheet)).toContain('categories[0].sections[0].items[2].overridable')
+      const odd = base()
+      ;(prof(odd) as unknown as { overridable: unknown }).overridable = 'yes'
+      expect(errorsOf(odd)).toContain('categories[0].sections[0].items[3].overridable')
+    })
+
+    it('accepts format signed on number fields and columns and keeps it', () => {
+      const sheet = base()
+      prof(sheet).format = 'signed'
+      skills(sheet).columns[0].format = 'signed'
+      const result = validateSheet(sheet)
+      expect(result.ok).toBe(true)
+      if (result.ok) {
+        expect((result.sheet.categories[0].sections[0].items[3] as { format?: string }).format).toBe('signed')
+        const table = result.sheet.categories[0].sections[0].items[1]
+        expect(table.kind === 'table' && table.type === 'capacidades' && table.columns[0].format).toBe('signed')
+      }
+    })
+
+    it('rejects an unknown format, or a format on a text field', () => {
+      const sheet = base()
+      ;(prof(sheet) as unknown as { format: string }).format = 'bold'
+      expect(errorsOf(sheet)).toContain('categories[0].sections[0].items[3].format')
+      const text = base()
+      text.categories[0].sections[0].items[2] = { kind: 'field', key: 'bio', label: 'Bio', type: 'short', editableBy: 'dm', format: 'signed' }
+      text.categories[0].sections[0].blocks[2].items = ['prof']
+      expect(errorsOf(text)).toContain('categories[0].sections[0].items[2].format')
+    })
+  })
+
   describe('labels', () => {
     it.each(['', '   ', 'x'.repeat(61), 'a\u200bb', 'a\u202eb'])('rejects the label %j', (label) => {
       const sheet = base()

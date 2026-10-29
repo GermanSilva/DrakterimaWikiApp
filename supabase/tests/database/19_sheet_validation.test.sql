@@ -3,7 +3,7 @@
 -- which is the same path format the client validator (src/campaign/system/sheet/sheetModel.ts) reports.
 begin;
 
-select plan(48);
+select plan(58);
 
 create schema tests;
 
@@ -168,6 +168,18 @@ select is(tests.detail(tests.mut('{categories,0,sections,0,items,2}', jsonb_buil
 select is(tests.detail(tests.mut('{categories,0,sections,0,items,2,key}', '"custom_fields"')), 'sheet.categories[0].sections[0].items[2].key', 'custom_fields is a reserved key: the guard always opens it to players');
 select is(tests.detail(tests.mut('{categories,0,sections,0,key}', '"dm"')), 'sheet.categories[0].sections[0].key', 'a section cannot be keyed dm (its unread stamp is frozen for players)');
 select is(tests.detail(tests.mut('{categories,0,sections,0,items,2}', '{"kind":"table","type":"libre","key":"inv","label":"Inv","columns":[{"key":"p","label":"P","type":"number","editableBy":"dm"}],"editableBy":"player"}')), 'sheet.categories[0].sections[0].items[2].columns[0].editableBy', 'a table open to players cannot hold a DM column');
+
+-- 49-58: F4 refinements (capacidades column formulas see the linked stat, overridable formulas, signed format)
+select is(tests.detail(tests.mut('{categories,0,sections,0,items,1,columns}', '[{"key":"bonus","label":"Bonus","type":"number","editableBy":"player"},{"key":"total","label":"T","type":"number","formula":"{modificador} + {bonus}","editableBy":"dm"}]')), null, 'a capacidades column formula can read the modifier of the linked stat');
+select is(tests.detail(tests.mut('{categories,0,sections,0,items,5}', '{"kind":"table","type":"libre","key":"inv","label":"Inv","columns":[{"key":"total","label":"T","type":"number","formula":"{modificador}","editableBy":"dm"}],"editableBy":"dm"}')), 'sheet.categories[0].sections[0].items[5].columns[0].formula', 'a free table column cannot, it has no linked stat');
+select is(tests.detail(tests.mut('{categories,0,sections,0,items,3,formula}', '"{modificador} + 1"')), 'sheet.categories[0].sections[0].items[3].formula', 'a plain field formula cannot read {modificador}');
+select is(public.validate_system_profile(tests.mut('{categories,0,sections,0,items,3,overridable}', 'true')) #>> '{sheet,categories,0,sections,0,items,3,overridable}', 'true', 'an overridable formula field is kept');
+select is(tests.detail(tests.mut('{categories,0,sections,0,items,2,overridable}', 'true')), 'sheet.categories[0].sections[0].items[2].overridable', 'overridable needs a formula');
+select is(tests.detail(tests.mut('{categories,0,sections,0,items,3,overridable}', '"yes"')), 'sheet.categories[0].sections[0].items[3].overridable', 'overridable is a boolean');
+select is(public.validate_system_profile(tests.mut('{categories,0,sections,0,items,3,format}', '"signed"')) #>> '{sheet,categories,0,sections,0,items,3,format}', 'signed', 'format signed is kept on a number field');
+select is(tests.detail(tests.mut('{categories,0,sections,0,items,3,format}', '"bold"')), 'sheet.categories[0].sections[0].items[3].format', 'an unknown format is rejected');
+select is(tests.detail(tests.mut('{categories,0,sections,0,items,2}', '{"kind":"field","key":"extra","label":"Extra","type":"short","format":"signed","editableBy":"player"}')), 'sheet.categories[0].sections[0].items[2].format', 'format signed on a text field is rejected');
+select is(public.validate_system_profile(tests.mut('{categories,0,sections,0,items,1,columns,0,format}', '"signed"')) #>> '{sheet,categories,0,sections,0,items,1,columns,0,format}', 'signed', 'format signed is kept on a column');
 
 select * from finish();
 rollback;

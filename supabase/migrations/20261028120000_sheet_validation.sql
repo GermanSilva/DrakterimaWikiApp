@@ -127,6 +127,7 @@ declare
   v_key text;
   v_type text;
   v_formula text;
+  v_format text;
 begin
   if jsonb_typeof(v) is distinct from 'array' or jsonb_array_length(v) > 12 then
     perform public._sheet_fail(p_path);
@@ -152,11 +153,19 @@ begin
         perform public._sheet_fail(v_path || '.formula');
       end if;
     end if;
+    v_format := null;
+    if v_col.value ? 'format' then
+      if v_col.value -> 'format' is distinct from '"signed"'::jsonb or v_type <> 'number' then
+        perform public._sheet_fail(v_path || '.format');
+      end if;
+      v_format := 'signed';
+    end if;
     v_out := v_out || jsonb_strip_nulls(jsonb_build_array(jsonb_build_object(
       'key', v_key,
       'label', public._sheet_label(v_col.value -> 'label', v_path || '.label'),
       'type', v_type,
       'formula', v_formula,
+      'format', v_format,
       'editableBy', public._sheet_editor(v_col.value -> 'editableBy', v_path || '.editableBy'))));
   end loop;
   return v_out;
@@ -281,6 +290,18 @@ begin
           if v_formula is not null then
             v_field := v_field || jsonb_build_object('formula', v_formula);
           end if;
+          if v_it.value ? 'format' then
+            if v_it.value -> 'format' is distinct from '"signed"'::jsonb or v_type <> 'number' then
+              perform public._sheet_fail(v_ipath || '.format');
+            end if;
+            v_field := v_field || jsonb_build_object('format', 'signed');
+          end if;
+          if v_it.value ? 'overridable' then
+            if jsonb_typeof(v_it.value -> 'overridable') is distinct from 'boolean' or v_formula is null then
+              perform public._sheet_fail(v_ipath || '.overridable');
+            end if;
+            v_field := v_field || jsonb_build_object('overridable', v_it.value -> 'overridable');
+          end if;
           foreach v_target in array array['min', 'max'] loop
             if v_it.value ? v_target then
               if v_type <> 'number' or jsonb_typeof(v_it.value -> v_target) is distinct from 'number' then
@@ -345,7 +366,8 @@ begin
               for v_row in select value, ordinality - 1 as i from jsonb_array_elements(v_columns) with ordinality loop
                 if v_row.value ? 'formula' then
                   v_formulas := v_formulas || jsonb_build_array(jsonb_build_object(
-                    'path', v_ipath || '.columns[' || v_row.i || '].formula', 'text', v_row.value ->> 'formula', 'locals', to_jsonb(v_col_keys)));
+                    'path', v_ipath || '.columns[' || v_row.i || '].formula', 'text', v_row.value ->> 'formula',
+                    'locals', to_jsonb(v_col_keys || array['valor', 'modificador'])));
                 end if;
               end loop;
             end if;

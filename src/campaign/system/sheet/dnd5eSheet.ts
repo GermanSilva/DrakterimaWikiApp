@@ -23,6 +23,10 @@ const long = (key: string, label: string, editableBy: Field['editableBy'] = 'dm'
 const col = (key: string, label: string, type: Column['type'], editableBy: Column['editableBy'] = 'player'): Column => ({ key, label, type, editableBy })
 
 const MODIFIER = 'floor(({valor} - 10) / 2)'
+const profBonus = (cond: string) => `si(${cond} > 0, {stat_proficiency_bonus}, 0)`
+const SAVE_BONUS = `{modificador} + si({competente}, {stat_proficiency_bonus}, 0)`
+const SKILL_BONUS = `{modificador} + ${profBonus('{competencia}')} + si({competencia} > 1, {stat_proficiency_bonus}, 0)`
+const bonusColumn = (formula: string): Column => ({ key: 'bono', label: 'Bono', type: 'number', formula, format: 'signed', editableBy: 'dm' })
 const PROFICIENT = (skill: string) => `si({${skill}} > 0, {stat_proficiency_bonus}, 0) + si({${skill}} > 1, {stat_proficiency_bonus}, 0)`
 
 const statTable: Table = {
@@ -38,7 +42,7 @@ const savesTable: Table = {
   type: 'capacidades',
   key: 'tabla_salvaciones',
   label: 'Salvaciones',
-  columns: [col('competente', 'Competente', 'boolean', 'dm')],
+  columns: [col('competente', 'Competente', 'boolean', 'dm'), bonusColumn(SAVE_BONUS)],
   rows: ABILITY_SCORES.map((a) => ({ key: a.saveKey, label: a.label, stat: a.key, use: 'modificador' as const, editableBy: 'dm' as const })),
 }
 
@@ -47,7 +51,7 @@ const skillsTable: Table = {
   type: 'capacidades',
   key: 'tabla_habilidades',
   label: 'Habilidades',
-  columns: [col('competencia', 'Competencia (0-2)', 'number', 'dm')],
+  columns: [col('competencia', 'Competencia (0-2)', 'number', 'dm'), bonusColumn(SKILL_BONUS)],
   rows: SKILLS_BY_ABILITY.flatMap((group) =>
     group.skills.map((skill) => ({ key: skill.key, label: skill.label, stat: group.key, use: 'modificador' as const, editableBy: 'dm' as const })),
   ),
@@ -125,14 +129,15 @@ const identity = [short('trasfondo_dnd', 'Trasfondo D&D', 'player'), short('alin
 const vitals = [
   num('stat_hp', 'HP máx.', { min: 0 }), num('stat_hp_current', 'HP actual', { min: 0 }), num('stat_hp_temp', 'HP temporal', { min: 0 }),
   num('stat_ac', 'AC', { min: 0 }), num('stat_ac_temp', 'AC temporal', { min: 0 }), num('stat_speed', 'Velocidad (ft)', { min: 0 }),
-  num('stat_initiative', 'Iniciativa'), short('stat_hit_dice', 'Dados de golpe'),
+  num('stat_initiative', 'Iniciativa', { format: 'signed' }), short('stat_hit_dice', 'Dados de golpe'),
   { kind: 'field', key: 'stat_inspiration', label: 'Inspiración', type: 'boolean', editableBy: 'dm' } as Field,
-  num('stat_proficiency_bonus', 'Bono de competencia', { min: 2, max: 6 }),
+  // the stored value wins; without one the bonus suggested by level applies (what the sheet does today)
+  num('stat_proficiency_bonus', 'Bono de competencia', { formula: '2 + floor(({nivel} - 1) / 4)', overridable: true, format: 'signed' }),
   num('stat_death_saves_success', 'Salvaciones de muerte: éxitos', { min: 0, max: 3 }),
   num('stat_death_saves_failure', 'Salvaciones de muerte: fallos', { min: 0, max: 3 }),
   num('percepcion_pasiva', 'Percepción pasiva', { formula: `10 + {stat_wis.modificador} + ${PROFICIENT('skill_perception')}` }),
 ]
-const casting = [num('spell_dc', 'DC de conjuración', { min: 0 }), num('spell_attack_bonus', 'Bono de ataque de hechizo'), short('spell_ability', 'Característica de lanzamiento')]
+const casting = [num('spell_dc', 'DC de conjuración', { min: 0 }), num('spell_attack_bonus', 'Bono de ataque de hechizo', { format: 'signed' }), short('spell_ability', 'Característica de lanzamiento')]
 const traits = [
   long('rasgos_clase', 'Rasgos de clase'), long('otros_rasgos', 'Otros rasgos'), short('idiomas', 'Idiomas'),
   short('prof_armas', 'Competencia con armas'), short('prof_armaduras', 'Competencia con armaduras'), short('prof_herramientas', 'Competencia con herramientas'),
