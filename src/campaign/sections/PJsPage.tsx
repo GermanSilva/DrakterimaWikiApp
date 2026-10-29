@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router'
 import { Shield } from 'lucide-react'
 import { EmptyState, PageHeader } from '../../components/Shared'
 import UnreadDot from '../../components/UnreadDot'
@@ -8,6 +8,7 @@ import type { FlatEntity } from '../../data'
 import { isPjUnreadVia } from '../../helpers/pjSections'
 import PJDetail from '../../pages/pj/PJDetail'
 import { PJCardContent } from '../../pages/pj/PJCardContent'
+import { validateSheet } from '../system/sheet/sheetModel'
 import { useSystem } from '../system/useSystem'
 import type { SystemProfile } from '../system/systemProfile'
 import { useUnreadPort } from '../../ports'
@@ -58,6 +59,13 @@ function PjView({ entity, listPath }: EntityViewProps) {
   const regionInfo = useRegionInfo()
   const customFields = useMemo(() => parseCharacterFields(campaign.character_custom_fields), [campaign.character_custom_fields])
   const system = useSystem()
+  const [params] = useSearchParams()
+  // The sheet renderer is opt-in (?sheet=1) until it reaches parity and the data is migrated; an invalid sheet never gets here
+  const sheet = useMemo(() => {
+    if (params.get('sheet') !== '1' || !system.sheet) return null
+    const result = validateSheet(system.sheet)
+    return result.ok ? result.sheet : null
+  }, [params, system.sheet])
   const isOwnPlayer = !isDM && myCharacterIds.includes(entity.id)
 
   const edit = () => openForm({ type: 'pjs', id: entity.id, onRemoved: () => navigate(listPath) })
@@ -98,6 +106,7 @@ function PjView({ entity, listPath }: EntityViewProps) {
         regionColor={regionInfo(str(entity.region)).color}
         customFields={customFields}
         system={system}
+        sheet={sheet}
       />
       {isDM && dm.status === 'error' && <DmNotice onRetry={dm.refresh}>No pudimos cargar las notas del DM.</DmNotice>}
     </>

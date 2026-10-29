@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react'
+import { useMemo, useRef, useState, useEffect } from 'react'
 import { DND5E_PROFILE } from '../../campaign/system/systemProfile'
 import { identityTag } from './pjIdentity'
 import { useUnreadPort } from '../../ports'
@@ -23,6 +23,8 @@ import PJResourcesSection from './detail/PJResourcesSection'
 import PJTraitsSection from './detail/PJTraitsSection'
 import PJNarrativeSection from './detail/PJNarrativeSection'
 import PJAppearanceSection from './detail/PJAppearanceSection'
+import SheetView from '../../campaign/system/sheet/SheetView'
+import { resolveSheet } from '../../campaign/system/sheet/resolveSheet'
 
 const SECTIONS = [
   { id: 'stats', label: 'Stats', Component: PJStatsSection },
@@ -55,12 +57,16 @@ const SECTION_ID_PREFIX = 'pj-section-'
  * @param {string} [props.regionColor] CSS colour of the "Personaje Jugador" eyebrow
  * @param {{key: string, label: string, flat?: boolean}[]} [props.customFields] campaign character fields
  * @param {import('../../campaign/system/systemProfile').SystemProfile} [props.system] system document of the campaign: its built-ins name the identity tags and its sheet blocks decide which sections exist (default: D&D 5e)
+ * @param {import('../../campaign/system/sheet/sheetModel').Sheet | null} [props.sheet] validated sheet of the campaign: when given, the sections are drawn from it instead of the fixed D&D ones (behind ?sheet=1 until the sheet becomes the default)
  * @param {string} [props.motivoLabel] title of the narrative `motivo` section (the narrative section defaults to "Motivación")
  */
-export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = false, back, actions = null, regionTag = null, regionColor, customFields = LEGACY_CHARACTER_FIELDS, motivoLabel, system = DND5E_PROFILE }) {
+export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = false, back, actions = null, regionTag = null, regionColor, customFields = LEGACY_CHARACTER_FIELDS, motivoLabel, system = DND5E_PROFILE, sheet = null }) {
   const unreadPort = useUnreadPort()
 
-  const visibleSections = SECTIONS.filter(s => system.character.sections[s.id] && s.show(pj))
+  const resolved = useMemo(() => (sheet ? resolveSheet(sheet, pj) : null), [sheet, pj])
+  const visibleSections = resolved
+    ? resolved.sections.filter(s => !s.empty).map(s => ({ id: s.key, label: s.label }))
+    : SECTIONS.filter(s => system.character.sections[s.id] && s.show(pj))
   const { builtins } = system.character
   const identity = identityTag(pj, builtins)
   const hasDMNotes = isDM && !!notas
@@ -222,9 +228,11 @@ export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = f
         </div>
       </div>
 
-      {visibleSections.map(({ id, Component }) => (
-        <Component key={id} pj={pj} unread={unread[id]} customFields={customFields} motivoLabel={motivoLabel} />
-      ))}
+      {resolved
+        ? <SheetView resolved={resolved} unread={unread} />
+        : visibleSections.map(({ id, Component }) => (
+          <Component key={id} pj={pj} unread={unread[id]} customFields={customFields} motivoLabel={motivoLabel} />
+        ))}
 
       {hasDMNotes && (
         <div id="pj-section-dm" className="mt-5 pt-4 border-t-2 border-t-accent">
