@@ -24,6 +24,8 @@ export interface Column {
   formula?: string
   editableBy: EditableBy
   format?: NumberFormat
+  /** What a character that has no stored value counts as (a missing proficiency is 0, a missing flag is false). */
+  default?: string | number | boolean
 }
 export interface Field {
   kind: 'field'
@@ -164,6 +166,15 @@ export function validateSheet(raw: unknown): SheetResult {
     }
     return value
   }
+  const defaultOf = (value: unknown, type: FieldType, path: string): string | number | boolean | undefined => {
+    if (value === undefined) return undefined
+    const ok =
+      (type === 'number' && typeof value === 'number' && Number.isFinite(value)) ||
+      (type === 'boolean' && typeof value === 'boolean') ||
+      ((type === 'short' || type === 'paragraph') && typeof value === 'string' && Array.from(value).length <= SHEET_LIMITS.text)
+    if (!ok) fail(path, 'default does not match the type')
+    return ok ? (value as string | number | boolean) : undefined
+  }
   const formulaOf = (value: unknown, path: string): string | undefined => {
     if (value === undefined) return undefined
     if (typeof value !== 'string' || !parseFormula(value).ok) {
@@ -183,12 +194,14 @@ export function validateSheet(raw: unknown): SheetResult {
       const formula = formulaOf(col.formula, `${at}.formula`)
       if (formula !== undefined && type !== 'number' && type !== 'boolean') fail(`${at}.formula`, 'formula needs a number or boolean column')
       const format = formatOf(col.format, type, `${at}.format`)
+      const fallback = defaultOf(col.default, type, `${at}.default`)
       return {
         key: plainKey(col.key, `${at}.key`, seen),
         label: label(col.label, `${at}.label`),
         type,
         ...(formula !== undefined ? { formula } : {}),
         ...(format !== undefined ? { format } : {}),
+        ...(fallback !== undefined ? { default: fallback } : {}),
         editableBy: editor(col.editableBy, `${at}.editableBy`),
       }
     })
@@ -253,15 +266,8 @@ export function validateSheet(raw: unknown): SheetResult {
               if (type !== 'number' || typeof value !== 'number' || !Number.isFinite(value)) fail(`${ipath}.${bound}`, 'invalid bound')
               else field[bound] = value
             }
-            if (item.default !== undefined) {
-              const d = item.default
-              const ok =
-                (type === 'number' && typeof d === 'number' && Number.isFinite(d)) ||
-                (type === 'boolean' && typeof d === 'boolean') ||
-                ((type === 'short' || type === 'paragraph') && typeof d === 'string' && Array.from(d).length <= SHEET_LIMITS.text)
-              if (ok) field.default = d as string | number | boolean
-              else fail(`${ipath}.default`, 'default does not match the type')
-            }
+            const fieldDefault = defaultOf(item.default, type, `${ipath}.default`)
+            if (fieldDefault !== undefined) field.default = fieldDefault
             return field
           }
           if (item.kind === 'table') {

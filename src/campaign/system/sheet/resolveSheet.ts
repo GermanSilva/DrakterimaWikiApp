@@ -161,7 +161,7 @@ export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): Resolve
   const cellValue = (table: Extract<Table, { type: 'capacidades' }>, row: CapacidadRow, index: number): Computed => {
     const column = table.columns[index]
     return once(`c:${row.key}.${column.key}`, () => {
-      if (column.formula === undefined) return { value: typed(own(pj, cellKey(row.key, index, column)), column.type), error: false }
+      if (column.formula === undefined) return { value: typed(own(pj, cellKey(row.key, index, column)), column.type) ?? column.default ?? null, error: false }
       const stat = statRows.get(row.stat)
       const local = (ref: string): unknown => {
         if (ref === 'valor') return stat ? statValue(stat) ?? undefined : undefined

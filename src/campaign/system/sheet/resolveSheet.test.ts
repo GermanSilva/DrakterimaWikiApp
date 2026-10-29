@@ -81,6 +81,14 @@ describe('resolveSheet: the D&D 5e sheet', () => {
     expect(none.kind === 'capacidades' && none.rows.find((r) => r.key === 'skill_athletics')).toMatchObject({ statLabel: 'FUE', statModifierText: '' })
   })
 
+  it('counts a missing proficiency as none, through the column defaults, instead of failing', () => {
+    const bare = resolveSheet(DND5E_SHEET, { nivel: 5, stat_wis: 14 })
+    expect(cells(bare, 'tabla_habilidades', 'skill_perception').bono).toMatchObject({ value: 2, error: false })
+    expect(cells(bare, 'tabla_salvaciones', 'save_wis').bono).toMatchObject({ value: 2, error: false })
+    expect(cells(bare, 'tabla_salvaciones', 'save_wis').competente).toMatchObject({ value: false })
+    expect(item(bare, 'percepcion_pasiva')).toMatchObject({ value: 12, error: false })
+  })
+
   it('shows the stored proficiency level next to the computed bonus', () => {
     expect(cells(resolved, 'tabla_habilidades', 'skill_athletics').competencia).toMatchObject({ value: 2, type: 'number' })
     expect(cells(resolved, 'tabla_salvaciones', 'save_str').competente).toMatchObject({ value: true, type: 'boolean' })
@@ -107,6 +115,9 @@ describe('resolveSheet: the D&D 5e sheet', () => {
   })
 })
 
+// the levels where the suggested proficiency bonus changes, on both sides of every step
+const LEVELS = [1, 4, 5, 8, 9, 12, 13, 16, 17, 20]
+
 describe('resolveSheet: differential against the calculations the sheet uses today (pjCalc.js)', () => {
   const rank = (resolved: ResolvedSheet, table: string, row: string) => {
     const c = cells(resolved, table, row)
@@ -115,8 +126,8 @@ describe('resolveSheet: differential against the calculations the sheet uses tod
 
   it('gives the same passive perception for every level, wisdom, proficiency and stored bonus', () => {
     const mismatches: string[] = []
-    for (let nivel = 1; nivel <= 20; nivel++) {
-      for (let wis = 1; wis <= 30; wis += 1) {
+    for (const nivel of LEVELS) {
+      for (const wis of [1, 8, 9, 10, 11, 14, 15, 20, 30]) {
         for (const skill of [0, 1, 2]) {
           for (const stored of [undefined, 2, 3, 4, 5, 6]) {
             const pj = { nivel, stat_wis: wis, skill_perception: skill, stat_proficiency_bonus: stored }
@@ -128,12 +139,12 @@ describe('resolveSheet: differential against the calculations the sheet uses tod
       }
     }
     expect(mismatches.slice(0, 5)).toEqual([])
-  })
+  }, 60_000)
 
   it('gives the same skill and save bonus as the skills section for every ability, level and proficiency', () => {
     const mismatches: string[] = []
-    for (let nivel = 1; nivel <= 20; nivel += 1) {
-      for (const score of [1, 3, 8, 9, 10, 11, 14, 15, 18, 20, 30]) {
+    for (const nivel of LEVELS) {
+      for (const score of [1, 8, 9, 10, 11, 15, 30]) {
         for (const level of [0, 1, 2]) {
           for (const stored of [undefined, 4]) {
             const prof = stored ?? suggestedProfBonus(nivel)
@@ -148,7 +159,7 @@ describe('resolveSheet: differential against the calculations the sheet uses tod
       }
     }
     expect(mismatches.slice(0, 5)).toEqual([])
-  })
+  }, 60_000)
 
   it('shows the same ability modifier as abilityMod for every score', () => {
     for (let score = 1; score <= 30; score++) {

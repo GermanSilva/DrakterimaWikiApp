@@ -3,7 +3,7 @@
 -- which is the same path format the client validator (src/campaign/system/sheet/sheetModel.ts) reports.
 begin;
 
-select plan(58);
+select plan(60);
 
 create schema tests;
 
@@ -180,6 +180,9 @@ select is(public.validate_system_profile(tests.mut('{categories,0,sections,0,ite
 select is(tests.detail(tests.mut('{categories,0,sections,0,items,3,format}', '"bold"')), 'sheet.categories[0].sections[0].items[3].format', 'an unknown format is rejected');
 select is(tests.detail(tests.mut('{categories,0,sections,0,items,2}', '{"kind":"field","key":"extra","label":"Extra","type":"short","format":"signed","editableBy":"player"}')), 'sheet.categories[0].sections[0].items[2].format', 'format signed on a text field is rejected');
 select is(public.validate_system_profile(tests.mut('{categories,0,sections,0,items,1,columns,0,format}', '"signed"')) #>> '{sheet,categories,0,sections,0,items,1,columns,0,format}', 'signed', 'format signed is kept on a column');
+
+select is(public.validate_system_profile(tests.mut('{categories,0,sections,0,items,1,columns,0,default}', '7')) #>> '{sheet,categories,0,sections,0,items,1,columns,0,default}', '7', 'a column default is kept');
+select is(tests.detail(tests.mut('{categories,0,sections,0,items,1,columns,0,default}', '"x"')), 'sheet.categories[0].sections[0].items[1].columns[0].default', 'a column default must match the column type');
 
 select * from finish();
 rollback;

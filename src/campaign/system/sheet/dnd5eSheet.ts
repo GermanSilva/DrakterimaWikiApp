@@ -42,7 +42,7 @@ const savesTable: Table = {
   type: 'capacidades',
   key: 'tabla_salvaciones',
   label: 'Salvaciones',
-  columns: [col('competente', 'Competente', 'boolean', 'dm'), bonusColumn(SAVE_BONUS)],
+  columns: [{ ...col('competente', 'Competente', 'boolean', 'dm'), default: false }, bonusColumn(SAVE_BONUS)],
   rows: ABILITY_SCORES.map((a) => ({ key: a.saveKey, label: 'Salvación', stat: a.key, use: 'modificador' as const, editableBy: 'dm' as const })),
 }
 
@@ -51,7 +51,7 @@ const skillsTable: Table = {
   type: 'capacidades',
   key: 'tabla_habilidades',
   label: 'Habilidades',
-  columns: [col('competencia', 'Competencia (0-2)', 'number', 'dm'), bonusColumn(SKILL_BONUS)],
+  columns: [{ ...col('competencia', 'Competencia (0-2)', 'number', 'dm'), default: 0 }, bonusColumn(SKILL_BONUS)],
   rows: SKILLS_BY_ABILITY.flatMap((group) =>
     group.skills.map((skill) => ({ key: skill.key, label: skill.label, stat: group.key, use: 'modificador' as const, editableBy: 'dm' as const })),
   ),

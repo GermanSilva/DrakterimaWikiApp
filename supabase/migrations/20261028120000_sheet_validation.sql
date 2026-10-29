@@ -128,6 +128,7 @@ declare
   v_type text;
   v_formula text;
   v_format text;
+  v_default jsonb;
 begin
   if jsonb_typeof(v) is distinct from 'array' or jsonb_array_length(v) > 12 then
     perform public._sheet_fail(p_path);
@@ -160,12 +161,22 @@ begin
       end if;
       v_format := 'signed';
     end if;
+    v_default := null;
+    if v_col.value ? 'default' then
+      v_default := v_col.value -> 'default';
+      if not ((v_type = 'number' and jsonb_typeof(v_default) = 'number')
+              or (v_type = 'boolean' and jsonb_typeof(v_default) = 'boolean')
+              or (v_type in ('short', 'paragraph') and jsonb_typeof(v_default) = 'string' and char_length(v_default #>> '{}') <= 4000)) then
+        perform public._sheet_fail(v_path || '.default');
+      end if;
+    end if;
     v_out := v_out || jsonb_strip_nulls(jsonb_build_array(jsonb_build_object(
       'key', v_key,
       'label', public._sheet_label(v_col.value -> 'label', v_path || '.label'),
       'type', v_type,
       'formula', v_formula,
       'format', v_format,
+      'default', v_default,
       'editableBy', public._sheet_editor(v_col.value -> 'editableBy', v_path || '.editableBy'))));
   end loop;
   return v_out;

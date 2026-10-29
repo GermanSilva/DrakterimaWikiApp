@@ -260,6 +260,17 @@ describe('validateSheet', () => {
       }
     })
 
+    it('keeps a column default and checks it against the column type', () => {
+      const sheet = base()
+      skills(sheet).columns[0].default = 0
+      const result = validateSheet(sheet)
+      const table = result.ok ? result.sheet.categories[0].sections[0].items[1] : undefined
+      expect(table && table.kind === 'table' && table.type === 'capacidades' && table.columns[0].default).toBe(0)
+      const odd = base()
+      ;(skills(odd).columns[0] as unknown as { default: unknown }).default = 'zero'
+      expect(errorsOf(odd)).toContain('categories[0].sections[0].items[1].columns[0].default')
+    })
+
     it('rejects an unknown format, or a format on a text field', () => {
       const sheet = base()
       ;(prof(sheet) as unknown as { format: string }).format = 'bold'
