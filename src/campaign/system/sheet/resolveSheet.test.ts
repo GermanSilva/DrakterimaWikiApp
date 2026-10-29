@@ -73,6 +73,14 @@ describe('resolveSheet: the D&D 5e sheet', () => {
     expect(cells(resolved, 'tabla_salvaciones', 'save_dex').bono).toMatchObject({ value: 1, text: '+1' })
   })
 
+  it('names the linked stat and its modifier on every capacidades row, so a tile can head its rows', () => {
+    const skills = item(resolved, 'tabla_habilidades')
+    const athletics = skills.kind === 'capacidades' ? skills.rows.find((r) => r.key === 'skill_athletics') : undefined
+    expect(athletics).toMatchObject({ stat: 'stat_str', statLabel: 'FUE', statModifierText: '+3' })
+    const none = item(resolveSheet(DND5E_SHEET, { ...hero, stat_str: undefined }), 'tabla_habilidades')
+    expect(none.kind === 'capacidades' && none.rows.find((r) => r.key === 'skill_athletics')).toMatchObject({ statLabel: 'FUE', statModifierText: '' })
+  })
+
   it('shows the stored proficiency level next to the computed bonus', () => {
     expect(cells(resolved, 'tabla_habilidades', 'skill_athletics').competencia).toMatchObject({ value: 2, type: 'number' })
     expect(cells(resolved, 'tabla_salvaciones', 'save_str').competente).toMatchObject({ value: true, type: 'boolean' })

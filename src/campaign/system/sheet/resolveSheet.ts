@@ -36,7 +36,7 @@ export interface CoinAmount {
 export type ResolvedItem =
   | { kind: 'field'; key: string; label: string; type: FieldType; format?: NumberFormat; value: Scalar; text: string; error: boolean; empty: boolean }
   | { kind: 'stat'; key: string; label: string; rows: { key: string; label: string; value: number | null; valueText: string; modifier: number | null; modifierText: string }[]; empty: false }
-  | { kind: 'capacidades'; key: string; label: string; columns: Column[]; rows: { key: string; label: string; stat: string; linked: number | null; cells: Cell[] }[]; empty: false }
+  | { kind: 'capacidades'; key: string; label: string; columns: Column[]; rows: { key: string; label: string; stat: string; statLabel: string; statModifierText: string; linked: number | null; cells: Cell[] }[]; empty: false }
   | { kind: 'rows'; key: string; label: string; tableType: 'libre' | 'habilidad'; columns: Column[]; rows: Record<string, unknown>[]; empty: boolean }
   | { kind: 'coins'; key: string; label: string; denominations: { key: string; label: string; value: number }[]; carried: CoinAmount[]; stored: CoinAmount[]; carriedTotal: number; storedTotal: number; empty: boolean }
 
@@ -246,8 +246,17 @@ export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): Resolve
         empty: false,
         rows: item.rows.map((row) => {
           const stat = statRows.get(row.stat)
-          const linked = stat ? (row.use === 'valor' ? statValue(stat) : finiteNumber(statModifier(stat).value)) : null
-          return { key: row.key, label: row.label, stat: row.stat, linked, cells: item.columns.map((_, index) => cell(item, row, index)) }
+          const modifier = stat ? finiteNumber(statModifier(stat).value) : null
+          const linked = stat ? (row.use === 'valor' ? statValue(stat) : modifier) : null
+          return {
+            key: row.key,
+            label: row.label,
+            stat: row.stat,
+            statLabel: stat?.label ?? '',
+            statModifierText: modifier === null ? '' : formatNumber(modifier, 'signed'),
+            linked,
+            cells: item.columns.map((_, index) => cell(item, row, index)),
+          }
         }),
       }
     }

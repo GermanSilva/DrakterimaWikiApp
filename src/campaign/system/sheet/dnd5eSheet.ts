@@ -43,7 +43,7 @@ const savesTable: Table = {
   key: 'tabla_salvaciones',
   label: 'Salvaciones',
   columns: [col('competente', 'Competente', 'boolean', 'dm'), bonusColumn(SAVE_BONUS)],
-  rows: ABILITY_SCORES.map((a) => ({ key: a.saveKey, label: a.label, stat: a.key, use: 'modificador' as const, editableBy: 'dm' as const })),
+  rows: ABILITY_SCORES.map((a) => ({ key: a.saveKey, label: 'Salvación', stat: a.key, use: 'modificador' as const, editableBy: 'dm' as const })),
 }
 
 const skillsTable: Table = {
@@ -160,7 +160,7 @@ const categories: Category[] = [
         key: 'habilidades',
         label: 'Salvaciones y habilidades',
         items: [savesTable, skillsTable],
-        blocks: [{ key: 'b_saves', mode: 'capacidades', items: keys(savesTable) }, { key: 'b_skills', mode: 'capacidades', items: keys(skillsTable) }],
+        blocks: [{ key: 'b_caps', mode: 'capacidades', items: keys(savesTable, skillsTable) }],
       },
       {
         key: 'hechizos',

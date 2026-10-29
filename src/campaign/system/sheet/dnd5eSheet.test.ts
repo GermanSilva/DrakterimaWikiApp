@@ -114,6 +114,14 @@ describe('the D&D 5e sheet preset', () => {
     }
   })
 
+  it('draws saves and skills in one capacidades block, so each ability heads one tile with its save and its skills', () => {
+    const section = DND5E_SHEET.categories.flatMap((c) => c.sections).find((s) => s.key === 'habilidades')
+    const blocks = section?.blocks.filter((b) => b.mode === 'capacidades') ?? []
+    expect(blocks.map((b) => b.items)).toEqual([['tabla_salvaciones', 'tabla_habilidades']])
+    const saves = items(DND5E_SHEET).find((item) => item.key === 'tabla_salvaciones')
+    expect(saves && saves.kind === 'table' && saves.type === 'capacidades' && [...new Set(saves.rows.map((r) => r.label))]).toEqual(['Salvación'])
+  })
+
   it('keeps a stored proficiency bonus above the one suggested by level', () => {
     const field = items(DND5E_SHEET).find((item) => item.key === 'stat_proficiency_bonus')
     expect(field).toMatchObject({ kind: 'field', overridable: true, format: 'signed', formula: '2 + floor(({nivel} - 1) / 4)' })
