@@ -113,6 +113,18 @@ describe('PJ detail drawn from the sheet (?sheet=1)', () => {
     expect(attacks.getByText('Daga')).toBeInTheDocument()
   })
 
+  it('does not repeat the section title as the label of its only table', async () => {
+    await open()
+    expect(section('ataques').getAllByText('Ataques')).toHaveLength(1)
+    expect(section('equipo').getAllByText('Equipo')).toHaveLength(1)
+  })
+
+  it('still labels a table whose name differs from the section title', async () => {
+    await open()
+    expect(section('habilidades').queryByText('Habilidades')).toBeNull() // the section is 'Salvaciones y habilidades' and has no table label to repeat
+    expect(section('hechizos').getAllByText('Hechizos')).toHaveLength(1)
+  })
+
   it('draws the coins by denomination, carried and stored, with the base unit total', async () => {
     await open([pj(1, { ...ELDRIC, equipo: [{ id: 1, nombre: 'Cuerda', cantidad: 2, portando: true }] })])
     const equipo = section('equipo')

@@ -126,12 +126,12 @@ function CapacidadesTiles({ items }: { items: Item<'capacidades'>[] }) {
   )
 }
 
-function RowsTable({ item }: { item: Item<'rows'> }) {
+function RowsTable({ item, hideLabel }: { item: Item<'rows'>; hideLabel: boolean }) {
   // a column nobody filled in is noise: the sheet may define more columns than a character uses
   const columns = item.columns.filter((c) => item.rows.some((row) => !isEmptyValue(row[c.key])))
   return (
     <div>
-      <div className={LABEL}>{item.label}</div>
+      {!hideLabel && <div className={LABEL}>{item.label}</div>}
       <table className="w-full text-[12px] border-collapse mt-1">
         <thead>
           <tr>
@@ -261,7 +261,9 @@ function ModalGroups({ block }: { block: ResolvedBlock }) {
   )
 }
 
-function Block({ block }: { block: ResolvedBlock }) {
+const sameLabel = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
+
+function Block({ block, sectionLabel }: { block: ResolvedBlock; sectionLabel: string }) {
   const fields = block.items.filter((i): i is Item<'field'> => i.kind === 'field' && !i.empty)
   let body
   if (block.mode === 'modal') {
@@ -283,7 +285,7 @@ function Block({ block }: { block: ResolvedBlock }) {
           if (item.empty) return null
           if (item.kind === 'stat') return <StatTiles key={item.key} item={item} />
           if (item.kind === 'capacidades') return <CapacidadesTiles key={item.key} items={[item]} />
-          if (item.kind === 'rows') return <RowsTable key={item.key} item={item} />
+          if (item.kind === 'rows') return <RowsTable key={item.key} item={item} hideLabel={sameLabel(item.label, sectionLabel)} />
           if (item.kind === 'coins') return <Coins key={item.key} item={item} />
           return item.type === 'paragraph' ? <FieldBlock key={item.key} item={item} /> : <FieldTile key={item.key} item={item} />
         })}
@@ -313,7 +315,7 @@ export default function SheetView({ resolved, unread }: { resolved: ResolvedShee
               {section.blocks
                 .filter((block) => !block.empty)
                 .map((block) => (
-                  <Block key={block.key} block={block} />
+                  <Block key={block.key} block={block} sectionLabel={section.label} />
                 ))}
             </div>
           </div>
