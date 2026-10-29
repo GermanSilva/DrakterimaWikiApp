@@ -74,3 +74,13 @@ Order matters: F2/F3 do not change behaviour (the preset reproduces it); F4/F5 s
 - Item kinds: field, table (stat | capacidades | habilidad | libre | monedas). Row values of Stat and Capacidades tables live flat at `data[row.key]` (Stat: valor; Capacidades: the first value column); extra Capacidades columns at `data[row.key + "__" + col.key]`. Habilidad and Libre rows are arrays at `data[table.key]`. Coins keep the `monedas` / `monedas_guardado` columns, keyed by the denomination row keys (S12/S14: each denomination row has `label` and integer `value` in base units).
 - Stat row: `{key,label,modifier:formula,editableBy}`; `editableBy` governs the value only. Capacidades row: `{key,label,stat,use:valor|modificador,editableBy}` (S11: label, stat and use are structural).
 - Formula scope: global refs are field keys, row keys, `{row.col}` and `nivel`; inside a table row, bare column names (and `valor` in a Stat modifier) resolve to that row first.
+
+
+## 9. Decisions taken while implementing F4 (2026-10-29, reversible)
+
+- Capacidades column formulas see `{valor}` and `{modificador}` of the linked stat besides the row columns; free tables do not (they have no linked stat).
+- A formula field may be `overridable`: the value stored on the character wins when it is a valid value of the type, else the formula applies. Still DM-only to write and never player-writable.
+- `format: "signed"` for number fields and columns; `default` for columns (and fields): what a character with no stored value counts as. Missing values are otherwise errors, never silent zeros.
+- A modal block groups the rows of a Habilidad table by the text column `categoria`; the block's `filterCategories` decide which groups exist and in which order. Rows with another or no category are not shown by that block.
+- Several tables linked to the same stat inside ONE capacidades block share a tile per stat (D&D: saves and skills). Tables that are not in any block are not drawn.
+- The renderer is opt-in (`?sheet=1`) until the data migration and the visual gaps listed in odd/tasks/system-agnostic.md are closed; an invalid stored sheet always falls back to today detail.
