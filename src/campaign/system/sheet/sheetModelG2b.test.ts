@@ -448,6 +448,16 @@ describe('searchable (S27)', () => {
   })
 })
 
+describe('the table functions mayor, menor, frecuente and infrecuente in a formula', () => {
+  const formula = (text: string) => withItem({ kind: 'field', key: 'calc', label: 'Calc', type: 'number', formula: text, editableBy: 'dm' })
+  it.each(['mayor({equipo}, "peso")', 'menor({equipo}, "total")', 'frecuente({equipo}, "nombre") & ""', 'infrecuente({dinero}, "key") & ""'])('accepts %s', (text) => {
+    ok(formula(text))
+  })
+  it.each(['mayor({equipo}, "ghost")', 'frecuente({stats}, "x")', 'menor({prof}, "x")', 'infrecuente({ghost}, "peso")', 'mayor({equipo}, "peso") + {equipo}'])('rejects %s', (text) => {
+    expect(errorsOf(formula(text))).toEqual([`${PATH}[6].formula`])
+  })
+})
+
 describe('what G2a accepted keeps working', () => {
   it('a sheet with tables and a formula column validates with no new properties added', () => {
     const sheet = ok(withTables())
