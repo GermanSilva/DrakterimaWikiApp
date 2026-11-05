@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useSearchParams } from 'react-router'
 import FormShell from '../components/FormShell'
 import { ENTITY_FORMS, FORM_TITLES } from '../components/forms/entityForms'
 import { extractDmNotes, withoutDmNotes, type DmNotesFields, type FlatEntity } from '../data'
@@ -19,6 +20,9 @@ import { useToast } from './toastContext'
 import { changedFields } from './changedFields'
 import { pickOwnerPatch } from './pjOwnerFields'
 import { markSectionsSeen, pjSectionStamps, type SectionStamps } from './pjStamps'
+import SheetEditor from './system/sheet/SheetEditor'
+import { sheetPatch, sheetStamps } from './system/sheet/sheetEditorModel'
+import { validateSheet } from './system/sheet/sheetModel'
 
 const NOTE_KEYS = ['notas', 'secreto', 'ganchos'] as const
 
@@ -57,6 +61,11 @@ interface Seed {
  * unread dots; the saver's own dots are cleared at once), and a player editing the character they own is
  * an OWNER save: only the identity fields the database guard allows are ever sent, never DM notes or
  * visibility, whatever the form state holds.
+ *
+ * Opt-in (`?sheet=1` on the page that opened the form, and a stored sheet that validates): a character is edited with the
+ * editor drawn from the sheet, and its payload and unread stamps come from the sheet (sheetPatch / sheetStamps: a player's
+ * keys are exactly what the database guard derives from the same sheet) instead of the fixed D&D lists. Anything else
+ * opens today's form unchanged. The hub never sends `jugador` on an update: the database derives it from the assignment.
  */
 function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onClose: () => void }) {
   const { isDM } = useCampaign()
@@ -81,6 +90,7 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
   // maps: only one may be the default (unique index), so saving a new default first demotes the current one
   const mapsList = useEntities('mapas', { enabled: table === 'mapas' })
   const { layer, campaignId } = useCampaignServices()
+  const [params] = useSearchParams()
 
   const dmReady = !isDM || !openedAsEdit || dm.status === 'ready' || dm.status === 'idle'
   const visReady = !isDM || !openedAsEdit || vis.status === 'ready' || vis.status === 'idle'
@@ -109,9 +119,17 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
   }, [loadFailed, missing, showToast, onClose])
 
   const basePort = useFormPort()
+  const stored = basePort.system?.sheet
+  const wantsSheet = isPj && params.get('sheet') === '1'
+  const sheet = useMemo(() => {
+    if (!wantsSheet || !stored) return null
+    const result = validateSheet(stored)
+    return result.ok ? result.sheet : null
+  }, [wantsSheet, stored])
   const port = useMemo(
     () => ({
       ...basePort,
+      ...(sheet ? { sheet } : {}),
       sesiones: needsSesiones
         ? sesionesList.items.map<SesionRef>((s) => ({
             id: s.id,
@@ -122,7 +140,7 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
           }))
         : basePort.sesiones,
     }),
-    [basePort, needsSesiones, sesionesList.items],
+    [basePort, sheet, needsSesiones, sesionesList.items],
   )
 
   /**
@@ -177,14 +195,26 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
         )
         // A character is diffed against what its form was SEEDED with, not against the raw row: defaults the row
         // lacks (stat_hp_current from stat_hp, the proficiency bonus, ...) are not edits and never travel.
-        const changed = isPj ? withDerivedDefaults(changedPjFields(pjBaseline(seed, basePort), flat), flat) : changedFields(seed.entity, flat)
-        const patch: Record<string, unknown> = ownerMode ? pickOwnerPatch(changed) : changed
+        let patch: Record<string, unknown>
+        if (sheet) {
+          // the payload is derived from the sheet; a value the guard would reject never leaves (the editor already said which)
+          const built = sheetPatch(sheet, seed.entity, flat, isDM)
+          if (built.errors.length > 0) {
+            showToast('Hay datos inválidos. Revisá el formulario.', 'error')
+            return
+          }
+          patch = built.patch
+        } else {
+          const changed = isPj ? withDerivedDefaults(changedPjFields(pjBaseline(seed, basePort), flat), flat) : changedFields(seed.entity, flat)
+          patch = ownerMode ? pickOwnerPatch(changed) : changed
+        }
+        if (isPj && basePort.jugadorFromAssignment) delete patch.jugador // set by the assignment, never by an edit (42501 otherwise)
         const visChanged = visibleTo !== undefined && !sameIds(visibleTo, seed.visibleTo)
         if (Object.keys(patch).length === 0 && Object.keys(dmChanged).length === 0 && !visChanged) {
           onClose() // nothing to write
           return
         }
-        const stamped = isPj ? pjSectionStamps(seed.entity, patch) : null
+        const stamped = sheet ? sheetStamps(sheet, patch) : isPj ? pjSectionStamps(seed.entity, patch) : null
         if (stamped && stamped.sections.length > 0) patch.sections_updated = stamped.stamps
         const outcome = await actions.update(seed.entity.id, patch, {
           base: seed.entity,
@@ -205,7 +235,8 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
       } else {
         const filled = Object.fromEntries(Object.entries(notes).filter(([, v]) => v !== ''))
         const created: SectionStamps | null = isPj ? { sections: ['general'], stamps: { general: new Date().toISOString() } } : null
-        const outcome = await actions.create(created ? { ...flat, sections_updated: created.stamps } : flat, { dmNotes: filled, visibleTo })
+        const fields = sheet ? sheetPatch(sheet, {}, flat, true).patch : flat
+        const outcome = await actions.create(created ? { ...fields, sections_updated: created.stamps } : fields, { dmNotes: filled, visibleTo })
         saved = outcome?.entity ?? null
         if (outcome && created) markSectionsSeen(unread, outcome.entity, created)
         if (outcome && outcome.warnings.length > 0) {
@@ -227,7 +258,7 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
         onClose()
       } // else: the toast says why and the form stays open
     },
-    [seed, actions, request, onClose, isPj, ownerMode, unread, basePort, table, prepareMapSave],
+    [seed, actions, request, onClose, isPj, isDM, ownerMode, unread, basePort, sheet, showToast, table, prepareMapSave],
   )
 
   const onSave = useCallback(
@@ -267,7 +298,7 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
       <FormShell
         type={request.type}
         title={seed ? titles[1] : titles[0]}
-        FormComponent={ENTITY_FORMS[request.type]}
+        FormComponent={sheet ? SheetEditor : ENTITY_FORMS[request.type]}
         item={item}
         prefill={seed ? null : (request.prefill ?? null)}
         isPJForm={isPj}
