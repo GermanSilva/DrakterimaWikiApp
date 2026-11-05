@@ -173,3 +173,65 @@ $$;
 
 revoke execute on function public.sheet_guard_access(uuid, jsonb, jsonb) from public, anon, authenticated;
 grant execute on function public.sheet_guard_access(uuid, jsonb, jsonb) to authenticated;
+
+------------------------------------------------------------------------------
+-- Part 2 (S30, S33): `jugador` is derived from the assignment of the character (pjs.owner_id).
+--
+--   * When a character is created with an owner, or its owner changes (the DM assigns / reassigns it, an invite is
+--     redeemed, a member leaves or is removed, a profile is deleted), jugador := the display name of the new owner
+--     (profiles.display_name, the name every member sees; there is no separate username), or '' when it has none.
+--     Whatever jugador text came along with that write is ignored.
+--   * A write that does not change the owner but changes jugador is refused (42501) unless the caller is a DM of the
+--     campaign or there is no request identity (postgres, migrations, service_role). So a player (owner) can no longer edit it,
+--     while the DM form and the importer keep working until G4b retires them.
+--   * A character created WITHOUT an owner keeps the text it came with (importer, legacy DM form).
+--   * The name is a snapshot taken at assignment: renaming a profile does not rewrite characters.
+--   * Existing stored values are NOT rewritten by this migration (S33's data migration belongs to G10).
+--
+-- guard_pj_player_update() is NOT redefined: `jugador` stays in its allowed columns (pjOwnerFields.ts mirrors that
+-- list), this separate BEFORE trigger (it sorts before pjs_guard_player_update) is what makes the column read-only.
+--
+-- ROLLBACK (part 2 only): drop trigger pjs_enforce_jugador on public.pjs; drop function public.pjs_enforce_jugador();
+------------------------------------------------------------------------------
+create function public.pjs_enforce_jugador()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if tg_op = 'INSERT' then
+    if new.owner_id is not null then
+      select p.display_name into new.jugador from public.profiles p where p.id = new.owner_id;
+      new.jugador := coalesce(new.jugador, '');
+    end if;
+    return new;
+  end if;
+
+  if new.owner_id is distinct from old.owner_id then
+    new.jugador := '';
+    if new.owner_id is not null then
+      select p.display_name into new.jugador from public.profiles p where p.id = new.owner_id;
+      new.jugador := coalesce(new.jugador, '');
+    end if;
+    return new;
+  end if;
+
+  -- this function is SECURITY DEFINER (it reads profiles), so current_user is the owner here: the caller is told apart by
+  -- the request identity instead. No identity (postgres, migrations, service_role) is privileged; a user must be a DM.
+  if new.jugador is distinct from old.jugador
+     and (select auth.uid()) is not null
+     and not public.is_campaign_dm(old.campaign_id)
+  then
+    raise exception 'the player of a character is set by assigning it, not edited'
+      using errcode = '42501';
+  end if;
+  return new;
+end;
+$$;
+
+revoke execute on function public.pjs_enforce_jugador() from public, anon, authenticated;
+
+create trigger pjs_enforce_jugador
+  before insert or update on public.pjs
+  for each row execute function public.pjs_enforce_jugador();

@@ -1,10 +1,12 @@
 -- pgTAP: G4a of the system-agnostic campaigns (S20, S30, S33).
 --   Part 1: a player may write an `options` value (field, Capacidades cell, options column of a Libre table) only as one
 --           of the option keys declared at THAT place; null still clears; everything else is judged as before.
+--   Part 2: `jugador` is no longer free text for a player; the assignment of the character (pjs.owner_id) decides it: it
+--           becomes the display name of the assigned member and is cleared when the character is released (S30, S33).
 -- Self-contained fixture, rolled back at the end.
 begin;
 
-select plan(30);
+select plan(63);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -18,9 +20,12 @@ begin
 end;
 $$;
 
+-- back to a session without a request identity (like a migration or the service role): the claims are cleared too
 create function tests.as_postgres() returns void language plpgsql as $$
 begin
   execute 'reset role';
+  perform set_config('request.jwt.claim.sub', '', true);
+  perform set_config('request.jwt.claims', '', true);
 end;
 $$;
 
@@ -40,13 +45,13 @@ $$;
 grant execute on all functions in schema tests to anon, authenticated;
 
 ------------------------------------------------------------------------------
--- Fixture: dm (..0101), player (..0102), outsider (..0103)
+-- Fixture: dm (..0101), player (..0102), outsider (..0103), second member of A (..0104), invitee (..0105, not a member)
 --   A = custom sheet with options, B = no sheet, C = the default D&D preset
 ------------------------------------------------------------------------------
 insert into auth.users (instance_id, id, aud, role, email, raw_user_meta_data)
 select '00000000-0000-0000-0000-000000000000', ('eeeeeeee-0000-4000-8000-000000000' || (100 + n))::uuid,
        'authenticated', 'authenticated', 'optjug-u' || n || '@example.test', json_build_object('full_name', 'Optjug ' || n)::jsonb
-from generate_series(1, 3) as n;
+from generate_series(1, 5) as n;
 
 insert into public.campaigns (id, slug, name, created_by) values
   ('ffffffff-0000-4000-8000-0000000001aa', 'optjug-a', 'Opt A', 'eeeeeeee-0000-4000-8000-000000000101'),
@@ -60,6 +65,11 @@ insert into public.pjs (id, campaign_id, owner_id, nombre) values
   (98001, 'ffffffff-0000-4000-8000-0000000001aa', 'eeeeeeee-0000-4000-8000-000000000102', 'Player in A'),
   (98002, 'ffffffff-0000-4000-8000-0000000001bb', 'eeeeeeee-0000-4000-8000-000000000102', 'Player in B'),
   (98003, 'ffffffff-0000-4000-8000-0000000001cc', 'eeeeeeee-0000-4000-8000-000000000102', 'Player in C');
+insert into public.campaign_members (campaign_id, user_id, role) values
+  ('ffffffff-0000-4000-8000-0000000001aa', 'eeeeeeee-0000-4000-8000-000000000104', 'player');
+insert into public.pjs (id, campaign_id, owner_id, nombre, jugador) values
+  (98004, 'ffffffff-0000-4000-8000-0000000001aa', null, 'Unowned', 'Legacy text'),
+  (98005, 'ffffffff-0000-4000-8000-0000000001aa', null, 'Claimable', 'Old text');
 update public.campaigns set system_profile = system_profile - 'sheet' where id = 'ffffffff-0000-4000-8000-0000000001bb';
 
 create function tests.custom_profile() returns jsonb language sql stable as $$
@@ -153,6 +163,76 @@ select is(tests.try($$ update public.pjs set data = data || '{"edad": "30"}' whe
 select is(tests.try($$ update public.pjs set data = data || '{"grado": "comp"}' where id = 98003 $$), '42501', 'preset sheet: a key it does not define stays rejected');
 select tests.as_user('eeeeeeee-0000-4000-8000-000000000103');
 select is(public.sheet_guard_access('ffffffff-0000-4000-8000-0000000001aa', '{}', '{}'), null, 'a non-member still gets the legacy answer (null)');
+
+------------------------------------------------------------------------------
+-- Part 2 (S30, S33): jugador follows the assignment
+------------------------------------------------------------------------------
+select tests.as_postgres();
+select is((select jugador from public.pjs where id = 98001), 'Optjug 2', 'baseline: a character inserted with an owner got that member display name');
+
+-- the owner (a player) can no longer change it
+select tests.as_user('eeeeeeee-0000-4000-8000-000000000102');
+select is(tests.try($$ update public.pjs set jugador = 'Somebody else' where id = 98001 $$), '42501', 'owner: changing jugador is rejected');
+select is(tests.try($$ update public.pjs set jugador = 'Optjug 2' where id = 98001 $$), 'ok', 'owner: writing the value already stored is not a change (a form save round-trips it)');
+select is(tests.try($$ update public.pjs set nombre = 'Renamed', jugador = 'Hacked' where id = 98001 $$), '42501', 'owner: jugador cannot ride along with an allowed change');
+select is((select nombre || '/' || jugador from public.pjs where id = 98001), 'Player in A/Optjug 2', 'owner: the rejected update changed nothing');
+select is(tests.try($$ update public.pjs set owner_id = 'eeeeeeee-0000-4000-8000-000000000104' where id = 98001 $$), '42501', 'owner: handing the character over is still DM only');
+select is((select jugador from public.pjs where id = 98001), 'Optjug 2', 'owner: a rejected hand-over leaves jugador alone');
+select is(tests.try($$ update public.pjs set jugador = 'Nope' where id = 98002 $$), '42501', 'owner on a no-sheet campaign: jugador is rejected too');
+select is(tests.try($$ update public.pjs set jugador = 'Nope' where id = 98003 $$), '42501', 'owner on the preset sheet: jugador is rejected too');
+
+-- the DM assigns: jugador becomes the member's display name, whatever text is sent along
+select tests.as_user('eeeeeeee-0000-4000-8000-000000000101');
+select is(tests.try($$ update public.pjs set owner_id = 'eeeeeeee-0000-4000-8000-000000000104', jugador = 'Typed by hand' where id = 98004 $$), 'ok', 'DM: assigns a character to a member');
+select is((select jugador from public.pjs where id = 98004), 'Optjug 4', 'DM assignment: jugador is the member display name, not the typed text');
+select is(tests.try($$ update public.pjs set owner_id = 'eeeeeeee-0000-4000-8000-000000000102' where id = 98004 $$), 'ok', 'DM: reassigns it');
+select is((select jugador from public.pjs where id = 98004), 'Optjug 2', 'DM reassignment: jugador follows the new member');
+select is(tests.try($$ update public.pjs set owner_id = null where id = 98004 $$), 'ok', 'DM: releases it');
+select is((select jugador from public.pjs where id = 98004), '', 'DM release: jugador is cleared');
+select is(tests.try($$ update public.pjs set owner_id = 'eeeeeeee-0000-4000-8000-000000000103' where id = 98004 $$), '23514', 'DM: a non-member still cannot be assigned');
+select is((select jugador from public.pjs where id = 98004), '', 'a refused assignment leaves jugador alone');
+
+-- a character created for a member
+select is(tests.try($$ insert into public.pjs (id, campaign_id, owner_id, nombre, jugador) values (98006, 'ffffffff-0000-4000-8000-0000000001aa', 'eeeeeeee-0000-4000-8000-000000000104', 'Born owned', 'free text') $$), 'ok', 'DM: creates a character for a member');
+select is((select jugador from public.pjs where id = 98006), 'Optjug 4', 'creation for a member: jugador is the member display name');
+select is(tests.try($$ insert into public.pjs (id, campaign_id, nombre, jugador) values (98007, 'ffffffff-0000-4000-8000-0000000001aa', 'Born free', 'Legacy name') $$), 'ok', 'DM: creates an unassigned character');
+select is((select jugador from public.pjs where id = 98007), 'Legacy name', 'creation without a member keeps the text (importer and DM form still work; G4b/G10 retire it)');
+
+-- DM direct edits of the text with the assignment untouched are NOT blocked in this unit (the form is retired in G4b)
+select is(tests.try($$ update public.pjs set jugador = 'DM edit' where id = 98007 $$), 'ok', 'DM: editing the text of an unassigned character still works');
+select is((select jugador from public.pjs where id = 98007), 'DM edit', 'and it is stored');
+
+-- the other assignment paths: invite redemption and member removal
+select tests.as_postgres();
+insert into public.campaign_invites (campaign_id, code, character_id, max_uses, created_by)
+values ('ffffffff-0000-4000-8000-0000000001aa', 'optjug-claim-code', 98005, 1, 'eeeeeeee-0000-4000-8000-000000000101');
+select tests.as_user('eeeeeeee-0000-4000-8000-000000000105');
+select lives_ok($$ select public.accept_invite('optjug-claim-code') $$, 'a new member redeems a character invite');
+select tests.as_postgres();
+select is((select jugador from public.pjs where id = 98005), 'Optjug 5', 'invite redemption: jugador is the display name of the claimer');
+select is((select owner_id from public.pjs where id = 98005), 'eeeeeeee-0000-4000-8000-000000000105'::uuid, 'invite redemption: the claimer owns the character');
+delete from public.campaign_members where campaign_id = 'ffffffff-0000-4000-8000-0000000001aa' and user_id = 'eeeeeeee-0000-4000-8000-000000000105';
+select is((select owner_id from public.pjs where id = 98005), null, 'member removal releases the character');
+select is((select jugador from public.pjs where id = 98005), '', 'member removal: jugador is cleared');
+
+-- privileged roles can still set the text directly; an assignment change always wins
+update public.pjs set jugador = 'Maintenance' where id = 98007;
+select is((select jugador from public.pjs where id = 98007), 'Maintenance', 'postgres: a direct text write is not blocked');
+update public.pjs set owner_id = 'eeeeeeee-0000-4000-8000-000000000104', jugador = 'ignored' where id = 98007;
+select is((select jugador from public.pjs where id = 98007), 'Optjug 4', 'postgres: an owner change derives jugador as well');
+
+-- the display name is a snapshot taken at assignment (a later rename does not rewrite characters)
+update public.profiles set display_name = 'Renamed Four' where id = 'eeeeeeee-0000-4000-8000-000000000104';
+select is((select jugador from public.pjs where id = 98007), 'Optjug 4', 'a profile rename does not touch assigned characters (snapshot)');
+
+-- the trigger function is internal
+select ok(
+  not has_function_privilege('anon', 'public.pjs_enforce_jugador()', 'execute')
+  and not has_function_privilege('authenticated', 'public.pjs_enforce_jugador()', 'execute'),
+  'pjs_enforce_jugador is not callable through the API');
+select ok(
+  (select p.prosecdef and p.proconfig = array['search_path=""'] from pg_proc p where p.oid = 'public.pjs_enforce_jugador()'::regprocedure),
+  'and it is SECURITY DEFINER with an empty search_path');
 
 select * from finish();
 rollback;
