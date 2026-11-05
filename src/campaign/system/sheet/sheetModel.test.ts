@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { validateSheet, type Sheet } from './sheetModel'
+import { validateSheet, type Item, type Sheet } from './sheetModel'
 
 const base = (): Sheet => ({
   categories: [
@@ -120,13 +120,6 @@ describe('validateSheet', () => {
   })
 
   describe('verifier findings', () => {
-    it.each(['"x"', '{prof} & ""', 'signo(1)', 'conteo({prof})'])('keeps rejecting %s until text and table formulas reach the sheet (G2, SQL charset)', (formula) => {
-      const sheet = base()
-      const field = sheet.categories[0].sections[0].items[3]
-      if (field.kind === 'field') field.formula = formula
-      expect(validateSheet(sheet).ok).toBe(false)
-    })
-
     it('accepts a tab inside a formula', () => {
       const sheet = base()
       const field = sheet.categories[0].sections[0].items[3]
@@ -472,6 +465,222 @@ describe('validateSheet', () => {
       sheet.roles = { hp: 'ghost' }
       expect(validateSheet(sheet).ok).toBe(false)
       expect((validateSheet({ ...base(), roles: { nonsense: 'nivel_extra' } }) as { ok: boolean }).ok).toBe(false)
+    })
+  })
+})
+
+describe('G2a: text formulas, hidden fields and table references', () => {
+  const section = (sheet: Sheet) => sheet.categories[0].sections[0]
+  const PATH = 'categories[0].sections[0].items'
+  /** The base sheet plus a free table of equipment (row formula column) and the coin table. */
+  const withTables = (): Sheet => {
+    const sheet = base()
+    section(sheet).items.push(
+      {
+        kind: 'table',
+        type: 'libre',
+        key: 'equipo',
+        label: 'Equipo',
+        editableBy: 'player',
+        columns: [
+          { key: 'nombre', label: 'Nombre', type: 'short', editableBy: 'player' },
+          { key: 'peso', label: 'Peso', type: 'number', editableBy: 'player' },
+          { key: 'cantidad', label: 'Cantidad', type: 'number', editableBy: 'player' },
+          { key: 'total', label: 'Total', type: 'number', formula: '{peso} * {cantidad}', editableBy: 'player' },
+        ],
+      },
+      { kind: 'table', type: 'monedas', key: 'dinero', label: 'Dinero', rows: [{ key: 'oro', label: 'Oro', value: 100 }, { key: 'bronce', label: 'Bronce', value: 1 }] },
+    )
+    return sheet
+  }
+  const field = (formula: string, extra: Record<string, unknown> = {}): Item =>
+    ({ kind: 'field', key: 'calc', label: 'Calc', type: 'number', formula, editableBy: 'dm', ...extra }) as Item
+  const withField = (sheet: Sheet, item: Item): Sheet => {
+    section(sheet).items.push(item)
+    return sheet
+  }
+  // items 0-3 are the base, 4 equipo, 5 dinero, 6 the field under test
+  const calcPath = `${PATH}[6].formula`
+
+  describe('text formulas', () => {
+    it.each(['"x"', '{prof} & ""', 'signo({prof})', '{prof} & "/" & {prof} + 9'])('accepts %s on a short field and keeps it as written', (formula) => {
+      const sheet = withField(base(), field(formula, { type: 'short' }))
+      const result = validateSheet(sheet)
+      expect(result.ok, JSON.stringify(result.ok ? [] : result.errors)).toBe(true)
+      if (result.ok) expect(result.sheet.categories[0].sections[0].items[4]).toMatchObject({ type: 'short', formula })
+    })
+
+    it('accepts text and table formulas on number fields too (the result type is checked when it is computed)', () => {
+      expect(validateSheet(withField(withTables(), field('suma({equipo}, "peso")'))).ok).toBe(true)
+      expect(validateSheet(withField(base(), field('"x"'))).ok).toBe(true)
+    })
+
+    it('still rejects a formula on a paragraph field, with the path of the formula', () => {
+      const sheet = withField(base(), field('"x"', { type: 'paragraph' }))
+      expect(errorsOf(sheet)).toEqual([`${PATH}[4].formula`])
+    })
+
+    it('still makes a short formula field DM level only', () => {
+      const sheet = withField(base(), field('"x"', { type: 'short', editableBy: 'player' }))
+      expect(errorsOf(sheet)).toEqual([`${PATH}[4].editableBy`])
+    })
+
+    it('accepts braces, a tab and any unicode inside a text literal: they are just text', () => {
+      const formula = '"{ghost} } {" & "Ünï ✓ 日本 😀" & "a\tb"'
+      expect(errorsOf(withField(base(), field(formula, { type: 'short' })))).toEqual([])
+    })
+
+    it.each([['a control character', '\u0007'], ['a line break', '\n'], ['a C1 control character', '\u0085'], ['DEL', '\u007f']])('rejects %s inside a text literal (the database charset)', (_name, char) => {
+      expect(errorsOf(withField(base(), field(`"a${char}b"`, { type: 'short' })))).toEqual([`${PATH}[4].formula`])
+    })
+
+    it('rejects a text formula that does not parse', () => {
+      expect(errorsOf(withField(base(), field('"open', { type: 'short' })))).toEqual([`${PATH}[4].formula`])
+    })
+
+    it('rejects a reference that does not exist inside a text formula', () => {
+      expect(errorsOf(withField(base(), field('"a" & {ghost}', { type: 'short' })))).toEqual([`${PATH}[4].formula`])
+    })
+  })
+
+  describe('hidden fields (S21)', () => {
+    it('keeps hidden on a formula field, and another formula can read it', () => {
+      const sheet = withField(base(), field('{prof} * 2', { hidden: true, key: 'oculto' }))
+      section(sheet).items.push(field('{oculto} + 1', { key: 'visible' }))
+      const result = validateSheet(sheet)
+      expect(result.ok, JSON.stringify(result.ok ? [] : result.errors)).toBe(true)
+      if (result.ok) {
+        const items = result.sheet.categories[0].sections[0].items
+        expect(items[4]).toMatchObject({ key: 'oculto', hidden: true })
+        expect(items[5]).not.toHaveProperty('hidden')
+      }
+    })
+
+    it('rejects hidden on a field with no formula', () => {
+      const sheet = base()
+      section(sheet).items[2] = { kind: 'field', key: 'nivel_extra', label: 'Sin', type: 'number', editableBy: 'player', hidden: true } as Item
+      expect(errorsOf(sheet)).toEqual([`${PATH}[2].hidden`])
+    })
+
+    it.each(['yes', 1, null])('rejects hidden = %j (only a boolean)', (hidden) => {
+      expect(errorsOf(withField(base(), field('1', { hidden })))).toEqual([`${PATH}[4].hidden`])
+    })
+  })
+
+  describe('table references (S29)', () => {
+    it.each([
+      'suma({equipo}, "peso")',
+      'promedio({equipo}, "total")',
+      'conteo({equipo})',
+      'conteo({equipo}, "nombre")',
+      'lookup({equipo}, "nombre", "cuerda", "peso", 0)',
+      'suma({dinero}, "value")',
+      'lookup({dinero}, "key", "oro", "value")',
+      'lookup({dinero}, "key", "oro", "label") & ""',
+    ])('accepts %s', (formula) => {
+      const result = validateSheet(withField(withTables(), field(formula)))
+      expect(result.ok, JSON.stringify(result.ok ? [] : result.errors)).toBe(true)
+    })
+
+    it.each([
+      ['a column the table does not have', 'suma({equipo}, "ghost")'],
+      ['a key column the table does not have', 'lookup({equipo}, "ghost", 1, "peso")'],
+      ['a result column the table does not have', 'lookup({equipo}, "nombre", "x", "ghost")'],
+      ['a coin table column other than key, label, value', 'suma({dinero}, "total")'],
+      ['a stat table', 'conteo({stats})'],
+      ['a capacidades table', 'conteo({skills})'],
+      ['a field', 'suma({prof}, "x")'],
+      ['a stat row', 'suma({stat_str}, "x")'],
+      ['a table that does not exist', 'suma({ghost}, "peso")'],
+    ])('rejects %s', (_name, formula) => {
+      expect(errorsOf(withField(withTables(), field(formula)))).toEqual([calcPath])
+    })
+
+    it.each(['{equipo} + 1', '{dinero} + 1', '{stats} + 1', '{skills} & "x"'])('rejects the table key used as a plain value: %s', (formula) => {
+      expect(errorsOf(withField(withTables(), field(formula)))).toEqual([calcPath])
+    })
+
+    it('reads the tables of other sections too', () => {
+      const sheet = withTables()
+      sheet.categories[0].sections.push({
+        key: 'otra', label: 'Otra', blocks: [{ key: 'b', mode: 'tile', items: ['peso_total'] }],
+        items: [{ kind: 'field', key: 'peso_total', label: 'Peso', type: 'number', formula: 'suma({equipo}, "peso")', editableBy: 'dm' }],
+      })
+      expect(validateSheet(sheet).ok).toBe(true)
+    })
+  })
+
+  describe('row formula columns', () => {
+    const equipo = (sheet: Sheet) => {
+      const table = section(sheet).items[4]
+      if (table.kind !== 'table' || table.type !== 'libre') throw new Error('fixture changed')
+      return table
+    }
+
+    it('keeps a row formula column whose locals are the columns of its own table', () => {
+      const result = validateSheet(withTables())
+      expect(result.ok).toBe(true)
+      if (result.ok) expect(JSON.stringify(result.sheet)).toContain('"formula":"{peso} * {cantidad}"')
+    })
+
+    it('rejects a local that is not a column of the table', () => {
+      const sheet = withTables()
+      equipo(sheet).columns[3].formula = '{peso} * {ghost}'
+      expect(errorsOf(sheet)).toEqual([`${PATH}[4].columns[3].formula`])
+    })
+
+    it('lets a row formula column read sheet fields and other tables', () => {
+      const sheet = withTables()
+      equipo(sheet).columns[3].formula = '{peso} * {cantidad} + {prof} + suma({dinero}, "value")'
+      expect(validateSheet(sheet).ok).toBe(true)
+    })
+
+    it('rejects a formula on a text column (row formula columns are numbers or flags)', () => {
+      const sheet = withTables()
+      equipo(sheet).columns[0].formula = '"x"'
+      expect(errorsOf(sheet)).toEqual([`${PATH}[4].columns[0].formula`])
+    })
+
+    it('accepts a row column that sums a stored column of its own table', () => {
+      const sheet = withTables()
+      equipo(sheet).columns[3].formula = '{peso} / suma({equipo}, "peso")'
+      expect(validateSheet(sheet).ok).toBe(true)
+    })
+
+    it('rejects a row column that sums its own column (a cycle)', () => {
+      const sheet = withTables()
+      equipo(sheet).columns[3].formula = '{peso} + suma({equipo}, "total")'
+      expect(errorsOf(sheet)).toEqual(['categories'])
+    })
+
+    it('rejects two row columns that read each other', () => {
+      const sheet = withTables()
+      equipo(sheet).columns[2].formula = '{total} + 1'
+      expect(errorsOf(sheet)).toEqual(['categories'])
+    })
+
+    it('rejects a field and a table column that depend on each other through a table function', () => {
+      const sheet = withField(withTables(), field('suma({equipo}, "total")', { key: 'carga' }))
+      equipo(sheet).columns[3].formula = '{peso} + {carga}'
+      expect(errorsOf(sheet)).toEqual(['categories'])
+    })
+
+    it('rejects a field that reads a column through lookup and is read by that column', () => {
+      const sheet = withField(withTables(), field('lookup({equipo}, "nombre", "x", "total", 0)', { key: 'carga' }))
+      equipo(sheet).columns[3].formula = '{carga}'
+      expect(errorsOf(sheet)).toEqual(['categories'])
+    })
+
+    it('does not call it a cycle when the field only sums a stored column', () => {
+      const sheet = withField(withTables(), field('suma({equipo}, "peso")', { key: 'carga' }))
+      equipo(sheet).columns[3].formula = '{peso} + {carga}'
+      expect(validateSheet(sheet).ok).toBe(true)
+    })
+
+    it('does not call conteo of the whole table a cycle for a row column (it only counts rows)', () => {
+      const sheet = withTables()
+      equipo(sheet).columns[3].formula = '{peso} / conteo({equipo})'
+      expect(validateSheet(sheet).ok).toBe(true)
     })
   })
 })

@@ -264,7 +264,7 @@ function ModalGroups({ block }: { block: ResolvedBlock }) {
 const sameLabel = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
 
 function Block({ block, sectionLabel }: { block: ResolvedBlock; sectionLabel: string }) {
-  const fields = block.items.filter((i): i is Item<'field'> => i.kind === 'field' && !i.empty)
+  const fields = block.items.filter((i): i is Item<'field'> => i.kind === 'field' && !i.empty && !i.hidden)
   let body
   if (block.mode === 'modal') {
     body = <ModalGroups block={block} />
@@ -282,7 +282,7 @@ function Block({ block, sectionLabel }: { block: ResolvedBlock; sectionLabel: st
     body = (
       <div className="space-y-3">
         {block.items.map((item) => {
-          if (item.empty) return null
+          if (item.empty || (item.kind === 'field' && item.hidden)) return null
           if (item.kind === 'stat') return <StatTiles key={item.key} item={item} />
           if (item.kind === 'capacidades') return <CapacidadesTiles key={item.key} items={[item]} />
           if (item.kind === 'rows') return <RowsTable key={item.key} item={item} hideLabel={sameLabel(item.label, sectionLabel)} />

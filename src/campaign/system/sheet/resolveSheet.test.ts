@@ -333,3 +333,231 @@ describe('resolveSheet: sections', () => {
     expect(() => resolveSheet(DND5E_SHEET, { nivel: 'x', stat_str: NaN, monedas: 5, ataques: { a: 1 } })).not.toThrow()
   })
 })
+
+describe('resolveSheet: text formula fields (S24)', () => {
+  const sheet = custom([
+    { kind: 'field', key: 'dados', label: 'Dados de golpe', type: 'number', editableBy: 'player' },
+    { kind: 'field', key: 'dados_max', label: 'Máximo', type: 'number', editableBy: 'player' },
+    { kind: 'field', key: 'hd', label: 'Dados', type: 'short', formula: '"1d8 (" & {dados} & "/" & {dados_max} & ")"', editableBy: 'dm' },
+    { kind: 'field', key: 'bono', label: 'Bono', type: 'short', formula: 'signo({dados} - 3)', editableBy: 'dm' },
+    { kind: 'field', key: 'media', label: 'Media', type: 'short', formula: '{dados} / 3', editableBy: 'dm' },
+    { kind: 'field', key: 'falla', label: 'Falla', type: 'short', formula: '"x" & ({dados} / 0)', editableBy: 'dm' },
+    { kind: 'field', key: 'num_texto', label: 'NT', type: 'number', formula: '"x" & {dados}', editableBy: 'dm' },
+    { kind: 'field', key: 'bool_texto', label: 'BT', type: 'boolean', formula: '"x"', editableBy: 'dm' },
+    { kind: 'field', key: 'num_ok', label: 'NO', type: 'number', formula: '{dados} + 1', editableBy: 'dm' },
+    { kind: 'field', key: 'fijo', label: 'Fijo', type: 'short', formula: '"auto"', overridable: true, editableBy: 'dm' },
+  ])
+
+  it('shows the text the formula builds as the value and the text of the field', () => {
+    const resolved = resolveSheet(sheet, { dados: 2, dados_max: 2 })
+    expect(item(resolved, 'hd')).toMatchObject({ kind: 'field', type: 'short', value: '1d8 (2/2)', text: '1d8 (2/2)', error: false, empty: false })
+    expect(item(resolved, 'bono')).toMatchObject({ value: '-1', text: '-1', error: false })
+  })
+
+  it('formats a number result on a text field (rounded to two decimals)', () => {
+    expect(item(resolveSheet(sheet, { dados: 5 }), 'media')).toMatchObject({ value: '1.67', text: '1.67', error: false })
+  })
+
+  it('reports an error, not a text, when the text formula cannot be computed', () => {
+    const resolved = resolveSheet(sheet, { dados: 2, dados_max: 2 })
+    expect(item(resolved, 'falla')).toMatchObject({ value: null, text: '', error: true })
+    expect(item(resolveSheet(sheet, {}), 'hd')).toMatchObject({ value: null, text: '', error: true })
+  })
+
+  it('keeps requiring a number from number and boolean fields: a text result is an error', () => {
+    const resolved = resolveSheet(sheet, { dados: 2, dados_max: 2 })
+    expect(item(resolved, 'num_texto')).toMatchObject({ value: null, error: true })
+    expect(item(resolved, 'bool_texto')).toMatchObject({ value: null, error: true })
+    expect(item(resolved, 'num_ok')).toMatchObject({ value: 3, error: false })
+  })
+
+  it('lets a stored text win over an overridable text formula', () => {
+    expect(item(resolveSheet(sheet, { fijo: 'manual' }), 'fijo')).toMatchObject({ value: 'manual', text: 'manual' })
+    expect(item(resolveSheet(sheet, {}), 'fijo')).toMatchObject({ value: 'auto', text: 'auto' })
+  })
+
+  it('lets another formula read a text field', () => {
+    const chained = custom([
+      { kind: 'field', key: 'nombre_corto', label: 'N', type: 'short', formula: '"Ana"', editableBy: 'dm' },
+      { kind: 'field', key: 'saludo', label: 'S', type: 'short', formula: '"Hola " & {nombre_corto}', editableBy: 'dm' },
+    ])
+    expect(item(resolveSheet(chained, {}), 'saludo')).toMatchObject({ value: 'Hola Ana', error: false })
+  })
+})
+
+describe('resolveSheet: hidden fields (S21)', () => {
+  const sheet = custom([
+    { kind: 'field', key: 'base', label: 'Base', type: 'number', editableBy: 'player' },
+    { kind: 'field', key: 'oculto', label: 'Oculto', type: 'number', formula: '{base} * 2', hidden: true, editableBy: 'dm' },
+    { kind: 'field', key: 'visible', label: 'Visible', type: 'number', formula: '{oculto} + 1', editableBy: 'dm' },
+  ])
+
+  it('resolves a hidden field, marks it hidden, and lets other formulas read it', () => {
+    const resolved = resolveSheet(sheet, { base: 4 })
+    expect(item(resolved, 'oculto')).toMatchObject({ value: 8, text: '8', error: false, hidden: true })
+    expect(item(resolved, 'visible')).toMatchObject({ value: 9, error: false })
+    expect(item(resolved, 'visible')).not.toHaveProperty('hidden')
+    expect(item(resolved, 'base')).not.toHaveProperty('hidden')
+  })
+
+  it('counts a block whose items are all hidden, and its section, as empty', () => {
+    const only = custom([{ kind: 'field', key: 'oculto', label: 'O', type: 'number', formula: '1', hidden: true, editableBy: 'dm' }])
+    const resolved = resolveSheet(only, {})
+    expect(resolved.sections[0].blocks[0].empty).toBe(true)
+    expect(resolved.sections[0].empty).toBe(true)
+  })
+
+  it('keeps a block with a hidden and a visible field showing', () => {
+    const resolved = resolveSheet(sheet, { base: 4 })
+    expect(resolved.sections[0].blocks[0].empty).toBe(false)
+    expect(resolved.sections[0].empty).toBe(false)
+  })
+})
+
+describe('resolveSheet: table references and row formula columns (S29)', () => {
+  const equipoColumns = [
+    { key: 'nombre', label: 'Nombre', type: 'short', editableBy: 'dm' },
+    { key: 'peso', label: 'Peso', type: 'number', editableBy: 'dm' },
+    { key: 'cantidad', label: 'Cantidad', type: 'number', editableBy: 'dm' },
+    { key: 'total', label: 'Total', type: 'number', formula: '{peso} * {cantidad}', editableBy: 'dm' },
+    { key: 'pesado', label: 'Pesado', type: 'boolean', formula: '{peso} > 1', editableBy: 'dm' },
+  ]
+  const table = (columns: Record<string, unknown>[] = equipoColumns) => ({ kind: 'table', type: 'libre', key: 'equipo', label: 'Equipo', editableBy: 'dm', columns })
+  const dinero = { kind: 'table', type: 'monedas', key: 'dinero', label: 'Dinero', rows: [{ key: 'oro', label: 'Oro', value: 100 }, { key: 'bronce', label: 'Bronce', value: 1 }] }
+  const calc = (key: string, formula: string, type = 'number') => ({ kind: 'field', key, label: key, type, formula, editableBy: 'dm' })
+  const pj = () => ({
+    equipo: [
+      { nombre: 'Cuerda', peso: 2, cantidad: 3, total: 999 },
+      { nombre: 'Daga', peso: 1, cantidad: 1 },
+      'basura',
+      null,
+      [1],
+    ],
+  })
+
+  it('computes the formula columns of every row and shows them in the resolved rows (the stored cell does not win)', () => {
+    const resolved = resolveSheet(custom([table()]), pj())
+    const rows = item(resolved, 'equipo')
+    expect(rows).toMatchObject({ kind: 'rows', empty: false })
+    expect(rows.kind === 'rows' && rows.rows).toEqual([
+      { nombre: 'Cuerda', peso: 2, cantidad: 3, total: 6, pesado: true },
+      { nombre: 'Daga', peso: 1, cantidad: 1, total: 1, pesado: false },
+    ])
+  })
+
+  it('does not modify the character data', () => {
+    const data = pj()
+    resolveSheet(custom([table(), calc('carga', 'suma({equipo}, "total")')]), data)
+    expect(data).toEqual(pj())
+  })
+
+  it('sums, averages and counts the rows of a free table, with row formula columns computed', () => {
+    const sheet = custom([table(), calc('carga', 'suma({equipo}, "total")'), calc('media', 'promedio({equipo}, "total")'), calc('filas', 'conteo({equipo})'), calc('pesados', 'conteo({equipo}, "pesado")'), calc('stored', 'suma({equipo}, "peso")')])
+    const resolved = resolveSheet(sheet, pj())
+    expect(item(resolved, 'carga')).toMatchObject({ value: 7, error: false })
+    expect(item(resolved, 'media')).toMatchObject({ value: 3.5, error: false })
+    expect(item(resolved, 'filas')).toMatchObject({ value: 2, error: false })
+    expect(item(resolved, 'pesados')).toMatchObject({ value: 1, error: false })
+    expect(item(resolved, 'stored')).toMatchObject({ value: 3, error: false })
+  })
+
+  it('looks a value up by key in a free table, on a stored or a formula column', () => {
+    const sheet = custom([table(), calc('dagas', 'lookup({equipo}, "nombre", "Daga", "total")'), calc('nada', 'lookup({equipo}, "nombre", "Espada", "total", -1)'), calc('falta', 'lookup({equipo}, "nombre", "Espada", "total")')])
+    const resolved = resolveSheet(sheet, pj())
+    expect(item(resolved, 'dagas')).toMatchObject({ value: 1, error: false })
+    expect(item(resolved, 'nada')).toMatchObject({ value: -1, error: false })
+    expect(item(resolved, 'falta')).toMatchObject({ value: null, error: true })
+  })
+
+  it('treats a missing or invalid list as an empty table', () => {
+    const sheet = custom([table(), calc('carga', 'suma({equipo}, "total")'), calc('filas', 'conteo({equipo})'), calc('media', 'promedio({equipo}, "total")')])
+    for (const data of [{}, { equipo: 'x' }, { equipo: { a: 1 } }]) {
+      const resolved = resolveSheet(sheet, data)
+      expect(item(resolved, 'carga')).toMatchObject({ value: 0, error: false })
+      expect(item(resolved, 'filas')).toMatchObject({ value: 0, error: false })
+      expect(item(resolved, 'media')).toMatchObject({ value: null, error: true })
+    }
+  })
+
+  it('reads the coin table as denomination rows with key, label and value', () => {
+    const sheet = custom([
+      dinero,
+      calc('total', 'suma({dinero}, "value")'),
+      calc('filas', 'conteo({dinero})'),
+      calc('oro', 'lookup({dinero}, "key", "oro", "value")'),
+      calc('etiqueta', 'lookup({dinero}, "key", "bronce", "label")', 'short'),
+    ])
+    const resolved = resolveSheet(sheet, {})
+    expect(item(resolved, 'total')).toMatchObject({ value: 101, error: false })
+    expect(item(resolved, 'filas')).toMatchObject({ value: 2, error: false })
+    expect(item(resolved, 'oro')).toMatchObject({ value: 100, error: false })
+    expect(item(resolved, 'etiqueta')).toMatchObject({ value: 'Bronce', text: 'Bronce', error: false })
+  })
+
+  it('lets a row formula column read sheet fields, other tables and its own row columns only', () => {
+    const columns = [
+      { key: 'peso', label: 'Peso', type: 'number', editableBy: 'dm' },
+      { key: 'ajustado', label: 'Ajustado', type: 'number', formula: '{peso} + {bono} + suma({dinero}, "value")', editableBy: 'dm' },
+    ]
+    const sheet = custom([{ kind: 'field', key: 'bono', label: 'Bono', type: 'number', editableBy: 'dm' }, dinero, table(columns)])
+    const rows = item(resolveSheet(sheet, { bono: 10, equipo: [{ peso: 1 }, { peso: 5 }] }), 'equipo')
+    expect(rows.kind === 'rows' && rows.rows.map((r) => r.ajustado)).toEqual([112, 116])
+  })
+
+  it('leaves a formula cell empty (not a number) when the row cannot compute it, and the sum over it is an error', () => {
+    const sheet = custom([table(), calc('carga', 'suma({equipo}, "total")')])
+    const data = { equipo: [{ nombre: 'Cuerda', peso: 2, cantidad: 3 }, { nombre: 'Daga', peso: 1 }] }
+    const resolved = resolveSheet(sheet, data)
+    const rows = item(resolved, 'equipo')
+    expect(rows.kind === 'rows' && rows.rows.map((r) => r.total)).toEqual([6, null])
+    expect(item(resolved, 'carga')).toMatchObject({ value: null, error: true })
+  })
+
+  it('ends a row column that sums its own column in errors, never in a loop', () => {
+    const columns = [
+      { key: 'peso', label: 'Peso', type: 'number', editableBy: 'dm' },
+      { key: 'total', label: 'Total', type: 'number', formula: '{peso} + suma({equipo}, "total")', editableBy: 'dm' },
+    ]
+    const sheet = custom([table(columns), calc('carga', 'suma({equipo}, "total")'), calc('ok', '1 + 1')])
+    const resolved = resolveSheet(sheet, { equipo: [{ peso: 1 }, { peso: 2 }] })
+    const rows = item(resolved, 'equipo')
+    expect(rows.kind === 'rows' && rows.rows.map((r) => r.total)).toEqual([null, null])
+    expect(item(resolved, 'carga')).toMatchObject({ value: null, error: true })
+    expect(item(resolved, 'ok')).toMatchObject({ value: 2, error: false })
+  })
+
+  it('ends a field and a row column that need each other in errors', () => {
+    const columns = [
+      { key: 'peso', label: 'Peso', type: 'number', editableBy: 'dm' },
+      { key: 'total', label: 'Total', type: 'number', formula: '{peso} + {carga}', editableBy: 'dm' },
+    ]
+    const sheet = custom([table(columns), calc('carga', 'suma({equipo}, "total")')])
+    const resolved = resolveSheet(sheet, { equipo: [{ peso: 1 }] })
+    expect(item(resolved, 'carga')).toMatchObject({ value: null, error: true })
+    const rows = item(resolved, 'equipo')
+    expect(rows.kind === 'rows' && rows.rows.map((r) => r.total)).toEqual([null])
+  })
+
+  it('does not take the table key as a plain value', () => {
+    const sheet = custom([table(), calc('mal', '{equipo} + 1')])
+    expect(item(resolveSheet(sheet, pj()), 'mal')).toMatchObject({ value: null, error: true })
+  })
+
+  it('computes row formula columns in a skill table too, and still groups its modal block by category', () => {
+    const habilidad = {
+      kind: 'table', type: 'habilidad', key: 'hechizos', label: 'Hechizos', editableBy: 'dm',
+      columns: [
+        { key: 'nombre', label: 'Nombre', type: 'short', editableBy: 'dm' },
+        { key: 'categoria', label: 'Categoría', type: 'short', editableBy: 'dm' },
+        { key: 'dc', label: 'CD', type: 'number', formula: '8 + {nivel_h}', editableBy: 'dm' },
+        { key: 'nivel_h', label: 'Nivel', type: 'number', editableBy: 'dm' },
+      ],
+    }
+    const sheet: Sheet = {
+      categories: [{ key: 'c', label: 'C', sections: [{ key: 's', label: 'S', items: [habilidad], blocks: [{ key: 'b', mode: 'modal', items: ['hechizos'], filterCategories: ['Truco'] }] }] }],
+      roles: {},
+    } as unknown as Sheet
+    const block = resolveSheet(sheet, { hechizos: [{ nombre: 'Luz', categoria: 'Truco', nivel_h: 0 }, { nombre: 'Bola', categoria: 'Nivel 3', nivel_h: 3 }] }).sections[0].blocks[0]
+    expect(block.groups).toEqual([{ category: 'Truco', rows: [{ nombre: 'Luz', categoria: 'Truco', nivel_h: 0, dc: 8 }] }])
+  })
+})

@@ -5,7 +5,7 @@
  * or reports every problem with its path. A sheet that does not validate is never half-used.
  */
 import { cleanLabel } from '../systemProfile'
-import { findFormulaCycle, parseFormula, usesTextOrTables } from '../formula/formula'
+import { findEdgeCycle, formulaUses, parseFormula } from '../formula/formula'
 
 export const FIELD_TYPES = ['short', 'paragraph', 'number', 'boolean'] as const
 export type FieldType = (typeof FIELD_TYPES)[number]
@@ -35,6 +35,8 @@ export interface Field {
   formula?: string
   /** With a formula: the value stored on the character, when there is one, wins over the formula (D&D proficiency bonus). */
   overridable?: boolean
+  /** With a formula: resolved and referenceable by other formulas, but not drawn. */
+  hidden?: boolean
   format?: NumberFormat
   editableBy: EditableBy
   min?: number
@@ -121,6 +123,9 @@ export const RESERVED_KEYS: ReadonlySet<string> = new Set([
 ])
 
 const PROTOTYPE_KEYS: ReadonlySet<string> = new Set(['constructor', 'prototype'])
+/** The database charset of a formula: anything but control characters (C0, DEL, C1) other than tab. */
+// eslint-disable-next-line no-control-regex -- the point is to detect control characters
+const FORMULA_CONTROL_CHARS = /[\u0000-\u0008\u000a-\u001f\u007f-\u009f]/
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const isEditor = (value: unknown): value is EditableBy => value === 'dm' || value === 'player'
@@ -181,9 +186,7 @@ export function validateSheet(raw: unknown): SheetResult {
       fail(path, 'invalid formula')
       return undefined
     }
-    const parsed = parseFormula(value)
-    // Text and table formulas wait for G2, which opens them in both validators (the SQL charset rejects them today).
-    if (!parsed.ok || usesTextOrTables(parsed.ast)) {
+    if (!parseFormula(value).ok || FORMULA_CONTROL_CHARS.test(value)) {
       fail(path, 'invalid formula')
       return undefined
     }
@@ -214,7 +217,10 @@ export function validateSheet(raw: unknown): SheetResult {
   }
 
   // Pass 1: structure (collected so formula and link checks can resolve against everything)
-  const formulas: { path: string; key: string; text: string; locals: string[] }[] = []
+  // `table`: the formula is a row column of that free/skill table, so its locals are columns of that table (and graph nodes)
+  const formulas: { path: string; key: string; text: string; locals: string[]; table?: string }[] = []
+  const tableColumns = new Map<string, Set<string>>() // tables a formula can read as rows: free, skill and coin tables
+  const tableKeys = new Set<string>() // every table, whatever its kind
   const statRows = new Set<string>()
   const capRows: { path: string; stat: string }[] = []
   const capColumns = new Map<string, Map<string, boolean>>() // `${row}` -> column key -> hasFormula
@@ -254,7 +260,7 @@ export function validateSheet(raw: unknown): SheetResult {
             const formula = formulaOf(item.formula, `${ipath}.formula`)
             const editableBy = editor(item.editableBy, `${ipath}.editableBy`)
             if (formula !== undefined) {
-              if (type !== 'number' && type !== 'boolean') fail(`${ipath}.formula`, 'formula needs a number or boolean field')
+              if (type !== 'number' && type !== 'boolean' && type !== 'short') fail(`${ipath}.formula`, 'formula needs a number, boolean or short text field')
               if (editableBy !== 'dm') fail(`${ipath}.editableBy`, 'a formula field is computed, only the DM level can own it')
               formulas.push({ path: `${ipath}.formula`, key, text: formula, locals: [] })
             }
@@ -265,6 +271,10 @@ export function validateSheet(raw: unknown): SheetResult {
             if (item.overridable !== undefined) {
               if (typeof item.overridable !== 'boolean' || formula === undefined) fail(`${ipath}.overridable`, 'overridable is a boolean and needs a formula')
               else field.overridable = item.overridable
+            }
+            if (item.hidden !== undefined) {
+              if (typeof item.hidden !== 'boolean' || formula === undefined) fail(`${ipath}.hidden`, 'hidden is a boolean and needs a formula')
+              else field.hidden = item.hidden
             }
             for (const bound of ['min', 'max'] as const) {
               const value = item[bound]
@@ -277,6 +287,7 @@ export function validateSheet(raw: unknown): SheetResult {
             return field
           }
           if (item.kind === 'table') {
+            tableKeys.add(key)
             const rowsRaw = Array.isArray(item.rows) ? item.rows : []
             if (rowsRaw.length > (item.type === 'monedas' ? SHEET_LIMITS.denominations : SHEET_LIMITS.rows)) fail(`${ipath}.rows`, 'too many rows')
             const rowsOf = rowsRaw.slice(0, SHEET_LIMITS.rows)
@@ -323,8 +334,9 @@ export function validateSheet(raw: unknown): SheetResult {
             if (item.type === 'habilidad' || item.type === 'libre') {
               const columns = columnsOf(item.columns, `${ipath}.columns`)
               columns.forEach((col, ci2) => {
-                if (col.formula !== undefined) formulas.push({ path: `${ipath}.columns[${ci2}].formula`, key: `col:${key}.${col.key}`, text: col.formula, locals: columns.map((x) => x.key) })
+                if (col.formula !== undefined) formulas.push({ path: `${ipath}.columns[${ci2}].formula`, key: `col:${key}.${col.key}`, text: col.formula, locals: columns.map((x) => x.key), table: key })
               })
+              tableColumns.set(key, new Set(columns.map((x) => x.key)))
               const tableEditor = editor(item.editableBy, `${ipath}.editableBy`)
               // Rows of these tables belong to the character and the guard judges the table as one value, so a table the
               // player can write cannot also hold a column only the DM may write.
@@ -333,6 +345,7 @@ export function validateSheet(raw: unknown): SheetResult {
             }
             if (item.type === 'monedas') {
               coinTables += 1
+              tableColumns.set(key, new Set(['key', 'label', 'value']))
               const rows: CoinRow[] = rowsOf.map((r, ri) => {
                 const rpath = `${ipath}.rows[${ri}]`
                 const row = isRecord(r) ? r : {}
@@ -410,16 +423,30 @@ export function validateSheet(raw: unknown): SheetResult {
     known.add(`${row}.modificador`)
   }
   for (const [row, cols] of capColumns) for (const [col, hasFormula] of cols) if (!hasFormula) known.add(`${row}.${col}`)
-  const graph: Record<string, string> = {}
+  const edges = new Map<string, string[]>()
   for (const f of formulas) {
     const parsed = parseFormula(f.text)
     if (!parsed.ok) continue
     for (const ref of parsed.refs) {
       if (!known.has(ref) && !f.locals.includes(ref)) fail(f.path, `unknown reference {${ref}}`)
     }
-    if (!f.key.startsWith('col:')) graph[f.key] = f.text
+    const uses = formulaUses(parsed.ast)
+    // A table is read through a table function, never as a value; its columns must exist.
+    for (const ref of uses.plain) if (tableKeys.has(ref) && !f.locals.includes(ref)) fail(f.path, `{${ref}} is a table, use it inside a table function`)
+    for (const { table, columns } of uses.tables) {
+      const cols = tableColumns.get(table)
+      if (!cols) {
+        if (known.has(table)) fail(f.path, `{${table}} is not a free, skill or coin table`) // an unknown name was reported above
+      } else for (const column of columns) if (!cols.has(column)) fail(f.path, `${table} has no column "${column}"`)
+    }
+    // Cycle nodes: fields, stat modifiers and the formula columns of free/skill tables. A table function depends on the
+    // columns it names (a stored column is not a node); column locals point at the column of the same table.
+    if (!f.key.startsWith('col:') || f.table !== undefined) {
+      const near = (ref: string) => (f.table !== undefined && f.locals.includes(ref) ? `col:${f.table}.${ref}` : ref)
+      edges.set(f.key, [...uses.plain.map(near), ...uses.tables.flatMap(({ table, columns }) => columns.map((c) => `col:${table}.${c}`))])
+    }
   }
-  if (findFormulaCycle(graph) !== null) fail('categories', 'formulas reference each other in a cycle')
+  if (findEdgeCycle(edges) !== null) fail('categories', 'formulas reference each other in a cycle')
 
   // Roles
   const roles: Sheet['roles'] = {}

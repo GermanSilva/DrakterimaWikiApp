@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   MAX_FORMULA_LENGTH,
   evaluateFormula,
+  findEdgeCycle,
   findFormulaCycle,
+  formulaUses,
   parseFormula,
   type FormulaValue,
 } from './formula'
@@ -282,5 +284,40 @@ describe('table functions (S16, S29)', () => {
     const odd = { t: [null, 3, [1], { n: 2 }, Object.create({ n: 5 })] } as unknown as Record<string, FormulaValue>
     expect(run('suma({t}, "n")', odd)).toEqual({ ok: true, value: 2 })
     expect(run('conteo({t})', odd)).toEqual({ ok: true, value: 2 })
+  })
+})
+
+describe('formulaUses (what the sheet validators check)', () => {
+  const uses = (src: string) => {
+    const parsed = parseFormula(src)
+    if (!parsed.ok) throw new Error(parsed.error)
+    return formulaUses(parsed.ast)
+  }
+
+  it('separates plain references from table references and lists the columns used per table', () => {
+    expect(uses('{nivel} + suma({equipo}, "precio") + lookup({monedas}, "key", {moneda}, "value") + conteo({equipo}, "portando") + conteo({vacia})')).toEqual({
+      plain: ['nivel', 'moneda'],
+      tables: [
+        { table: 'equipo', columns: ['precio', 'portando'] },
+        { table: 'monedas', columns: ['key', 'value'] },
+        { table: 'vacia', columns: [] },
+      ],
+    })
+  })
+
+  it('finds references inside every kind of node (si, neg, &, lookup key and fallback)', () => {
+    expect(uses('si({a}, -{b}, "x" & {c} & lookup({t}, "k", {d}, "v", {e}))').plain.sort()).toEqual(['a', 'b', 'c', 'd', 'e'])
+  })
+
+  it('reports a formula with no references as empty', () => {
+    expect(uses('1 + 2')).toEqual({ plain: [], tables: [] })
+  })
+})
+
+describe('findEdgeCycle', () => {
+  it('finds a closed path in a graph given as edges, and ignores targets that are not nodes', () => {
+    expect(findEdgeCycle(new Map([['a', ['b', 'ghost']], ['b', ['a']]]))).toEqual(['a', 'b', 'a'])
+    expect(findEdgeCycle(new Map([['a', ['a']]]))).toEqual(['a', 'a'])
+    expect(findEdgeCycle(new Map([['a', ['b']], ['b', []]]))).toBeNull()
   })
 })

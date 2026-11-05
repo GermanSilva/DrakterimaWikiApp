@@ -446,17 +446,51 @@ export function evaluateFormula(ast: FormulaNode, resolve: (ref: string) => unkn
   }
 }
 
-/**
- * Looks for a reference cycle among formulas keyed by their own field key. Returns a closed path
- * (first key repeated at the end) or null. Formulas that do not parse are skipped: they are
- * reported separately by parseFormula.
- */
-export function findFormulaCycle(formulas: Record<string, string>): string[] | null {
-  const edges = new Map<string, string[]>()
-  for (const key of Object.keys(formulas)) {
-    const parsed = parseFormula(formulas[key])
-    if (parsed.ok) edges.set(key, parsed.refs)
+/** What a formula reads: value references, and for each table reference the column names its table functions use. */
+export interface FormulaUses {
+  plain: string[]
+  tables: { table: string; columns: string[] }[]
+}
+
+export function formulaUses(ast: FormulaNode): FormulaUses {
+  const plain: string[] = []
+  const tables: FormulaUses['tables'] = []
+  const noteTable = (table: string, columns: (string | undefined)[]) => {
+    let entry = tables.find((t) => t.table === table)
+    if (!entry) tables.push((entry = { table, columns: [] }))
+    for (const column of columns) if (column !== undefined && !entry.columns.includes(column)) entry.columns.push(column)
   }
+  const walk = (node: FormulaNode): void => {
+    switch (node.kind) {
+      case 'ref':
+        if (!plain.includes(node.ref)) plain.push(node.ref)
+        return
+      case 'neg':
+        return walk(node.operand)
+      case 'bin':
+        walk(node.left)
+        return walk(node.right)
+      case 'call':
+        return node.args.forEach(walk)
+      case 'agg':
+        return noteTable(node.table, [node.column])
+      case 'lookup':
+        noteTable(node.table, [node.keyColumn, node.resultColumn])
+        walk(node.key)
+        if (node.fallback) walk(node.fallback)
+        return
+      default:
+    }
+  }
+  walk(ast)
+  return { plain, tables }
+}
+
+/**
+ * Looks for a cycle in a graph given as node -> nodes it depends on. Returns a closed path (first node repeated at the
+ * end) or null. Targets that are not nodes are leaves.
+ */
+export function findEdgeCycle(edges: Map<string, string[]>): string[] | null {
   const done = new Set<string>()
   for (const start of edges.keys()) {
     if (done.has(start)) continue
@@ -484,4 +518,18 @@ export function findFormulaCycle(formulas: Record<string, string>): string[] | n
     }
   }
   return null
+}
+
+/**
+ * Looks for a reference cycle among formulas keyed by their own field key. Returns a closed path
+ * (first key repeated at the end) or null. Formulas that do not parse are skipped: they are
+ * reported separately by parseFormula.
+ */
+export function findFormulaCycle(formulas: Record<string, string>): string[] | null {
+  const edges = new Map<string, string[]>()
+  for (const key of Object.keys(formulas)) {
+    const parsed = parseFormula(formulas[key])
+    if (parsed.ok) edges.set(key, parsed.refs)
+  }
+  return findEdgeCycle(edges)
 }
