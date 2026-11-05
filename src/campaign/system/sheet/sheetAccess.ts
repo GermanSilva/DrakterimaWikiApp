@@ -10,6 +10,8 @@
  *    a row value is writable only when the row AND its column allow the player (S11)
  *  - Habilidad / Libre table: `data[table.key]`, an array of rows owned by the character
  *  - coins: never (credited by the server, written by the DM; S12)
+ *  - economy table: never (G2c: `data[table.key]` is an amounts object the SQL guard does not derive; DM only, so the
+ *    validators reject `editableBy: 'player'` on it)
  */
 import type { Sheet } from './sheetModel'
 

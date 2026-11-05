@@ -93,12 +93,19 @@ export interface CoinRow {
   label: string
   value: number
 }
+/** One class of actions (cantrips, spells of a level, feats...) a Habilidad table declares; its rows point at it with `categoria`. */
+export interface ActionCategory {
+  key: string
+  label: string
+}
 export type Table =
   | { kind: 'table'; type: 'stat'; key: string; label: string; rows: StatRow[] }
   | { kind: 'table'; type: 'capacidades'; key: string; label: string; columns: Column[]; rows: CapacidadRow[] }
-  | { kind: 'table'; type: 'habilidad'; key: string; label: string; columns: Column[]; editableBy: EditableBy; sortBy?: SortBy }
+  | { kind: 'table'; type: 'habilidad'; key: string; label: string; columns: Column[]; editableBy: EditableBy; sortBy?: SortBy; categories?: ActionCategory[] }
   | { kind: 'table'; type: 'libre'; key: string; label: string; columns: Column[]; editableBy: EditableBy; sortBy?: SortBy }
-  | { kind: 'table'; type: 'monedas'; key: string; label: string; rows: CoinRow[] }
+  | { kind: 'table'; type: 'monedas'; key: string; label: string; rows: CoinRow[]; rewardDestination?: boolean }
+  /** Amounts per denomination of the coin table, stored on the character at data[key]; DM only until the SQL guard handles them. */
+  | { kind: 'table'; type: 'economia'; key: string; label: string; editableBy: 'dm'; rewardDestination?: boolean }
 export type Item = Field | Table
 export interface Block {
   key: string
@@ -140,6 +147,7 @@ export const SHEET_LIMITS = {
   blocksPerSection: 60,
   denominations: 8,
   filterCategories: 20,
+  actionCategories: 30,
   options: 20,
   coinValue: 1_000_000_000,
   text: 4000,
@@ -332,6 +340,24 @@ export function validateSheet(raw: unknown): SheetResult {
     return column !== undefined && direction !== undefined ? { column, direction } : undefined
   }
 
+  const categoriesOf = (value: unknown, path: string): ActionCategory[] | undefined => {
+    if (!Array.isArray(value) || value.length < 1 || value.length > SHEET_LIMITS.actionCategories) return void fail(path, 'a table declares 1 to 30 categories'), undefined
+    const seen = new Set<string>()
+    return value.map((c, i) => {
+      const at = `${path}[${i}]`
+      if (!isRecord(c)) return void fail(at, 'invalid category'), { key: '', label: '' }
+      return { key: plainKey(c.key, `${at}.key`, seen), label: label(c.label, `${at}.label`) }
+    })
+  }
+  let rewardDestinations = 0
+  /** The reward destination flag of a coin or economy table; at most one table of the sheet may have it on. */
+  const rewardOf = (value: unknown, path: string): boolean | undefined => {
+    if (value === undefined) return undefined
+    if (typeof value !== 'boolean') return void fail(path, 'rewardDestination is a boolean'), undefined
+    if (value && ++rewardDestinations > 1) fail(path, 'only one table can be the reward destination')
+    return value
+  }
+
   // Pass 1: structure (collected so formula and link checks can resolve against everything)
   // `table`: the formula is a row column of that free/skill table, so its locals are columns of that table (and graph nodes)
   const formulas: { path: string; key: string; text: string; locals: string[]; table?: string }[] = []
@@ -343,6 +369,8 @@ export function validateSheet(raw: unknown): SheetResult {
   const capColumns = new Map<string, Map<string, boolean>>() // `${row}` -> column key -> hasFormula
   const fieldTypes = new Map<string, FieldType>()
   let coinTables = 0
+  let economyTables = 0
+  const actionCategoryKeys = new Map<string, string[]>() // Habilidad table -> the category keys it declares
   let totalItems = 0
   let totalSections = 0
 
@@ -439,6 +467,8 @@ export function validateSheet(raw: unknown): SheetResult {
             if (rowsRaw.length > (item.type === 'monedas' ? SHEET_LIMITS.denominations : SHEET_LIMITS.rows)) fail(`${ipath}.rows`, 'too many rows')
             const rowsOf = rowsRaw.slice(0, SHEET_LIMITS.rows)
             if (item.sortBy !== undefined && item.type !== 'libre' && item.type !== 'habilidad') fail(`${ipath}.sortBy`, 'only Libre and Habilidad tables can be sorted')
+            if (item.categories !== undefined && item.type !== 'habilidad') fail(`${ipath}.categories`, 'only Habilidad tables declare categories')
+            if (item.rewardDestination !== undefined && item.type !== 'monedas' && item.type !== 'economia') fail(`${ipath}.rewardDestination`, 'only the coin table or an economy table can be the reward destination')
             if (item.type === 'stat') {
               return {
                 kind: 'table',
@@ -484,6 +514,8 @@ export function validateSheet(raw: unknown): SheetResult {
             if (item.type === 'habilidad' || item.type === 'libre') {
               const columns = columnsOf(item.columns, `${ipath}.columns`, true)
               const sortBy = sortOf(item.sortBy, columns, `${ipath}.sortBy`)
+              const actionCategories = item.type === 'habilidad' && item.categories !== undefined ? categoriesOf(item.categories, `${ipath}.categories`) : undefined
+              if (actionCategories) actionCategoryKeys.set(key, actionCategories.map((c) => c.key))
               columns.forEach((col, ci2) => {
                 const id = `col:${key}.${col.key}`
                 const locals = columns.map((x) => x.key)
@@ -497,7 +529,14 @@ export function validateSheet(raw: unknown): SheetResult {
               // Rows of these tables belong to the character and the guard judges the table as one value, so a table the
               // player can write cannot also hold a column only the DM may write.
               if (tableEditor === 'player') columns.forEach((c, ci2) => c.editableBy === 'dm' && fail(`${ipath}.columns[${ci2}].editableBy`, 'a table the player edits cannot hold a DM column'))
-              return { kind: 'table', type: item.type, key, label: name, columns, editableBy: tableEditor, ...(sortBy ? { sortBy } : {}) }
+              return { kind: 'table', type: item.type, key, label: name, columns, editableBy: tableEditor, ...(sortBy ? { sortBy } : {}), ...(actionCategories ? { categories: actionCategories } : {}) }
+            }
+            if (item.type === 'economia') {
+              economyTables += 1
+              for (const part of ['rows', 'columns']) if (item[part] !== undefined) fail(`${ipath}.${part}`, 'an economy table holds amounts only')
+              if (editor(item.editableBy, `${ipath}.editableBy`) === 'player') fail(`${ipath}.editableBy`, 'an economy table is DM only')
+              const reward = rewardOf(item.rewardDestination, `${ipath}.rewardDestination`)
+              return { kind: 'table', type: 'economia', key, label: name, editableBy: 'dm', ...(reward !== undefined ? { rewardDestination: reward } : {}) }
             }
             if (item.type === 'monedas') {
               coinTables += 1
@@ -516,7 +555,8 @@ export function validateSheet(raw: unknown): SheetResult {
                 if (new Set(values).size !== values.length) fail(`${ipath}.rows`, 'denomination values must differ')
                 if (Math.min(...values) !== 1) fail(`${ipath}.rows`, 'the smallest denomination must be worth 1')
               }
-              return { kind: 'table', type: 'monedas', key, label: name, rows }
+              const reward = rewardOf(item.rewardDestination, `${ipath}.rewardDestination`)
+              return { kind: 'table', type: 'monedas', key, label: name, rows, ...(reward !== undefined ? { rewardDestination: reward } : {}) }
             }
             fail(`${ipath}.type`, 'invalid table type')
             return { kind: 'table', type: 'libre', key, label: name, columns: [], editableBy: 'dm' }
@@ -556,7 +596,15 @@ export function validateSheet(raw: unknown): SheetResult {
           if (mode === 'modal') {
             const filter = Array.isArray(blk.filterCategories) ? blk.filterCategories : []
             if (filter.length < 1 || filter.length > SHEET_LIMITS.filterCategories) fail(`${bpath}.filterCategories`, 'a modal block names the categories it filters')
-            block.filterCategories = filter.map((f, fi) => label(f, `${bpath}.filterCategories[${fi}]`))
+            // A table that declares categories is filtered by those keys; any other one by free text.
+            const first = itemKeys.map((k) => itemByKey.get(k)).find((t) => t?.kind === 'table' && t.type === 'habilidad')
+            const declared = first ? actionCategoryKeys.get(first.key) : undefined
+            block.filterCategories = filter.map((f, fi) => {
+              const at = `${bpath}.filterCategories[${fi}]`
+              if (declared === undefined) return label(f, at)
+              if (typeof f !== 'string' || !declared.includes(f)) fail(at, 'not a category of the table')
+              return typeof f === 'string' ? f : ''
+            })
           }
           return block
         })
@@ -570,6 +618,7 @@ export function validateSheet(raw: unknown): SheetResult {
   if (totalSections > SHEET_LIMITS.sections) fail('categories', 'too many sections')
   if (totalItems > SHEET_LIMITS.items) fail('categories', 'too many items')
   if (coinTables > 1) fail('categories', 'only one coin table is allowed')
+  if (economyTables > 0 && coinTables === 0) fail('categories', 'an economy table needs the coin table that defines the denominations')
   for (const { path, stat } of capRows) if (!statRows.has(stat)) fail(path, 'must be the key of a stat row')
 
   // Pass 2: formulas

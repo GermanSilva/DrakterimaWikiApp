@@ -6,7 +6,8 @@
  *
  * Where a value lives in the character (flattened `data` plus the promoted columns), see sheetAccess.ts:
  *  field `pj[key]` | Stat row `pj[row]` | Capacidades first column `pj[row]`, others `pj[row__col]` |
- *  Habilidad / Libre `pj[table]` (array of rows) | coins `pj.monedas` and `pj.monedas_guardado` keyed by denomination.
+ *  Habilidad / Libre `pj[table]` (array of rows) | coins `pj.monedas` and `pj.monedas_guardado` keyed by denomination |
+ *  economy table `pj[table]`, an object of amounts keyed by the denominations of the coin table.
  *
  * An options field or column stores the key of an option; it resolves to the formula result of that option (a number or
  * a text) or, when the option has no formula, to its key, and is shown as the result text or the option label. A stored key
@@ -53,15 +54,20 @@ export type ResolvedItem =
   | { kind: 'stat'; key: string; label: string; rows: { key: string; label: string; value: number | null; valueText: string; modifier: number | null; modifierText: string }[]; empty: false }
   | { kind: 'capacidades'; key: string; label: string; columns: Column[]; rows: { key: string; label: string; stat: string; statLabel: string; statModifierText: string; linked: number | null; cells: Cell[] }[]; empty: false }
   | { kind: 'rows'; key: string; label: string; tableType: 'libre' | 'habilidad'; columns: Column[]; rows: Record<string, unknown>[]; empty: boolean }
-  | { kind: 'coins'; key: string; label: string; denominations: { key: string; label: string; value: number }[]; carried: CoinAmount[]; stored: CoinAmount[]; carriedTotal: number; storedTotal: number; empty: boolean }
+  | { kind: 'coins'; key: string; label: string; denominations: { key: string; label: string; value: number }[]; carried: CoinAmount[]; stored: CoinAmount[]; carriedTotal: number; storedTotal: number; empty: boolean; rewardDestination?: true }
+  | { kind: 'economy'; key: string; label: string; denominations: { key: string; label: string; value: number }[]; amounts: CoinAmount[]; total: number; empty: boolean; rewardDestination?: true }
 
 export interface ResolvedBlock {
   key: string
   title?: string
   mode: 'stat' | 'tile' | 'capacidades' | 'plano' | 'modal'
   items: ResolvedItem[]
-  /** Modal blocks: the rows of the habilidad table grouped by the categories the block names, in that order. */
-  groups?: { category: string; rows: Record<string, unknown>[] }[]
+  /**
+   * Modal blocks: the rows of the habilidad table grouped by the categories the block names. A table that declares
+   * categories groups by key in its declared order (`category` is the declared label, `key` the key) and ends with an
+   * "Otras" group for the rows of no declared category; any other table groups by free text in the order the block names it.
+   */
+  groups?: { category: string; key?: string; rows: Record<string, unknown>[] }[]
   empty: boolean
 }
 
@@ -152,7 +158,7 @@ export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): Resolve
         else if (item.type === 'stat') for (const row of item.rows) statRows.set(row.key, row)
         else if (item.type === 'capacidades') for (const row of item.rows) capRows.set(row.key, { table: item, row })
         else if (item.type === 'monedas') coinTables.set(item.key, item)
-        else rowTables.set(item.key, item)
+        else if (item.type !== 'economia') rowTables.set(item.key, item)
       }
     }
   }
@@ -346,6 +352,12 @@ export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): Resolve
   const baseTotal = (list: CoinAmount[], denominations: { key: string; value: number }[]) =>
     list.reduce((sum, c) => sum + c.amount * (denominations.find((d) => d.key === c.key)?.value ?? 0), 0)
 
+  /** Denominations are defined once per sheet, by the coin table, whichever table holds the amounts. */
+  const denominationsOf = (): { key: string; label: string; value: number }[] => {
+    const [coin] = coinTables.values()
+    return coin ? [...coin.rows].sort((a, b) => b.value - a.value).map((r) => ({ key: r.key, label: r.label, value: r.value })) : []
+  }
+
   const resolveItem = (item: Field | Table): ResolvedItem => {
     if (item.kind === 'field') {
       const computed = fieldValue(item)
@@ -400,10 +412,15 @@ export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): Resolve
       }
     }
     if (item.type === 'monedas') {
-      const denominations = [...item.rows].sort((a, b) => b.value - a.value).map((r) => ({ key: r.key, label: r.label, value: r.value }))
+      const denominations = denominationsOf()
       const carried = coinList(own(pj, 'monedas'), denominations)
       const stored = coinList(own(pj, 'monedas_guardado'), denominations)
-      return { kind: 'coins', key: item.key, label: item.label, denominations, carried, stored, carriedTotal: baseTotal(carried, denominations), storedTotal: baseTotal(stored, denominations), empty: carried.length === 0 && stored.length === 0 }
+      return { kind: 'coins', key: item.key, label: item.label, denominations, carried, stored, carriedTotal: baseTotal(carried, denominations), storedTotal: baseTotal(stored, denominations), empty: carried.length === 0 && stored.length === 0, ...(item.rewardDestination ? { rewardDestination: true as const } : {}) }
+    }
+    if (item.type === 'economia') {
+      const denominations = denominationsOf()
+      const amounts = coinList(own(pj, item.key), denominations)
+      return { kind: 'economy', key: item.key, label: item.label, denominations, amounts, total: baseTotal(amounts, denominations), empty: amounts.length === 0, ...(item.rewardDestination ? { rewardDestination: true as const } : {}) }
     }
     const rows = rowsOf(item).map((stored, index) => {
       const row = { ...stored }
@@ -432,9 +449,18 @@ export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): Resolve
         // A hidden field is resolved (others read it) but never drawn, so it does not make a block worth showing.
         if (block.mode !== 'modal') return { ...base, empty: resolved.every((i) => i.empty || (i.kind === 'field' && i.hidden === true)) }
         const table = resolved.find((i): i is Extract<ResolvedItem, { kind: 'rows' }> => i.kind === 'rows')
-        const groups = (block.filterCategories ?? [])
-          .map((name) => ({ category: name, rows: (table?.rows ?? []).filter((row) => row.categoria === name) }))
-          .filter((group) => group.rows.length > 0)
+        const rows = table?.rows ?? []
+        const source = table ? byKey.get(table.key) : undefined
+        const declared = source?.kind === 'table' && source.type === 'habilidad' ? source.categories : undefined
+        const named = block.filterCategories ?? []
+        const groups = declared
+          ? [
+              ...declared
+                .filter((category) => named.includes(category.key))
+                .map((category) => ({ category: category.label, key: category.key, rows: rows.filter((row) => row.categoria === category.key) })),
+              { category: 'Otras', rows: rows.filter((row) => !declared.some((category) => category.key === row.categoria)) },
+            ].filter((group) => group.rows.length > 0)
+          : named.map((name) => ({ category: name, rows: rows.filter((row) => row.categoria === name) })).filter((group) => group.rows.length > 0)
         return { ...base, groups, empty: groups.length === 0 }
       })
       sections.push({ key: section.key, label: section.label, category: category.label, blocks, empty: blocks.every((b) => b.empty) })

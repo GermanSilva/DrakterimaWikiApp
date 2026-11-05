@@ -159,31 +159,40 @@ function RowsTable({ item, hideLabel }: { item: Item<'rows'>; hideLabel: boolean
   )
 }
 
-function Coins({ item }: { item: Item<'coins'> }) {
-  const base = item.denominations[item.denominations.length - 1]
-  const group = (title: string, list: Item<'coins'>['carried'], total: number) =>
-    list.length === 0 ? null : (
-      <div>
-        <div className={LABEL}>{title}</div>
-        <div className="flex flex-wrap gap-3 text-[13px] text-txt-secondary">
-          {list.map((coin) => (
-            <span key={coin.key}>
-              {coin.label} <span className="font-exo text-[16px] font-bold text-txt-primary">{coin.amount}</span>
-            </span>
-          ))}
-          {base && list.length > 0 && <span className="text-txt-muted">Total: {total} {base.label}</span>}
-        </div>
-      </div>
-    )
+function AmountGroup({ title, list, total, denominations }: { title: string; list: Item<'coins'>['carried']; total: number; denominations: Item<'coins'>['denominations'] }) {
+  const base = denominations[denominations.length - 1]
+  if (list.length === 0) return null
   return (
-    <div className="space-y-2">
-      {group('En mano', item.carried, item.carriedTotal)}
-      {group('Guardadas', item.stored, item.storedTotal)}
+    <div>
+      <div className={LABEL}>{title}</div>
+      <div className="flex flex-wrap gap-3 text-[13px] text-txt-secondary">
+        {list.map((coin) => (
+          <span key={coin.key}>
+            {coin.label} <span className="font-exo text-[16px] font-bold text-txt-primary">{coin.amount}</span>
+          </span>
+        ))}
+        {base && <span className="text-txt-muted">Total: {total} {base.label}</span>}
+      </div>
     </div>
   )
 }
 
-function RowModal({ item, row, onClose }: { item: Item<'rows'>; row: Row; onClose: () => void }) {
+function Coins({ item }: { item: Item<'coins'> }) {
+  return (
+    <div className="space-y-2">
+      <AmountGroup title="En mano" list={item.carried} total={item.carriedTotal} denominations={item.denominations} />
+      <AmountGroup title="Guardadas" list={item.stored} total={item.storedTotal} denominations={item.denominations} />
+    </div>
+  )
+}
+
+/** An economy table draws like the carried coins, titled by its own label. */
+function Economy({ item }: { item: Item<'economy'> }) {
+  return <AmountGroup title={item.label} list={item.amounts} total={item.total} denominations={item.denominations} />
+}
+
+/** `categoryText`: what the heading shows for the category of the row (the declared label when the table declares categories). */
+function RowModal({ item, row, categoryText, onClose }: { item: Item<'rows'>; row: Row; categoryText: string; onClose: () => void }) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
   useDialogFocus(dialogRef)
@@ -211,7 +220,7 @@ function RowModal({ item, row, onClose }: { item: Item<'rows'>; row: Row; onClos
         <div className="py-4 border-b border-border-base flex items-start justify-between gap-4">
           <div>
             <div id={titleId} className="font-exo text-[18px] font-bold text-txt-primary uppercase">{String(row.nombre ?? '')}</div>
-            {!isEmptyValue(row.categoria) && <div className="font-exo text-[11px] text-txt-muted tracking-[0.15em] uppercase mt-0.5">{String(row.categoria)}</div>}
+            {categoryText !== '' && <div className="font-exo text-[11px] text-txt-muted tracking-[0.15em] uppercase mt-0.5">{categoryText}</div>}
           </div>
           <button type="button" className="text-txt-muted hover:text-txt-primary text-xl leading-none shrink-0 border-none bg-transparent cursor-pointer mt-0.5" onClick={onClose} aria-label="Cerrar">×</button>
         </div>
@@ -240,7 +249,7 @@ function RowModal({ item, row, onClose }: { item: Item<'rows'>; row: Row; onClos
 
 function ModalGroups({ block }: { block: ResolvedBlock }) {
   const item = block.items.find((i): i is Item<'rows'> => i.kind === 'rows')
-  const [selected, setSelected] = useState<Row | null>(null)
+  const [selected, setSelected] = useState<{ row: Row; categoryText: string } | null>(null)
   if (!item) return null
   return (
     <div className="space-y-2">
@@ -253,7 +262,7 @@ function ModalGroups({ block }: { block: ResolvedBlock }) {
                 key={index}
                 type="button"
                 className="px-2.5 py-1 text-[12px] border bg-bg-mid border-border-base text-txt-secondary hover:text-txt-primary cursor-pointer"
-                onClick={() => setSelected(row)}
+                onClick={() => setSelected({ row, categoryText: group.key !== undefined ? group.category : isEmptyValue(row.categoria) ? '' : String(row.categoria) })}
               >
                 {String(row.nombre ?? '')}
               </button>
@@ -261,7 +270,7 @@ function ModalGroups({ block }: { block: ResolvedBlock }) {
           </div>
         </div>
       ))}
-      {selected && <RowModal item={item} row={selected} onClose={() => setSelected(null)} />}
+      {selected && <RowModal item={item} row={selected.row} categoryText={selected.categoryText} onClose={() => setSelected(null)} />}
     </div>
   )
 }
@@ -292,6 +301,7 @@ function Block({ block, sectionLabel }: { block: ResolvedBlock; sectionLabel: st
           if (item.kind === 'capacidades') return <CapacidadesTiles key={item.key} items={[item]} />
           if (item.kind === 'rows') return <RowsTable key={item.key} item={item} hideLabel={sameLabel(item.label, sectionLabel)} />
           if (item.kind === 'coins') return <Coins key={item.key} item={item} />
+          if (item.kind === 'economy') return <Economy key={item.key} item={item} />
           return item.type === 'paragraph' ? <FieldBlock key={item.key} item={item} /> : <FieldTile key={item.key} item={item} />
         })}
       </div>

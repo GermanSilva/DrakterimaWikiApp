@@ -83,6 +83,24 @@ describe('playerWritableKeys', () => {
     expect(result).toEqual([])
   })
 
+  it('never lists an economy table: DM only until the SQL guard handles amounts objects (G2c)', () => {
+    const result = playerWritableKeys(
+      sheet([
+        { kind: 'table', type: 'monedas', key: 'dinero', label: 'D', rows: [{ key: 'cp', label: 'C', value: 1 }] },
+        { kind: 'table', type: 'economia', key: 'caja', label: 'Caja', editableBy: 'dm' },
+      ]),
+    )
+    expect(result).toEqual([])
+  })
+
+  it('still lists a player Habilidad table that declares categories', () => {
+    const columns = [{ key: 'nombre', label: 'N', type: 'short' as const, editableBy: 'player' as const }]
+    const result = playerWritableKeys(
+      sheet([{ kind: 'table', type: 'habilidad', key: 'acciones', label: 'A', columns, editableBy: 'player', categories: [{ key: 'trucos', label: 'Trucos' }] }]),
+    )
+    expect(result).toEqual(['acciones'])
+  })
+
   it('returns a sorted list without repeats', () => {
     const result = playerWritableKeys(
       sheet([
