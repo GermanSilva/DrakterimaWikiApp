@@ -1,7 +1,8 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { btnSecondary, inputCls } from '../../../constants'
 import { parseSystemProfile, SECTION_KEYS, type SectionKey } from '../../system/systemProfile'
-import { systemDraft, validateSystem, type BuiltinDraft, type SystemDraft, type SystemErrors } from './systemForm'
+import { UNIT_MAX } from '../../system/distance/distance'
+import { newUnit, systemDraft, validateSystem, type BuiltinDraft, type SystemDraft, type SystemErrors, type UnitDraft, type UnitErrors } from './systemForm'
 import { useCampaignSave } from './useCampaignSave'
 
 const labelCls = 'block font-exo text-[10px] font-medium tracking-[0.2em] uppercase text-txt-muted mb-1.5'
@@ -73,6 +74,155 @@ function Builtin({ legend, draft, error, onChange, children }: BuiltinProps) {
   )
 }
 
+const smallBtn = `${btnSecondary} !px-2 !py-1 disabled:opacity-40 disabled:cursor-not-allowed`
+
+interface UnitRowProps {
+  position: number
+  count: number
+  unit: UnitDraft
+  errors: UnitErrors
+  onChange: (unit: UnitDraft) => void
+  onMove: (delta: -1 | 1) => void
+  onRemove: () => void
+  radioName: string
+}
+
+function UnitRow({ position, count, unit, errors, onChange, onMove, onRemove, radioName }: UnitRowProps) {
+  const id = useId()
+  const invalid = (error?: string) => (error ? true : undefined)
+  const describedBy = (field: string, error?: string) => (error ? `${id}-${field}-error` : undefined)
+  return (
+    <div role="group" aria-label={`Unidad ${position}`} className="border border-border-base px-3 py-3 flex flex-col gap-3">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Field id={`${id}-key`} label="Clave" error={errors.key}>
+          <input
+            id={`${id}-key`}
+            type="text"
+            value={unit.key}
+            readOnly={unit.saved}
+            onChange={(e) => onChange({ ...unit, key: e.target.value })}
+            aria-invalid={invalid(errors.key)}
+            aria-describedby={describedBy('key', errors.key)}
+            className={`${inputCls}${unit.saved ? ' opacity-70' : ''}`}
+          />
+        </Field>
+        <Field id={`${id}-label`} label="Nombre" error={errors.label}>
+          <input
+            id={`${id}-label`}
+            type="text"
+            value={unit.label}
+            onChange={(e) => onChange({ ...unit, label: e.target.value })}
+            aria-invalid={invalid(errors.label)}
+            aria-describedby={describedBy('label', errors.label)}
+            className={inputCls}
+          />
+        </Field>
+        <Field id={`${id}-value`} label="Valor" error={errors.value}>
+          <input
+            id={`${id}-value`}
+            type="text"
+            inputMode="decimal"
+            value={unit.value}
+            onChange={(e) => onChange({ ...unit, value: e.target.value })}
+            aria-invalid={invalid(errors.value)}
+            aria-describedby={describedBy('value', errors.value)}
+            className={inputCls}
+          />
+        </Field>
+        <Field id={`${id}-decimals`} label="Decimales">
+          <select
+            id={`${id}-decimals`}
+            value={unit.decimals}
+            onChange={(e) => onChange({ ...unit, decimals: e.target.value as UnitDraft['decimals'] })}
+            className={inputCls}
+          >
+            <option value="0">0 (enteros)</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+          </select>
+        </Field>
+      </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="flex items-center gap-2 text-[13px] text-txt-secondary cursor-pointer">
+          <input type="radio" name={radioName} checked={unit.main} onChange={() => onChange({ ...unit, main: true })} className="accent-accent" />
+          Principal
+        </label>
+        <button type="button" className={smallBtn} disabled={position === 1} onClick={() => onMove(-1)}>
+          Subir
+        </button>
+        <button type="button" className={smallBtn} disabled={position === count} onClick={() => onMove(1)}>
+          Bajar
+        </button>
+        <button type="button" className={smallBtn} onClick={onRemove}>
+          Quitar
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function DistanceFieldset({ units, errors, onChange }: { units: UnitDraft[] | null; errors: SystemErrors['distance']; onChange: (units: UnitDraft[]) => void }) {
+  const radioName = useId()
+  return (
+    <fieldset className="border border-border-base px-4 py-3 flex flex-col gap-3">
+      <legend className="px-1 font-exo text-[11px] font-semibold tracking-[0.15em] uppercase text-txt-primary">Distancias</legend>
+      <p className="text-[12px] text-txt-muted">
+        Las unidades se escriben en los textos como [[{'{'}D:clave{'}'}15]] y se muestran con todas sus equivalencias, por ejemplo [15ft|4,5m|3c]. El valor es el tamaño de
+        la unidad en una medida común (pie = 1, metro = 3,28084, casillero = 5). Cada unidad redondea hacia abajo con sus decimales. La clave no se puede cambiar una vez
+        guardada.
+      </p>
+      {units === null ? (
+        <p className="text-[13px] text-txt-secondary">Las unidades guardadas no se pueden editar desde aquí; se conservan tal como están.</p>
+      ) : (
+        <>
+          {units.map((unit, i) => (
+            <UnitRow
+              // rows have no stable id until saved: the position is their identity
+              key={i}
+              position={i + 1}
+              count={units.length}
+              unit={unit}
+              errors={errors?.units[i] ?? {}}
+              radioName={radioName}
+              onChange={(next) => onChange(units.map((u, j) => (j === i ? next : next.main ? { ...u, main: false } : u)))}
+              onMove={(delta) => {
+                const next = [...units]
+                const [moved] = next.splice(i, 1)
+                next.splice(i + delta, 0, moved)
+                onChange(next)
+              }}
+              onRemove={() => {
+                const next = units.filter((_, j) => j !== i)
+                onChange(next.length > 0 && !next.some((u) => u.main) ? next.map((u, j) => ({ ...u, main: j === 0 })) : next)
+              }}
+            />
+          ))}
+          {errors?.main && (
+            <p role="alert" className="text-[13px] text-red-400">
+              {errors.main}
+            </p>
+          )}
+          {errors?.list && (
+            <p role="alert" className="text-[13px] text-red-400">
+              {errors.list}
+            </p>
+          )}
+          <div>
+            <button
+              type="button"
+              className={`${btnSecondary} disabled:opacity-40 disabled:cursor-not-allowed`}
+              disabled={units.length >= UNIT_MAX}
+              onClick={() => onChange([...units, { ...newUnit(), main: units.length === 0 }])}
+            >
+              Agregar unidad
+            </button>
+          </div>
+        </>
+      )}
+    </fieldset>
+  )
+}
+
 function SystemForm({ initial, onSave }: { initial: SystemDraft; onSave: (draft: SystemDraft) => Promise<SystemErrors | null> }) {
   const [draft, setDraft] = useState(initial)
   const [errors, setErrors] = useState<SystemErrors>({})
@@ -137,6 +287,8 @@ function SystemForm({ initial, onSave }: { initial: SystemDraft; onSave: (draft:
         </div>
       </fieldset>
 
+      <DistanceFieldset units={draft.distance} errors={errors.distance} onChange={(distance) => setDraft((d) => ({ ...d, distance }))} />
+
       <div>
         <button type="submit" className={btnSecondary} disabled={saving}>
           {saving ? 'Guardando…' : 'Guardar sistema'}
@@ -171,7 +323,7 @@ export function SystemSettings() {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[12px] text-txt-secondary">
-        Definí cómo es la ficha de los personajes en esta campaña: nombres de los campos integrados, rango de nivel y bloques que se usan.
+        Definí cómo es la ficha de los personajes en esta campaña: nombres de los campos integrados, rango de nivel, bloques que se usan y unidades de distancia.
       </p>
       <SystemForm key={formKey} initial={systemDraft(stored)} onSave={onSave} />
       {notice && (
