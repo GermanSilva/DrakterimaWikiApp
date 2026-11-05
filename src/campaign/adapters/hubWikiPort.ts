@@ -1,6 +1,6 @@
 import { COLLECTION_DISPLAY, COLLECTION_LETTER, LETTER_COLLECTION } from '../../components/wikiHelpers'
 import { WIKI_INDEX_TABLES, type WikiIndexItem, type WikiIndexTable } from '../../data'
-import type { WikiPort, WikiSearchItem } from '../../ports'
+import type { WikiDistance, WikiPort, WikiSearchItem } from '../../ports'
 import { searchWikiItems } from '../../ports/wikiSearch'
 import type { WikiIndex } from '../entities/useWikiIndex'
 
@@ -9,6 +9,8 @@ const isIndexTable = (t: string | undefined): t is WikiIndexTable => (WIKI_INDEX
 export interface HubWikiPortDeps {
   index: WikiIndex
   navigate: (table: string, id: number) => void
+  /** The distance units of the campaign (S19), when it has any: `[[{D:key}n]]` renders with them. */
+  distance?: WikiDistance
 }
 
 /**
@@ -16,7 +18,7 @@ export interface HubWikiPortDeps {
  * RLS-filtered) has the row: a secret or draft article the viewer cannot see renders as "not found",
  * exactly like a typo, and never leaks its title.
  */
-export function createHubWikiPort({ index, navigate }: HubWikiPortDeps): WikiPort {
+export function createHubWikiPort({ index, navigate, distance }: HubWikiPortDeps): WikiPort {
   const byId = new Map<string, Map<number, WikiIndexItem>>()
   for (const table of WIKI_INDEX_TABLES) byId.set(table, new Map(index.byTable[table].map((item) => [item.id, item])))
 
@@ -38,6 +40,7 @@ export function createHubWikiPort({ index, navigate }: HubWikiPortDeps): WikiPor
       }
     },
     navigate,
+    distance,
     search(query) {
       const items: WikiSearchItem[] = Object.keys(COLLECTION_LETTER)
         .filter(isIndexTable)

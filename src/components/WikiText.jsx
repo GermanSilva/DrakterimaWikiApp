@@ -2,16 +2,18 @@ import { Fragment } from 'react'
 import { useWikiPort } from '../ports'
 import WikiLink from './WikiLink'
 import WikiImage from './WikiImage'
+import { renderDistanceMarkup } from '../campaign/system/distance/distance'
 
 // Re-export so consumers (pages, Dashboard) can still import from WikiText
 export { COLLECTION_LETTER, LETTER_COLLECTION, findEntity } from './wikiHelpers'
 
 // ─── Inline regex — order matters ────────────────────────────────────────────
-// Priority: image > valid wikilink > invalid wikilink > bold-italic > bold > italic
+// Priority: image > distance > valid wikilink > invalid wikilink > bold-italic > bold > italic
 const INLINE_RE = new RegExp(
   '(' +
   [
     '\\[\\[https?:\\/\\/[^\\]]*\\]\\]',   // [[https://...]] image
+    '\\[\\[\\{D[^\\]]*\\]\\]',          // [[{D:unit}amount]] distance (anything else starting with {D stays text)
     '\\[\\[\\{\\d+[A-Z]\\}[^\\]]*\\]\\]', // [[{NL}text]] valid wikilink
     '\\[\\[\\{\\d+\\}[^\\]]*\\]\\]',      // [[{N}text]] invalid wikilink
     '\\*\\*\\*[^*]+\\*\\*\\*',            // ***bold-italic***
@@ -41,6 +43,9 @@ function parseInline(text) {
     // Image: [[https://...]] or [[http://...]]
     const imgMatch = seg.match(/^\[\[(https?:\/\/[^\]]*)\]\]$/)
     if (imgMatch) { nodes.push({ type: 'image', url: imgMatch[1] }); continue }
+
+    // Distance: [[{D:unit}amount]] (rendered with the port's units; markup that cannot be formatted stays as written)
+    if (seg.startsWith('[[{D')) { nodes.push({ type: 'distance', raw: seg }); continue }
 
     // Valid wiki-link: [[{NL}text]]
     const wlValid = seg.match(/^\[\[\{(\d+)([A-Z])\}([^\]]*)\]\]$/)
@@ -144,6 +149,10 @@ function renderInlineNodes(inlineText, keyPrefix, port) {
       return <WikiImage key={key} url={node.url} />
     }
 
+    if (node.type === 'distance') {
+      return <span key={key}>{renderDistanceMarkup(node.raw, port.distance?.config, port.distance?.locale ?? 'es')}</span>
+    }
+
     if (node.type === 'wikilink') {
       const target = port.resolve(node.letter, node.id)
       if (target) {
@@ -194,6 +203,7 @@ function renderInlineNodes(inlineText, keyPrefix, port) {
  * Supported markdown: # ## ### headings, - * unordered lists, 1. ordered lists,
  * --- horizontal rule, **bold**, *italic*, ***bold-italic***, [[url]] images.
  * Wiki-link syntax: [[{NL}Display text]]
+ * Distance syntax: [[{D:unit}15]] (the units come from the WikiPort)
  */
 export default function WikiText({ text }) {
   const port = useWikiPort()

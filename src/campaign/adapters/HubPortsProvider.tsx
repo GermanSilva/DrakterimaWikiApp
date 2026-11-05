@@ -13,6 +13,10 @@ import { createHubWikiPort } from './hubWikiPort'
 import { HubPlayerNotesProvider } from './HubPlayerNotesProvider'
 import { HubUnreadProvider } from './HubUnreadProvider'
 import { parseSystemProfile } from '../system/systemProfile'
+import { readDistance } from '../system/distance/distance'
+
+/** The hub has no language setting yet: text is Spanish (decimal comma). */
+const HUB_LOCALE = 'es'
 
 function HubWikiAndFormProviders({ children }: { children: ReactNode }) {
   const { campaign, isDM, myCharacterIds } = useCampaign()
@@ -27,8 +31,11 @@ function HubWikiAndFormProviders({ children }: { children: ReactNode }) {
     },
     [navigate, slug],
   )
-  const wiki = useMemo(() => createHubWikiPort({ index, navigate: go }), [index, go])
   const system = useMemo(() => parseSystemProfile(campaign.system_profile), [campaign.system_profile])
+  const wiki = useMemo(() => {
+    const config = readDistance(system.distance)
+    return createHubWikiPort({ index, navigate: go, distance: config ? { config, locale: HUB_LOCALE } : undefined })
+  }, [index, go, system])
   const form = useMemo(
     () => ({
       ...createHubFormPort({

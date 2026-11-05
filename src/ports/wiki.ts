@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react'
+import type { DistanceConfig } from '../campaign/system/distance/distance'
 
 /** What a wiki link points at, resolved by the host app (legacy db or hub index). */
 export interface WikiTarget {
@@ -19,6 +20,13 @@ export interface WikiSearchItem {
   title: string
 }
 
+/** The distance units of the campaign and the language numbers are written in (decimal separator). */
+export interface WikiDistance {
+  config: DistanceConfig
+  /** BCP 47 language of the hub ("es": comma as decimal separator). */
+  locale: string
+}
+
 /**
  * Port read by WikiText / WikiLink / WikiLinkPicker. Shared components never touch `useApp()` or
  * the data layer: the host app installs an adapter (legacy: App.jsx state, hub: campaign index).
@@ -35,6 +43,11 @@ export interface WikiPort {
   navigate(table: string, id: number): void
   /** Entities matching `query` (empty query = all), grouped/ordered by the picker. */
   search(query: string): WikiSearchItem[]
+  /**
+   * Distance units for `[[{D:key}amount]]`. Absent (legacy pages, campaigns without units): the markup renders as the
+   * plain text it was written as.
+   */
+  distance?: WikiDistance
 }
 
 export const WikiPortContext = createContext<WikiPort | null>(null)
