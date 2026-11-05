@@ -8,6 +8,11 @@
  *  field `pj[key]` | Stat row `pj[row]` | Capacidades first column `pj[row]`, others `pj[row__col]` |
  *  Habilidad / Libre `pj[table]` (array of rows) | coins `pj.monedas` and `pj.monedas_guardado` keyed by denomination.
  *
+ * An options field or column stores the key of an option; it resolves to the formula result of that option (a number or
+ * a text) or, when the option has no formula, to its key, and is shown as the result text or the option label. A stored key
+ * that is not an option counts as missing: the default option, else empty. A calc field resolves like the formula it
+ * compiles to (calcFormula). Libre/Habilidad rows come back in the table's default order (sortBy).
+ *
  * Formula scope, in order: the names local to a row ({valor} in a Stat modifier; the row's columns plus {valor} and
  * {modificador} of the linked stat in a Capacidades column; the columns of the same row in a Libre/Habilidad formula
  * column), then the sheet: {nivel}, a field, a Stat or Capacidades row, and {row.valor} {row.modificador} {row.column}.
@@ -16,7 +21,7 @@
  * as {key, label, value}.
  */
 import { evaluateFormula, parseFormula, type FormulaNode } from '../formula/formula'
-import type { CapacidadRow, Column, Field, FieldType, NumberFormat, Sheet, StatRow, Table } from './sheetModel'
+import { calcFormula, type CapacidadRow, type Column, type Field, type FieldType, type NumberFormat, type OptionDef, type Sheet, type SortBy, type StatRow, type Table } from './sheetModel'
 
 export type Scalar = number | boolean | string | null
 
@@ -25,6 +30,13 @@ export interface Cell {
   label: string
   type: FieldType
   format?: NumberFormat
+  value: Scalar
+  text: string
+  error: boolean
+}
+
+/** What a row of a Libre/Habilidad table holds in an options column: the resolved value, how to show it, whether it failed. */
+export interface OptionCell {
   value: Scalar
   text: string
   error: boolean
@@ -72,6 +84,13 @@ type CapacidadesTable = Extract<Table, { type: 'capacidades' }>
 interface Computed {
   value: Scalar
   error: boolean
+  /** When the display text is not the plain text of the value (an option without a formula shows its label). */
+  text?: string
+}
+interface OptionSpec {
+  options: OptionDef[]
+  default?: string | number | boolean
+  format?: NumberFormat
 }
 
 const own = (record: Record<string, unknown>, key: string): unknown => (Object.prototype.hasOwnProperty.call(record, key) ? record[key] : undefined)
@@ -84,6 +103,38 @@ export function formatNumber(value: number, format?: NumberFormat): string {
 }
 
 const textOf = (value: Scalar, format?: NumberFormat): string => (typeof value === 'number' ? formatNumber(value, format) : typeof value === 'string' ? value : '')
+
+/** The selected option: the stored key when it is an option, else the default option, else none. */
+function pickOption(spec: OptionSpec, raw: unknown): OptionDef | null {
+  const stored = typeof raw === 'string' ? spec.options.find((o) => o.key === raw) : undefined
+  if (stored) return stored
+  return typeof spec.default === 'string' ? (spec.options.find((o) => o.key === spec.default) ?? null) : null
+}
+
+/** Empty (missing, null, '') sorts last; numbers numerically, texts by the Spanish collation, a flag as 0/1. */
+const sortKey = (raw: unknown): number | string | null => {
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw
+  if (typeof raw === 'boolean') return raw ? 1 : 0
+  return typeof raw === 'string' && raw !== '' ? raw : null
+}
+
+function sortRows(rows: Record<string, unknown>[], sortBy: SortBy | undefined, columns: Column[]): Record<string, unknown>[] {
+  if (!sortBy) return rows
+  const options = columns.find((c) => c.key === sortBy.column)?.type === 'options'
+  const keyOf = (row: Record<string, unknown>) => {
+    const cell = row[sortBy.column]
+    return sortKey(options ? (cell as OptionCell | undefined)?.value : cell)
+  }
+  const sign = sortBy.direction === 'asc' ? 1 : -1
+  return [...rows].sort((a, b) => {
+    const left = keyOf(a)
+    const right = keyOf(b)
+    if (left === null || right === null) return left === right ? 0 : left === null ? 1 : -1
+    if (typeof left === 'number' && typeof right === 'number') return sign * (left - right)
+    if (typeof left === 'string' && typeof right === 'string') return sign * left.localeCompare(right, 'es')
+    return sign * (typeof left === 'number' ? -1 : 1)
+  })
+}
 
 const asRecords = (value: unknown): Record<string, unknown>[] =>
   Array.isArray(value) ? value.filter((row): row is Record<string, unknown> => typeof row === 'object' && row !== null && !Array.isArray(row)) : []
@@ -150,12 +201,23 @@ export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): Resolve
     return typeof raw === 'string' && raw !== '' ? raw : null
   }
 
+  /** The result of the selected option; `evaluateOption` computes an option formula in the scope of its place. */
+  const optionResult = (spec: OptionSpec, raw: unknown, evaluateOption: (formula: string) => Computed): Computed => {
+    const option = pickOption(spec, raw)
+    if (!option) return { value: null, error: false }
+    if (option.formula === undefined) return { value: option.key, error: false, text: option.label }
+    const result = evaluateOption(option.formula)
+    return result.error ? result : { value: result.value, error: false, text: textOf(result.value, spec.format) }
+  }
+
   const fieldValue = (field: Field): Computed =>
     once(`f:${field.key}`, () => {
+      if (field.type === 'options') return optionResult({ options: field.options ?? [], default: field.default, format: field.format }, own(pj, field.key), (formula) => evaluate(formula, () => undefined, true))
       const stored = typed(own(pj, field.key), field.type)
-      if (field.formula === undefined) return { value: stored ?? (field.default ?? null), error: false }
+      const source = field.formula ?? (field.calc ? calcFormula(field.calc) : undefined)
+      if (source === undefined) return { value: stored ?? (field.default ?? null), error: false }
       if (field.overridable && stored !== null) return { value: stored, error: false }
-      const result = evaluate(field.formula, () => undefined, field.type === 'short')
+      const result = evaluate(source, () => undefined, field.type === 'short')
       if (result.error) return result
       if (field.type === 'short') return { value: typeof result.value === 'number' ? formatNumber(result.value) : result.value, error: false }
       return field.type === 'boolean' ? { value: result.value !== 0, error: false } : result
@@ -173,7 +235,6 @@ export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): Resolve
   const cellValue = (table: CapacidadesTable, row: CapacidadRow, index: number): Computed => {
     const column = table.columns[index]
     return once(`c:${row.key}.${column.key}`, () => {
-      if (column.formula === undefined) return { value: typed(own(pj, cellKey(row.key, index, column)), column.type) ?? column.default ?? null, error: false }
       const stat = statRows.get(row.stat)
       const local = (ref: string): unknown => {
         if (ref === 'valor') return stat ? statValue(stat) ?? undefined : undefined
@@ -181,6 +242,8 @@ export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): Resolve
         const at = table.columns.findIndex((c) => c.key === ref)
         return at >= 0 ? (cellValue(table, row, at).value ?? undefined) : undefined
       }
+      if (column.type === 'options') return optionResult({ options: column.options ?? [], default: column.default, format: column.format }, own(pj, cellKey(row.key, index, column)), (formula) => evaluate(formula, local, true))
+      if (column.formula === undefined) return { value: typed(own(pj, cellKey(row.key, index, column)), column.type) ?? column.default ?? null, error: false }
       const result = evaluate(column.formula, local)
       if (result.error || column.type !== 'boolean') return result
       return { value: result.value !== 0, error: false }
@@ -193,7 +256,7 @@ export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): Resolve
     if (!rows) storedRows.set(table.key, (rows = asRecords(own(pj, table.key))))
     return rows
   }
-  /** A formula column of one row of a Libre/Habilidad table; its locals are the other columns of that row. */
+  /** A formula or options column of one row of a Libre/Habilidad table; its locals are the other columns of that row. */
   const rowCell = (table: RowTable, index: number, column: Column): Computed =>
     once(`r:${table.key}:${index}:${column.key}`, () => {
       const row = rowsOf(table)[index]
@@ -201,9 +264,10 @@ export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): Resolve
         const sibling = table.columns.find((c) => c.key === ref)
         if (!sibling) return undefined
         // A missing cell is a missing value (null), never a fall through to a sheet key of the same name.
-        if (sibling.formula !== undefined) return rowCell(table, index, sibling).value
+        if (sibling.formula !== undefined || sibling.type === 'options') return rowCell(table, index, sibling).value
         return typed(own(row, sibling.key), sibling.type) ?? sibling.default ?? null
       }
+      if (column.type === 'options') return optionResult({ options: column.options ?? [], default: column.default, format: column.format }, own(row, column.key), (formula) => evaluate(formula, near, true))
       const result = evaluate(column.formula as string, near)
       if (result.error || column.type !== 'boolean') return result
       return { value: result.value !== 0, error: false }
@@ -216,14 +280,15 @@ export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): Resolve
       rows = rowsOf(table).map((stored, index) => {
         const row: Record<string, unknown> = { ...stored }
         for (const column of table.columns) {
-          if (column.formula === undefined) continue
+          if (column.formula === undefined && column.type !== 'options') continue
           Object.defineProperty(row, column.key, {
             enumerable: true,
             configurable: true,
             get: () => {
               const computed = rowCell(table, index, column)
-              // NaN is not a cell value: the table function that reads a failed cell fails with it.
-              return computed.error || computed.value === null ? Number.NaN : computed.value
+              // NaN is not a cell value: the table function that reads a failed cell fails with it. An options cell with no
+              // selection is just empty.
+              return computed.error ? Number.NaN : computed.value
             },
           })
         }
@@ -266,7 +331,7 @@ export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): Resolve
   const cell = (table: CapacidadesTable, row: CapacidadRow, index: number): Cell => {
     const column = table.columns[index]
     const computed = cellValue(table, row, index)
-    return { key: column.key, label: column.label, type: column.type, ...(column.format ? { format: column.format } : {}), value: computed.value, text: textOf(computed.value, column.format), error: computed.error }
+    return { key: column.key, label: column.label, type: column.type, ...(column.format ? { format: column.format } : {}), value: computed.value, text: computed.text ?? textOf(computed.value, column.format), error: computed.error }
   }
 
   const coinList = (raw: unknown, denominations: { key: string; label: string; value: number }[]): CoinAmount[] => {
@@ -284,7 +349,7 @@ export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): Resolve
   const resolveItem = (item: Field | Table): ResolvedItem => {
     if (item.kind === 'field') {
       const computed = fieldValue(item)
-      const empty = item.formula === undefined && (computed.value === null || computed.value === '')
+      const empty = item.formula === undefined && item.calc === undefined && !computed.error && (computed.value === null || computed.value === '')
       return {
         kind: 'field',
         key: item.key,
@@ -292,7 +357,7 @@ export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): Resolve
         type: item.type,
         ...(item.format ? { format: item.format } : {}),
         value: computed.value,
-        text: textOf(computed.value, item.format),
+        text: computed.text ?? textOf(computed.value, item.format),
         error: computed.error,
         empty,
         ...(item.hidden ? { hidden: true as const } : {}),
@@ -342,10 +407,16 @@ export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): Resolve
     }
     const rows = rowsOf(item).map((stored, index) => {
       const row = { ...stored }
-      for (const column of item.columns) if (column.formula !== undefined) row[column.key] = rowCell(item, index, column).value
+      for (const column of item.columns) {
+        if (column.type === 'options') {
+          const computed = rowCell(item, index, column)
+          const cell: OptionCell = { value: computed.value, text: computed.text ?? textOf(computed.value, column.format), error: computed.error }
+          row[column.key] = cell
+        } else if (column.formula !== undefined) row[column.key] = rowCell(item, index, column).value
+      }
       return row
     })
-    return { kind: 'rows', key: item.key, label: item.label, tableType: item.type, columns: item.columns, rows, empty: rows.length === 0 }
+    return { kind: 'rows', key: item.key, label: item.label, tableType: item.type, columns: item.columns, rows: sortRows(rows, item.sortBy, item.columns), empty: rows.length === 0 }
   }
 
   const sections: ResolvedSection[] = []

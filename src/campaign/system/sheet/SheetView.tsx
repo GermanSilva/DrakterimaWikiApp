@@ -9,7 +9,7 @@ import WikiText from '../../../components/WikiText'
 import { detailSectionCls, detailTextCls, sectionTitleCls } from '../../../constants'
 import useBackdropClose from '../../../hooks/useBackdropClose'
 import useDialogFocus from '../../../hooks/useDialogFocus'
-import { formatNumber, type Cell, type ResolvedBlock, type ResolvedItem, type ResolvedSheet } from './resolveSheet'
+import { formatNumber, type Cell, type OptionCell, type ResolvedBlock, type ResolvedItem, type ResolvedSheet } from './resolveSheet'
 import type { Column } from './sheetModel'
 
 type Item<K extends ResolvedItem['kind']> = Extract<ResolvedItem, { kind: K }>
@@ -20,8 +20,12 @@ const LABEL = 'font-exo text-[10px] tracking-[0.1em] text-txt-muted uppercase'
 
 const isEmptyValue = (value: unknown) => value === undefined || value === null || value === '' || value === false
 
-/** A stored table cell as text, by the type of its column. */
+/** A table cell as text, by the type of its column (an options cell already carries its display text). */
 function cellText(value: unknown, column: Column): string {
+  if (column.type === 'options') {
+    const cell = value as OptionCell | null | undefined
+    return cell?.error ? '—' : (cell?.text ?? '')
+  }
   if (isEmptyValue(value)) return ''
   if (column.type === 'boolean') return '✓'
   if (column.type === 'number' && typeof value === 'number') return formatNumber(value, column.format)
@@ -73,6 +77,7 @@ function StatTiles({ item }: { item: Item<'stat'> }) {
 
 /** ◌ ● ◆ for a proficiency level 0 1 2 (or a flag), the plain value for anything else. */
 function marker(cell: Cell | undefined): string {
+  if (cell?.type === 'options') return ''
   if (!cell || cell.value === null) return '◌'
   if (typeof cell.value === 'boolean') return cell.value ? '●' : '◌'
   if (typeof cell.value === 'number') return cell.value === 0 ? '◌' : cell.value === 1 ? '●' : cell.value === 2 ? '◆' : String(cell.value)
@@ -90,7 +95,7 @@ interface Tile {
 function capacidadesTiles(items: Item<'capacidades'>[]): Tile[] {
   const tiles = new Map<string, Tile>()
   for (const item of items) {
-    const main = item.columns.findIndex((c) => c.formula !== undefined)
+    const main = item.columns.findIndex((c) => c.formula !== undefined || (c.type === 'options' && c.options?.some((o) => o.formula !== undefined)))
     for (const row of item.rows) {
       const tile = tiles.get(row.stat) ?? { stat: row.stat, label: row.statLabel, modifier: row.statModifierText, rows: [] }
       tiles.set(row.stat, tile)
@@ -128,7 +133,7 @@ function CapacidadesTiles({ items }: { items: Item<'capacidades'>[] }) {
 
 function RowsTable({ item, hideLabel }: { item: Item<'rows'>; hideLabel: boolean }) {
   // a column nobody filled in is noise: the sheet may define more columns than a character uses
-  const columns = item.columns.filter((c) => item.rows.some((row) => !isEmptyValue(row[c.key])))
+  const columns = item.columns.filter((c) => item.rows.some((row) => cellText(row[c.key], c) !== ''))
   return (
     <div>
       {!hideLabel && <div className={LABEL}>{item.label}</div>}

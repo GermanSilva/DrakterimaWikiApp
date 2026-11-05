@@ -7,7 +7,7 @@
 import { cleanLabel } from '../systemProfile'
 import { findEdgeCycle, formulaUses, parseFormula } from '../formula/formula'
 
-export const FIELD_TYPES = ['short', 'paragraph', 'number', 'boolean'] as const
+export const FIELD_TYPES = ['short', 'paragraph', 'number', 'boolean', 'options'] as const
 export type FieldType = (typeof FIELD_TYPES)[number]
 export type EditableBy = 'dm' | 'player'
 export const BLOCK_MODES = ['stat', 'tile', 'capacidades', 'plano', 'modal'] as const
@@ -16,6 +16,28 @@ export const ROLE_NAMES = ['hp', 'hp_current', 'ac', 'speed', 'initiative'] as c
 export type RoleName = (typeof ROLE_NAMES)[number]
 
 export type NumberFormat = 'signed'
+export type OptionDisplay = 'select' | 'checkbox'
+export const CALC_OPS = ['suma', 'promedio', 'conteo', 'mayor', 'menor', 'mas_frecuente', 'menos_frecuente'] as const
+export type CalcOp = (typeof CALC_OPS)[number]
+
+/** One choice of an options field or column; its own formula (a number or a text) is what the choice resolves to. */
+export interface OptionDef {
+  key: string
+  label: string
+  formula?: string
+}
+/** A computed field over one column of a Libre, Habilidad or coin table (`conteo` may count the rows). */
+export interface Calc {
+  table: string
+  column?: string
+  op: CalcOp
+}
+/** What a future reset button does to a number column of a Libre or Habilidad table. */
+export type Reset = { to: 'zero' } | { to: 'column'; column: string } | { to: 'value'; value: number }
+export interface SortBy {
+  column: string
+  direction: 'asc' | 'desc'
+}
 
 export interface Column {
   key: string
@@ -24,7 +46,11 @@ export interface Column {
   formula?: string
   editableBy: EditableBy
   format?: NumberFormat
-  /** What a character that has no stored value counts as (a missing proficiency is 0, a missing flag is false). */
+  /** Options columns: the choices (2..20) and how they are drawn; checkbox = two options, the first unchecked. */
+  options?: OptionDef[]
+  display?: OptionDisplay
+  reset?: Reset
+  /** What a character that has no stored value counts as (a missing proficiency is 0, a missing flag is false, an options column an option key). */
   default?: string | number | boolean
 }
 export interface Field {
@@ -37,7 +63,13 @@ export interface Field {
   overridable?: boolean
   /** With a formula: resolved and referenceable by other formulas, but not drawn. */
   hidden?: boolean
+  /** Instead of a formula: a calculation over a table column, resolved and referenceable like a formula field. */
+  calc?: Calc
   format?: NumberFormat
+  options?: OptionDef[]
+  display?: OptionDisplay
+  /** Short and number fields only: a search option and a card tag (readers come later). */
+  searchable?: boolean
   editableBy: EditableBy
   min?: number
   max?: number
@@ -64,8 +96,8 @@ export interface CoinRow {
 export type Table =
   | { kind: 'table'; type: 'stat'; key: string; label: string; rows: StatRow[] }
   | { kind: 'table'; type: 'capacidades'; key: string; label: string; columns: Column[]; rows: CapacidadRow[] }
-  | { kind: 'table'; type: 'habilidad'; key: string; label: string; columns: Column[]; editableBy: EditableBy }
-  | { kind: 'table'; type: 'libre'; key: string; label: string; columns: Column[]; editableBy: EditableBy }
+  | { kind: 'table'; type: 'habilidad'; key: string; label: string; columns: Column[]; editableBy: EditableBy; sortBy?: SortBy }
+  | { kind: 'table'; type: 'libre'; key: string; label: string; columns: Column[]; editableBy: EditableBy; sortBy?: SortBy }
   | { kind: 'table'; type: 'monedas'; key: string; label: string; rows: CoinRow[] }
 export type Item = Field | Table
 export interface Block {
@@ -108,6 +140,7 @@ export const SHEET_LIMITS = {
   blocksPerSection: 60,
   denominations: 8,
   filterCategories: 20,
+  options: 20,
   coinValue: 1_000_000_000,
   text: 4000,
   bytes: 40_000,
@@ -126,6 +159,19 @@ const PROTOTYPE_KEYS: ReadonlySet<string> = new Set(['constructor', 'prototype']
 /** The database charset of a formula: anything but control characters (C0, DEL, C1) other than tab. */
 // eslint-disable-next-line no-control-regex -- the point is to detect control characters
 const FORMULA_CONTROL_CHARS = /[\u0000-\u0008\u000a-\u001f\u007f-\u009f]/
+
+const CALC_FUNCTIONS: Record<CalcOp, string> = {
+  suma: 'suma',
+  promedio: 'promedio',
+  conteo: 'conteo',
+  mayor: 'mayor',
+  menor: 'menor',
+  mas_frecuente: 'frecuente',
+  menos_frecuente: 'infrecuente',
+}
+/** The formula a calculation compiles to; the column of a validated calc is a key, so it never needs escaping. */
+export const calcFormula = (calc: Calc): string => `${CALC_FUNCTIONS[calc.op]}({${calc.table}}${calc.column !== undefined ? `, "${calc.column}"` : ''})`
+const NUMERIC_CALCS: readonly CalcOp[] = ['suma', 'promedio', 'conteo', 'mayor', 'menor']
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const isEditor = (value: unknown): value is EditableBy => value === 'dm' || value === 'player'
@@ -165,15 +211,16 @@ export function validateSheet(raw: unknown): SheetResult {
   }
   const formatOf = (value: unknown, type: FieldType, path: string): NumberFormat | undefined => {
     if (value === undefined) return undefined
-    if (value !== 'signed' || type !== 'number') {
-      fail(path, 'format signed needs a number')
+    if (value !== 'signed' || (type !== 'number' && type !== 'options')) {
+      fail(path, 'format signed needs a number or options field')
       return undefined
     }
     return value
   }
-  const defaultOf = (value: unknown, type: FieldType, path: string): string | number | boolean | undefined => {
+  const defaultOf = (value: unknown, type: FieldType, path: string, optionKeys: string[] = []): string | number | boolean | undefined => {
     if (value === undefined) return undefined
     const ok =
+      (type === 'options' && typeof value === 'string' && optionKeys.includes(value)) ||
       (type === 'number' && typeof value === 'number' && Number.isFinite(value)) ||
       (type === 'boolean' && typeof value === 'boolean') ||
       ((type === 'short' || type === 'paragraph') && typeof value === 'string' && Array.from(value).length <= SHEET_LIMITS.text)
@@ -192,7 +239,47 @@ export function validateSheet(raw: unknown): SheetResult {
     }
     return value
   }
-  const columnsOf = (value: unknown, path: string): Column[] => {
+  /** The options of an options field or column; any other type must not carry options or a display. */
+  const optionsOf = (src: Record<string, unknown>, type: FieldType, path: string): { options: OptionDef[]; display: OptionDisplay } | null => {
+    if (type !== 'options') {
+      if (src.options !== undefined) fail(`${path}.options`, 'options belong to an options field')
+      if (src.display !== undefined) fail(`${path}.display`, 'display belongs to an options field')
+      return null
+    }
+    let options: OptionDef[] = []
+    if (!Array.isArray(src.options) || src.options.length < 2 || src.options.length > SHEET_LIMITS.options) {
+      fail(`${path}.options`, 'an options field needs 2 to 20 options')
+    } else {
+      const seen = new Set<string>()
+      options = src.options.map((o, i): OptionDef => {
+        const at = `${path}.options[${i}]`
+        if (!isRecord(o)) return void fail(at, 'invalid option'), { key: '', label: '' }
+        const formula = formulaOf(o.formula, `${at}.formula`)
+        return { key: plainKey(o.key, `${at}.key`, seen), label: label(o.label, `${at}.label`), ...(formula !== undefined ? { formula } : {}) }
+      })
+    }
+    const display: OptionDisplay = src.display === 'select' || src.display === 'checkbox' ? src.display : (fail(`${path}.display`, 'display must be select or checkbox'), 'select')
+    if (display === 'checkbox' && options.length > 2) fail(`${path}.display`, 'a checkbox has exactly two options')
+    return { options, display }
+  }
+  const resetOf = (value: unknown, self: { key: string; type: FieldType; formula?: string }, siblings: unknown[], allowed: boolean, path: string): Reset | undefined => {
+    if (value === undefined) return undefined
+    const bad = (message: string) => void fail(path, message)
+    if (!allowed || self.type !== 'number' || self.formula !== undefined) return bad('reset needs a custom number column of a Libre or Habilidad table')
+    if (!isRecord(value)) return bad('invalid reset')
+    if (value.to === 'zero') return { to: 'zero' }
+    if (value.to === 'value') {
+      if (typeof value.value === 'number' && Number.isFinite(value.value)) return { to: 'value', value: value.value }
+      return bad('reset to a value needs a finite number')
+    }
+    if (value.to === 'column') {
+      const target = siblings.find((c) => isRecord(c) && c.key === value.column)
+      if (typeof value.column === 'string' && value.column !== self.key && isRecord(target) && target.type === 'number') return { to: 'column', column: value.column }
+      return bad('reset to a column needs another number column of the table')
+    }
+    return bad('reset must go to zero, a column or a value')
+  }
+  const columnsOf = (value: unknown, path: string, allowReset = false): Column[] => {
     if (!Array.isArray(value) || value.length > SHEET_LIMITS.columns) return void fail(path, 'columns required'), []
     const seen = new Set<string>()
     return value.map((c, i) => {
@@ -200,25 +287,55 @@ export function validateSheet(raw: unknown): SheetResult {
       const col = isRecord(c) ? c : {}
       if (!isRecord(c)) fail(at, 'invalid column')
       const type = isFieldType(col.type) ? col.type : (fail(`${at}.type`, 'invalid type'), 'short' as FieldType)
+      const spec = optionsOf(col, type, at)
       const formula = formulaOf(col.formula, `${at}.formula`)
       if (formula !== undefined && type !== 'number' && type !== 'boolean') fail(`${at}.formula`, 'formula needs a number or boolean column')
       const format = formatOf(col.format, type, `${at}.format`)
-      const fallback = defaultOf(col.default, type, `${at}.default`)
+      const fallback = defaultOf(col.default, type, `${at}.default`, spec?.options.map((o) => o.key))
+      const key = plainKey(col.key, `${at}.key`, seen)
+      const reset = resetOf(col.reset, { key, type, formula }, value, allowReset, `${at}.reset`)
       return {
-        key: plainKey(col.key, `${at}.key`, seen),
+        key,
         label: label(col.label, `${at}.label`),
         type,
         ...(formula !== undefined ? { formula } : {}),
         ...(format !== undefined ? { format } : {}),
+        ...(spec ? { options: spec.options, display: spec.display } : {}),
+        ...(reset !== undefined ? { reset } : {}),
         ...(fallback !== undefined ? { default: fallback } : {}),
         editableBy: editor(col.editableBy, `${at}.editableBy`),
       }
     })
   }
 
+  const calcOf = (value: unknown, path: string): Calc | undefined => {
+    if (!isRecord(value)) return void fail(path, 'invalid calculation'), undefined
+    const op = (CALC_OPS as readonly unknown[]).includes(value.op) ? (value.op as CalcOp) : undefined
+    if (op === undefined) fail(`${path}.op`, 'unknown calculation')
+    const table = typeof value.table === 'string' && value.table !== '' ? value.table : undefined
+    if (table === undefined) fail(`${path}.table`, 'a calculation needs a table')
+    let column: string | undefined
+    let columnOk = true
+    if (value.column !== undefined) {
+      if (typeof value.column === 'string' && value.column !== '') column = value.column
+      else columnOk = (fail(`${path}.column`, 'invalid column'), false)
+    } else if (op !== undefined && op !== 'conteo') columnOk = (fail(`${path}.column`, 'this calculation needs a column'), false)
+    return op !== undefined && table !== undefined && columnOk ? { table, ...(column !== undefined ? { column } : {}), op } : undefined
+  }
+  const sortOf = (value: unknown, columns: Column[], path: string): SortBy | undefined => {
+    if (value === undefined) return undefined
+    if (!isRecord(value)) return void fail(path, 'invalid sort'), undefined
+    const column = typeof value.column === 'string' && columns.some((c) => c.key === value.column) ? value.column : undefined
+    if (column === undefined) fail(`${path}.column`, 'sort by a column of the table')
+    const direction = value.direction === 'asc' || value.direction === 'desc' ? value.direction : undefined
+    if (direction === undefined) fail(`${path}.direction`, 'direction must be asc or desc')
+    return column !== undefined && direction !== undefined ? { column, direction } : undefined
+  }
+
   // Pass 1: structure (collected so formula and link checks can resolve against everything)
   // `table`: the formula is a row column of that free/skill table, so its locals are columns of that table (and graph nodes)
   const formulas: { path: string; key: string; text: string; locals: string[]; table?: string }[] = []
+  const calcs: { path: string; key: string; calc: Calc }[] = []
   const tableColumns = new Map<string, Set<string>>() // tables a formula can read as rows: free, skill and coin tables
   const tableKeys = new Set<string>() // every table, whatever its kind
   const statRows = new Set<string>()
@@ -257,15 +374,41 @@ export function validateSheet(raw: unknown): SheetResult {
           const name = label(item.label, `${ipath}.label`)
           if (item.kind === 'field') {
             const type = isFieldType(item.type) ? item.type : (fail(`${ipath}.type`, 'invalid type'), 'short' as FieldType)
+            const spec = optionsOf(item, type, ipath)
             const formula = formulaOf(item.formula, `${ipath}.formula`)
+            let calc: Calc | undefined
+            if (item.calc !== undefined) {
+              if (item.formula !== undefined) fail(`${ipath}.calc`, 'a field has a formula or a calculation, not both')
+              else {
+                calc = calcOf(item.calc, `${ipath}.calc`)
+                if (calc) {
+                  const fits = NUMERIC_CALCS.includes(calc.op) ? type === 'number' : type === 'number' || type === 'short'
+                  if (!fits) fail(`${ipath}.type`, 'this calculation gives a number (a most or least repeated value: a number or short text)')
+                  calcs.push({ path: `${ipath}.calc`, key, calc })
+                }
+              }
+            }
+            const computed = formula !== undefined || calc !== undefined
             const editableBy = editor(item.editableBy, `${ipath}.editableBy`)
             if (formula !== undefined) {
               if (type !== 'number' && type !== 'boolean' && type !== 'short') fail(`${ipath}.formula`, 'formula needs a number, boolean or short text field')
-              if (editableBy !== 'dm') fail(`${ipath}.editableBy`, 'a formula field is computed, only the DM level can own it')
               formulas.push({ path: `${ipath}.formula`, key, text: formula, locals: [] })
             }
+            if (computed && editableBy !== 'dm') fail(`${ipath}.editableBy`, 'a computed field is computed, only the DM level can own it')
+            spec?.options.forEach((o, oi) => {
+              if (o.formula !== undefined) formulas.push({ path: `${ipath}.options[${oi}].formula`, key, text: o.formula, locals: [] })
+            })
             fieldTypes.set(key, type)
-            const field: Field = { kind: 'field', key, label: name, type, editableBy, ...(formula !== undefined ? { formula } : {}) }
+            const field: Field = {
+              kind: 'field',
+              key,
+              label: name,
+              type,
+              editableBy,
+              ...(formula !== undefined ? { formula } : {}),
+              ...(calc !== undefined ? { calc } : {}),
+              ...(spec ? { options: spec.options, display: spec.display } : {}),
+            }
             const format = formatOf(item.format, type, `${ipath}.format`)
             if (format !== undefined) field.format = format
             if (item.overridable !== undefined) {
@@ -273,7 +416,7 @@ export function validateSheet(raw: unknown): SheetResult {
               else field.overridable = item.overridable
             }
             if (item.hidden !== undefined) {
-              if (typeof item.hidden !== 'boolean' || formula === undefined) fail(`${ipath}.hidden`, 'hidden is a boolean and needs a formula')
+              if (typeof item.hidden !== 'boolean' || !computed) fail(`${ipath}.hidden`, 'hidden is a boolean and needs a formula or a calculation')
               else field.hidden = item.hidden
             }
             for (const bound of ['min', 'max'] as const) {
@@ -282,7 +425,11 @@ export function validateSheet(raw: unknown): SheetResult {
               if (type !== 'number' || typeof value !== 'number' || !Number.isFinite(value)) fail(`${ipath}.${bound}`, 'invalid bound')
               else field[bound] = value
             }
-            const fieldDefault = defaultOf(item.default, type, `${ipath}.default`)
+            if (item.searchable !== undefined) {
+              if (typeof item.searchable !== 'boolean' || (type !== 'short' && type !== 'number')) fail(`${ipath}.searchable`, 'searchable is a boolean for short and number fields')
+              else field.searchable = item.searchable
+            }
+            const fieldDefault = defaultOf(item.default, type, `${ipath}.default`, spec?.options.map((o) => o.key))
             if (fieldDefault !== undefined) field.default = fieldDefault
             return field
           }
@@ -291,6 +438,7 @@ export function validateSheet(raw: unknown): SheetResult {
             const rowsRaw = Array.isArray(item.rows) ? item.rows : []
             if (rowsRaw.length > (item.type === 'monedas' ? SHEET_LIMITS.denominations : SHEET_LIMITS.rows)) fail(`${ipath}.rows`, 'too many rows')
             const rowsOf = rowsRaw.slice(0, SHEET_LIMITS.rows)
+            if (item.sortBy !== undefined && item.type !== 'libre' && item.type !== 'habilidad') fail(`${ipath}.sortBy`, 'only Libre and Habilidad tables can be sorted')
             if (item.type === 'stat') {
               return {
                 kind: 'table',
@@ -311,8 +459,7 @@ export function validateSheet(raw: unknown): SheetResult {
             }
             if (item.type === 'capacidades') {
               const columns = columnsOf(item.columns, `${ipath}.columns`)
-              const hasFormula = new Map(columns.map((c) => [c.key, c.formula !== undefined]))
-              const local = columns.filter((c) => c.formula !== undefined)
+              const hasFormula = new Map(columns.map((c) => [c.key, c.formula !== undefined || (c.options?.some((o) => o.formula !== undefined) ?? false)]))
               const rows: CapacidadRow[] = rowsOf.map((r, ri) => {
                 const rpath = `${ipath}.rows[${ri}]`
                 const row = isRecord(r) ? r : {}
@@ -324,24 +471,33 @@ export function validateSheet(raw: unknown): SheetResult {
                 const use = row.use === 'valor' || row.use === 'modificador' ? row.use : (fail(`${rpath}.use`, 'use must be valor or modificador'), 'valor' as const)
                 return { key: rk, label: label(row.label, `${rpath}.label`), stat, use, editableBy: editor(row.editableBy, `${rpath}.editableBy`) }
               })
-              for (const [c, col] of local.entries()) {
-                const ci2 = columns.indexOf(col)
-                formulas.push({ path: `${ipath}.columns[${ci2}].formula`, key: `col:${key}.${col.key}`, text: col.formula as string, locals: [...columns.map((x) => x.key), 'valor', 'modificador'] })
-                void c
-              }
+              const locals = [...columns.map((x) => x.key), 'valor', 'modificador']
+              columns.forEach((col, ci2) => {
+                const id = `col:${key}.${col.key}`
+                if (col.formula !== undefined) formulas.push({ path: `${ipath}.columns[${ci2}].formula`, key: id, text: col.formula, locals })
+                col.options?.forEach((o, oi) => {
+                  if (o.formula !== undefined) formulas.push({ path: `${ipath}.columns[${ci2}].options[${oi}].formula`, key: id, text: o.formula, locals })
+                })
+              })
               return { kind: 'table', type: 'capacidades', key, label: name, columns, rows }
             }
             if (item.type === 'habilidad' || item.type === 'libre') {
-              const columns = columnsOf(item.columns, `${ipath}.columns`)
+              const columns = columnsOf(item.columns, `${ipath}.columns`, true)
+              const sortBy = sortOf(item.sortBy, columns, `${ipath}.sortBy`)
               columns.forEach((col, ci2) => {
-                if (col.formula !== undefined) formulas.push({ path: `${ipath}.columns[${ci2}].formula`, key: `col:${key}.${col.key}`, text: col.formula, locals: columns.map((x) => x.key), table: key })
+                const id = `col:${key}.${col.key}`
+                const locals = columns.map((x) => x.key)
+                if (col.formula !== undefined) formulas.push({ path: `${ipath}.columns[${ci2}].formula`, key: id, text: col.formula, locals, table: key })
+                col.options?.forEach((o, oi) => {
+                  if (o.formula !== undefined) formulas.push({ path: `${ipath}.columns[${ci2}].options[${oi}].formula`, key: id, text: o.formula, locals, table: key })
+                })
               })
               tableColumns.set(key, new Set(columns.map((x) => x.key)))
               const tableEditor = editor(item.editableBy, `${ipath}.editableBy`)
               // Rows of these tables belong to the character and the guard judges the table as one value, so a table the
               // player can write cannot also hold a column only the DM may write.
               if (tableEditor === 'player') columns.forEach((c, ci2) => c.editableBy === 'dm' && fail(`${ipath}.columns[${ci2}].editableBy`, 'a table the player edits cannot hold a DM column'))
-              return { kind: 'table', type: item.type, key, label: name, columns, editableBy: tableEditor }
+              return { kind: 'table', type: item.type, key, label: name, columns, editableBy: tableEditor, ...(sortBy ? { sortBy } : {}) }
             }
             if (item.type === 'monedas') {
               coinTables += 1
@@ -443,8 +599,16 @@ export function validateSheet(raw: unknown): SheetResult {
     // columns it names (a stored column is not a node); column locals point at the column of the same table.
     if (!f.key.startsWith('col:') || f.table !== undefined) {
       const near = (ref: string) => (f.table !== undefined && f.locals.includes(ref) ? `col:${f.table}.${ref}` : ref)
-      edges.set(f.key, [...uses.plain.map(near), ...uses.tables.flatMap(({ table, columns }) => columns.map((c) => `col:${table}.${c}`))])
+      const deps = [...uses.plain.map(near), ...uses.tables.flatMap(({ table, columns }) => columns.map((c) => `col:${table}.${c}`))]
+      edges.set(f.key, [...(edges.get(f.key) ?? []), ...deps]) // an options field or column has one formula per option
     }
+  }
+  // A calculation reads the column it names: a formula column is a graph node, a stored one is a leaf.
+  for (const { path, key, calc } of calcs) {
+    const cols = tableColumns.get(calc.table)
+    if (!cols) fail(`${path}.table`, 'a calculation reads a free, skill or coin table')
+    else if (calc.column !== undefined && !cols.has(calc.column)) fail(`${path}.column`, `${calc.table} has no column "${calc.column}"`)
+    edges.set(key, calc.column === undefined ? [] : [`col:${calc.table}.${calc.column}`])
   }
   if (findEdgeCycle(edges) !== null) fail('categories', 'formulas reference each other in a cycle')
 
