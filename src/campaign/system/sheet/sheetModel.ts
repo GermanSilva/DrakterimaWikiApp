@@ -5,7 +5,7 @@
  * or reports every problem with its path. A sheet that does not validate is never half-used.
  */
 import { cleanLabel } from '../systemProfile'
-import { findFormulaCycle, parseFormula } from '../formula/formula'
+import { findFormulaCycle, parseFormula, usesTextOrTables } from '../formula/formula'
 
 export const FIELD_TYPES = ['short', 'paragraph', 'number', 'boolean'] as const
 export type FieldType = (typeof FIELD_TYPES)[number]
@@ -177,7 +177,13 @@ export function validateSheet(raw: unknown): SheetResult {
   }
   const formulaOf = (value: unknown, path: string): string | undefined => {
     if (value === undefined) return undefined
-    if (typeof value !== 'string' || !parseFormula(value).ok) {
+    if (typeof value !== 'string') {
+      fail(path, 'invalid formula')
+      return undefined
+    }
+    const parsed = parseFormula(value)
+    // Text and table formulas wait for G2, which opens them in both validators (the SQL charset rejects them today).
+    if (!parsed.ok || usesTextOrTables(parsed.ast)) {
       fail(path, 'invalid formula')
       return undefined
     }

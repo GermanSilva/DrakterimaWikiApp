@@ -120,6 +120,13 @@ describe('validateSheet', () => {
   })
 
   describe('verifier findings', () => {
+    it.each(['"x"', '{prof} & ""', 'signo(1)', 'conteo({prof})'])('keeps rejecting %s until text and table formulas reach the sheet (G2, SQL charset)', (formula) => {
+      const sheet = base()
+      const field = sheet.categories[0].sections[0].items[3]
+      if (field.kind === 'field') field.formula = formula
+      expect(validateSheet(sheet).ok).toBe(false)
+    })
+
     it('accepts a tab inside a formula', () => {
       const sheet = base()
       const field = sheet.categories[0].sections[0].items[3]

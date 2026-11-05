@@ -1,28 +1,33 @@
 // Sheet formula language: pure, display-only arithmetic over referenced values.
-// No eval, no assignment, no strings, no loops. See odd/design/sheet-builder.md section 2.
+// No eval, no assignment, no loops. Text literals ("...") and `&` build display texts; table functions
+// (suma, promedio, conteo, lookup) read the rows of a table reference. See odd/design/sheet-builder.md section 2.
 
 export const MAX_FORMULA_LENGTH = 500
 const MAX_DEPTH = 32
 const MAX_ARGUMENTS = 16
 const RESERVED_SEGMENTS = new Set(['__proto__', 'constructor', 'prototype'])
 
-export type FormulaValue = number | boolean
+export type FormulaValue = number | boolean | string
 
 export type FormulaNode =
   | { kind: 'num'; value: number }
+  | { kind: 'str'; value: string }
   | { kind: 'ref'; ref: string }
   | { kind: 'neg'; operand: FormulaNode }
   | { kind: 'bin'; op: BinaryOp; left: FormulaNode; right: FormulaNode }
   | { kind: 'call'; name: FunctionName; args: FormulaNode[] }
+  | { kind: 'agg'; name: 'suma' | 'promedio' | 'conteo'; table: string; column?: string }
+  | { kind: 'lookup'; table: string; keyColumn: string; key: FormulaNode; resultColumn: string; fallback?: FormulaNode }
 
-type BinaryOp = '+' | '-' | '*' | '/' | '%' | '<' | '<=' | '>' | '>=' | '==' | '!='
-type FunctionName = 'si' | 'min' | 'max' | 'floor' | 'ceil' | 'round' | 'abs'
+type BinaryOp = '+' | '-' | '*' | '/' | '%' | '&' | '<' | '<=' | '>' | '>=' | '==' | '!='
+type FunctionName = 'si' | 'min' | 'max' | 'floor' | 'ceil' | 'round' | 'abs' | 'signo'
+const TABLE_FUNCTIONS = new Set(['suma', 'promedio', 'conteo', 'lookup'])
 
 export type ParseResult =
-  | { ok: true; ast: FormulaNode; refs: string[] }
+  | { ok: true; ast: FormulaNode; refs: string[]; tables: string[] }
   | { ok: false; error: string }
 
-export type EvaluateResult = { ok: true; value: number } | { ok: false; error: string }
+export type EvaluateResult = { ok: true; value: number | string } | { ok: false; error: string }
 
 const FUNCTIONS: Record<FunctionName, { min: number; max: number }> = {
   si: { min: 3, max: 3 },
@@ -32,10 +37,12 @@ const FUNCTIONS: Record<FunctionName, { min: number; max: number }> = {
   ceil: { min: 1, max: 1 },
   round: { min: 1, max: 1 },
   abs: { min: 1, max: 1 },
+  signo: { min: 1, max: 1 },
 }
 
 type Token =
   | { type: 'num'; value: number }
+  | { type: 'str'; value: string }
   | { type: 'ref'; ref: string }
   | { type: 'name'; name: string }
   | { type: 'op'; op: string }
@@ -65,6 +72,13 @@ function tokenize(src: string): Token[] {
       }
       tokens.push({ type: 'ref', ref })
       i = end + 1
+    } else if (ch === '"') {
+      const end = src.indexOf('"', i + 1)
+      if (end === -1) throw new FormulaError('unclosed text')
+      const value = src.slice(i + 1, end)
+      if (/[\r\n]/.test(value)) throw new FormulaError('a text cannot span lines')
+      tokens.push({ type: 'str', value })
+      i = end + 1
     } else if (ch >= 'a' && ch <= 'z') {
       const match = /^[a-z]+/.exec(src.slice(i))!
       tokens.push({ type: 'name', name: match[0] })
@@ -74,7 +88,7 @@ function tokenize(src: string): Token[] {
       if (two === '<=' || two === '>=' || two === '==' || two === '!=') {
         tokens.push({ type: 'op', op: two })
         i += 2
-      } else if ('+-*/%<>(),'.includes(ch)) {
+      } else if ('+-*/%&<>(),'.includes(ch)) {
         tokens.push({ type: 'op', op: ch })
         i += 1
       } else {
@@ -89,6 +103,7 @@ class Parser {
   private pos = 0
   private depth = 0
   readonly refs: string[] = []
+  readonly tables: string[] = []
 
   constructor(private readonly tokens: Token[]) {}
 
@@ -119,10 +134,20 @@ class Parser {
   }
 
   private comparison(): FormulaNode {
-    let left = this.additive()
+    let left = this.concat()
     for (let op = this.peekOp('<', '<=', '>', '>=', '==', '!='); op; op = this.peekOp('<', '<=', '>', '>=', '==', '!=')) {
       this.pos += 1
-      left = { kind: 'bin', op: op as BinaryOp, left, right: this.additive() }
+      left = { kind: 'bin', op: op as BinaryOp, left, right: this.concat() }
+    }
+    return left
+  }
+
+  /** `&` binds looser than arithmetic: `{a} & "/" & {a} + 9` joins the sum. */
+  private concat(): FormulaNode {
+    let left = this.additive()
+    while (this.peekOp('&')) {
+      this.pos += 1
+      left = { kind: 'bin', op: '&', left, right: this.additive() }
     }
     return left
   }
@@ -160,9 +185,13 @@ class Parser {
       this.pos += 1
       return { kind: 'num', value: token.value }
     }
+    if (token.type === 'str') {
+      this.pos += 1
+      return { kind: 'str', value: token.value }
+    }
     if (token.type === 'ref') {
       this.pos += 1
-      if (!this.refs.includes(token.ref)) this.refs.push(token.ref)
+      this.noteRef(token.ref)
       return { kind: 'ref', ref: token.ref }
     }
     if (token.type === 'name') {
@@ -178,7 +207,53 @@ class Parser {
     throw new FormulaError(`unexpected "${token.op}"`)
   }
 
+  private noteRef(ref: string): void {
+    if (!this.refs.includes(ref)) this.refs.push(ref)
+  }
+
+  private tableRef(fn: string): string {
+    const token = this.tokens[this.pos]
+    if (token?.type !== 'ref') throw new FormulaError(`${fn} needs a table reference first`)
+    this.pos += 1
+    this.noteRef(token.ref)
+    if (!this.tables.includes(token.ref)) this.tables.push(token.ref)
+    return token.ref
+  }
+
+  /** Column names are fixed texts, so a validator can check them against the table. */
+  private columnName(fn: string): string {
+    this.expectOp(',')
+    const token = this.tokens[this.pos]
+    if (token?.type !== 'str' || token.value === '') throw new FormulaError(`${fn} needs a column name in quotes`)
+    this.pos += 1
+    return token.value
+  }
+
+  private tableCall(fn: string): FormulaNode {
+    this.expectOp('(')
+    const node = this.nested((): FormulaNode => {
+      const table = this.tableRef(fn)
+      if (fn === 'lookup') {
+        const keyColumn = this.columnName(fn)
+        this.expectOp(',')
+        const key = this.comparison()
+        const resultColumn = this.columnName(fn)
+        let fallback: FormulaNode | undefined
+        if (this.peekOp(',')) {
+          this.pos += 1
+          fallback = this.comparison()
+        }
+        return { kind: 'lookup', table, keyColumn, key, resultColumn, ...(fallback ? { fallback } : {}) }
+      }
+      if (fn === 'conteo' && !this.peekOp(',')) return { kind: 'agg', name: 'conteo', table }
+      return { kind: 'agg', name: fn as 'suma' | 'promedio' | 'conteo', table, column: this.columnName(fn) }
+    })
+    this.expectOp(')')
+    return node
+  }
+
   private call(name: string): FormulaNode {
+    if (TABLE_FUNCTIONS.has(name)) return this.tableCall(name)
     if (!Object.prototype.hasOwnProperty.call(FUNCTIONS, name)) {
       throw new FormulaError(`unknown function "${name}"`)
     }
@@ -207,7 +282,7 @@ export function parseFormula(src: string): ParseResult {
   try {
     const parser = new Parser(tokenize(src))
     const ast = parser.parse()
-    return { ok: true, ast, refs: parser.refs }
+    return { ok: true, ast, refs: parser.refs, tables: parser.tables }
   } catch (error) {
     if (error instanceof FormulaError) return { ok: false, error: error.message }
     throw error
@@ -219,54 +294,83 @@ function finite(value: number): number {
   return value
 }
 
-function evalNode(node: FormulaNode, resolve: (ref: string) => unknown): number {
+type Value = number | string
+
+const num = (value: Value): number => {
+  if (typeof value !== 'number') throw new FormulaError('a text cannot be used as a number')
+  return value
+}
+
+const round2 = (value: number) => Math.round(value * 100) / 100
+const text = (value: Value): string => (typeof value === 'number' ? String(round2(value)) : value)
+
+const ownCell = (row: Record<string, unknown>, column: string): unknown =>
+  Object.prototype.hasOwnProperty.call(row, column) ? row[column] : undefined
+
+function tableRows(ref: string, resolve: (ref: string) => unknown): Record<string, unknown>[] {
+  const value = resolve(ref)
+  if (!Array.isArray(value)) throw new FormulaError(`{${ref}} is not a table`)
+  return value.filter((row): row is Record<string, unknown> => typeof row === 'object' && row !== null && !Array.isArray(row))
+}
+
+/** A cell as a formula value; empty (missing, null, '') is undefined. */
+function cellValue(raw: unknown): Value | undefined {
+  if (raw === undefined || raw === null || raw === '') return undefined
+  if (typeof raw === 'boolean') return raw ? 1 : 0
+  if (typeof raw === 'number' && Number.isFinite(raw)) return raw
+  if (typeof raw === 'string') return raw
+  throw new FormulaError('a cell holds something that is not a value')
+}
+
+function evalNode(node: FormulaNode, resolve: (ref: string) => unknown): Value {
   switch (node.kind) {
     case 'num':
+    case 'str':
       return node.value
     case 'ref': {
       const value = resolve(node.ref)
       if (typeof value === 'boolean') return value ? 1 : 0
       if (typeof value === 'number' && Number.isFinite(value)) return value
-      throw new FormulaError(`no numeric value for {${node.ref}}`)
+      if (typeof value === 'string') return value
+      if (Array.isArray(value)) throw new FormulaError(`{${node.ref}} is a table, use it inside a table function`)
+      throw new FormulaError(`no value for {${node.ref}}`)
     }
     case 'neg':
-      return -evalNode(node.operand, resolve)
+      return -num(evalNode(node.operand, resolve))
+    case 'agg': {
+      const rows = tableRows(node.table, resolve)
+      if (node.column === undefined) return rows.length
+      const cells = rows.map((row) => cellValue(ownCell(row, node.column as string)))
+      if (node.name === 'conteo') return cells.filter((cell) => cell !== undefined && cell !== 0).length
+      const numbers = cells.filter((cell): cell is Value => cell !== undefined).map(num)
+      const total = numbers.reduce((sum, value) => finite(sum + value), 0)
+      if (node.name === 'suma') return total
+      if (numbers.length === 0) throw new FormulaError(`no values to average in {${node.table}}`)
+      return total / numbers.length
+    }
+    case 'lookup': {
+      const rows = tableRows(node.table, resolve)
+      const key = evalNode(node.key, resolve)
+      const row = rows.find((candidate) => cellValue(ownCell(candidate, node.keyColumn)) === key)
+      const found = row ? cellValue(ownCell(row, node.resultColumn)) : undefined
+      if (found !== undefined) return found
+      if (node.fallback) return evalNode(node.fallback, resolve)
+      throw new FormulaError(row ? `the row of ${text(key)} has no ${node.resultColumn}` : `no row of {${node.table}} has ${text(key)}`)
+    }
     case 'bin': {
       const left = evalNode(node.left, resolve)
       const right = evalNode(node.right, resolve)
-      switch (node.op) {
-        case '+':
-          return finite(left + right)
-        case '-':
-          return finite(left - right)
-        case '*':
-          return finite(left * right)
-        case '/':
-          if (right === 0) throw new FormulaError('division by zero')
-          return finite(left / right)
-        case '%':
-          if (right === 0) throw new FormulaError('modulo by zero')
-          return finite(left % right)
-        case '<':
-          return left < right ? 1 : 0
-        case '<=':
-          return left <= right ? 1 : 0
-        case '>':
-          return left > right ? 1 : 0
-        case '>=':
-          return left >= right ? 1 : 0
-        case '==':
-          return left === right ? 1 : 0
-        default:
-          return left !== right ? 1 : 0
-      }
+      if (node.op === '&') return text(left) + text(right)
+      if (node.op === '==') return left === right ? 1 : 0
+      if (node.op === '!=') return left !== right ? 1 : 0
+      return arithmetic(node.op, num(left), num(right))
     }
     case 'call': {
       if (node.name === 'si') {
-        const branch = evalNode(node.args[0], resolve) !== 0 ? node.args[1] : node.args[2]
+        const branch = num(evalNode(node.args[0], resolve)) !== 0 ? node.args[1] : node.args[2]
         return evalNode(branch, resolve)
       }
-      const args = node.args.map((arg) => evalNode(arg, resolve))
+      const args = node.args.map((arg) => num(evalNode(arg, resolve)))
       switch (node.name) {
         case 'min':
           return Math.min(...args)
@@ -278,6 +382,10 @@ function evalNode(node: FormulaNode, resolve: (ref: string) => unknown): number 
           return Math.ceil(args[0])
         case 'round':
           return Math.round(args[0])
+        case 'signo': {
+          const value = round2(args[0])
+          return value >= 0 ? `+${value}` : String(value)
+        }
         default:
           return Math.abs(args[0])
       }
@@ -285,10 +393,53 @@ function evalNode(node: FormulaNode, resolve: (ref: string) => unknown): number 
   }
 }
 
+function arithmetic(op: Exclude<BinaryOp, '&' | '==' | '!='>, left: number, right: number): number {
+  switch (op) {
+    case '+':
+      return finite(left + right)
+    case '-':
+      return finite(left - right)
+    case '*':
+      return finite(left * right)
+    case '/':
+      if (right === 0) throw new FormulaError('division by zero')
+      return finite(left / right)
+    case '%':
+      if (right === 0) throw new FormulaError('modulo by zero')
+      return finite(left % right)
+    case '<':
+      return left < right ? 1 : 0
+    case '<=':
+      return left <= right ? 1 : 0
+    case '>':
+      return left > right ? 1 : 0
+    default:
+      return left >= right ? 1 : 0
+  }
+}
+
+/** True when a formula builds text ("...", &, signo) or reads a table: the sheet validators gate these features. */
+export function usesTextOrTables(node: FormulaNode): boolean {
+  switch (node.kind) {
+    case 'num':
+    case 'ref':
+      return false
+    case 'neg':
+      return usesTextOrTables(node.operand)
+    case 'bin':
+      return node.op === '&' || usesTextOrTables(node.left) || usesTextOrTables(node.right)
+    case 'call':
+      return node.name === 'signo' || node.args.some(usesTextOrTables)
+    default:
+      return true
+  }
+}
+
 /** Evaluates a parsed formula; any problem (missing value, division by zero, overflow) is a result, never a throw. */
 export function evaluateFormula(ast: FormulaNode, resolve: (ref: string) => unknown): EvaluateResult {
   try {
-    return { ok: true, value: finite(evalNode(ast, resolve)) }
+    const value = evalNode(ast, resolve)
+    return { ok: true, value: typeof value === 'number' ? finite(value) : value }
   } catch (error) {
     if (error instanceof FormulaError) return { ok: false, error: error.message }
     throw error

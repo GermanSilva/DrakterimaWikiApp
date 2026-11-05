@@ -27,7 +27,11 @@ describe('parseFormula', () => {
     ['extra closing parenthesis', '1 + 2)'],
     ['unknown character', '1 $ 2'],
     ['assignment', 'a = 1'],
-    ['string literal', '"hola"'],
+    ['unclosed string literal', '"hola'],
+    ['string literal with a line break', '"ho\nla"'],
+    ['table function without a table reference', 'suma(1, "precio")'],
+    ['table function with a computed column name', 'suma({equipo}, {col})'],
+    ['lookup with too few arguments', 'lookup({monedas}, "key", "gp")'],
     ['unknown function', 'eval(1)'],
     ['bare identifier', 'constructor'],
     ['empty reference', '{}'],
@@ -163,5 +167,120 @@ describe('findFormulaCycle', () => {
 
   it('ignores formulas that do not parse', () => {
     expect(findFormulaCycle({ a: '{b} +', b: '{a}' })).toBeNull()
+  })
+})
+
+describe('text values (S19, S24)', () => {
+  it('evaluates string literals and joins values with &', () => {
+    expect(run('"hola"')).toEqual({ ok: true, value: 'hola' })
+    expect(run('{dado} & " (" & {usados} & "/" & {nivel} & ")"', { dado: '1d8', usados: 2, nivel: 2 })).toEqual({ ok: true, value: '1d8 (2/2)' })
+  })
+
+  it('joins after arithmetic, so a sum inside a text is computed first', () => {
+    expect(run('{pg} & "/" & {pg} + 9', { pg: 31 })).toEqual({ ok: true, value: '31/40' })
+  })
+
+  it('writes numbers in a text rounded to two decimals', () => {
+    expect(run('"" & 10 / 3')).toEqual({ ok: true, value: '3.33' })
+  })
+
+  it('accepts text values from the scope', () => {
+    expect(run('{nombre}', { nombre: 'Varana' })).toEqual({ ok: true, value: 'Varana' })
+  })
+
+  it('signo() writes a number with its sign, + for zero and positives', () => {
+    expect(run('signo(3)')).toEqual({ ok: true, value: '+3' })
+    expect(run('signo(0)')).toEqual({ ok: true, value: '+0' })
+    expect(run('signo(-1)')).toEqual({ ok: true, value: '-1' })
+    expect(run('{pg} & " (" & signo({mod}) & ")"', { pg: 31, mod: 5 })).toEqual({ ok: true, value: '31 (+5)' })
+  })
+
+  it('compares texts for equality only', () => {
+    expect(run('si({cat} == "Truco", 1, 0)', { cat: 'Truco' })).toEqual({ ok: true, value: 1 })
+    expect(run('{cat} != "Truco"', { cat: 'Dote' })).toEqual({ ok: true, value: 1 })
+    expect(run('"3" == 3')).toEqual({ ok: true, value: 0 })
+    expect(run('"a" < "b"').ok).toBe(false)
+  })
+
+  it.each([
+    ['text plus number', '"a" + 1'],
+    ['negated text', '-"a"'],
+    ['text as a condition', 'si("a", 1, 2)'],
+    ['text in min', 'min("a", 1)'],
+    ['text in signo', 'signo("a")'],
+  ])('reports an error for %s', (_label, src) => {
+    expect(run(src).ok).toBe(false)
+  })
+})
+
+describe('table functions (S16, S29)', () => {
+  const denominations = [
+    { key: 'gp', label: 'Oro', value: 100 },
+    { key: 'sp', label: 'Plata', value: 10 },
+    { key: 'cp', label: 'Cobre', value: 1 },
+  ]
+  const equipo = [
+    { nombre: 'Cuerda', precio: 1, cantidad: 2, portando: true },
+    { nombre: 'Antorcha', precio: 1, cantidad: 10, portando: false },
+    { nombre: 'Mapa', precio: null, cantidad: 1, portando: true },
+    { nombre: 'Daga', cantidad: 3, portando: true },
+  ]
+  const scope = { monedas: denominations, equipo, vacia: [], moneda: 'sp' } as unknown as Record<string, FormulaValue>
+
+  it('lists table references apart from value references', () => {
+    expect(parseFormula('suma({equipo}, "precio") + {nivel} + lookup({monedas}, "key", {moneda}, "value")')).toMatchObject({
+      ok: true,
+      refs: ['equipo', 'nivel', 'monedas', 'moneda'],
+      tables: ['equipo', 'monedas'],
+    })
+  })
+
+  it('lookup returns the column of the first row whose key column equals the key', () => {
+    expect(run('lookup({monedas}, "key", {moneda}, "value")', scope)).toEqual({ ok: true, value: 10 })
+    expect(run('lookup({monedas}, "key", "gp", "label")', scope)).toEqual({ ok: true, value: 'Oro' })
+  })
+
+  it('lookup without a match is an error, or the fallback when one is given', () => {
+    expect(run('lookup({monedas}, "key", "ep", "value")', scope).ok).toBe(false)
+    expect(run('lookup({monedas}, "key", "ep", "value", 0)', scope)).toEqual({ ok: true, value: 0 })
+  })
+
+  it('lookup on a row whose result column is empty is an error, or the fallback', () => {
+    expect(run('lookup({equipo}, "nombre", "Mapa", "precio")', scope).ok).toBe(false)
+    expect(run('lookup({equipo}, "nombre", "Mapa", "precio", -1)', scope)).toEqual({ ok: true, value: -1 })
+  })
+
+  it('suma adds a column, skipping empty cells and counting checkboxes as 1/0', () => {
+    expect(run('suma({equipo}, "cantidad")', scope)).toEqual({ ok: true, value: 16 })
+    expect(run('suma({equipo}, "precio")', scope)).toEqual({ ok: true, value: 2 })
+    expect(run('suma({equipo}, "portando")', scope)).toEqual({ ok: true, value: 3 })
+    expect(run('suma({vacia}, "precio")', scope)).toEqual({ ok: true, value: 0 })
+  })
+
+  it('promedio averages the non-empty cells and has no value without any', () => {
+    expect(run('promedio({equipo}, "precio")', scope)).toEqual({ ok: true, value: 1 })
+    expect(run('promedio({vacia}, "precio")', scope).ok).toBe(false)
+  })
+
+  it('conteo counts rows, or the rows whose column is filled in (checkbox true, number not 0, text not empty)', () => {
+    expect(run('conteo({equipo})', scope)).toEqual({ ok: true, value: 4 })
+    expect(run('conteo({equipo}, "portando")', scope)).toEqual({ ok: true, value: 3 })
+    expect(run('conteo({equipo}, "precio")', scope)).toEqual({ ok: true, value: 2 })
+    expect(run('conteo({vacia})', scope)).toEqual({ ok: true, value: 0 })
+  })
+
+  it('a text cell in suma or promedio is an error', () => {
+    expect(run('suma({equipo}, "nombre")', scope).ok).toBe(false)
+  })
+
+  it('a reference that is not a table is an error, and a table cannot be used as a value', () => {
+    expect(run('suma({moneda}, "value")', scope).ok).toBe(false)
+    expect(run('{equipo} + 1', scope).ok).toBe(false)
+  })
+
+  it('ignores rows that are not objects and inherited members of rows', () => {
+    const odd = { t: [null, 3, [1], { n: 2 }, Object.create({ n: 5 })] } as unknown as Record<string, FormulaValue>
+    expect(run('suma({t}, "n")', odd)).toEqual({ ok: true, value: 2 })
+    expect(run('conteo({t})', odd)).toEqual({ ok: true, value: 2 })
   })
 })

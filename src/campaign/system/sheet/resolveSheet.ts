@@ -130,7 +130,8 @@ export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): Resolve
       const near = local(ref)
       return near !== undefined ? near : globalRef(ref)
     })
-    return result.ok ? { value: result.value, error: false } : { value: null, error: true }
+    // Sheet formulas are number or boolean fields until text formula fields exist (G2), so a text result is an error.
+    return result.ok && typeof result.value === 'number' ? { value: result.value, error: false } : { value: null, error: true }
   }
 
   const typed = (raw: unknown, type: FieldType): Scalar => {
