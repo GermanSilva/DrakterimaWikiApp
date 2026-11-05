@@ -8,6 +8,7 @@ import type { FlatEntity } from '../../data'
 import { isPjUnreadVia } from '../../helpers/pjSections'
 import PJDetail from '../../pages/pj/PJDetail'
 import { PJCardContent } from '../../pages/pj/PJCardContent'
+import { searchableLabels, searchableTags, storedSheet, type SearchableTag } from '../system/sheet/searchable'
 import { validateSheet } from '../system/sheet/sheetModel'
 import { useSystem } from '../system/useSystem'
 import type { SystemProfile } from '../system/systemProfile'
@@ -44,9 +45,9 @@ const canViewPj = (pj: FlatEntity, { isDM, myCharacterIds }: CampaignContextValu
   isDM || pj.estado !== 'borrador' || myCharacterIds.includes(pj.id)
 
 /** The search box says which of the built-in fields it reads (the ones the campaign's system uses). */
-function searchPlaceholder(system: SystemProfile): string {
+function searchPlaceholder(system: SystemProfile, extra: string[]): string {
   const { clase, raza } = system.character.builtins
-  const fields = ['nombre', ...(clase.enabled ? ['clase'] : []), ...(raza.enabled ? ['raza'] : []), 'jugador']
+  const fields = ['nombre', ...(clase.enabled ? ['clase'] : []), ...(raza.enabled ? ['raza'] : []), 'jugador', ...extra]
   return `Buscar por ${fields.slice(0, -1).join(', ')} o ${fields[fields.length - 1]}…`
 }
 
@@ -113,13 +114,13 @@ function PjView({ entity, listPath }: EntityViewProps) {
   )
 }
 
-function PjCard({ pj, slug, hasDmNotes, dmStamp, search }: { pj: FlatEntity; slug: string; hasDmNotes: boolean; dmStamp: string | null; search: string }) {
+function PjCard({ pj, slug, hasDmNotes, dmStamp, search, tags }: { pj: FlatEntity; slug: string; hasDmNotes: boolean; dmStamp: string | null; search: string; tags: SearchableTag[] }) {
   const unread = isPjUnreadVia(useUnreadPort(), pj, hasDmNotes, dmStamp)
   const system = useSystem()
   return (
     <Link to={withSearch(entityPath(slug, 'pjs', pj.id), search)} className={`block ${entityCardCls}`}>
       <UnreadDot unread={unread} className="absolute top-2 right-2" />
-      <PJCardContent pj={pj} hasDmNotes={hasDmNotes} regionTag={<RegionTag region={str(pj.region)} />} system={system} />
+      <PJCardContent pj={pj} hasDmNotes={hasDmNotes} regionTag={<RegionTag region={str(pj.region)} />} system={system} tags={tags} />
     </Link>
   )
 }
@@ -135,12 +136,21 @@ function PjList() {
 
   const visible = useMemo(() => items.filter((p) => canViewPj(p, viewer)), [items, viewer])
   const notes = useDmSecretIds('pjs', useMemo(() => visible.map((p) => p.id), [visible]), 'notas')
+  // Searchable sheet fields (S27): tags per visible character, none without a valid stored sheet
+  const sheet = useMemo(() => storedSheet(system), [system])
+  const tagsOf = useMemo(() => {
+    const map = new Map<number, SearchableTag[]>()
+    if (sheet) for (const p of visible) map.set(p.id, searchableTags(sheet, p))
+    return map
+  }, [sheet, visible])
   const lista = useMemo(() => {
     const q = query.trim().toLowerCase()
     if (!q) return visible
     const { clase, raza } = system.character.builtins
-    return visible.filter((p) => [p.nombre, clase.enabled ? p.clase : '', raza.enabled ? p.raza : '', p.jugador].some((v) => str(v).toLowerCase().includes(q)))
-  }, [visible, query, system])
+    return visible.filter((p) =>
+      [p.nombre, clase.enabled ? p.clase : '', raza.enabled ? p.raza : '', p.jugador, ...(tagsOf.get(p.id) ?? []).map((t) => t.text)].some((v) => str(v).toLowerCase().includes(q)),
+    )
+  }, [visible, query, system, tagsOf])
 
   return (
     <div>
@@ -157,7 +167,7 @@ function PjList() {
           type="search"
           aria-label="Buscar PJs"
           className="w-full bg-bg-card border border-border-light text-txt-primary px-3.5 py-2.5 font-barlow text-[13px] outline-none transition-colors focus:border-accent-dim placeholder:text-txt-muted"
-          placeholder={searchPlaceholder(system)}
+          placeholder={searchPlaceholder(system, sheet ? searchableLabels(sheet) : [])}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
@@ -183,7 +193,7 @@ function PjList() {
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3.5">
           {lista.map((p) => (
-            <PjCard key={p.id} pj={p} slug={campaign.slug} hasDmNotes={isDM && notes.ids.has(p.id)} dmStamp={isDM ? (notes.stamps.get(p.id) ?? null) : null} search={search} />
+            <PjCard key={p.id} pj={p} slug={campaign.slug} hasDmNotes={isDM && notes.ids.has(p.id)} dmStamp={isDM ? (notes.stamps.get(p.id) ?? null) : null} search={search} tags={tagsOf.get(p.id) ?? []} />
           ))}
         </div>
       )}

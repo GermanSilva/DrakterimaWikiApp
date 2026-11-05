@@ -24,9 +24,9 @@ function ModStatBox({ label, base }) {
  * `hasDmNotes` shows the DM lock; `regionTag` is the host's region tag (legacy palette / campaign regions).
  */
 /**
- * @param {{ pj: Record<string, any>, hasDmNotes?: boolean, regionTag?: import('react').ReactNode, system?: import('../../campaign/system/systemProfile').SystemProfile }} props
+ * @param {{ pj: Record<string, any>, hasDmNotes?: boolean, regionTag?: import('react').ReactNode, system?: import('../../campaign/system/systemProfile').SystemProfile, tags?: { key: string, label: string, text: string }[] }} props
  */
-export function PJCardContent({ pj, hasDmNotes = false, regionTag = null, system = DND5E_PROFILE }) {
+export function PJCardContent({ pj, hasDmNotes = false, regionTag = null, system = DND5E_PROFILE, tags = [] }) {
   const { builtins } = system.character
   const identity = identityTag(pj, builtins)
   const hasStats = pj.stat_hp || pj.stat_ac || pj.stat_str || pj.stat_dex || pj.stat_con || pj.stat_int || pj.stat_wis || pj.stat_cha
@@ -102,6 +102,15 @@ export function PJCardContent({ pj, hasDmNotes = false, regionTag = null, system
               <ModStatBox key={key} label={label} base={pj[key] ?? 0} />
             ))}
           </div>
+        </div>
+      )}
+      {tags.length > 0 && (
+        <div className="flex flex-wrap gap-[5px] mt-2.5">
+          {tags.map((t) => (
+            <span key={t.key} data-testid="pj-searchable-tag" className="inline-flex">
+              <Tag cls="neutral" text={`${t.label}: ${t.text}`} />
+            </span>
+          ))}
         </div>
       )}
     </>
