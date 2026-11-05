@@ -5,9 +5,12 @@ import { pagedList } from './pagedList'
 import type { Coins, Db } from './types'
 import { throwZeroRows } from './zeroRows'
 
+/** Amounts per denomination: the five legacy keys, or the denominations of the campaign sheet (G5b). */
+export type PrizeAmounts = Record<string, number>
+
 export interface LoteriaResult {
   roll: number
-  prize: Coins
+  prize: PrizeAmounts
   prize_target: 'player' | 'pot'
 }
 
@@ -24,7 +27,7 @@ export interface GameLog {
   game: string
   play_date: string
   roll: number
-  prize: Partial<Coins>
+  prize: PrizeAmounts
   prize_target: 'player' | 'pot'
   created_at: string
 }
@@ -36,7 +39,8 @@ const LOG_SELECT = join(GAME_LOG_COLUMNS)
  * Mini-games. The lottery roll is decided server-side by `play_loteria` (the UI animates to the
  * returned roll). Failures are DataErrors whose `reason` is the stable code: not_a_member,
  * character_required, not_your_character, dm_only (raised with 42501, kind 'permission') and
- * already_played_today, insufficient_pot, character_not_found (P0001, kind 'business').
+ * already_played_today, insufficient_pot, character_not_found (P0001, kind 'business'); a sheet that cannot receive coins adds
+ * no_reward_destination, pot_denominations_unsupported and invalid_coins (P0001).
  */
 export function createGamesRepository(client: Db) {
   return {
@@ -49,7 +53,7 @@ export function createGamesRepository(client: Db) {
     },
 
     /** DM only: moves coins from the pot to a character; returns the updated pot. */
-    async assignPotToCharacter(campaignId: string, characterId: number, coins: Partial<Coins>): Promise<GamePot> {
+    async assignPotToCharacter(campaignId: string, characterId: number, coins: Partial<Coins> | PrizeAmounts): Promise<GamePot> {
       return unwrap(
         await client.rpc('assign_pot_to_character', {
           p_campaign_id: campaignId,
