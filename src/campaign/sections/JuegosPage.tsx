@@ -2,18 +2,22 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Dices } from 'lucide-react'
 import { PageHeader } from '../../components/Shared'
 import { btnPrimary, sectionTitleCls } from '../../constants'
-import { DataError, type Coins, type GameLog } from '../../data'
+import { DataError, type GameLog } from '../../data'
 import { useCampaign } from '../CampaignContext'
 import { useCampaignServices } from '../entities/campaignServicesContext'
 import { useEntities } from '../entities/useEntities'
 import { useGamePot } from '../entities/useGamePot'
 import { useLoad } from '../entities/useLoad'
-import { formatCoins, hasCoins, normalizeCoins, parseLoteriaConfig, type LoteriaConfig } from '../games/coins'
+import {
+  formatAmounts, formatCoins, hasAmounts, hasCoins, normalizeCoins, parseLoteriaConfig, parseSheetLoteriaConfig, readAmounts, type Amounts, type Denomination,
+} from '../games/coins'
 import { describeDailyReset, utcDay } from '../games/dayReset'
 import { describeGameError } from '../games/gameErrors'
 import { prefersReducedMotion } from '../games/motion'
 import { OverlayBoundary } from '../games/OverlayBoundary'
 import { withTimeout } from '../games/withTimeout'
+import { potSupports, rewardTarget } from '../system/coins/rewardTarget'
+import { useSystem } from '../system/useSystem'
 import { Loading } from './DetailNotice'
 
 type OverlayComponent = typeof import('../../components/dice/D20Overlay').default
@@ -28,8 +32,15 @@ const LABEL = 'font-exo text-[10px] uppercase tracking-[0.1em] text-txt-muted'
 
 interface Outcome {
   roll: number
-  prize: Coins
+  prize: Amounts
   target: 'player' | 'pot'
+}
+
+/** The lottery document as the page reads it: the five fixed prizes of a campaign without a sheet, or the sheet denominations. */
+interface PrizeConfig {
+  commonMinRoll: number
+  commonPrize: Amounts
+  specialPrize: Amounts
 }
 
 /** Re-renders every minute so the "time until reset" and the UTC day rollover stay current. */
@@ -42,22 +53,29 @@ function useNow(intervalMs = 60_000): Date {
   return now
 }
 
-function PrizeList({ config }: { config: LoteriaConfig }) {
+function PrizeList({ config, format }: { config: PrizeConfig; format: (amounts: Amounts) => string }) {
   return (
     <div className="mb-5 flex flex-col gap-1.5 text-[13px] text-txt-secondary">
       <div>
         <span className={LABEL}>Premio común</span> (≥{config.commonMinRoll}):{' '}
-        <span className="text-accent-bright font-semibold">{formatCoins(config.commonPrize)}</span>
+        <span className="text-accent-bright font-semibold">{format(config.commonPrize)}</span>
       </div>
       <div>
         <span className={LABEL}>Premio especial</span> (20 natural):{' '}
-        <span className="text-accent-bright font-semibold">{formatCoins(config.specialPrize)}</span>
+        <span className="text-accent-bright font-semibold">{format(config.specialPrize)}</span>
       </div>
     </div>
   )
 }
 
-function RecentLogs({ logs, nameOf }: { logs: GameLog[]; nameOf: (id: number | null) => string | null }) {
+function RecentLogs({
+  logs, nameOf, format, won,
+}: {
+  logs: GameLog[]
+  nameOf: (id: number | null) => string | null
+  format: (amounts: Amounts, empty?: string) => string
+  won: (amounts: Amounts) => boolean
+}) {
   if (logs.length === 0) return null
   return (
     <section className="mt-6" aria-label="Últimas tiradas">
@@ -68,7 +86,7 @@ function RecentLogs({ logs, nameOf }: { logs: GameLog[]; nameOf: (id: number | n
             <span className="text-txt-muted tabular-nums">{l.play_date}</span>
             {nameOf(l.character_id) && <span>{nameOf(l.character_id)}</span>}
             <span className="font-exo font-semibold text-txt-primary">Salió {l.roll}</span>
-            <span className={hasCoins(l.prize) ? 'text-accent-bright' : 'text-txt-muted'}>{formatCoins(l.prize, 'sin premio')}</span>
+            <span className={won(l.prize) ? 'text-accent-bright' : 'text-txt-muted'}>{format(l.prize, 'sin premio')}</span>
           </li>
         ))}
       </ul>
@@ -82,13 +100,24 @@ export function JuegosPage() {
   const { layer, campaignId } = useCampaignServices()
   const now = useNow()
   const today = utcDay(now)
+  // S12/S28: with a sheet the denominations are its coin table and the lottery exists only with a reward destination
+  const system = useSystem()
+  const target = useMemo(() => rewardTarget(system.sheet), [system.sheet])
+  const denominations: readonly Denomination[] | null = target.mode === 'monedas' || target.mode === 'economia' ? target.denominations : null
+  const lotteryOpen = target.mode !== 'none'
+  const potOpen = potSupports(target)
+  const format = useCallback((amounts: Amounts | null | undefined, empty?: string) => formatAmounts(amounts, denominations, empty), [denominations])
+  const isWon = useCallback((amounts: Amounts) => (denominations ? hasAmounts(amounts) : hasCoins(amounts)), [denominations])
 
   const configState = useLoad(() => layer.config.get(campaignId, 'loteria'), `loteria-config:${campaignId}`)
   const logsState = useLoad(() => layer.games.listLogs(campaignId), `game-logs:${campaignId}`)
   const { pot, loading: potLoading, error: potError } = useGamePot()
   const pjs = useEntities('pjs', { enabled: myCharacterIds.length > 0 })
 
-  const config = useMemo(() => parseLoteriaConfig(configState.data?.value), [configState.data])
+  const config: PrizeConfig = useMemo(
+    () => (denominations ? parseSheetLoteriaConfig(configState.data?.value, denominations) : parseLoteriaConfig(configState.data?.value)),
+    [configState.data, denominations],
+  )
   const pjName = useCallback((id: number | null) => (id === null ? null : (pjs.items.find((p) => p.id === id)?.nombre as string | undefined) ?? `Personaje #${id}`), [pjs.items])
 
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -141,7 +170,7 @@ export function JuegosPage() {
     setOverlay(null)
   }, [finish])
 
-  const canPlay = isDM || characterId !== null
+  const canPlay = isDM ? potOpen : characterId !== null
   async function play() {
     if (busy.current || !canPlay || playedToday) return
     busy.current = true
@@ -158,7 +187,7 @@ export function JuegosPage() {
       const result = await layer.games.playLoteria(campaignId, characterId ?? undefined)
       if (!mounted.current) return
       if (characterId !== null) setPlayedKeys((prev) => new Set(prev).add(`${today}:${characterId}`))
-      setOutcome({ roll: result.roll, prize: normalizeCoins(result.prize), target: result.prize_target })
+      setOutcome({ roll: result.roll, prize: denominations ? readAmounts(result.prize, denominations) : normalizeCoins(result.prize), target: result.prize_target })
       const Dice = await withTimeout(overlayModule, OVERLAY_LOAD_TIMEOUT_MS) // a stalled download must not hold the result back
       if (!mounted.current) return
       if (!Dice) {
@@ -187,24 +216,43 @@ export function JuegosPage() {
   )
 
   const shown = revealed && outcome ? outcome : null
-  const won = shown ? hasCoins(shown.prize) : false
+  const won = shown ? isWon(shown.prize) : false
+
+  if (!lotteryOpen) {
+    return (
+      <div>
+        {header}
+        <div className={CARD}>
+          <div className={sectionTitleCls + ' mb-4'}>Juegos</div>
+          <p className="text-center text-[13px] text-txt-muted italic">La lotería todavía no está disponible.</p>
+          {isDM && (
+            <p className="text-center text-[12px] text-txt-muted mt-2">
+              Definí las denominaciones de la moneda y marcá un destino de recompensa en la hoja de la campaña para activarla.
+            </p>
+          )}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>
       {header}
 
-      <div className="mb-5 bg-bg-card border border-border-base px-5 py-4">
-        <div className="font-exo text-[9px] tracking-[0.3em] text-txt-muted uppercase font-semibold mb-2">Pozo acumulado</div>
-        {potError ? (
-          <p className="text-[13px] text-txt-muted">No pudimos cargar el pozo.</p>
-        ) : potLoading ? (
-          <p className="text-[13px] text-txt-muted">Cargando…</p>
-        ) : (
-          <p aria-label="Pozo acumulado" className="font-exo text-[14px] text-accent-bright font-semibold tracking-[0.04em]">
-            {formatCoins(pot, 'Vacío')}
-          </p>
-        )}
-      </div>
+      {potOpen && (
+        <div className="mb-5 bg-bg-card border border-border-base px-5 py-4">
+          <div className="font-exo text-[9px] tracking-[0.3em] text-txt-muted uppercase font-semibold mb-2">Pozo acumulado</div>
+          {potError ? (
+            <p className="text-[13px] text-txt-muted">No pudimos cargar el pozo.</p>
+          ) : potLoading ? (
+            <p className="text-[13px] text-txt-muted">Cargando…</p>
+          ) : (
+            <p aria-label="Pozo acumulado" className="font-exo text-[14px] text-accent-bright font-semibold tracking-[0.04em]">
+              {denominations ? format(pot && { cp: pot.cp, sp: pot.sp, ep: pot.ep, gp: pot.gp, pp: pot.pp }, 'Vacío') : formatCoins(pot, 'Vacío')}
+            </p>
+          )}
+        </div>
+      )}
 
       <div className={CARD}>
         <div className={sectionTitleCls + ' mb-4'}>La Lotería del Dado</div>
@@ -218,7 +266,7 @@ export function JuegosPage() {
                 No pudimos cargar la configuración: se muestran los premios por defecto.
               </p>
             )}
-            <PrizeList config={config} />
+            <PrizeList config={config} format={(amounts) => format(amounts)} />
           </>
         )}
 
@@ -258,7 +306,12 @@ export function JuegosPage() {
             Jugás con <span className="text-txt-secondary">{pjName(characterId)}</span>
           </p>
         )}
-        {isDM && <p className="text-center text-[12px] text-txt-muted mb-3">Como DM, el premio va al pozo.</p>}
+        {isDM && potOpen && <p className="text-center text-[12px] text-txt-muted mb-3">Como DM, el premio va al pozo.</p>}
+        {isDM && !potOpen && (
+          <p className="text-center text-[12px] text-txt-muted mb-3">
+            El pozo todavía no admite las denominaciones de esta hoja: por ahora solo los jugadores pueden jugar.
+          </p>
+        )}
 
         {canPlay && (!playedToday || phase !== 'idle') && (
           <div className="flex justify-center mt-2">
@@ -285,7 +338,7 @@ export function JuegosPage() {
                 <>
                   <div className="font-exo text-[15px] font-semibold tracking-[0.1em] uppercase text-accent-bright mt-2">¡Ganaste!</div>
                   <div className="text-[13px] mt-1 text-accent-bright">
-                    {shown.target === 'pot' ? `${formatCoins(shown.prize)} enviados al pozo.` : `${formatCoins(shown.prize)} añadidos a tu bolsa.`}
+                    {shown.target === 'pot' ? `${format(shown.prize)} enviados al pozo.` : `${format(shown.prize)} añadidos a tu bolsa.`}
                   </div>
                 </>
               ) : (
@@ -295,7 +348,7 @@ export function JuegosPage() {
           )}
           {!shown && todayLog && phase === 'idle' && (
             <div className="text-[13px] text-txt-secondary">
-              Tu tirada de hoy: <span className="font-exo font-semibold text-txt-primary">{todayLog.roll}</span> · {formatCoins(todayLog.prize, 'sin premio')}
+              Tu tirada de hoy: <span className="font-exo font-semibold text-txt-primary">{todayLog.roll}</span> · {format(todayLog.prize, 'sin premio')}
             </div>
           )}
         </div>
@@ -305,7 +358,7 @@ export function JuegosPage() {
         )}
       </div>
 
-      <RecentLogs logs={recent} nameOf={isDM ? () => null : pjName} />
+      <RecentLogs logs={recent} nameOf={isDM ? () => null : pjName} format={format} won={isWon} />
 
       {Overlay && outcome && (
         <OverlayBoundary onError={abandonOverlay}>
