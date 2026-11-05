@@ -1,7 +1,7 @@
 -- pgTAP: G4a of the system-agnostic campaigns (S20, S30, S33).
 --   Part 1: a player may write an `options` value (field, Capacidades cell, options column of a Libre table) only as one
 --           of the option keys declared at THAT place; null still clears; everything else is judged as before.
---   Part 2: `jugador` is no longer free text for a player; the assignment of the character (pjs.owner_id) decides it: it
+--   Part 2: `jugador` is no longer free text (G4b extends this to the DM, see 27); the assignment of the character (pjs.owner_id) decides it: it
 --           becomes the display name of the assigned member and is cleared when the character is released (S30, S33).
 -- Self-contained fixture, rolled back at the end.
 begin;
@@ -196,11 +196,11 @@ select is((select jugador from public.pjs where id = 98004), '', 'a refused assi
 select is(tests.try($$ insert into public.pjs (id, campaign_id, owner_id, nombre, jugador) values (98006, 'ffffffff-0000-4000-8000-0000000001aa', 'eeeeeeee-0000-4000-8000-000000000104', 'Born owned', 'free text') $$), 'ok', 'DM: creates a character for a member');
 select is((select jugador from public.pjs where id = 98006), 'Optjug 4', 'creation for a member: jugador is the member display name');
 select is(tests.try($$ insert into public.pjs (id, campaign_id, nombre, jugador) values (98007, 'ffffffff-0000-4000-8000-0000000001aa', 'Born free', 'Legacy name') $$), 'ok', 'DM: creates an unassigned character');
-select is((select jugador from public.pjs where id = 98007), 'Legacy name', 'creation without a member keeps the text (importer and DM form still work; G4b/G10 retire it)');
+select is((select jugador from public.pjs where id = 98007), '', 'creation without a member: the typed text is discarded (G4b: only the assignment sets it)');
 
--- DM direct edits of the text with the assignment untouched are NOT blocked in this unit (the form is retired in G4b)
-select is(tests.try($$ update public.pjs set jugador = 'DM edit' where id = 98007 $$), 'ok', 'DM: editing the text of an unassigned character still works');
-select is((select jugador from public.pjs where id = 98007), 'DM edit', 'and it is stored');
+-- DM direct edits of the text are refused since G4b (27_jugador_assignment_only covers the whole DM rule)
+select is(tests.try($$ update public.pjs set jugador = 'DM edit' where id = 98007 $$), '42501', 'DM: editing the text of an unassigned character is rejected (G4b)');
+select is((select jugador from public.pjs where id = 98007), '', 'and nothing is stored');
 
 -- the other assignment paths: invite redemption and member removal
 select tests.as_postgres();
