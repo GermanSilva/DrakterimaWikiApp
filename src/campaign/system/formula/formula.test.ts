@@ -6,6 +6,7 @@ import {
   findFormulaCycle,
   formulaUses,
   parseFormula,
+  usesTextOrTables,
   type FormulaValue,
 } from './formula'
 
@@ -319,5 +320,80 @@ describe('findEdgeCycle', () => {
     expect(findEdgeCycle(new Map([['a', ['b', 'ghost']], ['b', ['a']]]))).toEqual(['a', 'b', 'a'])
     expect(findEdgeCycle(new Map([['a', ['a']]]))).toEqual(['a', 'a'])
     expect(findEdgeCycle(new Map([['a', ['b']], ['b', []]]))).toBeNull()
+  })
+})
+
+describe('G2b: mayor, menor, frecuente and infrecuente over a table column', () => {
+  const rows = (cells: unknown[]) => ({ t: cells.map((n) => ({ n })) }) as unknown as Record<string, FormulaValue>
+  const table = rows([3, 9, null, 'x', ''].filter((c) => c !== 'x'))
+
+  it('mayor and menor are the highest and lowest of the filled cells', () => {
+    expect(run('mayor({t}, "n")', table)).toEqual({ ok: true, value: 9 })
+    expect(run('menor({t}, "n")', table)).toEqual({ ok: true, value: 3 })
+    expect(run('mayor({t}, "n") - menor({t}, "n")', table)).toEqual({ ok: true, value: 6 })
+  })
+
+  it('mayor and menor count a checkbox as 1/0 and handle negatives', () => {
+    expect(run('menor({t}, "n")', rows([true, false, true]))).toEqual({ ok: true, value: 0 })
+    expect(run('mayor({t}, "n")', rows([-5, -2]))).toEqual({ ok: true, value: -2 })
+  })
+
+  it('mayor and menor fail with no values, a text cell, or a table that is not a table', () => {
+    expect(run('mayor({t}, "n")', rows([]))).toMatchObject({ ok: false })
+    expect(run('menor({t}, "n")', rows([null, '', undefined]))).toMatchObject({ ok: false })
+    expect(run('mayor({t}, "n")', rows([1, 'abc']))).toMatchObject({ ok: false })
+    expect(run('mayor({t}, "n")', { t: 4 })).toMatchObject({ ok: false })
+    expect(run('menor({t}, "ghost")', rows([1]))).toMatchObject({ ok: false })
+  })
+
+  it('frecuente is the most repeated filled value, numbers or texts', () => {
+    expect(run('frecuente({t}, "n")', rows([1, 2, 2, 3, null]))).toEqual({ ok: true, value: 2 })
+    expect(run('frecuente({t}, "n")', rows(['a', 'b', 'b', '']))).toEqual({ ok: true, value: 'b' })
+    expect(run('"top " & frecuente({t}, "n")', rows(['a', 'b', 'b']))).toEqual({ ok: true, value: 'top b' })
+  })
+
+  it('infrecuente is the least repeated filled value', () => {
+    expect(run('infrecuente({t}, "n")', rows([1, 2, 2, 3, 3]))).toEqual({ ok: true, value: 1 })
+    expect(run('infrecuente({t}, "n")', rows(['a', 'b', 'b']))).toEqual({ ok: true, value: 'a' })
+  })
+
+  it('ties go to the value that appears first in row order', () => {
+    expect(run('frecuente({t}, "n")', rows([5, 7, 7, 5, 9]))).toEqual({ ok: true, value: 5 })
+    expect(run('infrecuente({t}, "n")', rows([4, 8, 8, 6, 6, 4, 9, 1]))).toEqual({ ok: true, value: 9 })
+    expect(run('frecuente({t}, "n")', rows(['z', 'a']))).toEqual({ ok: true, value: 'z' })
+  })
+
+  it('a number and the same text are different values', () => {
+    expect(run('frecuente({t}, "n")', rows([1, '1', '1']))).toEqual({ ok: true, value: '1' })
+  })
+
+  it('frecuente and infrecuente fail with no values or a missing table', () => {
+    expect(run('frecuente({t}, "n")', rows([null, '']))).toMatchObject({ ok: false })
+    expect(run('infrecuente({t}, "n")', rows([]))).toMatchObject({ ok: false })
+    expect(run('frecuente({t}, "n")', { t: 'x' })).toMatchObject({ ok: false })
+  })
+
+  it('parses like the other table functions: table first, a column name in quotes', () => {
+    expect(parseFormula('mayor({t}, "n")')).toMatchObject({ ok: true, refs: ['t'], tables: ['t'] })
+    expect(parseFormula('frecuente({t}, "n") & infrecuente({u}, "m")')).toMatchObject({ ok: true, refs: ['t', 'u'], tables: ['t', 'u'] })
+    for (const bad of ['mayor({t})', 'menor(1, "n")', 'frecuente({t}, n)', 'infrecuente({t}, "")', 'mayor({t}, "n", "m")', 'frecuente()']) {
+      expect(parseFormula(bad).ok, bad).toBe(false)
+    }
+  })
+
+  it('reports the columns they read and counts as a table formula for the validators', () => {
+    const parsed = parseFormula('mayor({t}, "a") + menor({t}, "b") & frecuente({u}, "c")')
+    if (!parsed.ok) throw new Error(parsed.error)
+    expect(formulaUses(parsed.ast)).toEqual({ plain: [], tables: [{ table: 't', columns: ['a', 'b'] }, { table: 'u', columns: ['c'] }] })
+    expect(usesTextOrTables(parsed.ast)).toBe(true)
+  })
+
+  it('a reference cycle through them is found', () => {
+    expect(findFormulaCycle({ a: 'mayor({t}, "n") + {b}', b: '{a}' })).toEqual(['a', 'b', 'a'])
+  })
+
+  it('does not break the earlier table functions', () => {
+    expect(run('suma({t}, "n")', rows([1, 2]))).toEqual({ ok: true, value: 3 })
+    expect(run('conteo({t}, "n")', rows([1, 0, null]))).toEqual({ ok: true, value: 1 })
   })
 })

@@ -1,6 +1,6 @@
 // Sheet formula language: pure, display-only arithmetic over referenced values.
 // No eval, no assignment, no loops. Text literals ("...") and `&` build display texts; table functions
-// (suma, promedio, conteo, lookup) read the rows of a table reference. See odd/design/sheet-builder.md section 2.
+// (suma, promedio, conteo, mayor, menor, frecuente, infrecuente, lookup) read the rows of a table reference. See odd/design/sheet-builder.md section 2.
 
 export const MAX_FORMULA_LENGTH = 500
 const MAX_DEPTH = 32
@@ -16,12 +16,13 @@ export type FormulaNode =
   | { kind: 'neg'; operand: FormulaNode }
   | { kind: 'bin'; op: BinaryOp; left: FormulaNode; right: FormulaNode }
   | { kind: 'call'; name: FunctionName; args: FormulaNode[] }
-  | { kind: 'agg'; name: 'suma' | 'promedio' | 'conteo'; table: string; column?: string }
+  | { kind: 'agg'; name: AggName; table: string; column?: string }
   | { kind: 'lookup'; table: string; keyColumn: string; key: FormulaNode; resultColumn: string; fallback?: FormulaNode }
 
 type BinaryOp = '+' | '-' | '*' | '/' | '%' | '&' | '<' | '<=' | '>' | '>=' | '==' | '!='
 type FunctionName = 'si' | 'min' | 'max' | 'floor' | 'ceil' | 'round' | 'abs' | 'signo'
-const TABLE_FUNCTIONS = new Set(['suma', 'promedio', 'conteo', 'lookup'])
+type AggName = 'suma' | 'promedio' | 'conteo' | 'mayor' | 'menor' | 'frecuente' | 'infrecuente'
+const TABLE_FUNCTIONS = new Set(['suma', 'promedio', 'conteo', 'mayor', 'menor', 'frecuente', 'infrecuente', 'lookup'])
 
 export type ParseResult =
   | { ok: true; ast: FormulaNode; refs: string[]; tables: string[] }
@@ -246,7 +247,7 @@ class Parser {
         return { kind: 'lookup', table, keyColumn, key, resultColumn, ...(fallback ? { fallback } : {}) }
       }
       if (fn === 'conteo' && !this.peekOp(',')) return { kind: 'agg', name: 'conteo', table }
-      return { kind: 'agg', name: fn as 'suma' | 'promedio' | 'conteo', table, column: this.columnName(fn) }
+      return { kind: 'agg', name: fn as AggName, table, column: this.columnName(fn) }
     })
     this.expectOp(')')
     return node
@@ -322,6 +323,22 @@ function cellValue(raw: unknown): Value | undefined {
   throw new FormulaError('a cell holds something that is not a value')
 }
 
+/** The most (frecuente) or least (infrecuente) repeated filled value; a tie goes to the value that appears first. */
+function repeated(name: 'frecuente' | 'infrecuente', table: string, cells: (Value | undefined)[]): Value {
+  const counts = new Map<Value, number>()
+  for (const cell of cells) if (cell !== undefined) counts.set(cell, (counts.get(cell) ?? 0) + 1)
+  if (counts.size === 0) throw new FormulaError(`no values in {${table}}`)
+  let best: Value | undefined
+  let bestCount = 0
+  for (const [value, count] of counts) {
+    if (best === undefined || (name === 'frecuente' ? count > bestCount : count < bestCount)) {
+      best = value
+      bestCount = count
+    }
+  }
+  return best as Value
+}
+
 function evalNode(node: FormulaNode, resolve: (ref: string) => unknown): Value {
   switch (node.kind) {
     case 'num':
@@ -342,7 +359,12 @@ function evalNode(node: FormulaNode, resolve: (ref: string) => unknown): Value {
       if (node.column === undefined) return rows.length
       const cells = rows.map((row) => cellValue(ownCell(row, node.column as string)))
       if (node.name === 'conteo') return cells.filter((cell) => cell !== undefined && cell !== 0).length
+      if (node.name === 'frecuente' || node.name === 'infrecuente') return repeated(node.name, node.table, cells)
       const numbers = cells.filter((cell): cell is Value => cell !== undefined).map(num)
+      if (node.name === 'mayor' || node.name === 'menor') {
+        if (numbers.length === 0) throw new FormulaError(`no values in {${node.table}}`)
+        return node.name === 'mayor' ? Math.max(...numbers) : Math.min(...numbers)
+      }
       const total = numbers.reduce((sum, value) => finite(sum + value), 0)
       if (node.name === 'suma') return total
       if (numbers.length === 0) throw new FormulaError(`no values to average in {${node.table}}`)
