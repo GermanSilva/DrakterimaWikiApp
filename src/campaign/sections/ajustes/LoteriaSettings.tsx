@@ -1,10 +1,13 @@
-import { useState, type FormEvent } from 'react'
+import { useMemo, useState, type FormEvent } from 'react'
 import { btnSecondary, inputCls } from '../../../constants'
 import { ConflictError, type CampaignConfig, type Coins } from '../../../data'
 import { describeDataError } from '../../entities/errorMessages'
 import { useCampaignServices } from '../../entities/campaignServicesContext'
 import { useLoad } from '../../entities/useLoad'
 import { parseLoteriaConfig } from '../../games/coins'
+import { rewardTarget } from '../../system/coins/rewardTarget'
+import { useSystem } from '../../system/useSystem'
+import { SheetLoteriaForm } from '../juegos/SheetLoteriaForm'
 import { Loading } from '../DetailNotice'
 import { coinText, parseCoinText, type CoinText } from './coinInput'
 import { CoinFields } from './CoinFields'
@@ -14,8 +17,8 @@ const MAX_ROLL = 19
 
 interface LoteriaValues {
   commonMinRoll: number
-  commonPrize: Coins
-  specialPrize: Coins
+  commonPrize: Coins | Record<string, number>
+  specialPrize: Coins | Record<string, number>
 }
 
 interface Notice {
@@ -103,11 +106,23 @@ function LoteriaForm({
 /** Lottery configuration (`campaign_config.loteria`, readable by members, written by the DM). */
 export function LoteriaSettings() {
   const { layer, campaignId } = useCampaignServices()
+  // S12/S28: with a sheet the prizes are defined per denomination of its coin table, and only once it has a reward destination
+  const system = useSystem()
+  const target = useMemo(() => rewardTarget(system.sheet), [system.sheet])
   const state = useLoad(() => layer.config.get(campaignId, 'loteria'), `loteria-config:${campaignId}`)
   // The row we wrote last, valid only for the loaded version it was based on: a re-read supersedes it.
   const [saved, setSaved] = useState<{ row: CampaignConfig; over: CampaignConfig | null } | null>(null)
   const [notice, setNotice] = useState<Notice | null>(null)
 
+  if (target.mode === 'none') {
+    return (
+      <div className="bg-bg-card border border-border-base px-5 py-4">
+        <p className="text-[13px] text-txt-muted">
+          Definí las denominaciones de la moneda y marcá un destino de recompensa en la hoja de la campaña para poder definir los premios de la lotería.
+        </p>
+      </div>
+    )
+  }
   if (state.status === 'loading' || state.status === 'idle') return <Loading />
   if (state.status === 'error') {
     return (
@@ -143,5 +158,8 @@ export function LoteriaSettings() {
     }
   }
 
+  if (target.mode === 'monedas' || target.mode === 'economia') {
+    return <SheetLoteriaForm key={row?.updated_at ?? 'none'} row={row} denominations={target.denominations} notice={notice} onSave={save} />
+  }
   return <LoteriaForm key={row?.updated_at ?? 'none'} row={row} notice={notice} onSave={save} />
 }
