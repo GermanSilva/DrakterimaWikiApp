@@ -53,7 +53,7 @@ export type ResolvedItem =
   | { kind: 'field'; key: string; label: string; type: FieldType; format?: NumberFormat; value: Scalar; text: string; error: boolean; empty: boolean; hidden?: true }
   | { kind: 'stat'; key: string; label: string; rows: { key: string; label: string; value: number | null; valueText: string; modifier: number | null; modifierText: string }[]; empty: false }
   | { kind: 'capacidades'; key: string; label: string; columns: Column[]; rows: { key: string; label: string; stat: string; statLabel: string; statModifierText: string; linked: number | null; cells: Cell[] }[]; empty: false }
-  | { kind: 'rows'; key: string; label: string; tableType: 'libre' | 'habilidad'; columns: Column[]; rows: Record<string, unknown>[]; empty: boolean }
+  | { kind: 'rows'; key: string; label: string; tableType: 'libre' | 'habilidad'; columns: Column[]; rows: Record<string, unknown>[]; storedIndex: number[]; empty: boolean }
   | { kind: 'coins'; key: string; label: string; denominations: { key: string; label: string; value: number }[]; carried: CoinAmount[]; stored: CoinAmount[]; carriedTotal: number; storedTotal: number; empty: boolean; rewardDestination?: true }
   | { kind: 'economy'; key: string; label: string; denominations: { key: string; label: string; value: number }[]; amounts: CoinAmount[]; total: number; empty: boolean; rewardDestination?: true }
 
@@ -124,17 +124,19 @@ const sortKey = (raw: unknown): number | string | null => {
   return typeof raw === 'string' && raw !== '' ? raw : null
 }
 
-function sortRows(rows: Record<string, unknown>[], sortBy: SortBy | undefined, columns: Column[]): Record<string, unknown>[] {
-  if (!sortBy) return rows
+/** The order the rows are shown in, as indexes into `rows` (the identity without a sortBy). */
+function sortOrder(rows: Record<string, unknown>[], sortBy: SortBy | undefined, columns: Column[]): number[] {
+  const order = rows.map((_, index) => index)
+  if (!sortBy) return order
   const options = columns.find((c) => c.key === sortBy.column)?.type === 'options'
   const keyOf = (row: Record<string, unknown>) => {
     const cell = row[sortBy.column]
     return sortKey(options ? (cell as OptionCell | undefined)?.value : cell)
   }
   const sign = sortBy.direction === 'asc' ? 1 : -1
-  return [...rows].sort((a, b) => {
-    const left = keyOf(a)
-    const right = keyOf(b)
+  return order.sort((a, b) => {
+    const left = keyOf(rows[a])
+    const right = keyOf(rows[b])
     if (left === null || right === null) return left === right ? 0 : left === null ? 1 : -1
     if (typeof left === 'number' && typeof right === 'number') return sign * (left - right)
     if (typeof left === 'string' && typeof right === 'string') return sign * left.localeCompare(right, 'es')
@@ -145,7 +147,7 @@ function sortRows(rows: Record<string, unknown>[], sortBy: SortBy | undefined, c
 const asRecords = (value: unknown): Record<string, unknown>[] =>
   Array.isArray(value) ? value.filter((row): row is Record<string, unknown> => typeof row === 'object' && row !== null && !Array.isArray(row)) : []
 
-export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): ResolvedSheet {
+function build(sheet: Sheet, pj: Record<string, unknown>) {
   const fields = new Map<string, Field>()
   const statRows = new Map<string, StatRow>()
   const capRows = new Map<string, { table: Extract<Table, { type: 'capacidades' }>; row: CapacidadRow }>()
@@ -433,7 +435,11 @@ export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): Resolve
       }
       return row
     })
-    return { kind: 'rows', key: item.key, label: item.label, tableType: item.type, columns: item.columns, rows: sortRows(rows, item.sortBy, item.columns), empty: rows.length === 0 }
+    // where each (filtered) row lives in the STORED array: an editor addresses the stored row, never the display position
+    const stored = own(pj, item.key)
+    const positions = Array.isArray(stored) ? stored.flatMap((row, at) => (typeof row === 'object' && row !== null && !Array.isArray(row) ? [at] : [])) : []
+    const order = sortOrder(rows, item.sortBy, item.columns)
+    return { kind: 'rows', key: item.key, label: item.label, tableType: item.type, columns: item.columns, rows: order.map((i) => rows[i]), storedIndex: order.map((i) => positions[i]), empty: rows.length === 0 }
   }
 
   const sections: ResolvedSection[] = []
@@ -466,5 +472,17 @@ export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): Resolve
       sections.push({ key: section.key, label: section.label, category: category.label, blocks, empty: blocks.every((b) => b.empty) })
     }
   }
-  return { sections }
+  return { sections, resolveItem }
+}
+
+export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): ResolvedSheet {
+  return { sections: build(sheet, pj).sections }
+}
+
+/** Every item of the sheet resolved by key, drawn by a block or not (the editor shows all of them). */
+export function resolveSheetItems(sheet: Sheet, pj: Record<string, unknown>): Record<string, ResolvedItem> {
+  const { resolveItem } = build(sheet, pj)
+  const items: Record<string, ResolvedItem> = {}
+  for (const category of sheet.categories) for (const section of category.sections) for (const item of section.items) items[item.key] = resolveItem(item)
+  return items
 }
