@@ -60,3 +60,46 @@ describe('PJIdentityTab motivation label', () => {
     expect(screen.getByText('Motivación para unirse al Gremio')).toBeInTheDocument()
   })
 })
+
+describe('PJIdentityTab jugador (S30: set only by the DM assignment)', () => {
+  it.each([
+    ['the DM', true, false],
+    ['the owning player', false, true],
+  ])('shows the player name read-only to %s, and typing does not change it', (_who, isDM, isOwnPlayer) => {
+    const setF = vi.fn()
+    const f = buildPjFormState({ jugador: 'Ana' }, { regions: port.regions, characterFields: fields })
+    const actions = { save: vi.fn(), remove: vi.fn(), closeForm: vi.fn(), saving: false, activeFieldRef: createRef() }
+    render(
+      <FormActionsContext.Provider value={actions}>
+        <FormPortContext.Provider value={{ ...port, isDM, jugadorFromAssignment: true }}>
+          <PJIdentityTab f={f} setF={setF} isDM={isDM} isOwnPlayer={isOwnPlayer} />
+        </FormPortContext.Provider>
+      </FormActionsContext.Provider>,
+    )
+    const jugador = screen.getByDisplayValue('Ana')
+    expect(jugador).toHaveAttribute('readonly')
+    fireEvent.change(jugador, { target: { value: 'Otro' } })
+    expect(setF).not.toHaveBeenCalled()
+  })
+})
+
+describe('PJIdentityTab jugador in the legacy app (no assignment)', () => {
+  it('keeps the player name typed by hand', () => {
+    function Host() {
+      const [f, setF] = useState(() => buildPjFormState({ jugador: 'Ana' }, { regions: port.regions, characterFields: fields }))
+      return <PJIdentityTab f={f} setF={setF} isDM isOwnPlayer={false} />
+    }
+    const actions = { save: vi.fn(), remove: vi.fn(), closeForm: vi.fn(), saving: false, activeFieldRef: createRef() }
+    render(
+      <FormActionsContext.Provider value={actions}>
+        <FormPortContext.Provider value={port}>
+          <Host />
+        </FormPortContext.Provider>
+      </FormActionsContext.Provider>,
+    )
+    const jugador = screen.getByDisplayValue('Ana')
+    expect(jugador).not.toHaveAttribute('readonly')
+    fireEvent.change(jugador, { target: { value: 'Otro' } })
+    expect(screen.getByDisplayValue('Otro')).toBeInTheDocument()
+  })
+})

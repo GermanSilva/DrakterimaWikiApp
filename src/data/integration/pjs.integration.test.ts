@@ -68,13 +68,12 @@ describe('characters (pjs): owner, other players and DM against the local stack'
 
   it('the owner updates identity fields, a custom field and the unread stamps (merged, other stamps kept)', async () => {
     const updated = await ownerData.entity('pjs').update(mine.id, {
-      jugador: 'Ana',
       clase: 'Clérigo',
       trasfondo: 'ahora',
       custom_fields: { magralita: 'nueva' },
       sections_updated: { general: '2026-02-01T00:00:00.000Z', narrativa: '2026-02-01T00:00:00.000Z' },
     })
-    expect(updated).toMatchObject({ jugador: 'Ana', clase: 'Clérigo', trasfondo: 'ahora', nivel: 3, stat_hp: 20 })
+    expect(updated).toMatchObject({ clase: 'Clérigo', trasfondo: 'ahora', nivel: 3, stat_hp: 20 })
     expect(updated.custom_fields).toEqual({ magralita: 'nueva' })
     expect(updated.sections_updated).toEqual({
       equipo: '2026-01-01T00:00:00.000Z', // merged, not replaced

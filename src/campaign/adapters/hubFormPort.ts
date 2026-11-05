@@ -104,6 +104,7 @@ export function createHubFormPort({ isDM, regions, pjs, sesiones = [], character
     ownCharacterIds: isDM ? [] : [...myCharacterIds],
     characterFields: parseCharacterFields(characterFields),
     playerAccess: false,
+    jugadorFromAssignment: true,
     regions: parseRegions(regions),
     characters: pjs.map((pj) => ({ id: pj.id, nombre: pj.title })),
     sesiones: [...sesiones],

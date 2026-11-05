@@ -37,5 +37,6 @@ describe('createHubFormPort (characters)', () => {
     expect(player.ownCharacterIds).toEqual([4, 5])
     expect(player.characterFields).toEqual([{ key: 'a', label: 'A' }])
     expect(player.playerAccess).toBe(false)
+    expect(player.jugadorFromAssignment).toBe(true)
   })
 })

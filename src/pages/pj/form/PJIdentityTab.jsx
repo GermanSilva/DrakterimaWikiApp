@@ -14,7 +14,7 @@ function Separator({ label }) {
 export default function PJIdentityTab({ f, setF, isDM, isOwnPlayer }) {
   const set = k => e => setF(p => ({ ...p, [k]: e.target.value }))
   const { activeFieldRef } = useFormActions()
-  const { regions, characterFields = [], motivoLabel = 'Motivación' } = useFormPort()
+  const { regions, characterFields = [], motivoLabel = 'Motivación', jugadorFromAssignment = false } = useFormPort()
   const system = useFormSystem()
   const { clase, raza, nivel } = system.character.builtins
   // the stock D&D names keep the wording of the form; a renamed field shows exactly what the DM typed
@@ -24,7 +24,9 @@ export default function PJIdentityTab({ f, setF, isDM, isOwnPlayer }) {
     <div>
       <FormRow>
         <div><label className={labelCls}>Nombre</label><input className={inputCls} value={f.nombre} onChange={set('nombre')} /></div>
-        <div><label className={labelCls}>Jugador</label><input className={inputCls} value={f.jugador} onChange={set('jugador')} /></div>
+        <div><label className={labelCls}>Jugador</label>{jugadorFromAssignment
+          ? <input className={inputCls} value={f.jugador} readOnly title="Se completa al asignar el personaje a un jugador" />
+          : <input className={inputCls} value={f.jugador} onChange={set('jugador')} />}</div>
       </FormRow>
       {(clase.enabled || raza.enabled) && (
         <FormRow>

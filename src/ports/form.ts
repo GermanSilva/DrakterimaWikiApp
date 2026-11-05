@@ -47,6 +47,8 @@ export interface FormPort {
   motivoLabel?: string
   /** The system document of the campaign (character built-ins and sheet blocks). Absent = the D&D 5e document (legacy app). */
   system?: Readonly<SystemProfile>
+  /** Hub: `jugador` follows the DM's assignment of the character (the database derives it), so the form shows it read-only. Legacy: typed by hand. */
+  jugadorFromAssignment?: boolean
   /** Legacy only: the password-based player access of the Firebase app (hub: false, replaced by Auth). */
   playerAccess?: boolean
 }
