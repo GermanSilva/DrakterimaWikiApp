@@ -117,6 +117,7 @@ const coins: Table = {
     { key: 'gp', label: 'Oro', value: 100 },
     { key: 'pp', label: 'Platino', value: 1000 },
   ],
+  rewardDestination: true,
 }
 
 const SPELL_CATEGORIES = ['Truco', ...Array.from({ length: 9 }, (_, i) => `Nivel ${i + 1}`)]
