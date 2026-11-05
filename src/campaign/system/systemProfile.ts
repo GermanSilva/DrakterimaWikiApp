@@ -39,6 +39,11 @@ export interface SystemProfile {
    * through `validateSheet` (system/sheet/sheetModel.ts).
    */
   sheet?: Record<string, unknown>
+  /**
+   * Distance units (S19), optional. Carried verbatim like the sheet, for the same reason; read it through `readDistance`
+   * (system/distance/distance.ts).
+   */
+  distance?: Record<string, unknown>
 }
 
 export const LABEL_MAX = 60
@@ -150,6 +155,7 @@ export function parseSystemProfile(raw: unknown): SystemProfile {
     },
     currency: { enabled, denominations: enabled && parsed.length === 0 ? defaults.currency.denominations : parsed },
     ...(isRecord(raw.sheet) ? { sheet: JSON.parse(JSON.stringify(raw.sheet)) as Record<string, unknown> } : {}),
+    ...(isRecord(raw.distance) ? { distance: JSON.parse(JSON.stringify(raw.distance)) as Record<string, unknown> } : {}),
     modules: {
       juegos: bool(modules.juegos, defaults.modules.juegos),
       sesion_en_vivo: bool(modules.sesion_en_vivo, defaults.modules.sesion_en_vivo),

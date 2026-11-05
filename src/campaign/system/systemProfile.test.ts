@@ -143,4 +143,24 @@ describe('parseSystemProfile', () => {
       expect('sheet' in dnd5eProfile()).toBe(false)
     })
   })
+
+  describe('distance passthrough', () => {
+    const distance = { main: 'ft', units: [{ key: 'ft', label: 'Pies', value: 1, decimals: 0 }] }
+
+    it('hands a stored distance over as a copy, so saving Ajustes never erases it', () => {
+      const stored = { version: 1, distance }
+      const profile = parseSystemProfile(stored)
+      expect(profile.distance).toEqual(distance)
+      expect(profile.distance).not.toBe(stored.distance)
+    })
+
+    it('keeps a distance this client would not accept (the database validates it)', () => {
+      expect(parseSystemProfile({ version: 1, distance: { main: 'x' } }).distance).toEqual({ main: 'x' })
+    })
+
+    it('has no distance when the document has none or it is not an object', () => {
+      for (const bad of [undefined, [], null, 'x', 3]) expect('distance' in parseSystemProfile({ version: 1, distance: bad })).toBe(false)
+      expect('distance' in dnd5eProfile()).toBe(false)
+    })
+  })
 })
