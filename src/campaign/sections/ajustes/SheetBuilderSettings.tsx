@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { SheetBuilder } from '../../system/builder/SheetBuilder'
 import { parseSystemProfile } from '../../system/systemProfile'
 import { ConfirmDialog } from './ConfirmDialog'
+import { useDiscardedReview } from './SheetBuilderReview'
 import { useCampaignSave } from './useCampaignSave'
 
 type Sheet = Record<string, unknown>
@@ -20,6 +21,8 @@ export function SheetBuilderSettings() {
   const hasSheet = stored.sheet !== undefined
   const [asking, setAsking] = useState<Sheet | null>(null)
   const [busy, setBusy] = useState(false)
+  const discarded = isRecord(stored.sheet) && Array.isArray(stored.sheet.discarded) && stored.sheet.discarded.length > 0
+  const review = useDiscardedReview({ enabled: discarded, campaign, setNotice })
 
   async function write(sheet: Sheet): Promise<void> {
     setNotice(null)
@@ -57,7 +60,7 @@ export function SheetBuilderSettings() {
           Esta campaña todavía usa la ficha clásica. Al guardar una plantilla, el formulario, el detalle, las tarjetas y la sesión en vivo pasan a leerla.
         </p>
       )}
-      <SheetBuilder key={builderKey} initial={stored.sheet ?? null} onSave={onSave} />
+      <SheetBuilder key={builderKey} initial={stored.sheet ?? null} onSave={onSave} review={review} />
       {notice && (
         <p role={notice.kind === 'error' ? 'alert' : 'status'} className={notice.kind === 'error' ? 'text-[13px] text-red-400' : 'text-[13px] text-accent-bright'}>
           {notice.text}

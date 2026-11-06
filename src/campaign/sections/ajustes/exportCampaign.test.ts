@@ -77,3 +77,15 @@ describe('buildCampaignExport: action collection (G6b)', () => {
     await expect(buildCampaignExport(layer, makeCampaign({ id: 'c1' }))).rejects.toMatchObject({ name: 'ExportError', part: 'acciones (vínculos)' })
   })
 })
+
+describe('buildCampaignExport: discarded sheet items (G7b, S32)', () => {
+  it('carries the discarded list inside the system document and the characters\' values, so a backup keeps both', async () => {
+    const discarded = [{ item: { kind: 'field', key: 'magralita', label: 'Magralita', type: 'short', editableBy: 'dm' }, section: 'perfil', at: '2026-11-06T10:00:00.000Z' }]
+    const profile = { version: 1, sheet: { categories: [], roles: {}, discarded } }
+    const pj = { id: 1, campaign_id: 'c1', nombre: 'Ana', magralita: 'valor guardado', updated_at: 'w' }
+    const { layer } = createFakeLayer({ entities: { pjs: [pj as never] } })
+    const out = await buildCampaignExport(layer, makeCampaign({ id: 'c1', system_profile: profile }))
+    expect((out.campaign.system_profile as typeof profile).sheet.discarded).toEqual(discarded)
+    expect(out.entities.pjs[0]).toMatchObject({ nombre: 'Ana', magralita: 'valor guardado' })
+  })
+})

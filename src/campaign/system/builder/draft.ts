@@ -93,7 +93,7 @@ export interface KeySpaces {
   sections: Set<string>
 }
 
-/** Every key the draft already uses, by namespace. */
+/** Every key the draft already uses, by namespace. Discarded items keep theirs: their data is still in the characters, so a new item should not inherit it by accident. */
 export function keySpaces(draft: unknown): KeySpaces {
   const spaces: KeySpaces = { global: new Set(), categories: new Set(), sections: new Set() }
   for (const category of nodesOf(isNode(draft) ? draft.categories : undefined)) {
@@ -105,6 +105,11 @@ export function keySpaces(draft: unknown): KeySpaces {
         keysOf(item.rows).forEach((k) => spaces.global.add(k))
       }
     }
+  }
+  for (const entry of nodesOf(isNode(draft) ? draft.discarded : undefined)) {
+    const item = isNode(entry.item) ? entry.item : {}
+    keysOf([item]).forEach((k) => spaces.global.add(k))
+    keysOf(item.rows).forEach((k) => spaces.global.add(k))
   }
   return spaces
 }

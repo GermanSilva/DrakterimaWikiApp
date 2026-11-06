@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { appendAt, moveIn, parsePath, removeFrom, setAt, slugKey } from './draft'
+import { appendAt, keySpaces, moveIn, parsePath, removeFrom, setAt, slugKey } from './draft'
 
 describe('slugKey', () => {
   it('makes a validator key from a label: accents, case and symbols removed', () => {
@@ -40,5 +40,19 @@ describe('path helpers', () => {
     expect(removeFrom(root, ['a'], 0).a).toEqual([{ n: 2 }])
     expect(moveIn(root, ['a'], 0, 1).a).toEqual([{ n: 2 }, { n: 1 }])
     expect(moveIn(root, ['a'], 0, -1)).toBe(root)
+  })
+})
+
+describe('keySpaces and discarded keys (G7b)', () => {
+  it('keeps the keys of discarded items (and their rows) out of the names offered for new ones', () => {
+    const draft = {
+      categories: [],
+      discarded: [
+        { item: { kind: 'field', key: 'magralita' }, section: 's', at: '2026-11-06T10:00:00.000Z' },
+        { item: { kind: 'table', type: 'stat', key: 'atrib', rows: [{ key: 'fue' }] }, section: 's', at: '2026-11-06T10:00:00.000Z' },
+      ],
+    }
+    expect([...keySpaces(draft).global].sort()).toEqual(['atrib', 'fue', 'magralita'])
+    expect(slugKey('Magralita', keySpaces(draft).global)).toBe('magralita_2')
   })
 })

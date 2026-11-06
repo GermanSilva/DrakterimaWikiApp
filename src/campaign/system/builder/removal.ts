@@ -1,7 +1,9 @@
 /**
- * The one place a part of the sheet is removed (G7b hooks its discarded-fields review in here). A part that may hold
- * character data is confirmed first: the data stays in the characters but stops being shown.
+ * The one place a part of the sheet is removed. A part that may hold character data is confirmed first: the data stays in the
+ * characters but stops being shown, and the removed definition moves to the discarded list (G7b, S26; see discard.ts) so the DM can
+ * review it, restore it or delete it for good.
  */
+import { addDiscarded, discardedBy } from './discard'
 import { getAt, isNode, removeFrom, setAt, type Node, type Path } from './draft'
 
 export type RemovalKind = 'category' | 'section' | 'item' | 'block' | 'row' | 'column' | 'option' | 'actionCategory'
@@ -63,8 +65,12 @@ export function describeRemoval(draft: Node, list: Path, index: number): Removal
   return { list, index, kind, name: name ?? '', holdsData: holdsData(kind, node) }
 }
 
+const DISCARDS: ReadonlySet<RemovalKind> = new Set(['category', 'section', 'item', 'row'])
+
 export const removalMessage = ({ kind, name }: RemovalRequest): string =>
-  `Quitar ${NOUN[kind]} «${name}» de la plantilla: los datos ya cargados en los personajes se conservan, pero dejan de mostrarse.`
+  `Quitar ${NOUN[kind]} «${name}» de la plantilla: los datos ya cargados en los personajes se conservan, pero dejan de mostrarse.${
+    DISCARDS.has(kind) ? ' Lo quitado pasa a «Campos descartados», donde podés revisar los datos de cada personaje, restaurarlo o eliminarlo.' : ''
+  }`
 
 const itemKeysIn = (node: Node, kind: RemovalKind): string[] => {
   if (kind === 'item') return typeof node.key === 'string' ? [node.key] : []
@@ -86,10 +92,10 @@ const mapBlocks = (draft: Node, change: (block: Node) => Node): Node =>
  * The draft without the part. Blocks stop showing the removed items, roles bound to a removed field are cleared, and the
  * filter of a modal block forgets a removed action category, so the removal never leaves a dangling reference behind.
  */
-export function removeNode(draft: Node, list: Path, index: number): Node {
+export function removeNode(draft: Node, list: Path, index: number, now: Date = new Date()): Node {
   const node = getAt(draft, [...list, index])
   const kind = kindOf(list)
-  let next = removeFrom(draft, list, index)
+  let next = addDiscarded(removeFrom(draft, list, index), discardedBy(draft, list, index, kind, now))
   if (!isNode(node)) return next
   const gone = new Set(itemKeysIn(node, kind))
   if (gone.size > 0) {
