@@ -58,12 +58,13 @@ const SECTION_ID_PREFIX = 'pj-section-'
  * @param {{key: string, label: string, flat?: boolean}[]} [props.customFields] campaign character fields
  * @param {import('../../campaign/system/systemProfile').SystemProfile} [props.system] system document of the campaign: its built-ins name the identity tags and its sheet blocks decide which sections exist (default: D&D 5e)
  * @param {import('../../campaign/system/sheet/sheetModel').Sheet | null} [props.sheet] validated sheet of the campaign: when given, the sections are drawn from it instead of the fixed D&D ones (behind ?sheet=1 until the sheet becomes the default)
+ * @param {import('../../data').LinkedAction[]} [props.linkedActions] collection entries the character links (S36): they join the rows of their Habilidad table in the sheet view, after the stored ones
  * @param {string} [props.motivoLabel] title of the narrative `motivo` section (the narrative section defaults to "Motivación")
  */
-export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = false, back, actions = null, regionTag = null, regionColor, customFields = LEGACY_CHARACTER_FIELDS, motivoLabel, system = DND5E_PROFILE, sheet = null }) {
+export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = false, back, actions = null, regionTag = null, regionColor, customFields = LEGACY_CHARACTER_FIELDS, motivoLabel, system = DND5E_PROFILE, sheet = null, linkedActions = undefined }) {
   const unreadPort = useUnreadPort()
 
-  const resolved = useMemo(() => (sheet ? resolveSheet(sheet, pj) : null), [sheet, pj])
+  const resolved = useMemo(() => (sheet ? resolveSheet(sheet, pj, linkedActions) : null), [sheet, pj, linkedActions])
   const visibleSections = resolved
     ? resolved.sections.filter(s => !s.empty).map(s => ({ id: s.key, label: s.label }))
     : SECTIONS.filter(s => system.character.sections[s.id] && s.show(pj))

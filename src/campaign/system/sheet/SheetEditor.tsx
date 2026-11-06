@@ -8,12 +8,13 @@
  * rules the save uses, and hands the whole draft to `save`; the host turns it into the payload (sheetPatch) so there is
  * one place that decides what is sent.
  */
-import { useId, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
+import { Fragment, useId, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { Plus, RotateCcw, X } from 'lucide-react'
 import { EstadoField, FormGroup, FormRow } from '../../../components/forms/formFields'
 import { btnDanger, btnPrimary, btnSecondary, inputCls, labelCls } from '../../../constants'
 import type { FlatEntity } from '../../../data'
 import { useFormActions, useFormPort } from '../../../ports'
+import { ActionLinksPanel } from '../actions/ActionLinksPanel'
 import { Computed, Control, type ControlSpec } from './Control'
 import { LOCKED, textOf } from './controlValues'
 import { resolveSheetItems, type ResolvedItem } from './resolveSheet'
@@ -354,7 +355,12 @@ export default function SheetEditor({ item, openPicker }: Props) {
               if (entry.type === 'stat' && done?.kind === 'stat') return <StatWidget key={entry.key} resolved={done} editable={editable} draft={draft} setDraft={setDraft} />
               if (entry.type === 'capacidades' && done?.kind === 'capacidades') return <CapacidadesWidget key={entry.key} table={entry} resolved={done} editable={editable} draft={draft} setDraft={setDraft} />
               if ((entry.type === 'libre' || entry.type === 'habilidad') && done?.kind === 'rows') {
-                return <RowsWidget key={entry.key} sheet={sheet} table={entry} resolved={done} editable={editable(entry.key)} draft={draft} setDraft={setDraft} />
+                return (
+                  <Fragment key={entry.key}>
+                    <RowsWidget sheet={sheet} table={entry} resolved={done} editable={editable(entry.key)} draft={draft} setDraft={setDraft} />
+                    {entry.type === 'habilidad' && item?.id !== undefined && <ActionLinksPanel table={entry} pjId={item.id} isDM={isDM} />}
+                  </Fragment>
+                )
               }
               if (entry.type === 'monedas' && done?.kind === 'coins') {
                 return <AmountsWidget key={entry.key} title={entry.label} denominations={done.denominations} keys={[{ key: 'monedas', suffix: ' (en mano)' }, { key: 'monedas_guardado', suffix: ' (guardado)' }]} editable={isDM} draft={draft} setDraft={setDraft} />

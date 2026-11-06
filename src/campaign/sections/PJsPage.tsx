@@ -8,6 +8,8 @@ import type { FlatEntity } from '../../data'
 import { isPjUnreadVia } from '../../helpers/pjSections'
 import PJDetail from '../../pages/pj/PJDetail'
 import { PJCardContent } from '../../pages/pj/PJCardContent'
+import { habilidadTables } from '../system/actions/tables'
+import { useLinkedActions } from '../system/actions/useLinkedActions'
 import { searchableLabels, searchableTags, storedSheet, type SearchableTag } from '../system/sheet/searchable'
 import { validateSheet, type Sheet } from '../system/sheet/sheetModel'
 import { useSystem } from '../system/useSystem'
@@ -17,6 +19,7 @@ import { parseCharacterFields } from '../adapters/hubFormPort'
 import { useCampaign, type CampaignContextValue } from '../CampaignContext'
 import { useDmNotes } from '../entities/useDmNotes'
 import { useDmSecretIds } from '../entities/useDmSecretIds'
+import { useCampaignServices } from '../entities/campaignServicesContext'
 import { useEntities } from '../entities/useEntities'
 import { useEntityActions } from '../entities/useEntityActions'
 import { useEntityForm } from '../entityFormContext'
@@ -60,6 +63,7 @@ function PjView({ entity, listPath }: EntityViewProps) {
   const regionInfo = useRegionInfo()
   const customFields = useMemo(() => parseCharacterFields(campaign.character_custom_fields), [campaign.character_custom_fields])
   const system = useSystem()
+  const { layer } = useCampaignServices()
   const [params] = useSearchParams()
   // The sheet renderer is opt-in (?sheet=1) until it reaches parity and the data is migrated; an invalid sheet never gets here
   const sheet = useMemo(() => {
@@ -67,6 +71,8 @@ function PjView({ entity, listPath }: EntityViewProps) {
     const result = validateSheet(system.sheet)
     return result.ok ? result.sheet : null
   }, [params, system.sheet])
+  // collection entries the character links (S36): read only when the detail is drawn from a sheet that has a Habilidad table
+  const linkedActions = useLinkedActions(layer.actions, entity.id, sheet !== null && habilidadTables(sheet).length > 0, entity.updated_at)
   const isOwnPlayer = !isDM && myCharacterIds.includes(entity.id)
 
   const edit = () => openForm({ type: 'pjs', id: entity.id, onRemoved: () => navigate(listPath) })
@@ -108,7 +114,9 @@ function PjView({ entity, listPath }: EntityViewProps) {
         customFields={customFields}
         system={system}
         sheet={sheet}
+        linkedActions={linkedActions.linked}
       />
+      {linkedActions.error && <DmNotice onRetry={() => void linkedActions.reload()}>No pudimos cargar las acciones del personaje.</DmNotice>}
       {isDM && dm.status === 'error' && <DmNotice onRetry={dm.refresh}>No pudimos cargar las notas del DM.</DmNotice>}
     </>
   )

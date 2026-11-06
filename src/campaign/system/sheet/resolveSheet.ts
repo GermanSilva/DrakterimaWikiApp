@@ -21,7 +21,9 @@
  * Libre/Habilidad table (only object rows, formula columns computed on demand) or the denominations of the coin table
  * as {key, label, value}.
  */
+import type { LinkedAction } from '../../../data'
 import { evaluateFormula, parseFormula, type FormulaNode } from '../formula/formula'
+import { withLinkedRows } from './linkedRows'
 import { calcFormula, type CapacidadRow, type Column, type Field, type FieldType, type NumberFormat, type OptionDef, type Sheet, type SortBy, type StatRow, type Table } from './sheetModel'
 
 export type Scalar = number | boolean | string | null
@@ -475,8 +477,9 @@ function build(sheet: Sheet, pj: Record<string, unknown>) {
   return { sections, resolveItem }
 }
 
-export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>): ResolvedSheet {
-  return { sections: build(sheet, pj).sections }
+/** `linked`: collection entries the character links; they join the rows of their Habilidad table after the stored ones (withLinkedRows). */
+export function resolveSheet(sheet: Sheet, pj: Record<string, unknown>, linked?: readonly LinkedAction[]): ResolvedSheet {
+  return { sections: build(sheet, withLinkedRows(sheet, pj, linked)).sections }
 }
 
 /** Every item of the sheet resolved by key, drawn by a block or not (the editor shows all of them). */

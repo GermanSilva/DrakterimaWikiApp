@@ -20,6 +20,7 @@ import { useToast } from './toastContext'
 import { changedFields } from './changedFields'
 import { pickOwnerPatch } from './pjOwnerFields'
 import { markSectionsSeen, pjSectionStamps, type SectionStamps } from './pjStamps'
+import { ActionLinksContext, type ActionLinksPort } from './system/actions/linksContext'
 import SheetEditor from './system/sheet/SheetEditor'
 import { sheetPatch, sheetStamps } from './system/sheet/sheetEditorModel'
 import { validateSheet } from './system/sheet/sheetModel'
@@ -142,6 +143,9 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
     }),
     [basePort, sheet, needsSesiones, sesionesList.items],
   )
+
+  // the character editor drawn from a sheet links collection entries through the data layer (S36); the legacy forms get no port
+  const linksPort = useMemo<ActionLinksPort | null>(() => (sheet ? { actions: layer.actions, campaignId } : null), [sheet, layer, campaignId])
 
   /**
    * Map-only checks before the write. The background image must be https (it is rendered by every member's
@@ -295,18 +299,20 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
   const item = seed ? { ...seed.entity, ...seed.dm, visibilidad: seed.visibleTo } : null
   return (
     <FormPortContext.Provider value={port}>
-      <FormShell
-        type={request.type}
-        title={seed ? titles[1] : titles[0]}
-        FormComponent={sheet ? SheetEditor : ENTITY_FORMS[request.type]}
-        item={item}
-        prefill={seed ? null : (request.prefill ?? null)}
-        isPJForm={isPj}
-        saving={isSaving}
-        onSave={onSave}
-        onRemove={onRemove}
-        onClose={onClose}
+      <ActionLinksContext.Provider value={linksPort}>
+        <FormShell
+          type={request.type}
+          title={seed ? titles[1] : titles[0]}
+          FormComponent={sheet ? SheetEditor : ENTITY_FORMS[request.type]}
+          item={item}
+          prefill={seed ? null : (request.prefill ?? null)}
+          isPJForm={isPj}
+          saving={isSaving}
+          onSave={onSave}
+          onRemove={onRemove}
+          onClose={onClose}
       />
+      </ActionLinksContext.Provider>
     </FormPortContext.Provider>
   )
 }

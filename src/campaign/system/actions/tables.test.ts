@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ACTION_SHEET } from './actionsFixture'
-import { actionTablesOf, entryColumns, groupByCategory, habilidadTables, stateColumns, stateRules } from './tables'
+import { actionTablesOf, allowedStatePatch, entryColumns, groupByCategory, habilidadTables, stateColumns, stateRules } from './tables'
 
 const [hechizos, rasgos] = habilidadTables(ACTION_SHEET)
 
@@ -53,5 +53,18 @@ describe('groupByCategory', () => {
   it('a table without declared categories groups by free text, alphabetically, blank as Sin categoría', () => {
     const free = [{ n: 1, c: 'Especie' }, { n: 2, c: 'Clase' }, { n: 3, c: '' }]
     expect(groupByCategory(rasgos, free, (i) => i.c).map((g) => g.label)).toEqual(['Clase', 'Especie', 'Sin categoría'])
+  })
+})
+
+describe('allowedStatePatch', () => {
+  it('drops keys the viewer may not write and values the server would refuse, naming them', () => {
+    expect(allowedStatePatch(hechizos, false, { preparado: true })).toEqual({ allowed: { preparado: true }, invalid: [] })
+    expect(allowedStatePatch(hechizos, false, { preparado: true, escuela: 'x', calidad: 'zzz', usos: 'tres' })).toEqual({ allowed: { preparado: true }, invalid: ['escuela', 'calidad', 'usos'] })
+    expect(allowedStatePatch(rasgos, false, { cargas: 2 })).toEqual({ allowed: {}, invalid: ['cargas'] })
+    expect(allowedStatePatch(rasgos, true, { cargas: 2 })).toEqual({ allowed: { cargas: 2 }, invalid: [] })
+  })
+
+  it('null clears a value for everyone who may write it', () => {
+    expect(allowedStatePatch(hechizos, false, { usos: null })).toEqual({ allowed: { usos: null }, invalid: [] })
   })
 })

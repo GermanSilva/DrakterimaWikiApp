@@ -9,6 +9,7 @@ import WikiText from '../../../components/WikiText'
 import { detailSectionCls, detailTextCls, sectionTitleCls } from '../../../constants'
 import useBackdropClose from '../../../hooks/useBackdropClose'
 import useDialogFocus from '../../../hooks/useDialogFocus'
+import { DESCRIPTION_KEY } from './linkedRows'
 import { formatNumber, type Cell, type OptionCell, type ResolvedBlock, type ResolvedItem, type ResolvedSheet } from './resolveSheet'
 import type { Column } from './sheetModel'
 
@@ -206,6 +207,8 @@ function RowModal({ item, row, categoryText, onClose }: { item: Item<'rows'>; ro
   const shown = item.columns.filter((c) => c.key !== 'nombre' && c.key !== 'categoria' && cellText(row[c.key], c) !== '')
   const short = shown.filter((c) => c.type !== 'paragraph')
   const long = shown.filter((c) => c.type === 'paragraph')
+  // a linked collection entry carries its own description (it is not a column of the table)
+  const description = typeof row[DESCRIPTION_KEY] === 'string' ? (row[DESCRIPTION_KEY] as string) : ''
   return (
     <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/70" {...backdropProps}>
       <div
@@ -234,6 +237,12 @@ function RowModal({ item, row, categoryText, onClose }: { item: Item<'rows'>; ro
                 </div>
               ))}
             </div>
+          </div>
+        )}
+        {description !== '' && (
+          <div className={detailSectionCls}>
+            <div className={sectionTitleCls}>Descripción</div>
+            <div className={detailTextCls}><WikiText text={description} /></div>
           </div>
         )}
         {long.map((c) => (
