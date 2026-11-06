@@ -32,7 +32,7 @@ export interface Applied {
   min?: number
 }
 
-export type RunWarningKind = 'exhausted' | 'missing_row' | 'formula_error' | 'invalid_param'
+export type RunWarningKind = 'exhausted' | 'missing_row' | 'formula_error' | 'invalid_param' | 'invalid_value'
 export interface RunWarning {
   step: number
   kind: RunWarningKind
@@ -152,6 +152,7 @@ export function runActionFunction(fn: ActionFunction, input: RunInput): RunResul
     if (limit && !limit.ok) return formulaFailed(index, `el máximo de «${label}»`, limit.error)
 
     const current = readTarget(work, target)
+    if (current.found && current.invalid) return warn(index, 'invalid_value', `«${label}» guarda «${String(current.invalid.stored)}», que no es un número: corregilo en la ficha antes de usar la acción.`)
     const before = (current.found ? current.value : undefined) ?? fallback
     const after = step.op === 'set' ? value.value : step.op === 'add' ? before + value.value : before - value.value
     if (!Number.isFinite(after) || !write(target, after)) return formulaFailed(index, `«${label}»`, 'the result is not a finite number')

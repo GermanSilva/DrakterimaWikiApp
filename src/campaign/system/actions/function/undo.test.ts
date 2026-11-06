@@ -132,3 +132,13 @@ describe('planUndo', () => {
     expect(pj).toEqual(frozenPj)
   })
 })
+
+describe('planUndo: a number stored as text', () => {
+  it('writes nothing for it and warns, instead of subtracting from zero', () => {
+    const { result } = runAndApply({ steps: [effect(field('oro'), '2')] }, {}, { oro: 5 })
+    const planned = planUndo(undoEntry(result.applied), { oro: '7' }, { state: {} })
+    expect(planned.patch).toEqual({ pj: {} })
+    expect(planned.warnings.map((w) => [w.kind, w.step])).toEqual([['invalid_value', 0]])
+    expect(planned.warnings[0].message).toContain('no es un número')
+  })
+})

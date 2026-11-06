@@ -9,7 +9,7 @@ export interface UndoEntry {
   effects: Applied[]
 }
 
-export type UndoWarningKind = 'changed_since' | 'missing_row'
+export type UndoWarningKind = 'changed_since' | 'missing_row' | 'invalid_value'
 export interface UndoWarning {
   step: number
   kind: UndoWarningKind
@@ -34,6 +34,10 @@ export function planUndo(entry: UndoEntry, currentPj: Record<string, unknown>, c
     const current = readTarget(work, effect.target)
     if (!current.found) {
       warnings.push({ step: effect.step, kind: 'missing_row', message: `No se encontró la fila de «${effect.label}»: no se puede deshacer.` })
+      continue
+    }
+    if (current.invalid) {
+      warnings.push({ step: effect.step, kind: 'invalid_value', message: `«${effect.label}» guarda «${String(current.invalid.stored)}», que no es un número: corregilo en la ficha antes de deshacer.` })
       continue
     }
     const now = current.value ?? 0

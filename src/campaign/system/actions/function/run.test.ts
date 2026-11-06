@@ -196,11 +196,39 @@ describe('runActionFunction: operations, formulas and failures', () => {
     const odd = { hp: 'x', hp_current: null, espacios_conjuro: 'nope', karma: { a: 1 } }
     expect(() => run(LANZAR_HECHIZO, { nivel: 1 }, odd)).not.toThrow()
     expect(() => run({ steps: [effect(field('karma'), '{hp}')] }, {}, odd)).not.toThrow()
-    expect(run({ steps: [effect(field('karma'), '1')] }, {}, odd).patch.pj).toEqual({ karma: 1 })
+    const blocked = run({ steps: [effect(field('karma'), '1')] }, {}, odd)
+    expect(blocked.patch.pj).toEqual({})
+    expect(blocked.warnings.map((w) => w.kind)).toEqual(['invalid_value'])
   })
 
   it('an empty patch and no warnings for a function with parameters only', () => {
     const raw = { steps: [{ kind: 'param', key: 'a', label: 'A', input: { type: 'checkbox' } }] }
     expect(run(raw, {})).toEqual({ patch: { pj: {} }, applied: [], warnings: [] })
+  })
+})
+
+describe('runActionFunction: a number stored as text', () => {
+  it('blocks the step with a warning instead of starting from the default, and writes nothing for it', () => {
+    const result = run({ steps: [effect(field('oro'), '2')] }, {}, { oro: '5' })
+    expect(result.applied).toEqual([])
+    expect(result.patch).toEqual({ pj: {} })
+    expect(result.warnings).toHaveLength(1)
+    expect(result.warnings[0]).toMatchObject({ step: 0, kind: 'invalid_value', message: '«oro» guarda «5», que no es un número: corregilo en la ficha antes de usar la acción.' })
+  })
+
+  it('blocks a row column and a state column stored as text too', () => {
+    const row = run(LANZAR_HECHIZO, { nivel: 1 }, { espacios_conjuro: [{ nivel: 1, total: 4, gastados: '1' }] })
+    expect(row.applied).toEqual([])
+    expect(row.warnings.map((w) => w.kind)).toEqual(['invalid_value'])
+    const spend = { type: 'state', column: 'reserva' }
+    const state = run({ steps: [effect(spend, '1'), effect(field('karma'), '1')] }, {}, {}, { reserva: 'tres' })
+    expect(state.applied.map((a) => a.step)).toEqual([1])
+    expect(state.warnings.map((w) => [w.step, w.kind])).toEqual([[0, 'invalid_value']])
+  })
+
+  it('still treats a missing, null or empty value as the default', () => {
+    expect(run({ steps: [effect(field('karma'), '2')] }, {}, { karma: null }).warnings).toEqual([])
+    expect(run({ steps: [effect(field('karma'), '2')] }, {}, { karma: '' }).applied.map((a) => a.after)).toEqual([2])
+    expect(run({ steps: [effect(field('karma'), '2')] }, {}).applied.map((a) => a.after)).toEqual([2])
   })
 })

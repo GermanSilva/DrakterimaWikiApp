@@ -33,15 +33,22 @@ export function findRow(pj: Record<string, unknown>, table: string, column: stri
   return Array.isArray(rows) ? rows.findIndex((row) => isRecord(row) && own(row, column) === value) : -1
 }
 
-export type Read = { found: false } | { found: true; value: number | undefined }
+/** `value` is undefined when nothing is stored; `invalid` carries a stored value that is not a number (hand-edited data, a number as text). */
+export type Read = { found: false } | { found: true; value: number | undefined; invalid?: { stored: unknown } }
 
-/** The number a target holds now; `value` is undefined when nothing (or no number) is stored. */
+const readValue = (raw: unknown): Read => {
+  const value = finiteNumber(raw)
+  if (value === undefined && raw !== undefined && raw !== null && raw !== '') return { found: true, value: undefined, invalid: { stored: raw } }
+  return { found: true, value }
+}
+
+/** The number a target holds now; `value` is undefined when nothing is stored, and a stored non-number is reported as `invalid`. */
 export function readTarget(work: Pick<Working, 'pj' | 'state'>, target: AppliedTarget): Read {
-  if (target.type === 'field') return { found: true, value: finiteNumber(own(work.pj, target.key)) }
-  if (target.type === 'state') return { found: true, value: finiteNumber(own(work.state, target.column)) }
+  if (target.type === 'field') return readValue(own(work.pj, target.key))
+  if (target.type === 'state') return readValue(own(work.state, target.column))
   const at = findRow(work.pj, target.table, target.match.column, target.match.value)
   if (at < 0) return { found: false }
-  return { found: true, value: finiteNumber(own((work.pj[target.table] as Record<string, unknown>[])[at], target.column)) }
+  return readValue(own((work.pj[target.table] as Record<string, unknown>[])[at], target.column))
 }
 
 /** Writes a number into the scratch copy; false when the row of a row target is not there. */

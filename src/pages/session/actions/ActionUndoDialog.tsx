@@ -5,6 +5,8 @@ import useDialogFocus from '../../../hooks/useDialogFocus'
 import { useSessionActions, type HistoryItem, type UndoPlan } from './sessionActions'
 
 type Phase = { name: 'loading' } | { name: 'failed'; message: string } | { name: 'ready'; plan: UndoPlan } | { name: 'saving'; plan: UndoPlan } | { name: 'conflict'; plan: UndoPlan }
+  /** The character part was undone but the link state was not: final, the dialog only closes. */
+  | { name: 'partial'; message: string }
 
 /**
  * Undoes one applied action (S22, S32): plans the undo on the character as it is now and shows what is subtracted. A value that
@@ -53,6 +55,7 @@ export function ActionUndoDialog({ item, onClose }: { item: HistoryItem; onClose
     const outcome = await api.undo(item, plan)
     if (outcome.status === 'ok') return onClose()
     if (outcome.status === 'conflict') return setPhase({ name: 'conflict', plan })
+    if (outcome.status === 'partial') return setPhase({ name: 'partial', message: outcome.message })
     setProblem(outcome.message)
     setPhase({ name: 'ready', plan })
   }
@@ -73,18 +76,25 @@ export function ActionUndoDialog({ item, onClose }: { item: HistoryItem; onClose
           <div className="text-[12px] text-txt-muted">{item.pjName}</div>
         </div>
 
-        <ul aria-label="Cambios" className="text-[13px] text-txt-primary space-y-1">
-          {item.entry.effects
-            .filter((e) => e.delta !== 0)
-            .map((e) => (
-              <li key={e.step}>
-                {e.label}: {e.delta > 0 ? 'se resta' : 'se suma'} {Math.abs(e.delta)}
-              </li>
-            ))}
-        </ul>
+        {phase.name !== 'partial' && (
+          <ul aria-label="Cambios" className="text-[13px] text-txt-primary space-y-1">
+            {item.entry.effects
+              .filter((e) => e.delta !== 0)
+              .map((e) => (
+                <li key={e.step}>
+                  {e.label}: {e.delta > 0 ? 'se resta' : 'se suma'} {Math.abs(e.delta)}
+                </li>
+              ))}
+          </ul>
+        )}
 
         {phase.name === 'loading' && <p className="text-[13px] text-txt-muted">Leyendo el personaje…</p>}
         {phase.name === 'failed' && (
+          <p role="alert" className="text-[13px] text-accent-bright">
+            {phase.message}
+          </p>
+        )}
+        {phase.name === 'partial' && (
           <p role="alert" className="text-[13px] text-accent-bright">
             {phase.message}
           </p>
@@ -110,9 +120,21 @@ export function ActionUndoDialog({ item, onClose }: { item: HistoryItem; onClose
 
         <div className="flex flex-wrap gap-2.5 justify-end">
           <button type="button" className={btnSecondary} disabled={busy} onClick={close}>
-            Cancelar
+            {phase.name === 'partial' ? 'Cerrar' : 'Cancelar'}
           </button>
-          {phase.name === 'conflict' ? (
+          {phase.name === 'failed' && (
+            <button
+              type="button"
+              className={btnPrimary}
+              onClick={() => {
+                api.discard(item)
+                onClose()
+              }}
+            >
+              Quitar de la lista
+            </button>
+          )}
+          {phase.name === 'partial' || phase.name === 'failed' ? null : phase.name === 'conflict' ? (
             <button type="button" className={btnPrimary} onClick={() => void load()}>
               Sobrescribir
             </button>
