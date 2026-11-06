@@ -10,7 +10,7 @@
 -- Self-contained fixture, rolled back at the end.
 begin;
 
-select plan(155);
+select plan(178);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -98,7 +98,7 @@ grant select on base to authenticated;
 ------------------------------------------------------------------------------
 select ok((select c.relrowsecurity from pg_class c where c.oid = 'public.systems'::regclass), 'RLS is enabled on systems');
 select ok(
-  has_table_privilege('authenticated', 'public.systems', 'select')
+  has_column_privilege('authenticated', 'public.systems', 'document', 'select')
   and not has_table_privilege('authenticated', 'public.systems', 'insert')
   and not has_table_privilege('authenticated', 'public.systems', 'update')
   and not has_table_privilege('authenticated', 'public.systems', 'delete')
@@ -633,6 +633,75 @@ select results_eq(
 -- without a base: unchanged
 select is((select seeded_actions is null and skipped_actions is null from public.campaign_requests where name = 'q-sin-base'), true, 'a request without a base reports no seeding');
 select is((select count(*) from public.campaign_actions a join public.campaigns c on c.id = a.campaign_id where c.slug = 'sys-q-plain'), 0::bigint, 'and its campaign has an empty catalogue');
+
+------------------------------------------------------------------------------
+-- Part 8: G8a-2 fix round 1 (S37): the catalogue is not readable through the API except through get_system_actions
+--   Prom-acc: origin with 3 entries (source C8)   HB-acc: homebrew of C8 (DM now: 18)   frozen of 17: from C8
+------------------------------------------------------------------------------
+select tests.as_postgres();
+select ok(
+  has_column_privilege('authenticated', 'public.systems', 'name', 'select')
+  and has_column_privilege('authenticated', 'public.systems', 'document', 'select')
+  and not has_column_privilege('authenticated', 'public.systems', 'actions', 'select')
+  and not has_column_privilege('anon', 'public.systems', 'actions', 'select')
+  and has_function_privilege('authenticated', 'public.get_system_actions(uuid)', 'execute')
+  and not has_function_privilege('anon', 'public.get_system_actions(uuid)', 'execute'),
+  'the actions column is denied to the API roles; every other column stays readable; get_system_actions is for authenticated only');
+
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000019');  -- player of C8
+select throws_ok($$select actions from public.systems$$, '42501', null, 'a player cannot select the catalogue column');
+select throws_ok($$select public.get_system_actions(tests.sid('Prom-acc'))$$, 'P0001', 'system_not_available', 'a player of the source campaign cannot read an origin catalogue');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000005');  -- outsider
+select throws_ok($$select public.get_system_actions(tests.sid('Prom-acc'))$$, 'P0001', 'system_not_available', 'an outsider cannot read it either');
+select throws_ok($$select public.get_system_actions(tests.sid('HB-acc'))$$, 'P0001', 'system_not_available', 'nor the catalogue of a homebrew they cannot see');
+select throws_ok($$select public.get_system_actions('11111111-1111-4000-8000-111111111111')$$, 'P0001', 'system_not_available', 'a missing system gives the same answer');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000001');  -- hub owner
+select is((select jsonb_array_length(public.get_system_actions(tests.sid('Prom-acc')))), 3, 'the hub owner reads an origin catalogue');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000018');  -- DM of C8
+select is((select jsonb_array_length(public.get_system_actions(tests.sid('HB-acc')))), 3, 'a DM of the homebrew campaign reads the homebrew catalogue');
+select throws_ok($$select public.get_system_actions(tests.sid('Prom-acc'))$$, 'P0001', 'system_not_available', 'but not the catalogue of an origin');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000017');  -- demoted DM, owner of a frozen copy
+select is((select jsonb_array_length(public.get_system_actions(tests.fid('aaaaaaaa-3300-4000-8000-000000000017')))), 3, 'the owner of a frozen copy reads its catalogue');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000018');
+select throws_ok($$select public.get_system_actions(tests.fid('aaaaaaaa-3300-4000-8000-000000000017'))$$, 'P0001', 'system_not_available', 'nobody else reads somebody else frozen catalogue');
+
+-- the RPC results never carry the catalogue
+select is((select to_jsonb(r) ? 'actions' from public.branch_system('bbbbbbbb-3300-4000-8000-000000000018', 'HB-priv') r), false, 'branch_system returns no catalogue');
+select is((select to_jsonb(r) ? 'actions' from public.rename_system(tests.sid('HB-priv'), 'HB-priv2') r), false, 'rename_system returns no catalogue');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000001');
+select is((select to_jsonb(r) ? 'actions' from public.create_origin_from_campaign('bbbbbbbb-3300-4000-8000-000000000018', 'Origin-priv') r), false, 'create_origin_from_campaign returns no catalogue');
+select is((select to_jsonb(r) ? 'actions' from public.promote_system(tests.sid('HB-priv2'), 'Prom-priv') r), false, 'promote_system returns no catalogue');
+select is((select to_jsonb(r) ? 'actions' from public.archive_system(tests.sid('Prom-priv'), false) r), false, 'archive_system returns no catalogue');
+
+-- approval still seeds server-side
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000006');
+select lives_ok($$insert into public.campaign_requests (name, slug_wanted, system_id) values ('q-priv', 'sys-q-priv', tests.sid('Prom-acc'))$$, 'a request on the origin whose catalogue nobody can read');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000001');
+select is(public.approve_campaign_request(tests.rid('q-priv')), 'sys-q-priv', 'approved');
+select tests.as_postgres();
+select results_eq(
+  $$select (select count(*) from public.campaign_actions a where a.campaign_id = c.id), r.seeded_actions, r.skipped_actions
+      from public.campaigns c, public.campaign_requests r where c.slug = 'sys-q-priv' and r.name = 'q-priv'$$,
+  $$values (3::bigint, 3, 0)$$, 'the new campaign still gets the 3 entries');
+
+-- a duplicate and an entry with bad extras are skipped and counted; a second approval is refused
+insert into public.systems (name, document, kind, actions) values
+  ('Origin-mix', (select system_profile from public.campaigns where slug = 'sys-c8'), 'origin',
+   '[{"table_key":"hechizos","category":"truco","name":"X1","description":"","extras":{},"function":null},
+     {"table_key":"hechizos","category":"truco","name":"x1","description":"dup","extras":{},"function":null},
+     {"table_key":"rasgos","category":"","name":"X2","description":"","extras":{"fuente":"a"},"function":null},
+     {"table_key":"hechizos","category":"truco","name":"X3","description":"","extras":{"nope":1},"function":null}]');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000006');
+select lives_ok($$insert into public.campaign_requests (name, slug_wanted, system_id) values ('q-mix', 'sys-q-mix', tests.sid('Origin-mix'))$$, 'a request on a catalogue with a duplicate and a bad entry');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000001');
+select is(public.approve_campaign_request(tests.rid('q-mix')), 'sys-q-mix', 'approved');
+select tests.as_postgres();
+select results_eq(
+  $$select (select count(*) from public.campaign_actions a where a.campaign_id = c.id), r.seeded_actions, r.skipped_actions
+      from public.campaigns c, public.campaign_requests r where c.slug = 'sys-q-mix' and r.name = 'q-mix'$$,
+  $$values (2::bigint, 2, 2)$$, '2 entries seeded, the duplicate and the bad one skipped');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000001');
+select throws_ok($$select public.approve_campaign_request(tests.rid('q-mix'))$$, 'P0001', 'request_not_pending', 'a second approval is refused');
 
 select * from finish();
 rollback;
