@@ -33,6 +33,7 @@ const SYSTEM_MESSAGES: Partial<Record<string, string>> = {
   invalid_system_kind: 'Ese sistema ya es un Sistema Origen.',
   systems_limit_reached: 'Llegaste al máximo de sistemas propios. Renombrá o reutilizá alguno en lugar de crear otro.',
   system_owner_only: 'Solo quien creó este sistema puede cambiarlo.',
+  invalid_name: 'El nombre del sistema no es válido (1 a 120 caracteres).',
 }
 
 /**
@@ -50,7 +51,7 @@ export function describeDataError(err: unknown, fallback = 'No se pudo completar
     case 'not_found':
       return 'Ese registro ya no existe.'
     case 'validation':
-      return (err.reason && COLLECTION_MESSAGES[err.reason]) || 'Hay datos inválidos. Revisá el formulario.'
+      return (err.reason && (COLLECTION_MESSAGES[err.reason] ?? SYSTEM_MESSAGES[err.reason])) || 'Hay datos inválidos. Revisá el formulario.'
     case 'auth':
       return 'Tu sesión expiró. Iniciá sesión de nuevo.'
     case 'business':

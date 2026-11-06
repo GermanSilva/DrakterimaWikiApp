@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { vi } from 'vitest'
 import { AuthContext } from '../../auth/AuthContext'
 import { makeAuth, makeCampaign } from '../../app/testing/renderApp'
-import { ConflictError, DataError, type ActionInput, type ActionPatch, type Campaign, type CampaignAction, type PjActionLink, type CampaignPatch, type BusySlot, type CampaignPresence, type DataLayer, type Disponibilidad, type Member, type FlatEntity, type GameLog, type GamePot, type Invite, type NewInvite, type PlayerAvailability, type PlayerNote, type WikiIndexItem } from '../../data'
+import { ConflictError, DataError, toDataError, type SystemSummary, type ActionInput, type ActionPatch, type Campaign, type CampaignAction, type PjActionLink, type CampaignPatch, type BusySlot, type CampaignPresence, type DataLayer, type Disponibilidad, type Member, type FlatEntity, type GameLog, type GamePot, type Invite, type NewInvite, type PlayerAvailability, type PlayerNote, type WikiIndexItem } from '../../data'
 import { createFakeClient } from '../../data/testing/fakeClient'
 import { UnreadPortContext, type UnreadPort } from '../../ports'
 import { CampaignContext, type CampaignContextValue } from '../CampaignContext'
@@ -41,6 +41,8 @@ export interface FakeLayerOptions {
   /** Shared action collection entries and the character links (`layer.actions`). */
   actions?: CampaignAction[]
   actionLinks?: PjActionLink[]
+  /** Systems as `systems.listAvailableBases` returns them (origins, the viewer's own homebrew and frozen copies). */
+  systems?: SystemSummary[]
   /** `campaign_config` rows by key (value + the `updated_at` version the guarded patch compares). */
   config?: Record<string, { value: Record<string, unknown>; updated_at?: string; visibility?: 'members' | 'dm' }>
 }
@@ -231,6 +233,30 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
     linkRows = linkRows.map((l) => (l === current ? row : l))
     return row
   })
+  // systems: an in-memory table; branch / rename change what the next list returns, names are validated like the RPCs (trimmed, 1..120)
+  let systemRows = [...(options.systems ?? [])]
+  let systemSeq = 0
+  const cleanSystemName = (name: string) => {
+    const trimmed = name.trim()
+    if (trimmed === '' || trimmed.length > 120) throw toDataError({ code: '23514', message: 'invalid_name' })
+    return trimmed
+  }
+  const listAvailableBases = vi.fn(async () => systemRows.filter((s) => s.archived_at === null))
+  const branchSystem = vi.fn(async (campaignId: string, name: string) => {
+    const row: SystemSummary = {
+      id: `sys-new-${++systemSeq}`, name: cleanSystemName(name), kind: 'homebrew', campaign_id: campaignId, owner_id: 'user-1', branched_from: null,
+      archived_at: null, created_at: '2026-11-06T12:00:00Z', updated_at: '2026-11-06T12:00:00Z',
+    }
+    systemRows = [...systemRows, row]
+    return row
+  })
+  const renameSystem = vi.fn(async (systemId: string, name: string) => {
+    const current = systemRows.find((s) => s.id === systemId)
+    if (!current) throw toDataError({ code: 'P0001', message: 'system_not_found' })
+    const row = { ...current, name: cleanSystemName(name), updated_at: '2026-11-06T13:00:00Z' }
+    systemRows = systemRows.map((s) => (s.id === systemId ? row : s))
+    return row
+  })
   const layer = {
     client: fake.db,
     entity: (table: string) => {
@@ -259,13 +285,13 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
       busySlots: busySlotsList,
     },
     campaigns: { listMembers: membersList, updateMemberRole, removeMember, setPjOwner, deleteCampaign, updateCampaign, setSystemProfile, purgeDiscardedItem, rekeyDiscardedItem, listInvites: invitesList, createInvite: invitesCreate, revokeInvite: invitesRevoke },
-    systems: { listAvailableBases: vi.fn(async () => []), listAllSystems: vi.fn(async () => []), getSystemDocument: vi.fn(async () => null), getSystemActions: vi.fn(async () => []), branchSystem: vi.fn(), renameSystem: vi.fn(), createOriginFromCampaign: vi.fn(), promoteSystem: vi.fn(), archiveSystem: vi.fn() },
+    systems: { listAvailableBases, listAllSystems: vi.fn(async () => []), getSystemDocument: vi.fn(async () => null), getSystemActions: vi.fn(async () => []), branchSystem, renameSystem, createOriginFromCampaign: vi.fn(), promoteSystem: vi.fn(), archiveSystem: vi.fn() },
     games: { getPot: potGet, listLogs: gameLogsList, playLoteria: vi.fn(), assignPotToCharacter: vi.fn(), removeLog: vi.fn(async () => undefined) },
     presence: { touch: presenceTouch, list: presenceList },
     actions: { listActions: actionsList, listLinks: actionLinksList, listLinkedActions, createAction, updateAction, removeAction, link: linkAction, unlink: unlinkAction, updateLinkState },
     playerNotes: { list: playerNotesList, upsert: vi.fn(), update: vi.fn(), remove: vi.fn() },
   } as unknown as DataLayer
-  return { layer, fake, spies: { updateMemberRole, removeMember, setPjOwner, deleteCampaign, updateCampaign, setSystemProfile, purgeDiscardedItem, rekeyDiscardedItem, invitesList, invitesCreate, invitesRevoke, presenceTouch, presenceList, membersList, busySlotsList, disponibilidadList, playerAvailabilityList, potGet, gameLogsList, playerNotesList, actionsList, actionLinksList, listLinkedActions, createAction, updateAction, removeAction, linkAction, unlinkAction, updateLinkState, configGet, configPatch, configRows, entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
+  return { layer, fake, spies: { listAvailableBases, branchSystem, renameSystem, updateMemberRole, removeMember, setPjOwner, deleteCampaign, updateCampaign, setSystemProfile, purgeDiscardedItem, rekeyDiscardedItem, invitesList, invitesCreate, invitesRevoke, presenceTouch, presenceList, membersList, busySlotsList, disponibilidadList, playerAvailabilityList, potGet, gameLogsList, playerNotesList, actionsList, actionLinksList, listLinkedActions, createAction, updateAction, removeAction, linkAction, unlinkAction, updateLinkState, configGet, configPatch, configRows, entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
 }
 
 export const fakeUnread = (): UnreadPort & { markRead: ReturnType<typeof vi.fn> } => ({

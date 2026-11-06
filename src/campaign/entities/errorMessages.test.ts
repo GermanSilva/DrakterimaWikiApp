@@ -101,3 +101,10 @@ describe('systems (G8a)', () => {
     expect(describeDataError(toDataError({ message: 'dm_only', code: '42501' }))).toBe('Solo el DM puede hacer esto.')
   })
 })
+
+describe('invalid system name (G8b)', () => {
+  it('explains a refused name in Spanish and leaves other validation errors alone', () => {
+    expect(describeDataError(toDataError({ message: 'invalid_name', code: '23514' }))).toBe('El nombre del sistema no es válido (1 a 120 caracteres).')
+    expect(describeDataError(toDataError({ message: 'new row violates check constraint', code: '23514' }))).toBe('Hay datos inválidos. Revisá el formulario.')
+  })
+})

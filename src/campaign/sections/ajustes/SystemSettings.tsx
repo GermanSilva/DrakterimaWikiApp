@@ -3,6 +3,8 @@ import { btnSecondary, inputCls } from '../../../constants'
 import { parseSystemProfile, SECTION_KEYS, type SectionKey } from '../../system/systemProfile'
 import { UNIT_MAX } from '../../system/distance/distance'
 import { newUnit, systemDraft, validateSystem, type BuiltinDraft, type SystemDraft, type SystemErrors, type UnitDraft, type UnitErrors } from './systemForm'
+import { AdminSection } from '../../../components/AdminSection'
+import { HomebrewSettings } from './HomebrewSettings'
 import { useCampaignSave } from './useCampaignSave'
 
 const labelCls = 'block font-exo text-[10px] font-medium tracking-[0.2em] uppercase text-txt-muted mb-1.5'
@@ -331,6 +333,9 @@ export function SystemSettings() {
           {notice.text}
         </p>
       )}
+      <AdminSection title="Homebrew">
+        <HomebrewSettings />
+      </AdminSection>
     </div>
   )
 }
