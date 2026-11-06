@@ -4,7 +4,7 @@ import type { FlatEntity, LinkedAction } from '../../../data'
 import { useLinkedActions } from '../../../campaign/system/actions/useLinkedActions'
 import { ActionRunDialog } from '../actions/ActionRunDialog'
 import { ActionUndoDialog } from '../actions/ActionUndoDialog'
-import { useSessionActions, type HistoryItem } from '../actions/sessionActions'
+import { useSessionActions, useSessionHistory, type HistoryItem } from '../actions/sessionActions'
 import EmptyPjsState from './EmptyPjsState'
 import PJSubsection from './PJSubsection'
 import SessionCardShell from './SessionCardShell'
@@ -34,7 +34,7 @@ function CharacterActions({ pj, onUse }: { pj: FlatEntity; onUse: (linked: Linke
 
 /** What this screen applied so far, newest first, each with its Deshacer (S22). */
 function AppliedList({ onUndo }: { onUndo: (item: HistoryItem) => void }) {
-  const { history } = useSessionActions()
+  const history = useSessionHistory()
   if (history.length === 0) return null
   return (
     <div className="mt-4">

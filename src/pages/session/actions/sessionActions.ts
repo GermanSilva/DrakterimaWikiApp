@@ -1,4 +1,4 @@
-import { createContext, useContext } from 'react'
+import { createContext, useContext, useSyncExternalStore } from 'react'
 import type { ActionCollectionRepository, CampaignAction, FlatEntity, LinkedAction } from '../../../data'
 import type { ActionFunction } from '../../../campaign/system/actions/function/model'
 import type { ParamValue, RunResult } from '../../../campaign/system/actions/function/run'
@@ -27,7 +27,13 @@ export interface UndoPlan {
   warnings: UndoWarning[]
 }
 export type ParsedFunction = { ok: true; fn: ActionFunction } | { ok: false; errors: string[] }
-export type ApplyOutcome = { status: 'ok' } | { status: 'conflict' } | { status: 'error'; message: string }
+/** `partial`: the character was written but the link state was not; the dialog can only be closed (repeating would apply the effects twice). */
+export type ApplyOutcome = { status: 'ok' } | { status: 'conflict' } | { status: 'error'; message: string } | { status: 'partial'; message: string }
+/** The applied-actions list lives outside the `SessionActions` object so a new item never changes the identity of the api (dialogs reload when it changes). */
+export interface HistoryStore {
+  get(): HistoryItem[]
+  subscribe(listener: () => void): () => void
+}
 
 /**
  * What the DM session screen needs to run the functions of the actions its characters link (S22). Provided by the hub host
@@ -44,17 +50,25 @@ export interface SessionActions {
   /** Writes only the touched keys (character) and link state with the versions of `source`, never a section stamp. */
   apply(source: ActionSource, result: RunResult): Promise<ApplyOutcome>
   /** Newest first. */
-  history: HistoryItem[]
+  history: HistoryStore
   /** Reads the character and link now and plans the undo (pure after the read). */
   planUndo(item: HistoryItem): Promise<UndoPlan>
-  /** Writes the plan like `apply` does (touched keys only, current versions, no stamp); on success the item leaves the list. */
+  /** Writes the plan like `apply` does (touched keys only, current versions, no stamp); on success the item leaves the list, on a partial undo it keeps only the part not undone. */
   undo(item: HistoryItem, plan: UndoPlan): Promise<ApplyOutcome>
+  /** Drops an item from the list without writing (its character is gone). */
+  discard(item: HistoryItem): void
 }
 
 export const SessionActionsContext = createContext<SessionActions | null>(null)
 
 /** The session actions of the host, or null when the screen has none (legacy app, campaign without a Habilidad table). */
 export const useSessionActionsOptional = (): SessionActions | null => useContext(SessionActionsContext)
+
+/** The applied actions, newest first; re-renders when the list changes. */
+export function useSessionHistory(): HistoryItem[] {
+  const { history } = useSessionActions()
+  return useSyncExternalStore(history.subscribe, history.get)
+}
 
 export function useSessionActions(): SessionActions {
   const api = useContext(SessionActionsContext)

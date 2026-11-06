@@ -13,6 +13,8 @@ type Phase =
   | { name: 'ready'; source: ActionSource }
   | { name: 'saving'; source: ActionSource }
   | { name: 'conflict'; source: ActionSource }
+  /** The character was written but the link state was not: final, the dialog only closes. */
+  | { name: 'partial'; message: string }
 type Inputs = Record<string, string | boolean>
 
 /** What the DM typed, as the parameters of the run; `complete` is false while a number or an option is still unanswered. */
@@ -49,6 +51,7 @@ export function ActionRunDialog({ pj, linked, onClose }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
   const busy = phase.name === 'saving'
+  const partialRef = useRef(false) // once set, no read may bring the dialog back to a state that can write again
   const close = useCallback(() => {
     if (!busy) onClose()
   }, [busy, onClose])
@@ -64,12 +67,14 @@ export function ActionRunDialog({ pj, linked, onClose }: Props) {
   const steps = useMemo(() => (parsed.ok ? parsed.fn.steps.filter((s): s is ParamStep => s.kind === 'param') : []), [parsed])
 
   const load = useCallback(async () => {
+    if (partialRef.current) return
     setPhase({ name: 'loading' })
     try {
-      setPhase({ name: 'ready', source: await api.read(pj.id, action.id) })
+      const fresh = await api.read(pj.id, action.id)
+      if (!partialRef.current) setPhase({ name: 'ready', source: fresh })
     } catch (err) {
       console.error('No se pudo leer el personaje', err)
-      setPhase({ name: 'failed', message: 'No se pudo leer el personaje ni su acción. Cerrá y volvé a intentar.' })
+      if (!partialRef.current) setPhase({ name: 'failed', message: 'No se pudo leer el personaje ni su acción. Cerrá y volvé a intentar.' })
     }
   }, [api, pj.id, action.id])
   useEffect(() => {
@@ -90,6 +95,10 @@ export function ActionRunDialog({ pj, linked, onClose }: Props) {
     const outcome = await api.apply(source, result)
     if (outcome.status === 'ok') return onClose()
     if (outcome.status === 'conflict') return setPhase({ name: 'conflict', source })
+    if (outcome.status === 'partial') {
+      partialRef.current = true
+      return setPhase({ name: 'partial', message: outcome.message })
+    }
     setProblem(outcome.message)
     setPhase({ name: 'ready', source })
   }
@@ -171,6 +180,11 @@ export function ActionRunDialog({ pj, linked, onClose }: Props) {
           </>
         )}
 
+        {phase.name === 'partial' && (
+          <p role="alert" className="text-[13px] text-accent-bright">
+            {phase.message}
+          </p>
+        )}
         {phase.name === 'conflict' && (
           <p role="alert" className="text-[13px] text-accent-bright">
             Alguien más modificó este personaje. Sobrescribir vuelve a leerlo y a calcular la acción con sus datos actuales.
@@ -184,9 +198,9 @@ export function ActionRunDialog({ pj, linked, onClose }: Props) {
 
         <div className="flex flex-wrap gap-2.5 justify-end">
           <button type="button" className={btnSecondary} disabled={busy} onClick={close}>
-            Cancelar
+            {phase.name === 'partial' ? 'Cerrar' : 'Cancelar'}
           </button>
-          {phase.name === 'conflict' ? (
+          {phase.name === 'partial' ? null : phase.name === 'conflict' ? (
             <button type="button" className={btnPrimary} onClick={() => void load()}>
               Sobrescribir
             </button>

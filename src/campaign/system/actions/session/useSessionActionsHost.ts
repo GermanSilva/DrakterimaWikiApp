@@ -1,6 +1,6 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { ConflictError, DataError, type FlatEntity, type LinkedAction } from '../../../../data'
-import type { ActionSource, ApplyOutcome, HistoryItem, SessionActions, UndoPlan } from '../../../../pages/session/actions/sessionActions'
+import type { ActionSource, ApplyOutcome, HistoryItem, HistoryStore, SessionActions, UndoPlan } from '../../../../pages/session/actions/sessionActions'
 import { useCampaignServices } from '../../../entities/campaignServicesContext'
 import { describeDataError } from '../../../entities/errorMessages'
 import { useToast } from '../../../toastContext'
@@ -18,13 +18,37 @@ import { habilidadTables } from '../tables'
  * DM edit: the character through `saveEntityWithDmNotes` with the version just read as `base` (a stale base is a
  * ConflictError) and ONLY the touched keys, the link state through `updateLinkState` with the link version. The patch never
  * carries `sections_updated`: session buttons (and their undo) do not stamp the unread dot. `onSaved` receives the stored character.
+ * The returned api keeps its identity while the sheet and the services do not change: the dialogs reload the character when it
+ * changes, and a new history item (written by the very action they run) must not re-arm them. The history is a separate store.
  */
 export function useSessionActionsHost(sheet: Sheet | null, onSaved: (entity: FlatEntity) => void): SessionActions | null {
   const { layer, campaignId } = useCampaignServices()
   const { showToast } = useToast()
   const enabled = sheet !== null && habilidadTables(sheet).length > 0
-  const [history, setHistory] = useState<HistoryItem[]>([])
   const seq = useRef(0)
+  // callbacks through refs: their identity may change on every render, the api's must not
+  const onSavedRef = useRef(onSaved)
+  const toastRef = useRef(showToast)
+  useEffect(() => {
+    onSavedRef.current = onSaved
+    toastRef.current = showToast
+  })
+  const store = useMemo(() => {
+    let items: HistoryItem[] = []
+    const listeners = new Set<() => void>()
+    return {
+      get: () => items,
+      subscribe: (listener: () => void) => {
+        listeners.add(listener)
+        return () => void listeners.delete(listener)
+      },
+      update(change: (list: HistoryItem[]) => HistoryItem[]) {
+        items = change(items)
+        listeners.forEach((l) => l())
+      },
+    }
+  }, [])
+  const history: HistoryStore = store
 
   return useMemo<SessionActions | null>(() => {
     if (!sheet || !enabled) return null
@@ -36,13 +60,13 @@ export function useSessionActionsHost(sheet: Sheet | null, onSaved: (entity: Fla
     }
 
     /** Character first (the likelier conflict), then the link. `wrotePj` tells a failure of the second step from a clean one. */
-    async function commit(pj: FlatEntity, linked: LinkedAction | null, patch: Patch): Promise<{ outcome: ApplyOutcome; wrotePj: boolean }> {
+    async function commit(pj: FlatEntity, linked: LinkedAction | null, patch: Patch, partialMessage: string): Promise<{ outcome: ApplyOutcome; wrotePj: boolean }> {
       let wrotePj = false
       try {
         if (Object.keys(patch.pj).length > 0) {
           const saved = await layer.saveEntityWithDmNotes('pjs', { campaignId, id: pj.id, base: { updated_at: pj.updated_at } }, patch.pj)
           wrotePj = true
-          onSaved(saved.entity)
+          onSavedRef.current(saved.entity)
         }
         if (patch.linkState && linked) {
           await layer.actions.updateLinkState(pj.id, linked.action.id, patch.linkState, { base: { updated_at: linked.link.updated_at } })
@@ -53,7 +77,7 @@ export function useSessionActionsHost(sheet: Sheet | null, onSaved: (entity: Fla
         // the character is already saved: offering to overwrite would apply the effects twice
         if (wrotePj) {
           console.error('Se guardó el personaje pero falló el estado de la acción', err)
-          return { outcome: { status: 'error', message: 'Se guardó el personaje, pero no se pudo guardar el estado de la acción. Revisá la ficha antes de repetir.' }, wrotePj }
+          return { outcome: { status: 'partial', message: partialMessage }, wrotePj }
         }
         if (err instanceof ConflictError) return { outcome: { status: 'conflict' }, wrotePj }
         console.error('No se pudo guardar la acción', err)
@@ -76,7 +100,7 @@ export function useSessionActionsHost(sheet: Sheet | null, onSaved: (entity: Fla
       async apply(source, result) {
         const { patch } = result
         if (Object.keys(patch.pj).length === 0 && !patch.linkState) return { status: 'error', message: 'La acción no cambia nada.' }
-        const { outcome, wrotePj } = await commit(source.pj, source.linked, patch)
+        const { outcome, wrotePj } = await commit(source.pj, source.linked, patch, 'Se guardó el personaje, pero no se pudo guardar el estado de la acción. Revisá la ficha antes de repetir.')
         // what reached the character can be undone even when the link state did not follow
         const effects = outcome.status === 'ok' ? result.applied : wrotePj ? result.applied.filter((a) => a.target.type !== 'state') : []
         if (effects.length > 0) {
@@ -89,9 +113,9 @@ export function useSessionActionsHost(sheet: Sheet | null, onSaved: (entity: Fla
             actionName: source.linked.action.name,
             entry: undoEntry(effects),
           }
-          setHistory((list) => [item, ...list])
+          store.update((list) => [item, ...list])
         }
-        if (outcome.status === 'ok') showToast('Acción aplicada')
+        if (outcome.status === 'ok') toastRef.current('Acción aplicada')
         return outcome
       },
       history,
@@ -104,13 +128,20 @@ export function useSessionActionsHost(sheet: Sheet | null, onSaved: (entity: Fla
       },
       async undo(item, plan) {
         if (Object.keys(plan.patch.pj).length === 0 && !plan.patch.linkState) return { status: 'error', message: 'No hay nada que deshacer.' }
-        const { outcome } = await commit(plan.pj, plan.linked, plan.patch)
+        const { outcome } = await commit(plan.pj, plan.linked, plan.patch, 'Se deshizo en el personaje, pero no se pudo deshacer el estado de la acción. La acción sigue en la lista con esa parte pendiente.')
         if (outcome.status === 'ok') {
-          setHistory((list) => list.filter((h) => h.id !== item.id))
-          showToast('Acción deshecha')
+          store.update((list) => list.filter((h) => h.id !== item.id))
+          toastRef.current('Acción deshecha')
+        } else if (outcome.status === 'partial') {
+          // the character part is done and must never be undone again: the item keeps only what is still pending
+          const pending = item.entry.effects.filter((e) => e.target.type === 'state')
+          store.update((list) => list.flatMap((h) => (h.id !== item.id ? [h] : pending.length > 0 ? [{ ...h, entry: { effects: pending } }] : [])))
         }
         return outcome
       },
+      discard(item) {
+        store.update((list) => list.filter((h) => h.id !== item.id))
+      },
     }
-  }, [sheet, enabled, layer, campaignId, onSaved, showToast, history])
+  }, [sheet, enabled, layer, campaignId, store, history])
 }
