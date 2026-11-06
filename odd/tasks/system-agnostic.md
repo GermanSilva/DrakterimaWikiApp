@@ -56,6 +56,7 @@ campaign data change shape). Status: design agreed, nothing implemented yet.
 - S33 (decision, user, Log L14; refines S30): migration discards the legacy free text `jugador` directly (not kept as a discarded field) and fills the system player field with the username of the player assigned to the character.
   - S33 refined (user, Log L16): "username" means profiles.display_name, taken when the character is assigned.
 - S34 (decision, user, Log L15): the table calculation element offers Suma, Promedio, Conteo, Mayor, Menor, Mas frecuente and Menos frecuente ("Mayoria/Minoria" of S16 means both the highest/lowest value and the most/least repeated value).
+- S35 (decision, user, Log L17): action functions (session buttons of S22) are configured in a SHARED ACTION COLLECTION of the campaign: a catalogue of actions with their function, referenced by the characters (the "later: shared action collection with auto filters" of S16). Open: link vs copy semantics, per-character private actions, per-character state (prepared, uses).
 
 ## Stages (each its own reviewable unit; the DB ones are high risk: own commit, pgTAP, independent verify)
 
@@ -119,6 +120,7 @@ None.
 - L14 (user, 2026-11-05, on assistant points 1-9: unit by key, per-unit precision, restored key collision, 60-day warning, frozen copy contents, Buscables visibility, undo semantics, legacy jugador): "9. descartar directamente el campo migrado y completar el campo de sistema con el username del jugador asignado. Puntos 1-8 aprobados"
 - L15 (user, 2026-11-05, choice on what Mayoria and Minoria return: max/min, most/least frequent, or both): "Las dos cosas" (four types: Mayor, Menor, Mas frecuente, Menos frecuente).
 - L16 (user, 2026-11-05, asked whether jugador should hold profiles.display_name or a new unique username): "Si, me refería al display_name"
+- L17 (user, 2026-11-05, choice on where an action button function is configured: per category, per character row, category with row override, or shared collection): "Colección compartida".
 
 ## Builder stages (odd/design/sheet-builder.md section 6)
 
