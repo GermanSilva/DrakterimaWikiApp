@@ -4,7 +4,7 @@ import { vi } from 'vitest'
 import { createMemoryRouter, RouterProvider, type RouteObject } from 'react-router'
 import type { AuthValue } from '../../auth/AuthContext'
 import { AuthHost } from './AuthHost'
-import { createDataLayer, type CampaignRequest, type CampaignWithRole, type Profile } from '../../data'
+import { createDataLayer, type CampaignRequest, type CampaignWithRole, type Profile, type SystemSummary } from '../../data'
 import { createFakeClient } from '../../data/testing/fakeClient'
 import { DataContext } from '../DataContext'
 import type { HubData } from '../hubData'
@@ -30,6 +30,19 @@ export function makeCampaign(over: Partial<CampaignWithRole> = {}): CampaignWith
     ...over,
   }
 }
+
+export const makeSystem = (over: Partial<SystemSummary> = {}): SystemSummary => ({
+  id: 's1',
+  name: 'Mi variante',
+  kind: 'homebrew',
+  campaign_id: 'c1',
+  owner_id: ME,
+  branched_from: null,
+  archived_at: null,
+  created_at: '2026-10-05T12:00:00Z',
+  updated_at: '2026-10-05T12:00:00Z',
+  ...over,
+})
 
 export const makeRequest = (over: Partial<CampaignRequest> = {}): CampaignRequest => ({
   id: 1,
@@ -105,6 +118,13 @@ export function makeData(over: Partial<HubData> = {}): HubData {
     })),
     listMyCharacterIds: vi.fn(async () => []),
     updateProfile: vi.fn(async (_id: string, patch) => makeProfile(patch as Partial<Profile>)),
+    listAvailableSystems: vi.fn(async () => []),
+    listAllSystems: vi.fn(async () => []),
+    getSystemActions: vi.fn(async () => []),
+    renameSystem: vi.fn(async (id: string, name: string) => makeSystem({ id, name })),
+    createOriginFromCampaign: vi.fn(async (_campaignId: string, name: string) => makeSystem({ id: 'o-new', name, kind: 'origin', campaign_id: null, owner_id: null })),
+    promoteSystem: vi.fn(async (_id: string, name?: string) => makeSystem({ id: 'o-new', name: name ?? 'Origen', kind: 'origin', campaign_id: null, owner_id: null })),
+    archiveSystem: vi.fn(async (id: string, archived: boolean) => makeSystem({ id, archived_at: archived ? '2026-11-06T00:00:00Z' : null })),
     ...over,
   }
 }

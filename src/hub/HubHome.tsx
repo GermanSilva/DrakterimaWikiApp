@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useLocation, useNavigate } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { btnPrimary, btnSecondary } from '../constants'
 import { ModalShell } from '../campaign/calendar/ModalShell'
 import { useAuth } from '../auth'
@@ -50,6 +50,11 @@ export function HubHome() {
             <button type="button" className={btnPrimary} onClick={() => setModal(isOwner ? 'create' : 'request')}>
               {isOwner ? 'Crear campaña' : 'Solicitar campaña'}
             </button>
+          )}
+          {isOwner && (
+            <Link to="/sistemas" className={btnSecondary}>
+              Sistemas
+            </Link>
           )}
           <button type="button" className={btnSecondary} onClick={() => setModal('join')}>
             Unirme a campaña

@@ -11,6 +11,8 @@ import {
   type NewCampaignBranding,
   type NewCampaignRequest,
   type Profile,
+  type SystemAction,
+  type SystemSummary,
 } from '../data'
 
 /**
@@ -43,6 +45,19 @@ export interface HubData {
   /** Ids of the characters (pjs) the user owns in the campaign. */
   listMyCharacterIds(campaignId: string, userId: string): Promise<number[]>
   updateProfile(userId: string, patch: { display_name?: string; avatar_url?: string | null }): Promise<Profile>
+  /** What the signed-in user may pick as the base of a campaign request (the hub owner's view is wider; the request is checked again). */
+  listAvailableSystems(): Promise<SystemSummary[]>
+  /** Hub owners: every system, archived included. */
+  listAllSystems(): Promise<SystemSummary[]>
+  /** Hub owners read every catalogue; a DM / owner only their own (system_not_available otherwise). */
+  getSystemActions(systemId: string): Promise<SystemAction[]>
+  renameSystem(systemId: string, name: string): Promise<SystemSummary>
+  /** Hub owners only. */
+  createOriginFromCampaign(campaignId: string, name: string): Promise<SystemSummary>
+  /** Hub owners only: a NEW origin from a homebrew or frozen copy. */
+  promoteSystem(systemId: string, name?: string): Promise<SystemSummary>
+  /** Hub owners only. */
+  archiveSystem(systemId: string, archived: boolean): Promise<SystemSummary>
 }
 
 /** My memberships plus, for a hub owner, every other campaign (shown as DM through the privilege), sorted by name. */
@@ -77,5 +92,12 @@ export function createHubData(client?: Db): HubData {
       return pjs.filter((pj) => pj.owner_id === userId).map((pj) => pj.id)
     },
     updateProfile: (userId, patch) => layer.profiles.update(userId, patch),
+    listAvailableSystems: () => layer.systems.listAvailableBases(),
+    listAllSystems: () => layer.systems.listAllSystems(),
+    getSystemActions: (id) => layer.systems.getSystemActions(id),
+    renameSystem: (id, name) => layer.systems.renameSystem(id, name),
+    createOriginFromCampaign: (campaignId, name) => layer.systems.createOriginFromCampaign(campaignId, name),
+    promoteSystem: (id, name) => layer.systems.promoteSystem(id, name),
+    archiveSystem: (id, archived) => layer.systems.archiveSystem(id, archived),
   }
 }

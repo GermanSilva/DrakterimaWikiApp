@@ -27,6 +27,7 @@ export const appRoutes: RouteObject[] = [
               { index: true, lazy: async () => ({ Component: (await import('../hub/HubHome')).HubHome }) },
               { path: 'invite/:code', lazy: async () => ({ Component: (await import('../hub/InvitePage')).InvitePage }) },
               { path: 'profile', lazy: async () => ({ Component: (await import('../hub/ProfilePage')).ProfilePage }) },
+              { path: 'sistemas', lazy: async () => ({ Component: (await import('../hub/SystemsPage')).SystemsPage }) },
             ],
           },
           {
