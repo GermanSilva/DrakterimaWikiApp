@@ -162,3 +162,21 @@ export function parseSheetLoteriaConfig(value: unknown, denominations: readonly 
     specialPrize: v.specialPrize ? readAmounts(v.specialPrize, denominations) : fallback('sp', 1),
   }
 }
+
+const isZeroAmount = (v: unknown): boolean => v === null || (typeof v === 'number' && v === 0) || (typeof v === 'string' && /^0{1,15}$/.test(v))
+
+/**
+ * The keys of the stored prizes that hold a non-zero amount although they are not denominations of the sheet (S12): the
+ * server's `_lottery_stale_keys`. A lottery with any of them is not configured: the server refuses the play before rolling,
+ * and the DM fixes it by saving the prizes again. A zero loses nothing and is tolerated, exactly as on the server.
+ */
+export function staleLoteriaKeys(value: unknown, denominations: readonly Denomination[]): string[] {
+  const v = value && typeof value === 'object' ? (value as Record<string, unknown>) : {}
+  const known = new Set(denominations.map((d) => d.key))
+  const stale = new Set<string>()
+  for (const prize of [v.specialPrize, v.commonPrize]) {
+    if (!prize || typeof prize !== 'object' || Array.isArray(prize)) continue
+    for (const [key, amount] of Object.entries(prize)) if (!known.has(key) && !isZeroAmount(amount)) stale.add(key)
+  }
+  return [...stale].sort()
+}

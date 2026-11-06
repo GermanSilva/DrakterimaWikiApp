@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
-  DEFAULT_LOTERIA_CONFIG, EMPTY_COINS, formatAmounts, formatCoins, formatTotal, hasAmounts, hasCoins, normalizeCoins, parseLoteriaConfig, parseSheetLoteriaConfig, readAmounts, totalValue,
+  DEFAULT_LOTERIA_CONFIG, EMPTY_COINS, formatAmounts, formatCoins, formatTotal, hasAmounts, hasCoins, normalizeCoins, parseLoteriaConfig, parseSheetLoteriaConfig, readAmounts, staleLoteriaKeys, totalValue,
 } from './coins'
 
 describe('formatCoins', () => {
@@ -120,5 +120,28 @@ describe('parseSheetLoteriaConfig', () => {
 describe('legacy helpers are untouched by the sheet branch', () => {
   it('parseLoteriaConfig still returns the five fixed keys', () => {
     expect(Object.keys(parseLoteriaConfig(null).commonPrize)).toEqual(['cp', 'sp', 'ep', 'gp', 'pp'])
+  })
+})
+
+describe('staleLoteriaKeys (S12)', () => {
+  const rows = [{ key: 'cobre', label: 'cobre', value: 1 }, { key: 'plata', label: 'plata', value: 10 }, { key: 'oro', label: 'oro', value: 100 }]
+
+  it('names the keys of the prizes that hold a non-zero amount and are not denominations', () => {
+    expect(staleLoteriaKeys({ commonPrize: { gp: 1 } }, rows)).toEqual(['gp'])
+    expect(staleLoteriaKeys({ commonPrize: { gp: 1, cobre: 2 }, specialPrize: { cp: '3', gp: 4 } }, rows)).toEqual(['cp', 'gp'])
+  })
+
+  it('tolerates zero amounts and denominations, exactly like the server', () => {
+    expect(staleLoteriaKeys({ commonPrize: { gp: 0, cp: '00', sp: null, zz: -0 }, specialPrize: { oro: 1 } }, rows)).toEqual([])
+  })
+
+  it('refuses anything that is not a plain zero', () => {
+    expect(staleLoteriaKeys({ commonPrize: { a: 0.0001, b: ' 0', c: '0x0', d: true } }, rows)).toEqual(['a', 'b', 'c', 'd'])
+  })
+
+  it('has nothing to report without prizes, or with prizes that are not objects', () => {
+    expect(staleLoteriaKeys(undefined, rows)).toEqual([])
+    expect(staleLoteriaKeys({}, rows)).toEqual([])
+    expect(staleLoteriaKeys({ commonPrize: 'abc', specialPrize: [1] }, rows)).toEqual([])
   })
 })

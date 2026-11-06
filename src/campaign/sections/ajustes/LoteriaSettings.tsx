@@ -4,7 +4,7 @@ import { ConflictError, type CampaignConfig, type Coins } from '../../../data'
 import { describeDataError } from '../../entities/errorMessages'
 import { useCampaignServices } from '../../entities/campaignServicesContext'
 import { useLoad } from '../../entities/useLoad'
-import { parseLoteriaConfig } from '../../games/coins'
+import { parseLoteriaConfig, staleLoteriaKeys } from '../../games/coins'
 import { rewardTarget } from '../../system/coins/rewardTarget'
 import { useSystem } from '../../system/useSystem'
 import { SheetLoteriaForm } from '../juegos/SheetLoteriaForm'
@@ -159,7 +159,18 @@ export function LoteriaSettings() {
   }
 
   if (target.mode === 'monedas' || target.mode === 'economia') {
-    return <SheetLoteriaForm key={row?.updated_at ?? 'none'} row={row} denominations={target.denominations} notice={notice} onSave={save} />
+    const stale = staleLoteriaKeys(row?.value, target.denominations)
+    return (
+      <div className="flex flex-col gap-3">
+        {stale.length > 0 && (
+          <div role="alert" aria-label="Premios desactualizados" className="border border-red-400/60 px-5 py-3 text-[13px] text-red-400">
+            Los premios guardados usan monedas que ya no existen en la hoja ({stale.join(', ')}), por eso la lotería no está disponible para los jugadores.
+            Guardá los premios de nuevo con las denominaciones actuales para activarla.
+          </div>
+        )}
+        <SheetLoteriaForm key={row?.updated_at ?? 'none'} row={row} denominations={target.denominations} notice={notice} onSave={save} />
+      </div>
+    )
   }
   return <LoteriaForm key={row?.updated_at ?? 'none'} row={row} notice={notice} onSave={save} />
 }

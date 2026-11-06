@@ -3,6 +3,7 @@ import { ConflictError, DataError } from '../../data'
 /** The coin RPCs refuse a credit when the sheet of the campaign cannot receive it (G5b, S12, S28). */
 const REWARD_MESSAGES: Partial<Record<string, string>> = {
   no_reward_destination: 'La lotería no está disponible: la hoja de la campaña no define denominaciones y un destino de recompensa.',
+  lottery_config_stale: 'La lotería no está disponible: los premios usan monedas que ya no existen en la hoja. El DM tiene que volver a guardarlos en Ajustes.',
   pot_denominations_unsupported: 'El pozo todavía no admite las denominaciones de la hoja de esta campaña.',
   invalid_coins: 'Las monedas indicadas no coinciden con las denominaciones de la hoja de la campaña.',
 }

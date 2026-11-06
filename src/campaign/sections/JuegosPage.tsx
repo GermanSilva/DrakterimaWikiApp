@@ -9,7 +9,7 @@ import { useEntities } from '../entities/useEntities'
 import { useGamePot } from '../entities/useGamePot'
 import { useLoad } from '../entities/useLoad'
 import {
-  formatAmounts, formatCoins, hasAmounts, hasCoins, normalizeCoins, parseLoteriaConfig, parseSheetLoteriaConfig, readAmounts, type Amounts, type Denomination,
+  formatAmounts, formatCoins, hasAmounts, hasCoins, normalizeCoins, parseLoteriaConfig, parseSheetLoteriaConfig, readAmounts, staleLoteriaKeys, type Amounts, type Denomination,
 } from '../games/coins'
 import { describeDailyReset, utcDay } from '../games/dayReset'
 import { describeGameError } from '../games/gameErrors'
@@ -104,7 +104,6 @@ export function JuegosPage() {
   const system = useSystem()
   const target = useMemo(() => rewardTarget(system.sheet), [system.sheet])
   const denominations: readonly Denomination[] | null = target.mode === 'monedas' || target.mode === 'economia' ? target.denominations : null
-  const lotteryOpen = target.mode !== 'none'
   const potOpen = potSupports(target)
   const format = useCallback((amounts: Amounts | null | undefined, empty?: string) => formatAmounts(amounts, denominations, empty), [denominations])
   const isWon = useCallback((amounts: Amounts) => (denominations ? hasAmounts(amounts) : hasCoins(amounts)), [denominations])
@@ -118,6 +117,9 @@ export function JuegosPage() {
     () => (denominations ? parseSheetLoteriaConfig(configState.data?.value, denominations) : parseLoteriaConfig(configState.data?.value)),
     [configState.data, denominations],
   )
+  // S12: prizes in a key that is no longer a denomination = the lottery is not configured (the server refuses every play)
+  const configStale = useMemo(() => (denominations ? staleLoteriaKeys(configState.data?.value, denominations).length > 0 : false), [configState.data, denominations])
+  const lotteryOpen = target.mode !== 'none' && !configStale
   const pjName = useCallback((id: number | null) => (id === null ? null : (pjs.items.find((p) => p.id === id)?.nombre as string | undefined) ?? `Personaje #${id}`), [pjs.items])
 
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -227,7 +229,9 @@ export function JuegosPage() {
           <p className="text-center text-[13px] text-txt-muted italic">La lotería todavía no está disponible.</p>
           {isDM && (
             <p className="text-center text-[12px] text-txt-muted mt-2">
-              Definí las denominaciones de la moneda y marcá un destino de recompensa en la hoja de la campaña para activarla.
+              {configStale
+                ? 'Los premios usan monedas que ya no existen en la hoja. Volvé a guardar los premios en Ajustes para activarla.'
+                : 'Definí las denominaciones de la moneda y marcá un destino de recompensa en la hoja de la campaña para activarla.'}
             </p>
           )}
         </div>

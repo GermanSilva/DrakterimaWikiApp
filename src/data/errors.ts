@@ -29,6 +29,7 @@ export const KNOWN_REASONS = [
   'dm_only',
   'insufficient_pot',
   'no_reward_destination',
+  'lottery_config_stale',
   'pot_denominations_unsupported',
   'invalid_coins',
   'character_not_found',

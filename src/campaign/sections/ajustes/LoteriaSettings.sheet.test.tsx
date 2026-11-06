@@ -26,7 +26,9 @@ const setup = (campaign?: ReturnType<typeof withSheet>, config: Record<string, u
   renderSection('/c/demo/ajustes', { layer: made.layer, isDM: true, ...(campaign ? { campaign } : {}) })
   return made
 }
-const form = async () => within(await screen.findByRole('form', { name: 'Configuración de la lotería' }))
+// the first render of a file loads the lazy Ajustes chunk: under a loaded machine that alone can exceed the 5 s default, so wait up to
+// 12 s (below the 15 s testTimeout of the repo) for the form without weakening what the tests then assert
+const form = async () => within(await screen.findByRole('form', { name: 'Configuración de la lotería' }, { timeout: 12000 }))
 const type = (el: HTMLElement, value: string) => fireEvent.change(el, { target: { value } })
 const labels = (group: HTMLElement) => within(group).getAllByRole('spinbutton').map((i) => i.closest('label')?.textContent)
 
@@ -91,5 +93,23 @@ describe('Ajustes: lottery prizes on a campaign without a sheet are as before', 
     expect(spies.configPatch.mock.calls[0][2]).toEqual({
       commonMinRoll: 15, commonPrize: { cp: 0, sp: 4, ep: 0, gp: 2, pp: 0 }, specialPrize: { cp: 0, sp: 0, ep: 0, gp: 5, pp: 1 },
     })
+  })
+})
+
+describe('Ajustes: stale prize configuration (S12)', () => {
+  const STALE = { loteria: { value: { commonMinRoll: 15, commonPrize: { gp: 1, oro: 2 }, specialPrize: { cp: 5 } }, visibility: 'members' as const, updated_at: 'v1' } }
+
+  it('warns the DM, naming the stale keys, and says that saving the prizes again fixes it', async () => {
+    setup(withSheet(sheetOf([coins(ROWS, { rewardDestination: true })])), STALE)
+    const alert = await screen.findByRole('alert', { name: 'Premios desactualizados' }, { timeout: 12000 })
+    expect(alert).toHaveTextContent('cp, gp')
+    expect(alert).toHaveTextContent('Guardá los premios de nuevo')
+    expect(await form()).toBeTruthy() // the editor stays available to fix it
+  })
+
+  it('shows no warning for a zero under an unknown key', async () => {
+    setup(withSheet(sheetOf([coins(ROWS, { rewardDestination: true })])), { loteria: { ...STALE.loteria, value: { commonPrize: { oro: 2, gp: 0 }, specialPrize: { plata: 1 } } } })
+    await form()
+    expect(screen.queryByRole('alert', { name: 'Premios desactualizados' })).toBeNull()
   })
 })

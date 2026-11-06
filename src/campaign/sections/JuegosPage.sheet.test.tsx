@@ -110,7 +110,7 @@ describe('Juegos on a campaign with a sheet: the lottery needs denominations and
 
   it('shows what an old log won even if its key is no longer a denomination', async () => {
     const old: GameLog = { id: 1, campaign_id: 'c1', actor_type: 'dm', character_id: null, game: 'loteria', play_date: '2026-10-08', roll: 17, prize: { gp: 4 }, prize_target: 'pot', created_at: '2026-10-08T10:00:00Z' }
-    setup(sheetOf([coins(LEGACY_KEYS), bolsa]), { isDM: true, logs: [old] })
+    setup(sheetOf([coins(LEGACY_KEYS), bolsa]), { isDM: true, logs: [old], cfg: config({ commonMinRoll: 15, commonPrize: { gp: 2 }, specialPrize: { cp: 1 } }) })
     const recent = await screen.findByRole('region', { name: 'Últimas tiradas' })
     await waitFor(() => expect(within(recent).getByText('4 Oro')).toBeInTheDocument())
   })
@@ -121,5 +121,29 @@ describe('Juegos on a campaign with a sheet: the lottery needs denominations and
     expect(screen.getByText('1 Platino, 5 Oro')).toBeInTheDocument()
     expect(await playButton()).toBeEnabled()
     expect(await screen.findByLabelText('Pozo acumulado')).toHaveTextContent('12 Oro, 5 Cobre')
+  })
+})
+
+describe('Juegos with a stale prize configuration (S12)', () => {
+  const STALE = config({ commonMinRoll: 15, commonPrize: { gp: 1 }, specialPrize: { cobre: 1 } })
+
+  it('hides the lottery from a player: the server would refuse every play', async () => {
+    const { play } = setup(sheetOf([coins(CUSTOM, { rewardDestination: true })]), { cfg: STALE })
+    expect(await screen.findByText('La lotería todavía no está disponible.')).toBeInTheDocument()
+    expect(screen.queryByText('La Lotería del Dado')).toBeNull()
+    expect(screen.queryByRole('button', { name: /Tirar el dado/ })).toBeNull()
+    expect(screen.queryByText(/Ajustes/)).toBeNull()
+    expect(play).not.toHaveBeenCalled()
+  })
+
+  it('tells the DM where to fix it', async () => {
+    setup(sheetOf([coins(CUSTOM, { rewardDestination: true })]), { cfg: STALE, isDM: true })
+    expect(await screen.findByText(/Volvé a guardar los premios en Ajustes/)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Tirar el dado/ })).toBeNull()
+  })
+
+  it('keeps the lottery for a zero amount under an unknown key', async () => {
+    setup(sheetOf([coins(CUSTOM, { rewardDestination: true })]), { cfg: config({ commonMinRoll: 15, commonPrize: { oro: 2, gp: 0 }, specialPrize: { cobre: 1 } }) })
+    expect(await playButton()).toBeInTheDocument()
   })
 })

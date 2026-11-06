@@ -31,3 +31,14 @@ describe('reward destination errors (G5b)', () => {
     expect(describeGameError(raised('insufficient_pot'))).toBe('El pozo no tiene monedas suficientes.')
   })
 })
+
+describe('stale lottery configuration (G5b, S12)', () => {
+  it('is a whitelisted business reason with a Spanish explanation, for the lottery and for any other caller', () => {
+    const err = raised('lottery_config_stale')
+    expect(err.kind).toBe('business')
+    expect(err.reason).toBe('lottery_config_stale')
+    const message = 'La lotería no está disponible: los premios usan monedas que ya no existen en la hoja. El DM tiene que volver a guardarlos en Ajustes.'
+    expect(describeDataError(err)).toBe(message)
+    expect(describeGameError(err)).toBe(message)
+  })
+})
