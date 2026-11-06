@@ -68,3 +68,25 @@ describe('discarded list (G7b)', () => {
     expect(errorsOf(sheetOf(discarded))[0]).toBe(path)
   })
 })
+
+describe('size of a discarded item (G7b fix 1)', () => {
+  const bigTable = (rows: number): Loose => ({
+    kind: 'table',
+    type: 'capacidades',
+    key: 'habs',
+    label: 'Habilidades',
+    columns: [{ key: 'prof', label: 'Prof', type: 'number', editableBy: 'dm' }],
+    rows: Array.from({ length: rows }, (_, n) => ({ key: `hab_${n}`, label: `Habilidad número ${n} con un nombre bastante largo para pesar`, stat: 'fue', use: 'valor', editableBy: 'dm' })),
+  })
+
+  it.each([80, 100])('accepts a discarded capacidades table of %i rows (any live table can be discarded)', (rows) => {
+    const item = bigTable(rows)
+    expect(JSON.stringify(item).length).toBeGreaterThan(8000)
+    expect(errorsOf(sheetOf([entry(item)]))).toEqual([])
+  })
+
+  it('is bounded only by the size of the whole sheet, the same bound as a live sheet', () => {
+    const huge = entry(field({ pad: 'x'.repeat(41_000) }))
+    expect(errorsOf(sheetOf([huge]))).toEqual([''])
+  })
+})

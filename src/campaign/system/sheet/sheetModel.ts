@@ -175,7 +175,6 @@ export const SHEET_LIMITS = {
   actionCategories: 30,
   options: 20,
   discarded: 100,
-  discardedItemBytes: 8000,
   coinValue: 1_000_000_000,
   text: 4000,
   bytes: 40_000,
@@ -730,7 +729,7 @@ function discardedOf(value: unknown, fail: (path: string, message: string) => vo
     const at = `discarded[${i}]`
     if (!isRecord(entry)) return void fail(at, 'invalid entry')
     const src = entry.item
-    if (!isRecord(src) || JSON.stringify(src).length > SHEET_LIMITS.discardedItemBytes) return void fail(`${at}.item`, 'invalid item')
+    if (!isRecord(src)) return void fail(`${at}.item`, 'invalid item') // no cap of its own: the size of the whole sheet bounds it, as for a live item
     const kind = src.kind
     if (kind !== 'field' && kind !== 'table' && kind !== 'row') return void fail(`${at}.item.kind`, 'kind must be field, table or row')
     const key = src.key

@@ -10,7 +10,7 @@ import { heldKeys } from './discardedValues'
 import { isNode, parsePath, type Node, type Path } from './draft'
 import { describeSheetError, displayLine, ownerOf, type DisplayError } from './errorsEs'
 import { newCategory, newSection } from './factories'
-import { describeRemoval, removalMessage, removeNode, type RemovalRequest } from './removal'
+import { describeRemoval, removalConflict, removalMessage, removeNode, type RemovalRequest } from './removal'
 import { RolesPanel } from './RolesPanel'
 
 /** A stored sheet as the draft, or the smallest template (one category, one section) when the campaign has none. */
@@ -66,7 +66,7 @@ export function SheetBuilder({ initial, onChange, onSave, review }: Props) {
   const [deleting, setDeleting] = useState<string | null>(null)
   const [reviewBusy, setReviewBusy] = useState(false)
   const [restoreError, setRestoreError] = useState<string | null>(null)
-  const [restoreNote, setRestoreNote] = useState<string | null>(null)
+  const [removalError, setRemovalError] = useState<string | null>(null)
 
   useEffect(() => onChange?.(draft), [draft, onChange])
 
@@ -101,16 +101,14 @@ export function SheetBuilder({ initial, onChange, onSave, review }: Props) {
 
   function restore(itemKey: string) {
     setRestoreError(null)
-    setRestoreNote(null)
     const plan = planRestore(draft, itemKey)
     if (!plan.ok) return setRestoreError(plan.message)
     const renamed = Object.keys(plan.renames).length > 0
-    // The data can only move when the database knows the entry (it was saved) and the template can be saved right away.
-    if (!renamed || !review || !saved.keys.has(itemKey)) {
-      setDraft(plan.draft)
-      setRestoreNote(plan.warning)
-      return
-    }
+    if (!renamed) return setDraft(plan.draft)
+    // A new key only makes sense if the values follow it: that needs the characters (to know what moves) and an entry the database
+    // already has. Otherwise the values would stay under the old key, now owned by the live item, and the warning would be false.
+    if (!review) return setRestoreError('No se puede restaurar con otra clave hasta poder leer los datos de los personajes. Probá de nuevo en unos segundos.')
+    if (!saved.keys.has(itemKey)) return setRestoreError('Guardá la plantilla antes de restaurar con otra clave.')
     if (!validateSheet(plan.draft).ok) return setRestoreError('La plantilla tiene errores: corregilos antes de restaurar con otra clave.')
     setRenaming({ ...plan, key: itemKey })
   }
@@ -144,6 +142,9 @@ export function SheetBuilder({ initial, onChange, onSave, review }: Props) {
     (list: Path, index: number) => {
       const request = describeRemoval(draft, list, index)
       if (!request) return
+      const conflict = removalConflict(draft, list, index)
+      setRemovalError(conflict)
+      if (conflict) return
       if (request.holdsData) setPending(request)
       else setDraft((d) => removeNode(d, list, index))
     },
@@ -174,9 +175,9 @@ export function SheetBuilder({ initial, onChange, onSave, review }: Props) {
       <div className="flex flex-col gap-4">
         <CategoryTabs selected={selected} onSelect={setSelected} />
         <RolesPanel />
-        {restoreNote && (
-          <p role="status" aria-label="Aviso de restauración" className="text-[13px] text-accent-bright">
-            {restoreNote}
+        {removalError && (
+          <p role="alert" aria-label="No se pudo quitar" className="text-[13px] text-red-400">
+            {removalError}
           </p>
         )}
         {entries.length > 0 && (

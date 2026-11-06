@@ -3,7 +3,9 @@
  * characters but stops being shown, and the removed definition moves to the discarded list (G7b, S26; see discard.ts) so the DM can
  * review it, restore it or delete it for good.
  */
-import { addDiscarded, discardedBy } from './discard'
+import { discardedDataKeys } from '../sheet/discarded'
+import type { DiscardedItem } from '../sheet/sheetModel'
+import { addDiscarded, discardedBy, discardedEntries } from './discard'
 import { getAt, isNode, removeFrom, setAt, type Node, type Path } from './draft'
 
 export type RemovalKind = 'category' | 'section' | 'item' | 'block' | 'row' | 'column' | 'option' | 'actionCategory'
@@ -76,6 +78,26 @@ const itemKeysIn = (node: Node, kind: RemovalKind): string[] => {
   if (kind === 'item') return typeof node.key === 'string' ? [node.key] : []
   const sections = kind === 'category' ? nodes(node.sections) : kind === 'section' ? [node] : []
   return sections.flatMap((s) => nodes(s.items).flatMap((i) => (typeof i.key === 'string' ? [i.key] : [])))
+}
+
+/**
+ * Why removing `list[index]` must wait: it would discard data keys an entry that is already discarded claims (the same key, or a table
+ * and a row of it). One purge would then delete data the other entry still shows. The DM restores or deletes the older one first.
+ */
+export function removalConflict(draft: Node, list: Path, index: number): string | null {
+  const existing = discardedEntries(draft)
+  if (existing.length === 0) return null
+  const request = describeRemoval(draft, list, index)
+  if (!request) return null
+  for (const entry of discardedBy(draft, list, index, request.kind, new Date())) {
+    const claimed = new Set([String(entry.item.key), ...discardedDataKeys(entry.item as unknown as DiscardedItem)])
+    const clash = existing.find((e) => [String(e.item.key), ...discardedDataKeys(e.item as unknown as DiscardedItem)].some((k) => claimed.has(k)))
+    if (clash) {
+      const label = typeof clash.item.label === 'string' ? clash.item.label : String(clash.item.key)
+      return `Ya hay un campo descartado con los mismos datos («${label}»). Restauralo o eliminalo antes de quitar «${request.name}».`
+    }
+  }
+  return null
 }
 
 const mapBlocks = (draft: Node, change: (block: Node) => Node): Node =>

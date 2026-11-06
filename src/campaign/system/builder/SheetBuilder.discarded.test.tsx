@@ -131,12 +131,27 @@ describe('Restaurar', () => {
     expect(within(section('Magia')).getByRole('group', { name: 'Ítem Magralita' })).toBeInTheDocument()
   })
 
-  it('a key a live item took gets key_2 and a warning (no host: the draft only)', () => {
+  it('a restore that needs a new key is blocked while the characters cannot be read: nothing changes and no move is claimed', () => {
     const view = renderBuilder(stored({ discarded: [entry({ ...MAGRALITA, key: 'edad' })] }))
     click('Restaurar', within(discardedItem('Magralita')))
-    expect(screen.getByRole('status', { name: 'Aviso de restauración' })).toHaveTextContent('La clave «edad» ya la usa otro campo de la plantilla: se restauró como «edad_2».')
-    const sections = (view.draft() as unknown as { categories: { sections: { items: { key: string }[] }[] }[] }).categories[0].sections
-    expect(sections[0].items.map((i) => i.key)).toEqual(['edad', 'vida', 'notas_pj', 'edad_2'])
+    expect(screen.getByRole('alert', { name: 'No se pudo restaurar' })).toHaveTextContent('No se puede restaurar con otra clave hasta poder leer los datos de los personajes. Probá de nuevo en unos segundos.')
+    expect(screen.queryByRole('status', { name: 'Aviso de restauración' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/se restauró como/)).not.toBeInTheDocument()
+    expect(discardedItem('Magralita')).toBeInTheDocument()
+    expect((view.draft() as { discarded?: unknown[] }).discarded).toHaveLength(1)
+  })
+
+  it('a restore that needs a new key is blocked for an item discarded in this session: the template must be saved first', () => {
+    const review = host()
+    renderBuilder(stored({}), review)
+    click('Quitar ítem', within(item('Edad')))
+    click(/^Quitar$/, within(screen.getByRole('dialog')))
+    click('Agregar campo', within(section('Perfil')))
+    type(within(item('Nuevo campo')).getByLabelText('Nombre del ítem'), 'Otra')
+    fireEvent.change(within(item('Otra')).getByLabelText('Clave del ítem'), { target: { value: 'edad' } })
+    click('Restaurar', within(discardedItem('Edad')))
+    expect(screen.getByRole('alert', { name: 'No se pudo restaurar' })).toHaveTextContent('Guardá la plantilla antes de restaurar con otra clave.')
+    expect(review.onRestoreRenamed).not.toHaveBeenCalled()
   })
 
   it('with a reused key and access to the data it asks, then saves the template and moves the data in one step', async () => {
@@ -216,5 +231,16 @@ describe('Eliminar definitivamente', () => {
     click('Agregar campo', within(section('Perfil')))
     type(within(item('Nuevo campo')).getByLabelText('Nombre del ítem'), 'Magralita')
     expect(within(item('Magralita')).getByLabelText('Clave del ítem')).toHaveValue('magralita_2') // the discarded key stays reserved for new names
+  })
+})
+
+describe('removing what overlaps a discarded entry', () => {
+  it('is refused with a clear message and removes nothing', () => {
+    renderBuilder(stored({ discarded: [entry({ kind: 'field', key: 'vida', label: 'Vida vieja', type: 'number', editableBy: 'dm' })] }), host())
+    click('Quitar ítem', within(item('Vida')))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByRole('alert', { name: 'No se pudo quitar' })).toHaveTextContent('Ya hay un campo descartado con los mismos datos («Vida vieja»). Restauralo o eliminalo antes de quitar «Vida».')
+    expect(item('Vida')).toBeInTheDocument()
+    expect(discardedItem('Vida vieja')).toBeInTheDocument()
   })
 })

@@ -3,7 +3,7 @@ import { validateSheet } from '../sheet/sheetModel'
 import { STORED_SHEET } from './builderFixture'
 import { planRestore } from './discard'
 import type { Node, Path } from './draft'
-import { removeNode } from './removal'
+import { removalConflict, removeNode } from './removal'
 
 const NOW = new Date('2026-11-06T10:00:00.000Z')
 const AT = '2026-11-06T10:00:00.000Z'
@@ -78,13 +78,6 @@ describe('removing a stored part moves it to discarded', () => {
     expect(removeNode(draft(), ['categories', 1, 'sections', 0, 'items', 0, 'columns'], 1, NOW).discarded).toBeUndefined()
   })
 
-  it('removing a key that is already discarded keeps one entry, the newest', () => {
-    const first = removeNode(draft(), PERFIL_ITEMS, 1, new Date('2026-10-01T00:00:00.000Z'))
-    itemsOf(first).push({ kind: 'field', key: 'vida', label: 'Vida otra vez', type: 'number', editableBy: 'dm' })
-    const twice = removeNode(first, PERFIL_ITEMS, 2, NOW)
-    expect(discardedOf(twice).map((e) => [e.item.key, e.item.label, e.at])).toEqual([['vida', 'Vida otra vez', AT]])
-  })
-
   it('the draft with discarded entries still validates and the list survives', () => {
     const result = validateSheet(removeNode(draft(), PERFIL_ITEMS, 1, NOW))
     expect(result.ok && result.sheet.discarded?.map((e) => e.item.key)).toEqual(['vida'])
@@ -150,5 +143,61 @@ describe('planRestore', () => {
 
   it('an unknown key is refused', () => {
     expect(planRestore(draft(), 'nope').ok).toBe(false)
+  })
+})
+
+describe('big tables (G7b fix 1)', () => {
+  it.each([80, 100])('removing a saved capacidades table of %i rows keeps it and the draft validates', (rows) => {
+    const d = draft()
+    sectionsOf(d, 0)[1].items = [
+      { kind: 'table', type: 'stat', key: 'atrib', label: 'Atributos', rows: [{ key: 'fue', label: 'FUE', modifier: '{valor}', editableBy: 'dm' }] },
+      {
+        kind: 'table', type: 'capacidades', key: 'habs', label: 'Habs',
+        columns: [{ key: 'prof', label: 'Prof', type: 'number', editableBy: 'dm' }],
+        rows: Array.from({ length: rows }, (_, n) => ({ key: `hab_${n}`, label: `Habilidad número ${n} con un nombre bastante largo para pesar`, stat: 'fue', use: 'valor', editableBy: 'dm' })),
+      },
+    ]
+    expect(validateSheet(d).ok).toBe(true)
+    const next = removeNode(d, ['categories', 0, 'sections', 1, 'items'], 1, NOW)
+    expect(keysOf(next)).toEqual(['habs'])
+    expect(validateSheet(next).ok).toBe(true)
+  })
+})
+
+describe('removing something that overlaps a discarded entry (G7b fix 4)', () => {
+  it('is refused with a message naming the entry that is already discarded, and nothing changes', () => {
+    const first = removeNode(draft(), PERFIL_ITEMS, 1, NOW)
+    itemsOf(first).push({ kind: 'field', key: 'vida', label: 'Vida otra vez', type: 'number', editableBy: 'dm' })
+    expect(removalConflict(first, PERFIL_ITEMS, 2)).toBe('Ya hay un campo descartado con los mismos datos («Vida»). Restauralo o eliminalo antes de quitar «Vida otra vez».')
+  })
+
+  it('also when a table is removed after one of its rows (same data keys)', () => {
+    const d = withTables()
+    const rowRemoved = removeNode(d, ['categories', 0, 'sections', 1, 'items', 0, 'rows'], 0, NOW)
+    expect(keysOf(rowRemoved)).toEqual(['fue'])
+    ;(itemsOf(rowRemoved, 0, 1)[0].rows as Node[]).push({ key: 'fue', label: 'FUE', modifier: '{valor}', editableBy: 'dm' }) // the key came back (stored)
+    expect(removalConflict(rowRemoved, ['categories', 0, 'sections', 1, 'items'], 0)).toContain('«FUE»')
+  })
+
+  it('does not trip on removals that do not overlap, or on parts added in this session', () => {
+    const first = removeNode(draft(), PERFIL_ITEMS, 1, NOW)
+    expect(removalConflict(first, PERFIL_ITEMS, 0)).toBeNull()
+    itemsOf(first).push({ kind: 'field', key: 'vida', label: 'Nueva', type: 'number', editableBy: 'dm', _new: true })
+    expect(removalConflict(first, PERFIL_ITEMS, 2)).toBeNull()
+  })
+
+  it('remove -> restore -> remove gives one entry with the newest date', () => {
+    const first = removeNode(draft(), PERFIL_ITEMS, 1, new Date('2026-10-01T00:00:00.000Z'))
+    const plan = planRestore(first, 'vida')
+    if (!plan.ok) throw new Error(plan.message)
+    const again = removeNode(plan.draft, PERFIL_ITEMS, 2, NOW)
+    expect(discardedOf(again).map((e) => [e.item.key, e.at])).toEqual([['vida', AT]])
+  })
+
+  it('removeNode itself never drops an older entry: the older definition stays', () => {
+    const first = removeNode(draft(), PERFIL_ITEMS, 1, new Date('2026-10-01T00:00:00.000Z'))
+    itemsOf(first).push({ kind: 'field', key: 'vida', label: 'Vida otra vez', type: 'number', editableBy: 'dm' })
+    const twice = removeNode(first, PERFIL_ITEMS, 2, NOW)
+    expect(discardedOf(twice).map((e) => [e.item.label, e.at])).toEqual([['Vida', '2026-10-01T00:00:00.000Z']])
   })
 })

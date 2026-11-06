@@ -51,12 +51,13 @@ export function discardedBy(draft: Node, list: Path, index: number, kind: Remova
   return []
 }
 
-/** The draft with the entries added; an older entry with the same key is replaced (the data under that key is the same). */
+/** The draft with the entries added. An older entry with the same key stays as it is: its definition is never lost (the builder refuses such a removal, see removalConflict). */
 export function addDiscarded(draft: Node, entries: DiscardedNode[]): Node {
   if (entries.length === 0) return draft
-  const gone = new Set(entries.map((e) => keyOf(e.item)))
-  const kept = nodes(draft.discarded).filter((e) => !gone.has(keyOf(isNode(e.item) ? e.item : {})))
-  return { ...draft, discarded: [...kept, ...entries] }
+  const kept = nodes(draft.discarded)
+  const held = new Set(kept.map((e) => keyOf(isNode(e.item) ? e.item : {})))
+  const fresh = entries.filter((e) => !held.has(keyOf(e.item)))
+  return fresh.length === 0 ? draft : { ...draft, discarded: [...kept, ...fresh] }
 }
 
 export const discardedEntries = (draft: Node): DiscardedNode[] => nodes(draft.discarded) as unknown as DiscardedNode[]
