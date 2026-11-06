@@ -232,6 +232,29 @@ export function createCampaignRepository(client: Db) {
       return unwrap(res) as unknown as Campaign
     },
 
+    /**
+     * DM only: deletes a discarded sheet item for good. The database removes, from every character of the campaign, exactly the data
+     * keys the item owns and drops the entry from `sheet.discarded`, atomically, against the same `base` version as setSystemProfile.
+     * Errors: discarded_item_not_found, discarded_key_live, dm_only, campaign_not_found; a stale base throws ConflictError.
+     */
+    async purgeDiscardedItem(campaignId: string, key: string, base: string): Promise<Campaign> {
+      const res = await client.rpc('purge_discarded_item', { p_campaign_id: campaignId, p_key: key, p_base: base })
+      if (res.error?.code === 'P0001' && res.error.message === 'campaign_conflict') throw new ConflictError()
+      return unwrap(res) as unknown as Campaign
+    },
+
+    /**
+     * DM only: restores a discarded item under new keys. `profile` is the whole new system document (the item back in its section, the
+     * entry gone from the list) and `renames` maps the keys that changed (`{ magralita: 'magralita_2' }`); the database moves the
+     * characters' values to the new keys (copies them when the old key is live again) and saves the document in one transaction.
+     * Errors: discarded_item_not_found, discarded_rekey_invalid, discarded_key_taken, invalid_system_profile, dm_only.
+     */
+    async rekeyDiscardedItem(campaignId: string, key: string, renames: Record<string, string>, profile: unknown, base: string): Promise<Campaign> {
+      const res = await client.rpc('rekey_discarded_item', { p_campaign_id: campaignId, p_key: key, p_renames: renames, p_profile: profile as never, p_base: base })
+      if (res.error?.code === 'P0001' && res.error.message === 'campaign_conflict') throw new ConflictError()
+      return unwrap(res) as unknown as Campaign
+    },
+
     async listMembers(campaignId: string): Promise<Member[]> {
       return pagedList<Member>(
         () =>

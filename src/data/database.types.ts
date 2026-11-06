@@ -1619,6 +1619,52 @@ export type Database = {
         Args: { p_note?: string; p_request_id: number }
         Returns: undefined
       }
+      purge_discarded_item: {
+        Args: { p_base: string; p_campaign_id: string; p_key: string }
+        Returns: {
+          branding: Json
+          character_custom_fields: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          regions: Json
+          settings: Json
+          slug: string
+          system: string
+          system_profile: Json
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "campaigns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      rekey_discarded_item: {
+        Args: { p_base: string; p_campaign_id: string; p_key: string; p_profile: Json; p_renames: Json }
+        Returns: {
+          branding: Json
+          character_custom_fields: Json
+          created_at: string
+          created_by: string | null
+          id: string
+          name: string
+          regions: Json
+          settings: Json
+          slug: string
+          system: string
+          system_profile: Json
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "campaigns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       set_entity_visibility: {
         Args: { p_entity_type: string; p_id: number; p_visible_to: number[] }
         Returns: number[]

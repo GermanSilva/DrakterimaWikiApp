@@ -55,6 +55,10 @@ export const KNOWN_REASONS = [
   'invalid_link_state',
   'link_state_not_writable',
   'campaign_not_found',
+  'discarded_item_not_found',
+  'discarded_key_live',
+  'discarded_rekey_invalid',
+  'discarded_key_taken',
 ] as const
 
 export type DataErrorReason = (typeof KNOWN_REASONS)[number]

@@ -131,9 +131,28 @@ export interface Category {
   label: string
   sections: Section[]
 }
+/**
+ * A Stat or Capacidades row the DM removed from a table that stays (S26). A capacidades row names the column keys the table had:
+ * they decide which `row__column` data keys the row owns.
+ */
+export type DiscardedRow =
+  | { kind: 'row'; type: 'stat'; table: string; key: string; label: string; modifier: string; editableBy: EditableBy }
+  | { kind: 'row'; type: 'capacidades'; table: string; key: string; label: string; stat: string; use: 'valor' | 'modificador'; editableBy: EditableBy; columns: string[] }
+export type DiscardedItem = Item | DiscardedRow
+/** A part of the template removed while characters may hold data for it: kept hidden until the DM restores or deletes it. */
+export interface DiscardedEntry {
+  /** The definition as it was. */
+  item: DiscardedItem
+  /** The section it came from. */
+  section: string
+  /** When it was discarded (ISO UTC, `Date#toISOString`): the 60-day lifecycle reads it. */
+  at: string
+}
 export interface Sheet {
   categories: Category[]
   roles: Partial<Record<RoleName, string>>
+  /** Optional, at most SHEET_LIMITS.discarded entries; never drawn, edited, searched or tagged. A live item may reuse a discarded key. */
+  discarded?: DiscardedEntry[]
 }
 
 export interface SheetError {
@@ -155,6 +174,8 @@ export const SHEET_LIMITS = {
   filterCategories: 20,
   actionCategories: 30,
   options: 20,
+  discarded: 100,
+  discardedItemBytes: 8000,
   coinValue: 1_000_000_000,
   text: 4000,
   bytes: 40_000,
@@ -168,6 +189,10 @@ export const RESERVED_KEYS: ReadonlySet<string> = new Set([
   'valor', 'modificador', 'constructor', 'prototype',
   'custom_fields', // the legacy per-campaign custom fields: guard_pj_player_update always opens that key to players
 ])
+
+const DISCARDED_AT = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):[0-5]\d:[0-5]\d(\.\d{1,3})?Z$/
+const DISCARDED_FIELD_TYPES: readonly unknown[] = FIELD_TYPES
+const DISCARDED_TABLE_TYPES: readonly unknown[] = ['stat', 'capacidades', 'habilidad', 'libre', 'monedas', 'economia']
 
 const PROTOTYPE_KEYS: ReadonlySet<string> = new Set(['constructor', 'prototype'])
 /** The database charset of a formula: anything but control characters (C0, DEL, C1) other than tab. */
@@ -686,5 +711,52 @@ export function validateSheet(raw: unknown): SheetResult {
     }
   }
 
-  return errors.length > 0 ? { ok: false, errors } : { ok: true, sheet: { categories, roles } }
+  const discarded = raw.discarded === undefined ? undefined : discardedOf(raw.discarded, fail)
+
+  return errors.length > 0 ? { ok: false, errors } : { ok: true, sheet: { categories, roles, ...(discarded !== undefined ? { discarded } : {}) } }
+}
+
+const isScopedKey = (key: unknown): key is string => typeof key === 'string' && KEY.test(key) && !PROTOTYPE_KEYS.has(key)
+
+/**
+ * The discarded list: shape only (key, label, type, bounds). The formulas inside refer to a sheet that no longer exists, so they are
+ * judged when the item is restored and the whole sheet is validated again. Same rules as validate_sheet in the database.
+ */
+function discardedOf(value: unknown, fail: (path: string, message: string) => void): DiscardedEntry[] | undefined {
+  if (!Array.isArray(value) || value.length > SHEET_LIMITS.discarded) return void fail('discarded', 'discarded is a list of at most 100 entries'), undefined
+  const seen = new Set<string>()
+  const out: DiscardedEntry[] = []
+  value.forEach((entry, i) => {
+    const at = `discarded[${i}]`
+    if (!isRecord(entry)) return void fail(at, 'invalid entry')
+    const src = entry.item
+    if (!isRecord(src) || JSON.stringify(src).length > SHEET_LIMITS.discardedItemBytes) return void fail(`${at}.item`, 'invalid item')
+    const kind = src.kind
+    if (kind !== 'field' && kind !== 'table' && kind !== 'row') return void fail(`${at}.item.kind`, 'kind must be field, table or row')
+    const key = src.key
+    if (typeof key !== 'string' || !KEY.test(key) || key.includes('__') || PROTOTYPE_KEYS.has(key)) return void fail(`${at}.item.key`, 'invalid key')
+    if (RESERVED_KEYS.has(key)) return void fail(`${at}.item.key`, 'reserved key')
+    if (seen.has(key)) return void fail(`${at}.item.key`, 'key already discarded')
+    seen.add(key)
+    const text = cleanLabel(src.label)
+    if (text === null) return void fail(`${at}.item.label`, 'invalid label')
+    if (kind === 'field') {
+      if (!DISCARDED_FIELD_TYPES.includes(src.type)) return void fail(`${at}.item.type`, 'invalid type')
+    } else if (kind === 'table') {
+      if (!DISCARDED_TABLE_TYPES.includes(src.type)) return void fail(`${at}.item.type`, 'invalid type')
+    } else {
+      if (src.type !== 'stat' && src.type !== 'capacidades') return void fail(`${at}.item.type`, 'a removed row is a stat or capacidades row')
+      if (!isScopedKey(src.table)) return void fail(`${at}.item.table`, 'a removed row names its table')
+      if (src.type === 'capacidades') {
+        const columns = src.columns
+        const ok = Array.isArray(columns) && columns.length >= 1 && columns.length <= SHEET_LIMITS.columns && columns.every(isScopedKey) && new Set(columns).size === columns.length
+        if (!ok) return void fail(`${at}.item.columns`, 'a capacidades row names the column keys of its table')
+      } else if (src.columns !== undefined) return void fail(`${at}.item.columns`, 'only a capacidades row names columns')
+    }
+    const section = entry.section
+    if (!isScopedKey(section)) return void fail(`${at}.section`, 'invalid key')
+    if (typeof entry.at !== 'string' || !DISCARDED_AT.test(entry.at)) return void fail(`${at}.at`, 'at must be an ISO date')
+    out.push({ item: { ...src, label: text } as unknown as DiscardedItem, section, at: entry.at })
+  })
+  return out
 }

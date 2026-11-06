@@ -72,3 +72,17 @@ describe('action collection errors (G6a)', () => {
     expect(describeDataError(trigger('dm_only', '42501'))).toBe('Solo el DM puede hacer esto.')
   })
 })
+
+describe('discarded sheet items (G7b)', () => {
+  it('explains each refusal of the purge and restore RPCs in Spanish', () => {
+    expect(describeDataError(raised('discarded_item_not_found'))).toBe('Ese campo descartado ya no está en la plantilla. Recargá y revisá la lista.')
+    expect(describeDataError(raised('discarded_key_live'))).toBe('Un campo de la plantilla usa de nuevo esa clave: restaurá el campo descartado con otra clave en lugar de eliminarlo.')
+    expect(describeDataError(raised('discarded_rekey_invalid'))).toBe('No se pudo restaurar el campo con la clave nueva. Recargá y volvé a intentar.')
+    expect(describeDataError(raised('discarded_key_taken'))).toBe('Algún personaje ya tiene datos guardados con la clave nueva, así que no se restauró. Probá con otra clave.')
+  })
+
+  it('keeps them business errors, and dm_only a permission error', () => {
+    expect(raised('discarded_key_live').kind).toBe('business')
+    expect(describeDataError(toDataError({ message: 'dm_only', code: '42501' }))).toBe('Solo el DM puede hacer esto.')
+  })
+})

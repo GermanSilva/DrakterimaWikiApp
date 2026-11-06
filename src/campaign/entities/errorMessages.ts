@@ -18,6 +18,14 @@ const COLLECTION_MESSAGES: Partial<Record<string, string>> = {
   link_state_not_writable: 'Esa tabla de la hoja no se puede editar con tu rol.',
 }
 
+/** Discarded sheet items (G7b, S26, S32): reasons raised by the purge and restore RPCs. */
+const DISCARD_MESSAGES: Partial<Record<string, string>> = {
+  discarded_item_not_found: 'Ese campo descartado ya no está en la plantilla. Recargá y revisá la lista.',
+  discarded_key_live: 'Un campo de la plantilla usa de nuevo esa clave: restaurá el campo descartado con otra clave en lugar de eliminarlo.',
+  discarded_rekey_invalid: 'No se pudo restaurar el campo con la clave nueva. Recargá y volvé a intentar.',
+  discarded_key_taken: 'Algún personaje ya tiene datos guardados con la clave nueva, así que no se restauró. Probá con otra clave.',
+}
+
 /**
  * User-facing (Spanish, voseo) message for a failed data operation. Never shows raw database text:
  * the typed kind / stable reason decides, everything else is logged by the caller.
@@ -37,7 +45,7 @@ export function describeDataError(err: unknown, fallback = 'No se pudo completar
     case 'auth':
       return 'Tu sesión expiró. Iniciá sesión de nuevo.'
     case 'business':
-      return (err.reason && REWARD_MESSAGES[err.reason]) || fallback
+      return (err.reason && (REWARD_MESSAGES[err.reason] ?? DISCARD_MESSAGES[err.reason])) || fallback
     case 'written_not_visible':
       return 'Se guardó, pero con tu rol no podés verlo. Recargá antes de volver a intentar.'
     default:

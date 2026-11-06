@@ -120,6 +120,22 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
     campaignRow = { ...campaignRow, system_profile: profile as Campaign['system_profile'], updated_at: `u${++campaignVersion}` }
     return campaignRow
   })
+  // campaigns.purgeDiscardedItem / rekeyDiscardedItem: same version guard; the fake keeps the document (the characters' data is the database's business, see 32_sheet_discarded.test.sql)
+  const purgeDiscardedItem = vi.fn(async (_id: string, key: string, base: string) => {
+    if (campaignRow.updated_at !== base) throw new ConflictError()
+    const profile = JSON.parse(JSON.stringify(campaignRow.system_profile ?? {})) as { sheet?: { discarded?: { item: { key: string } }[] } }
+    if (profile.sheet?.discarded) {
+      profile.sheet.discarded = profile.sheet.discarded.filter((e) => e.item.key !== key)
+      if (profile.sheet.discarded.length === 0) delete profile.sheet.discarded
+    }
+    campaignRow = { ...campaignRow, system_profile: profile as Campaign['system_profile'], updated_at: `u${++campaignVersion}` }
+    return campaignRow
+  })
+  const rekeyDiscardedItem = vi.fn(async (_id: string, _key: string, _renames: Record<string, string>, profile: unknown, base: string) => {
+    if (campaignRow.updated_at !== base) throw new ConflictError()
+    campaignRow = { ...campaignRow, system_profile: profile as Campaign['system_profile'], updated_at: `u${++campaignVersion}` }
+    return campaignRow
+  })
   // invites: an in-memory table; create/revoke change what the next list returns, like the real repository
   let inviteRows = [...(options.invites ?? [])]
   let inviteSeq = 0
@@ -242,13 +258,13 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
       remove: vi.fn(async () => undefined),
       busySlots: busySlotsList,
     },
-    campaigns: { listMembers: membersList, updateMemberRole, removeMember, setPjOwner, deleteCampaign, updateCampaign, setSystemProfile, listInvites: invitesList, createInvite: invitesCreate, revokeInvite: invitesRevoke },
+    campaigns: { listMembers: membersList, updateMemberRole, removeMember, setPjOwner, deleteCampaign, updateCampaign, setSystemProfile, purgeDiscardedItem, rekeyDiscardedItem, listInvites: invitesList, createInvite: invitesCreate, revokeInvite: invitesRevoke },
     games: { getPot: potGet, listLogs: gameLogsList, playLoteria: vi.fn(), assignPotToCharacter: vi.fn(), removeLog: vi.fn(async () => undefined) },
     presence: { touch: presenceTouch, list: presenceList },
     actions: { listActions: actionsList, listLinks: actionLinksList, listLinkedActions, createAction, updateAction, removeAction, link: linkAction, unlink: unlinkAction, updateLinkState },
     playerNotes: { list: playerNotesList, upsert: vi.fn(), update: vi.fn(), remove: vi.fn() },
   } as unknown as DataLayer
-  return { layer, fake, spies: { updateMemberRole, removeMember, setPjOwner, deleteCampaign, updateCampaign, setSystemProfile, invitesList, invitesCreate, invitesRevoke, presenceTouch, presenceList, membersList, busySlotsList, disponibilidadList, playerAvailabilityList, potGet, gameLogsList, playerNotesList, actionsList, actionLinksList, listLinkedActions, createAction, updateAction, removeAction, linkAction, unlinkAction, updateLinkState, configGet, configPatch, configRows, entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
+  return { layer, fake, spies: { updateMemberRole, removeMember, setPjOwner, deleteCampaign, updateCampaign, setSystemProfile, purgeDiscardedItem, rekeyDiscardedItem, invitesList, invitesCreate, invitesRevoke, presenceTouch, presenceList, membersList, busySlotsList, disponibilidadList, playerAvailabilityList, potGet, gameLogsList, playerNotesList, actionsList, actionLinksList, listLinkedActions, createAction, updateAction, removeAction, linkAction, unlinkAction, updateLinkState, configGet, configPatch, configRows, entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
 }
 
 export const fakeUnread = (): UnreadPort & { markRead: ReturnType<typeof vi.fn> } => ({
