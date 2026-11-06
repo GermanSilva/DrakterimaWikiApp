@@ -62,6 +62,9 @@ describe('discarded list (G7b)', () => {
     ['a row without its table', [entry({ kind: 'row', type: 'stat', key: 'a', label: 'A' })], 'discarded[0].item.table'],
     ['a section that is not a key', [entry(field(), { section: 'Bad Key' })], 'discarded[0].section'],
     ['a date that is not ISO', [entry(field(), { at: 'yesterday' })], 'discarded[0].at'],
+    ['a date that does not exist (30 February)', [entry(field(), { at: '2026-02-30T00:00:00Z' })], 'discarded[0].at'],
+    ['a date that does not exist (31 April)', [entry(field(), { at: '2026-04-31T10:00:00.000Z' })], 'discarded[0].at'],
+    ['29 February of a common year', [entry(field(), { at: '2025-02-29T10:00:00.000Z' })], 'discarded[0].at'],
     ['a key discarded twice', [entry(field()), entry(field({ label: 'B' }))], 'discarded[1].item.key'],
   ]
   it.each(bad)('rejects %s', (_name, discarded, path) => {
@@ -88,5 +91,11 @@ describe('size of a discarded item (G7b fix 1)', () => {
   it('is bounded only by the size of the whole sheet, the same bound as a live sheet', () => {
     const huge = entry(field({ pad: 'x'.repeat(41_000) }))
     expect(errorsOf(sheetOf([huge]))).toEqual([''])
+  })
+})
+
+describe('real calendar dates of a discarded entry (G9 fix 1)', () => {
+  it.each(['2024-02-29T10:00:00.000Z', '2026-12-31T23:59:59Z', '2026-04-30T00:00:00.000Z'])('accepts the date that exists: %s', (at) => {
+    expect(errorsOf(sheetOf([entry(field(), { at })]))).toEqual([])
   })
 })

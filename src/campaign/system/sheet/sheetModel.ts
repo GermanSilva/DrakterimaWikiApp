@@ -189,6 +189,12 @@ export const RESERVED_KEYS: ReadonlySet<string> = new Set([
   'custom_fields', // the legacy per-campaign custom fields: guard_pj_player_update always opens that key to players
 ])
 
+/** The day exists in the calendar (the format already bounds month, day, hour...): 2026-02-30 is not 2 March. */
+const realDay = (iso: string): boolean => {
+  const [y, m, d] = [Number(iso.slice(0, 4)), Number(iso.slice(5, 7)), Number(iso.slice(8, 10))]
+  const date = new Date(Date.UTC(y, m - 1, d))
+  return date.getUTCFullYear() === y && date.getUTCMonth() === m - 1 && date.getUTCDate() === d
+}
 const DISCARDED_AT = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])T([01]\d|2[0-3]):[0-5]\d:[0-5]\d(\.\d{1,3})?Z$/
 const DISCARDED_FIELD_TYPES: readonly unknown[] = FIELD_TYPES
 const DISCARDED_TABLE_TYPES: readonly unknown[] = ['stat', 'capacidades', 'habilidad', 'libre', 'monedas', 'economia']
@@ -754,7 +760,7 @@ function discardedOf(value: unknown, fail: (path: string, message: string) => vo
     }
     const section = entry.section
     if (!isScopedKey(section)) return void fail(`${at}.section`, 'invalid key')
-    if (typeof entry.at !== 'string' || !DISCARDED_AT.test(entry.at)) return void fail(`${at}.at`, 'at must be an ISO date')
+    if (typeof entry.at !== 'string' || !DISCARDED_AT.test(entry.at) || !realDay(entry.at)) return void fail(`${at}.at`, 'at must be an ISO date')
     out.push({ item: { ...src, label: text } as unknown as DiscardedItem, section, at: entry.at })
   })
   return out
