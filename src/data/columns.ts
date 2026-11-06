@@ -189,6 +189,8 @@ export const CAMPAIGN_REQUEST_COLUMNS = [
   'decided_at',
   'campaign_id',
   'system_id',
+  'seeded_actions',
+  'skipped_actions',
   'created_at',
   'updated_at',
 ] as const

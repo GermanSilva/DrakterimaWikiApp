@@ -23,6 +23,10 @@ export interface CampaignRequest {
   campaign_id: string | null
   /** The base system chosen at request time (null = the default document); the campaign gets a copy on approval (S4, S25). */
   system_id?: string | null
+  /** Entries of the base system's action catalogue seeded into the new campaign on approval (null: no base / not approved yet). */
+  seeded_actions?: number | null
+  /** Entries skipped on approval because the copied sheet rejected them. */
+  skipped_actions?: number | null
   created_at: string
   updated_at: string
 }

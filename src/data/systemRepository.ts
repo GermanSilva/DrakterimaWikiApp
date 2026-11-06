@@ -22,6 +22,16 @@ export interface SystemSummary {
   updated_at: string
 }
 
+/** One shared entry of the action collection carried by a system (S38); never an entry private to a character. */
+export interface SystemAction {
+  table_key: string
+  category: string
+  name: string
+  description: string
+  extras: Record<string, unknown>
+  function: unknown
+}
+
 type SystemRow = SystemSummary & { document: unknown }
 
 const SELECT = join(SYSTEM_COLUMNS)
@@ -67,6 +77,12 @@ export function createSystemRepository(client: Db) {
     async getSystemDocument(systemId: string): Promise<unknown> {
       const rows = unwrap<{ document: unknown }[]>(await fromTable(client, 'systems').select('document').eq('id', systemId).limit(1))
       return rows[0]?.document ?? null
+    },
+
+    /** The action catalogue a system carries (copied into a campaign created from it), [] when it has none or is not visible. */
+    async getSystemActions(systemId: string): Promise<SystemAction[]> {
+      const rows = unwrap<{ actions: SystemAction[] | null }[]>(await fromTable(client, 'systems').select('actions').eq('id', systemId).limit(1))
+      return rows[0]?.actions ?? []
     },
 
     /** RPC, DM of the campaign: a homebrew holding a copy of the campaign's current system. Errors: dm_only, invalid_name, systems_limit_reached. */

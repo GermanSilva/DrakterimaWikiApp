@@ -68,6 +68,20 @@ describe('system repository', () => {
     await expect(repo.branchSystem('c1', 'x')).rejects.toMatchObject({ kind: 'business', reason: 'systems_limit_reached' })
   })
 
+  it('getSystemActions returns the catalogue, or [] when the system is not visible or has none', async () => {
+    const fake = createFakeClient()
+    fake.enqueue({ data: [{ actions: [{ table_key: 'hechizos', name: 'Luz' }] }] }, { data: [] }, { data: [{ actions: null }] })
+    const repo = createSystemRepository(fake.db)
+    expect(await repo.getSystemActions('s1')).toEqual([{ table_key: 'hechizos', name: 'Luz' }])
+    expect(opsNamed(fake.calls[0], 'select')).toEqual([['actions']])
+    expect(await repo.getSystemActions('s2')).toEqual([])
+    expect(await repo.getSystemActions('s3')).toEqual([])
+  })
+
+  it('the list columns never carry the catalogue (it can be 1 MB)', () => {
+    expect(SYSTEM_COLUMNS).not.toContain('actions')
+  })
+
   it('getSystemDocument returns the document, or null when the system is not visible', async () => {
     const fake = createFakeClient()
     fake.enqueue({ data: [{ document: { version: 1 } }] }, { data: [] })

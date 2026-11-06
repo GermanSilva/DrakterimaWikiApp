@@ -279,6 +279,8 @@ export type Database = {
           message: string | null
           name: string
           requester_id: string
+          seeded_actions: number | null
+          skipped_actions: number | null
           slug_wanted: string | null
           status: string
           system_id: string | null
@@ -298,6 +300,8 @@ export type Database = {
           message?: string | null
           name: string
           requester_id?: string
+          seeded_actions?: number | null
+          skipped_actions?: number | null
           slug_wanted?: string | null
           status?: string
           system_id?: string | null
@@ -317,6 +321,8 @@ export type Database = {
           message?: string | null
           name?: string
           requester_id?: string
+          seeded_actions?: number | null
+          skipped_actions?: number | null
           slug_wanted?: string | null
           status?: string
           system_id?: string | null
@@ -1495,6 +1501,7 @@ export type Database = {
       }
       systems: {
         Row: {
+          actions: Json
           archived_at: string | null
           branched_from: string | null
           campaign_id: string | null
@@ -1507,6 +1514,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          actions?: Json
           archived_at?: string | null
           branched_from?: string | null
           campaign_id?: string | null
@@ -1519,6 +1527,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          actions?: Json
           archived_at?: string | null
           branched_from?: string | null
           campaign_id?: string | null
@@ -1595,6 +1604,7 @@ export type Database = {
       archive_system: {
         Args: { p_archived: boolean; p_system_id: string }
         Returns: {
+          actions: Json
           archived_at: string | null
           branched_from: string | null
           campaign_id: string | null
@@ -1620,6 +1630,7 @@ export type Database = {
       branch_system: {
         Args: { p_campaign_id: string; p_name: string }
         Returns: {
+          actions: Json
           archived_at: string | null
           branched_from: string | null
           campaign_id: string | null
@@ -1721,6 +1732,7 @@ export type Database = {
       create_origin_from_campaign: {
         Args: { p_campaign_id: string; p_name: string }
         Returns: {
+          actions: Json
           archived_at: string | null
           branched_from: string | null
           campaign_id: string | null
@@ -1776,6 +1788,7 @@ export type Database = {
       promote_system: {
         Args: { p_name?: string; p_system_id: string }
         Returns: {
+          actions: Json
           archived_at: string | null
           branched_from: string | null
           campaign_id: string | null
@@ -1855,6 +1868,7 @@ export type Database = {
       rename_system: {
         Args: { p_name: string; p_system_id: string }
         Returns: {
+          actions: Json
           archived_at: string | null
           branched_from: string | null
           campaign_id: string | null
@@ -1910,10 +1924,16 @@ export type Database = {
         Args: { p_keep_newlines?: boolean; p_text: string }
         Returns: string
       }
+      system_capture_actions: { Args: { p_campaign_id: string }; Returns: Json }
+      system_seed_actions: {
+        Args: { p_actions: Json; p_campaign_id: string; p_created_by: string }
+        Returns: number
+      }
       system_template: { Args: { p: Json }; Returns: Json }
       system_usable_by:
         | { Args: { p_system_id: string }; Returns: boolean }
         | { Args: { p_system_id: string; p_user: string }; Returns: boolean }
+      systems_actions_ok: { Args: { a: Json }; Returns: boolean }
       touch_campaign_presence: {
         Args: { p_campaign_id: string }
         Returns: undefined
