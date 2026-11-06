@@ -43,6 +43,7 @@ const section = (key: string) => {
   if (!el) throw new Error(`no section ${key}`)
   return within(el)
 }
+const titleOf = (key: string) => (document.getElementById(`pj-section-${key}`) as HTMLElement).firstElementChild as HTMLElement
 // the marker is what tells the two renderers apart: today's detail already shows many of the same numbers
 const sheetView = () => document.querySelector('[data-sheet-view]')
 const open = async (pjs = [ELDRIC], url = SHEET_URL, campaign: Record<string, unknown> = withSheet(), expectSheet = true) => {
@@ -165,6 +166,38 @@ describe('PJ detail drawn from the sheet (?sheet=1)', () => {
     await open([stamped])
     const nav = screen.getAllByRole('button').find((b) => b.textContent === 'Ataques') as HTMLElement
     expect(nav.querySelector('.unread-dot')).not.toBeNull()
+  })
+
+  it.each(['stats', 'habilidades', 'ataques', 'hechizos', 'recursos', 'equipo', 'rasgos', 'narrativa', 'apariencia'])(
+    'the D&D preset section %s shows its unread dot when that stamp is newer, and only it (S13)',
+    async (key) => {
+      const full = pj(1, {
+        ...ELDRIC,
+        recursos: [{ id: 1, nombre: 'Furia', actual: 1, maximo: 2, recuperacion: 'largo' }],
+        trasfondo: 'Un soldado retirado.',
+        equipo: [{ id: 1, nombre: 'Soga', cantidad: 1 }],
+        sections_updated: { [key]: '2099-01-01T00:00:00.000Z' },
+      })
+      await open([full])
+      const navDots = screen.getAllByRole('button').filter((b) => b.querySelector('.unread-dot'))
+      expect(navDots).toHaveLength(1)
+      expect(document.querySelectorAll('[data-sheet-view] .unread-dot')).toHaveLength(1)
+      expect(titleOf(key).querySelector('.unread-dot')).not.toBeNull()
+    },
+  )
+
+  it('a section of a custom sheet gets its dot by its own key', async () => {
+    const custom = {
+      categories: [{ key: 'g', label: 'G', sections: [
+        { key: 'bestiario', label: 'Bestiario', items: [{ kind: 'field', key: 'nota', label: 'Nota', type: 'short', editableBy: 'dm' }], blocks: [{ key: 'b', mode: 'tile', items: ['nota'] }] },
+        { key: 'otra', label: 'Otra', items: [{ kind: 'field', key: 'x', label: 'X', type: 'short', editableBy: 'dm' }], blocks: [{ key: 'c', mode: 'tile', items: ['x'] }] },
+      ] }],
+      roles: {},
+    }
+    const stamped = pj(1, { nombre: 'Eldric', nota: 'Dragon', x: 'y', sections_updated: { bestiario: '2099-01-01T00:00:00.000Z' } })
+    await open([stamped], SHEET_URL, withSheet(custom))
+    expect(titleOf('bestiario').querySelector('.unread-dot')).not.toBeNull()
+    expect(titleOf('otra').querySelector('.unread-dot')).toBeNull()
   })
 
   it.each([
