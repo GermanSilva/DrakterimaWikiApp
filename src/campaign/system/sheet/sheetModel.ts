@@ -39,6 +39,10 @@ export interface SortBy {
   direction: 'asc' | 'desc'
 }
 
+/** Habilidad columns: `entry` belongs to the collection entry (shared by every character), `character` is per-character state (prepared, uses). */
+export type ColumnScope = 'entry' | 'character'
+export const COLUMN_SCOPES: readonly ColumnScope[] = ['entry', 'character']
+
 export interface Column {
   key: string
   label: string
@@ -52,6 +56,8 @@ export interface Column {
   reset?: Reset
   /** What a character that has no stored value counts as (a missing proficiency is 0, a missing flag is false, an options column an option key). */
   default?: string | number | boolean
+  /** Habilidad tables only; absent means `entry`. */
+  scope?: ColumnScope
 }
 export interface Field {
   kind: 'field'
@@ -287,7 +293,7 @@ export function validateSheet(raw: unknown): SheetResult {
     }
     return bad('reset must go to zero, a column or a value')
   }
-  const columnsOf = (value: unknown, path: string, allowReset = false): Column[] => {
+  const columnsOf = (value: unknown, path: string, allowReset = false, allowScope = false): Column[] => {
     if (!Array.isArray(value) || value.length > SHEET_LIMITS.columns) return void fail(path, 'columns required'), []
     const seen = new Set<string>()
     return value.map((c, i) => {
@@ -302,6 +308,11 @@ export function validateSheet(raw: unknown): SheetResult {
       const fallback = defaultOf(col.default, type, `${at}.default`, spec?.options.map((o) => o.key))
       const key = plainKey(col.key, `${at}.key`, seen)
       const reset = resetOf(col.reset, { key, type, formula }, value, allowReset, `${at}.reset`)
+      let scope: ColumnScope | undefined
+      if (col.scope !== undefined) {
+        if (!allowScope || formula !== undefined || !(COLUMN_SCOPES as readonly unknown[]).includes(col.scope)) fail(`${at}.scope`, 'scope must be entry or character on a Habilidad column without a formula')
+        else scope = col.scope as ColumnScope
+      }
       return {
         key,
         label: label(col.label, `${at}.label`),
@@ -311,6 +322,7 @@ export function validateSheet(raw: unknown): SheetResult {
         ...(spec ? { options: spec.options, display: spec.display } : {}),
         ...(reset !== undefined ? { reset } : {}),
         ...(fallback !== undefined ? { default: fallback } : {}),
+        ...(scope !== undefined ? { scope } : {}),
         editableBy: editor(col.editableBy, `${at}.editableBy`),
       }
     })
@@ -512,7 +524,7 @@ export function validateSheet(raw: unknown): SheetResult {
               return { kind: 'table', type: 'capacidades', key, label: name, columns, rows }
             }
             if (item.type === 'habilidad' || item.type === 'libre') {
-              const columns = columnsOf(item.columns, `${ipath}.columns`, true)
+              const columns = columnsOf(item.columns, `${ipath}.columns`, true, item.type === 'habilidad')
               const sortBy = sortOf(item.sortBy, columns, `${ipath}.sortBy`)
               const actionCategories = item.type === 'habilidad' && item.categories !== undefined ? categoriesOf(item.categories, `${ipath}.categories`) : undefined
               if (actionCategories) actionCategoryKeys.set(key, actionCategories.map((c) => c.key))
