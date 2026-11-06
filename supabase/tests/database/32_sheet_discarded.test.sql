@@ -10,7 +10,7 @@
 -- Self-contained fixture, rolled back at the end.
 begin;
 
-select plan(93);
+select plan(103);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -115,6 +115,19 @@ create function tests.identical(p_tag text, p_campaign uuid) returns boolean lan
   where s.tag = p_tag and p.campaign_id = p_campaign;
 $$;
 
+-- the same, also dropping another discarded entry from the list
+create function tests.restore_profile_dropping(p_from text, p_item jsonb, p_drop text) returns jsonb language sql as $$
+  select jsonb_set(p, '{sheet,discarded}', coalesce((select jsonb_agg(e) from jsonb_array_elements(p #> '{sheet,discarded}') e where e #>> '{item,key}' <> p_drop), '[]'::jsonb))
+  from (select tests.restore_profile(p_from, p_item) p) q;
+$$;
+
+-- a capacidades table of 100 rows: heavier than 12000 bytes, still a valid live item
+create function tests.big_table() returns jsonb language sql as $$
+  select jsonb_build_object('kind', 'table', 'type', 'capacidades', 'key', 'habs', 'label', 'H',
+    'columns', '[{"key":"prof","label":"Prof","type":"number","editableBy":"dm"}]'::jsonb,
+    'rows', (select jsonb_agg(jsonb_build_object('key', 'hab_' || n, 'label', 'Habilidad número ' || n || ' con un nombre bastante largo para pesar', 'stat', 'fue', 'use', 'valor', 'editableBy', 'dm')) from generate_series(0, 99) n));
+$$;
+
 grant execute on all functions in schema tests to anon, authenticated;
 
 ------------------------------------------------------------------------------
@@ -140,7 +153,8 @@ insert into public.pjs (id, campaign_id, owner_id, nombre, data) values
   (99101, 'ffffffff-0000-4000-8000-00000000032a', 'eeeeeeee-0000-4000-8000-000000000402', 'A uno',
    '{"vida": 7, "mana": "m1", "fuerza": 3, "gone": "g1", "gone2": "keep", "gone_x": "keep", "gone__nota": "keep", "sabio": 4, "sabio_2": "keep",
      "ath": 1, "ath__nota": "n", "ath__extra": "e", "ath__prof": "keep", "bolsillo": [{"a": 1}], "hechizos": [{"x": 1}], "viejo": "v1",
-     "s1": 1, "s1__nota": "x", "s2": 2, "extra_other": "keep", "atl": 1, "atl__nota": "an", "atl__extra": "ae", "atl__prof": "keep", "conjuros": [{"x": 9}]}'),
+     "s1": 1, "s1__nota": "x", "s2": 2, "extra_other": "keep", "atl": 1, "atl__nota": "an", "atl__extra": "ae", "atl__prof": "keep", "conjuros": [{"x": 9}],
+     "fz": "f1", "fz_max": "keep", "fzs": "keep", "fz_": "keep", "rr": 5, "rr__nota": "rn", "rr_": "keep", "rr2__nota": "keep", "rr__prof": "keep"}'),
   (99102, 'ffffffff-0000-4000-8000-00000000032a', 'eeeeeeee-0000-4000-8000-000000000403', 'A dos',
    '{"vida": 5, "mana": "m2", "gone": "g2", "gone2": "keep", "sabio": 2, "ath": 2, "ath__nota": "n2", "bolsillo": [{"a": 2}], "viejo": "v2", "s1": 9, "extra_other": "keep"}'),
   (99103, 'ffffffff-0000-4000-8000-00000000032a', null, 'A sin dueño', '{"gone": "g3", "viejo": "v3", "extra_other": "keep"}'),
@@ -182,7 +196,9 @@ select tests.put_sheet('ffffffff-0000-4000-8000-00000000032a', tests.sheet('[
     tests.entry('{"kind":"table","type":"capacidades","key":"salvac","label":"Salvaciones","columns":[{"key":"prof","label":"Prof","type":"number","editableBy":"dm"},{"key":"nota","label":"Nota","type":"short","editableBy":"dm"}],
        "rows":[{"key":"s1","label":"Uno","stat":"fuerza","use":"valor","editableBy":"dm"},{"key":"s2","label":"Dos","stat":"fuerza","use":"valor","editableBy":"dm"}]}'),
     tests.entry('{"kind":"row","type":"capacidades","table":"habs2","key":"atl","label":"Atletismo","stat":"fuerza","use":"valor","editableBy":"dm","columns":["prof","nota","extra"]}'),
-    tests.entry('{"kind":"table","type":"habilidad","key":"conjuros","label":"Conjuros","editableBy":"dm","columns":[{"key":"nota","label":"Nota","type":"short","editableBy":"dm"}]}'))));
+    tests.entry('{"kind":"table","type":"habilidad","key":"conjuros","label":"Conjuros","editableBy":"dm","columns":[{"key":"nota","label":"Nota","type":"short","editableBy":"dm"}]}'),
+    tests.entry('{"kind":"field","key":"fz","label":"Fz","type":"short","editableBy":"dm"}'),
+    tests.entry('{"kind":"row","type":"capacidades","table":"habs3","key":"rr","label":"Rr","stat":"fuerza","use":"valor","editableBy":"dm","columns":["prof","nota"]}'))));
 
 select is(jsonb_array_length(public.validate_sheet(tests.sheet('[]', jsonb_build_array(tests.entry('{"kind":"field","key":"gone","label":"G","type":"short"}')))) -> 'discarded'), 1,
   'the validator keeps a discarded entry');
@@ -190,12 +206,16 @@ select is(public.validate_sheet(tests.sheet('[]')) ? 'discarded', false, 'a shee
 select is(public.validate_sheet(tests.sheet('[]', '[]'::jsonb)) -> 'discarded', '[]'::jsonb, 'an empty list is accepted as stored');
 select is((select system_profile #>> '{sheet,discarded,0,item,label}' from public.campaigns where id = 'ffffffff-0000-4000-8000-00000000032a'), 'Perdido',
   'the label of a discarded item is trimmed like any label');
-select is(jsonb_array_length((select system_profile #> '{sheet,discarded}' from public.campaigns where id = 'ffffffff-0000-4000-8000-00000000032a')), 10,
-  'the fixture sheet stores the ten discarded entries');
+select is(jsonb_array_length((select system_profile #> '{sheet,discarded}' from public.campaigns where id = 'ffffffff-0000-4000-8000-00000000032a')), 12,
+  'the fixture sheet stores the twelve discarded entries');
 select is(public.validate_sheet(tests.sheet('[{"kind":"field","key":"gone","label":"Nuevo","type":"short","editableBy":"dm"}]',
   jsonb_build_array(tests.entry('{"kind":"field","key":"gone","label":"Viejo","type":"short"}')))) #>> '{categories,0,sections,0,items,0,label}', 'Nuevo',
   'a live item may reuse the key of a discarded one (S32)');
 
+select is(octet_length(tests.big_table()::text) > 12000, true, 'the 100-row table is heavier than the old per-item bound');
+select is(jsonb_array_length(public.validate_sheet(tests.sheet('[]', jsonb_build_array(tests.entry(tests.big_table())))) -> 'discarded'), 1, 'a discarded table of 100 rows is accepted (any live item can be discarded)');
+select is(tests.det($$ select public.validate_sheet(tests.sheet('[]', jsonb_build_array(tests.entry('{"kind":"field","key":"gone","label":"G","type":"short"}'::jsonb || jsonb_build_object('pad', repeat('x', 50000)))))) $$), 'sheet',
+  'the only bound is the size of the whole sheet, as for a live one');
 select is(tests.det($$ select public.validate_sheet(tests.sheet('[]', '"x"'::jsonb)) $$), 'sheet.discarded', 'discarded must be an array');
 select is(tests.det($$ select public.validate_sheet(tests.sheet('[]', (select jsonb_agg(tests.entry(jsonb_build_object('kind', 'field', 'key', 'k' || n, 'label', 'K', 'type', 'short'))) from generate_series(1, 101) n))) $$),
   'sheet.discarded', 'more than 100 entries are refused');
@@ -265,7 +285,7 @@ select tests.as_postgres();
 select ok(tests.same_except('pre', 'ffffffff-0000-4000-8000-00000000032a', array['gone']), 'only the key of the field is gone, from every character (look-alikes gone2, gone_x, gone__nota stay)');
 select ok(tests.identical('pre', 'ffffffff-0000-4000-8000-00000000032b'), 'a character of another campaign is byte-identical');
 select is((select count(*)::int from public.pjs where campaign_id = 'ffffffff-0000-4000-8000-00000000032a' and data ? 'gone'), 0, 'no character keeps the key');
-select is((select jsonb_array_length(system_profile #> '{sheet,discarded}') from public.campaigns where id = 'ffffffff-0000-4000-8000-00000000032a'), 9, 'the entry left the list');
+select is((select jsonb_array_length(system_profile #> '{sheet,discarded}') from public.campaigns where id = 'ffffffff-0000-4000-8000-00000000032a'), 11, 'the entry left the list');
 select is((select system_profile #> '{sheet,discarded}' from public.campaigns where id = 'ffffffff-0000-4000-8000-00000000032a') @> jsonb_build_array(tests.entry('{"kind":"field","key":"gone","label":"Perdido","type":"short","editableBy":"dm"}')), false,
   'the purged entry is not in the list any more');
 select is((select system_profile - 'sheet' from public.campaigns where id = 'ffffffff-0000-4000-8000-00000000032a'),
@@ -307,6 +327,17 @@ select ok(tests.same_except('pre', 'ffffffff-0000-4000-8000-00000000032a', array
 select is((select array_agg(id order by id) from public.campaign_actions where campaign_id = 'ffffffff-0000-4000-8000-00000000032a'), array[97503, 97504]::bigint[], 'its catalogue entries are gone, the other table keeps its entry');
 select is((select count(*)::int from public.pj_action_links where campaign_id = 'ffffffff-0000-4000-8000-00000000032a'), 2, 'their links went with them (cascade), the other link stays');
 select ok(tests.identical('pre', 'ffffffff-0000-4000-8000-00000000032b'), 'the other campaign is still byte-identical after every purge');
+
+-- look-alike keys: neither a purge nor a rename touches what the item does not own
+select tests.as_user('eeeeeeee-0000-4000-8000-000000000401');
+select is(tests.err($$ select public.rekey_discarded_item('ffffffff-0000-4000-8000-00000000032a', 'fz', '{"fz_max":"fz_2"}',
+  tests.restore_profile('fz', '{"kind":"field","key":"fz_2","label":"N","type":"short","editableBy":"dm"}'), tests.base()) $$), 'P0001:discarded_rekey_invalid', 'rekey: a look-alike (fz_max) is not a key the item owns');
+select lives_ok($$ select public.purge_discarded_item('ffffffff-0000-4000-8000-00000000032a', 'fz', tests.base()) $$, 'the DM purges fz');
+select lives_ok($$ select public.purge_discarded_item('ffffffff-0000-4000-8000-00000000032a', 'rr', tests.base()) $$, 'the DM purges the row rr');
+select tests.as_postgres();
+select ok(tests.same_except('pre', 'ffffffff-0000-4000-8000-00000000032a', array['gone', 'sabio', 'ath', 'ath__nota', 'ath__extra', 's1', 's1__nota', 's2', 'bolsillo', 'hechizos', 'fz', 'rr', 'rr__nota']),
+  'only fz, rr and rr__nota went');
+select is((select (data ->> 'fz_max') || (data ->> 'fzs') || (data ->> 'fz_') || (data ->> 'rr_') || (data ->> 'rr2__nota') || (data ->> 'rr__prof') from public.pjs where id = 99101), 'keepkeepkeepkeepkeepkeep', 'fz_max, fzs, fz_, rr_, rr2__nota and rr__prof stay');
 select is((select jsonb_array_length(system_profile #> '{sheet,discarded}') from public.campaigns where id = 'ffffffff-0000-4000-8000-00000000032a'), 4, 'four entries remain (the reused key, viejo, atl and conjuros)');
 
 ------------------------------------------------------------------------------
@@ -333,6 +364,12 @@ select is(tests.err($$ select public.rekey_discarded_item('ffffffff-0000-4000-80
   'rekey: a new key that already holds data in a character is refused');
 select is(tests.err($$ select public.rekey_discarded_item('ffffffff-0000-4000-8000-00000000032a', 'viejo', '{"viejo":"nuevo"}',
   tests.restore_profile('viejo', '{"kind":"field","key":"nuevo","label":"N","type":"short","editableBy":"dm"}'), '2020-01-01') $$), 'P0001:campaign_conflict', 'rekey: a stale version is a conflict');
+select is(tests.err($$ select public.rekey_discarded_item('ffffffff-0000-4000-8000-00000000032a', 'viejo', '{"viejo":"tabla_n"}',
+  tests.restore_profile('viejo', '{"kind":"table","type":"libre","key":"tabla_n","label":"T","editableBy":"dm","columns":[]}'), tests.base()) $$), 'P0001:discarded_rekey_invalid',
+  'rekey: the new key must be an item of the same kind and type as the discarded one');
+select is(tests.err($$ select public.rekey_discarded_item('ffffffff-0000-4000-8000-00000000032a', 'viejo', '{"viejo":"nuevo"}',
+  tests.restore_profile_dropping('viejo', '{"kind":"field","key":"nuevo","label":"N","type":"short","editableBy":"dm"}', 'mana'), tests.base()) $$), 'P0001:discarded_rekey_invalid',
+  'rekey: only the restored entry may leave the list (mana would be lost)');
 select tests.as_postgres();
 select ok(tests.identical('mid', 'ffffffff-0000-4000-8000-00000000032a'), 'rekey refusals left every character byte-identical');
 
