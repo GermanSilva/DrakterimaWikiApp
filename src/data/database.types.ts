@@ -282,6 +282,7 @@ export type Database = {
           slug_wanted: string | null
           status: string
           system_id: string | null
+          system_requested: boolean
           tagline: string | null
           updated_at: string
         }
@@ -300,6 +301,7 @@ export type Database = {
           slug_wanted?: string | null
           status?: string
           system_id?: string | null
+          system_requested?: boolean
           tagline?: string | null
           updated_at?: string
         }
@@ -318,6 +320,7 @@ export type Database = {
           slug_wanted?: string | null
           status?: string
           system_id?: string | null
+          system_requested?: boolean
           tagline?: string | null
           updated_at?: string
         }

@@ -10,7 +10,7 @@
 -- Self-contained fixture, rolled back at the end.
 begin;
 
-select plan(104);
+select plan(123);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -394,6 +394,108 @@ select is(tests.seen_name('Variante renombrada'), 0::bigint, 'a detached homebre
 select is(tests.seen('frozen'), 1::bigint, 'the DM sees exactly their own frozen copy');
 select tests.as_user('aaaaaaaa-3300-4000-8000-000000000001');
 select is(tests.seen_name('Variante renombrada'), 1::bigint, 'the hub owner still sees the detached homebrew');
+
+------------------------------------------------------------------------------
+-- Part 6: fix round 1 (independent verify)
+--   users 9 d (DM of C3, account deleted later)   11, 12 DMs of C4 (invalid legacy document)
+--   13 DM of C5 (homebrew cap)   14, 15 DMs of C7 (frozen cap)   16 player of C3
+------------------------------------------------------------------------------
+select tests.as_postgres();
+insert into auth.users (instance_id, id, aud, role, email, raw_user_meta_data)
+select '00000000-0000-0000-0000-000000000000', ('aaaaaaaa-3300-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+       'authenticated', 'authenticated', 'sys-u' || n || '@example.test', json_build_object('full_name', 'Sys User ' || n)::jsonb
+from generate_series(9, 16) as n;
+insert into public.campaigns (id, slug, name, created_by) values
+  ('bbbbbbbb-3300-4000-8000-000000000013', 'sys-c3', 'Sys C3', 'aaaaaaaa-3300-4000-8000-000000000009'),
+  ('bbbbbbbb-3300-4000-8000-000000000014', 'sys-c4', 'Sys C4', 'aaaaaaaa-3300-4000-8000-000000000011'),
+  ('bbbbbbbb-3300-4000-8000-000000000015', 'sys-c5', 'Sys C5', 'aaaaaaaa-3300-4000-8000-000000000013'),
+  ('bbbbbbbb-3300-4000-8000-000000000017', 'sys-c7', 'Sys C7', 'aaaaaaaa-3300-4000-8000-000000000014');
+insert into public.campaign_members (campaign_id, user_id, role) values
+  ('bbbbbbbb-3300-4000-8000-000000000013', 'aaaaaaaa-3300-4000-8000-000000000009', 'dm'),
+  ('bbbbbbbb-3300-4000-8000-000000000013', 'aaaaaaaa-3300-4000-8000-000000000003', 'dm'),
+  ('bbbbbbbb-3300-4000-8000-000000000013', 'aaaaaaaa-3300-4000-8000-000000000016', 'player'),
+  ('bbbbbbbb-3300-4000-8000-000000000014', 'aaaaaaaa-3300-4000-8000-000000000011', 'dm'),
+  ('bbbbbbbb-3300-4000-8000-000000000014', 'aaaaaaaa-3300-4000-8000-000000000012', 'dm'),
+  ('bbbbbbbb-3300-4000-8000-000000000015', 'aaaaaaaa-3300-4000-8000-000000000013', 'dm'),
+  ('bbbbbbbb-3300-4000-8000-000000000017', 'aaaaaaaa-3300-4000-8000-000000000014', 'dm'),
+  ('bbbbbbbb-3300-4000-8000-000000000017', 'aaaaaaaa-3300-4000-8000-000000000015', 'dm');
+
+-- 1. a chosen base never silently turns into the default document
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000009');
+select lives_ok($$select public.branch_system('bbbbbbbb-3300-4000-8000-000000000013', 'HB-R')$$, 'd branches a homebrew');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000003');
+select lives_ok($$insert into public.campaign_requests (name, slug_wanted, system_id) values ('q-hbr', 'sys-q-hbr', tests.sid('HB-R'))$$,
+  'the co-DM requests a campaign on it');
+select tests.as_postgres();
+select lives_ok($$delete from auth.users where id = 'aaaaaaaa-3300-4000-8000-000000000009'$$, 'the account of the homebrew owner is deleted (its systems go with it)');
+select is((select count(*) from public.systems where name = 'HB-R'), 0::bigint, 'the homebrew is gone');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000001');
+select throws_ok($$select public.approve_campaign_request(tests.rid('q-hbr'))$$, 'P0001', 'system_not_available',
+  'approval refuses a request whose chosen base no longer exists (never the default document instead)');
+select tests.as_postgres();
+select is((select status from public.campaign_requests where name = 'q-hbr'), 'pending', 'and the request stays pending');
+
+-- 2. only a document that validates is frozen
+update public.campaigns set system_profile = '{"version":1,"junk":"x"}'::jsonb where slug = 'sys-c4';
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000012');
+select lives_ok($$update public.campaign_members set role = 'player' where campaign_id = 'bbbbbbbb-3300-4000-8000-000000000014' and user_id = 'aaaaaaaa-3300-4000-8000-000000000011'$$,
+  'demoting a DM of a campaign with an invalid legacy document still works');
+select tests.as_postgres();
+select is((select count(*) from public.systems where owner_id = 'aaaaaaaa-3300-4000-8000-000000000011'), 0::bigint, 'and no frozen copy is stored for an invalid document');
+
+-- 3. the homebrew cap counts only what the owner can still reach
+insert into public.systems (name, document, kind, owner_id)
+select 'orfano ' || n, (select c2_default from base), 'homebrew', 'aaaaaaaa-3300-4000-8000-000000000013' from generate_series(1, 50) n;
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000013');
+select lives_ok($$select public.branch_system('bbbbbbbb-3300-4000-8000-000000000015', 'Nuevo c5')$$, '50 detached homebrew do not count against the cap');
+select tests.as_postgres();
+insert into public.systems (name, document, kind, campaign_id, owner_id)
+select 'ligado ' || n, (select c2_default from base), 'homebrew', 'bbbbbbbb-3300-4000-8000-000000000015', 'aaaaaaaa-3300-4000-8000-000000000013' from generate_series(1, 49) n;
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000013');
+select throws_ok($$select public.branch_system('bbbbbbbb-3300-4000-8000-000000000015', 'De mas')$$, 'P0001', 'systems_limit_reached',
+  '50 homebrew attached to campaigns they DM reach the cap');
+
+-- 4. frozen copies are bounded per user (the oldest are dropped; the removal itself never fails)
+select tests.as_postgres();
+insert into public.systems (name, document, kind, owner_id, created_at)
+select 'viejo ' || n, (select c2_default from base), 'frozen', 'aaaaaaaa-3300-4000-8000-000000000014', now() - (n || ' days')::interval from generate_series(1, 30) n;
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000015');
+select lives_ok($$update public.campaign_members set role = 'player' where campaign_id = 'bbbbbbbb-3300-4000-8000-000000000017' and user_id = 'aaaaaaaa-3300-4000-8000-000000000014'$$,
+  'demoting a DM who already holds 30 frozen copies works');
+select tests.as_postgres();
+select is((select count(*) from public.systems where kind = 'frozen' and owner_id = 'aaaaaaaa-3300-4000-8000-000000000014'), 30::bigint, 'the user still holds 30 frozen copies');
+select is((select count(*) from public.systems where name = 'viejo 30'), 0::bigint, 'the oldest one was dropped');
+select is((select count(*) from public.systems where kind = 'frozen' and owner_id = 'aaaaaaaa-3300-4000-8000-000000000014' and campaign_id = 'bbbbbbbb-3300-4000-8000-000000000017'), 1::bigint, 'and the new one is kept');
+
+-- a player cannot forge a frozen copy by promoting themselves and leaving
+create function tests.try(p_sql text) returns void language plpgsql as $$
+begin
+  execute p_sql;
+exception when others then
+  null;
+end;
+$$;
+grant execute on function tests.try(text) to authenticated;
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000016');
+select tests.try($$update public.campaign_members set role = 'dm' where campaign_id = 'bbbbbbbb-3300-4000-8000-000000000013' and user_id = 'aaaaaaaa-3300-4000-8000-000000000016'$$);
+select tests.as_postgres();
+select is((select role from public.campaign_members where campaign_id = 'bbbbbbbb-3300-4000-8000-000000000013' and user_id = 'aaaaaaaa-3300-4000-8000-000000000016'), 'player', 'a player cannot promote themselves');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000016');
+select tests.try($$delete from public.campaign_members where campaign_id = 'bbbbbbbb-3300-4000-8000-000000000013' and user_id = 'aaaaaaaa-3300-4000-8000-000000000016'$$);
+select tests.as_postgres();
+select is((select count(*) from public.systems where owner_id = 'aaaaaaaa-3300-4000-8000-000000000016'), 0::bigint, 'and leaving afterwards forges no frozen copy');
+
+-- an approved campaign keeps its copy whatever happens to the source
+insert into public.systems (name, document, kind) values ('Origen Cuatro', (select c2_default from base), 'origin');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000006');
+select lives_ok($$insert into public.campaign_requests (name, slug_wanted, system_id) values ('q-cuatro', 'sys-q-cuatro', tests.sid('Origen Cuatro'))$$, 'a request on a fourth origin');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000001');
+select is(public.approve_campaign_request(tests.rid('q-cuatro')), 'sys-q-cuatro', 'approved');
+select tests.as_postgres();
+update public.systems set document = jsonb_set(document, '{modules,mapas}', 'false'), archived_at = now() where name = 'Origen Cuatro';
+select results_eq(
+  $$select c.system_profile = (select c2_default from base), c.based_on_system = s.id from public.campaigns c, public.systems s where c.slug = 'sys-q-cuatro' and s.name = 'Origen Cuatro'$$,
+  $$values (true, true)$$, 'the campaign keeps its copy and its lineage after the source is edited and archived');
 
 select * from finish();
 rollback;
