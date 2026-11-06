@@ -75,7 +75,7 @@ describe('session screen: character cards read the sheet roles (G5c, S22)', () =
       fireEvent.click(screen.getByRole('button', { name: 'Agregar' }))
       await waitFor(() => expect(spies.configPatch).toHaveBeenCalled())
       const { cards } = spies.configPatch.mock.calls.at(-1)?.[2] as Combatants
-      written.push(cards[0].combatants.map(({ id: _id, ...rest }) => rest))
+      written.push(cards[0].combatants.map((c) => ({ ...c, id: 0 })))
     }
     expect(written[1]).toEqual(written[0])
     expect(written[0]).toHaveLength(2)

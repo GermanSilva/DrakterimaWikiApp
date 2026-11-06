@@ -18,6 +18,7 @@ const HEADER_H = 60
 // The caller owns the DM gate: this component renders character data without any visibility filter by design.
 // `sheet` is the validated sheet of the campaign (null in the legacy app and in campaigns without one): the character
 // cards read the sheet roles through it instead of the fixed D&D keys.
+/** @param {{ db: any, cards: any[], port: any, sheet?: import('../../campaign/system/sheet/sheetModel').Sheet | null }} props */
 export default function SessionScreenView({ db, cards, port, sheet = null }) {
   // Defensive filter: drop any persisted entry whose `tipo` is no longer a
   // CARD_REGISTRY key (e.g. a leftover `hp-ac` entry) before it reaches
