@@ -2,7 +2,10 @@
  * The editable shape of an action function: every value is a string the way a form holds it. `toRaw` turns it into the loose
  * object `validateActionFunction` checks (the validator, not the form, decides what is valid); `toDraft` reads a stored one.
  */
+import { describeFunctionError } from '../../system/actions/function/describeErrors'
 import type { ActionFunction, EffectOp, Step } from '../../system/actions/function/model'
+import { validateActionFunction } from '../../system/actions/function/validate'
+import type { Sheet } from '../../system/sheet/sheetModel'
 
 export interface DraftOption {
   label: string
@@ -84,4 +87,10 @@ export function toDraft(stored: unknown): Draft | null {
   } catch {
     return null // a stored step of an unknown shape: shown as no function, never rewritten unless the DM changes it
   }
+}
+
+/** The Spanish errors of a draft against the sheet; empty when it is valid. */
+export function draftErrors(draft: Draft, sheet: Sheet, tableKey: string | undefined): string[] {
+  const checked = validateActionFunction(toRaw(draft), sheet, tableKey)
+  return checked.ok ? [] : checked.errors.map(describeFunctionError)
 }

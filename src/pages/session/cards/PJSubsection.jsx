@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 import { btnSecondary } from '../../../constants'
 
-export default function PJSubsection({ pj, onEdit, fullViewToggle = false, collapsed: collapsedProp, onToggleCollapsed, noPadding = false, children }) {
+export default function PJSubsection({ pj, onEdit, fullViewToggle = false, collapsed: collapsedProp, onToggleCollapsed, noPadding = false, hideEdit = false, children }) {
   const [collapsedState, setCollapsedState] = useState(true)
   const [fullView, setFullView] = useState(true)
   const isControlled = collapsedProp !== undefined
@@ -33,7 +33,7 @@ export default function PJSubsection({ pj, onEdit, fullViewToggle = false, colla
               {fullView ? 'Ver menos' : 'Ver más'}
             </button>
           )}
-          <button type="button" className={btnSecondary} onClick={(e) => { e.stopPropagation(); onEdit?.(pj) }}>Editar</button>
+          {!hideEdit && <button type="button" className={btnSecondary} onClick={(e) => { e.stopPropagation(); onEdit?.(pj) }}>Editar</button>}
         </div>
       </div>
       {!collapsed && (typeof children === 'function' ? children({ fullView }) : children)}

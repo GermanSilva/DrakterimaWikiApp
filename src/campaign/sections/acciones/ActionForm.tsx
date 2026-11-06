@@ -8,8 +8,7 @@ import { validateActionFunction } from '../../system/actions/function/validate'
 import { Control } from '../../system/sheet/Control'
 import type { Sheet } from '../../system/sheet/sheetModel'
 import { FunctionEditor } from './FunctionEditor'
-import { draftErrors } from './functionErrors'
-import { toDraft, toRaw, type Draft } from './functionDraft'
+import { draftErrors, toDraft, toRaw, type Draft } from './functionDraft'
 
 export interface PjOption {
   id: number

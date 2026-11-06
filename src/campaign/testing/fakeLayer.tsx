@@ -33,6 +33,11 @@ export interface FakeLayerOptions {
   invites?: Invite[]
   /** Stored campaign row behind `campaigns.updateCampaign` (match it with the campaign the loader returns). */
   campaign?: Partial<Campaign>
+  /**
+   * Entity writes persist: `saveEntityWithDmNotes` on an existing id merges the patch into the stored row (new `updated_at` w1, w2...),
+   * answers ConflictError when `base.updated_at` is not the stored one, and `get` / `list` read the stored rows.
+   */
+  persistEntities?: boolean
   /** Shared action collection entries and the character links (`layer.actions`). */
   actions?: CampaignAction[]
   actionLinks?: PjActionLink[]
@@ -44,13 +49,25 @@ export interface FakeLayerOptions {
 export function createFakeLayer(options: FakeLayerOptions = {}) {
   const fake = createFakeClient()
   const entityRepos = new Map<string, unknown>()
-  const entityList = vi.fn(async (table: string) => options.entities?.[table] ?? [])
+  const stored = new Map(Object.entries(options.entities ?? {}).map(([table, rows]) => [table, [...rows]]))
+  let writeSeq = 0
+  const entityList = vi.fn(async (table: string) => (options.persistEntities ? [...(stored.get(table) ?? [])] : (options.entities?.[table] ?? [])))
   const indexList = vi.fn(async (table: string) => options.index?.[table] ?? [])
   const saveEntityWithDmNotes = vi.fn(
-    async (table: string, target: { id?: number }, flat: Record<string, unknown>) => ({
-      entity: { id: target.id ?? 99, campaign_id: 'c1', updated_at: '2026-01-01T00:00:00Z', ...flat, _table: table } as FlatEntity,
-      dmNotes: null,
-    }),
+    async (table: string, target: { id?: number; base?: { updated_at?: string } }, flat: Record<string, unknown>) => {
+      const rows = stored.get(table) ?? []
+      const current = options.persistEntities && target.id !== undefined ? rows.find((r) => r.id === target.id) : undefined
+      if (current) {
+        if (target.base?.updated_at !== undefined && target.base.updated_at !== current.updated_at) throw new ConflictError()
+        const next = { ...current, ...flat, updated_at: `w${++writeSeq}` } as FlatEntity
+        stored.set(table, rows.map((r) => (r === current ? next : r)))
+        return { entity: next, dmNotes: null }
+      }
+      return {
+        entity: { id: target.id ?? 99, campaign_id: 'c1', updated_at: '2026-01-01T00:00:00Z', ...flat, _table: table } as FlatEntity,
+        dmNotes: null,
+      }
+    },
   )
   const dmNotesGet = vi.fn(async (type: string, id: number) => {
     const row = options.dmNotes?.[`${type}:${id}`]
@@ -68,7 +85,7 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
   const getVisibility = vi.fn(async (_t: string, ids: number[]) => Object.fromEntries(ids.map((i) => [i, options.visibility?.[i] ?? []])))
   const setVisibility = vi.fn(async (_t: string, _id: number, ids: number[]) => ids)
   const entityRemove = vi.fn(async () => undefined)
-  const entityGet = vi.fn(async (table: string, id: number) => options.entities?.[table]?.find((e) => e.id === id) ?? null)
+  const entityGet = vi.fn(async (table: string, id: number) => (options.persistEntities ? stored.get(table) : options.entities?.[table])?.find((e) => e.id === id) ?? null)
   // campaign_config: an in-memory store whose patch honours the `base` guard like the real repository (v1, v2, ...)
   const configRows = new Map(Object.entries(options.config ?? {}).map(([key, row]) => [key, { value: row.value, updated_at: row.updated_at ?? 'v1', visibility: row.visibility ?? 'dm' }]))
   let configVersion = 1

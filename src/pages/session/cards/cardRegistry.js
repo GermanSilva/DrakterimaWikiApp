@@ -8,6 +8,7 @@ import SessionCardInspiration from './SessionCardInspiration'
 import SessionCardNotes from './SessionCardNotes'
 import SessionCardRules from './SessionCardRules'
 import SessionCardCombat from './SessionCardCombat'
+import SessionCardActions from './SessionCardActions'
 
 // tipo -> { label, Component, editable }
 // `editable: true` cards render a per-PJ "Editar" button (wired to
@@ -24,4 +25,6 @@ export const CARD_REGISTRY = {
   notes: { label: 'Notas', Component: SessionCardNotes, editable: false },
   rules: { label: 'Reglas', Component: SessionCardRules, editable: false },
   combat: { label: 'Combate', Component: SessionCardCombat, editable: false },
+  // only where the host provides the session actions (a hub campaign whose sheet has a Habilidad table)
+  actions: { label: 'Acciones', Component: SessionCardActions, editable: false, requiresActions: true },
 }

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useContext } from 'react'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, horizontalListSortingStrategy, rectSortingStrategy, arrayMove } from '@dnd-kit/sortable'
 import { SessionScreenPortContext } from '../../ports'
@@ -7,6 +7,7 @@ import SessionTabs from './SessionTabs'
 import SessionCardPicker from './SessionCardPicker'
 import SessionEditModal from './SessionEditModal'
 import SortableCardItem from './SortableCardItem'
+import { SessionActionsContext } from './actions/sessionActions'
 import { toTabId, fromTabId } from './SortableTab'
 import { btnPrimary } from '../../constants'
 
@@ -26,7 +27,10 @@ export default function SessionScreenView({ db, cards, port, sheet = null }) {
   // trusts the array to only contain renderable cards. The array is never
   // written back here — it self-heals the next time `port.setCards`
   // runs (e.g. on reorder), which persists this filtered shape.
-  const visibleCards = cards.filter(c => CARD_REGISTRY[c.tipo])
+  // Cards that need the host's session actions (Acciones) exist only where the host provides them.
+  const hasActions = useContext(SessionActionsContext) !== null
+  const offered = tipo => CARD_REGISTRY[tipo] && (hasActions || !CARD_REGISTRY[tipo].requiresActions)
+  const visibleCards = cards.filter(c => offered(c.tipo))
 
   const tabsBarRef = useRef(null)
   const [activeId, setActiveId] = useState(null)
@@ -165,6 +169,7 @@ export default function SessionScreenView({ db, cards, port, sheet = null }) {
       {pickerOpen && (
         <SessionCardPicker
           existingTypes={visibleCards.map(c => c.tipo)}
+          unavailableTypes={Object.keys(CARD_REGISTRY).filter(tipo => !offered(tipo))}
           onSelect={addCard}
           onClose={() => setPickerOpen(false)}
         />

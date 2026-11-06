@@ -1,8 +1,5 @@
 /** Spanish, path-addressed text for the errors `validateActionFunction` reports (its own messages are English, for logs and tests). */
-import type { FunctionError } from '../../system/actions/function/model'
-import { validateActionFunction } from '../../system/actions/function/validate'
-import type { Sheet } from '../../system/sheet/sheetModel'
-import { toRaw, type Draft } from './functionDraft'
+import type { FunctionError } from './model'
 
 const SEGMENTS: Record<string, string> = {
   steps: 'Pasos', key: 'clave', label: 'etiqueta', input: 'entrada', min: 'mínimo', max: 'máximo', value: 'valor', target: 'destino',
@@ -62,8 +59,3 @@ export function describeFunctionError(error: FunctionError): string {
   return `${describePath(error.path)}: ${hit ?? error.message}`
 }
 
-/** The Spanish errors of a draft against the sheet; empty when it is valid. */
-export function draftErrors(draft: Draft, sheet: Sheet, tableKey: string | undefined): string[] {
-  const checked = validateActionFunction(toRaw(draft), sheet, tableKey)
-  return checked.ok ? [] : checked.errors.map(describeFunctionError)
-}

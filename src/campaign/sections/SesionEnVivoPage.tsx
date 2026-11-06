@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { useBlocker } from 'react-router'
 import { exactEqual } from '../../helpers/pjSections'
 import { btnSecondary } from '../../constants'
 import type { FlatEntity } from '../../data'
+import { SessionActionsContext } from '../../pages/session/actions/sessionActions'
 import SessionScreenView from '../../pages/session/SessionScreenView'
 import { useUnreadPort, type SessionScreenPort } from '../../ports'
 import { useCampaign } from '../CampaignContext'
 import { useCampaignServices } from '../entities/campaignServicesContext'
 import { useEntities } from '../entities/useEntities'
 import { useEntityActions } from '../entities/useEntityActions'
+import { useSessionActionsHost } from '../system/actions/session/useSessionActionsHost'
 import { storedSheet } from '../system/sheet/searchable'
 import { useSystem } from '../system/useSystem'
 import { markSectionsSeen, pjSectionStamps } from '../pjStamps'
@@ -56,6 +58,12 @@ function SessionScreenHost() {
     })
   })
   const { update, pending } = layout
+  // A character written by an action is the latest known version, like one written by savePj.
+  const wroteByAction = useCallback((entity: FlatEntity) => {
+    ownWrites.current.set(entity.id, entity)
+    pjsRef.current = pjsRef.current.map((p) => (p.id === entity.id ? entity : p))
+  }, [])
+  const sessionActions = useSessionActionsHost(sheet, wroteByAction)
 
   // Unsaved edits (queued, in flight, or kept after a failure) must not be lost silently by leaving the page.
   const blocker = useBlocker(pending)
@@ -126,7 +134,9 @@ function SessionScreenHost() {
           </button>
         </div>
       )}
-      <SessionScreenView db={db} cards={layout.cards} port={port} sheet={sheet} />
+      <SessionActionsContext.Provider value={sessionActions}>
+        <SessionScreenView db={db} cards={layout.cards} port={port} sheet={sheet} />
+      </SessionActionsContext.Provider>
     </>
   )
 }

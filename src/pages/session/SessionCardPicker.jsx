@@ -7,7 +7,7 @@ import { CARD_REGISTRY } from './cards/cardRegistry'
 // `layout.cards[]` — this is what prevents duplicate cards/tabs of the same
 // type, including `notes` and `rules`, which the design/spec treat as
 // singleton entries per screen just like every other card type.
-export default function SessionCardPicker({ existingTypes, onSelect, onClose }) {
+export default function SessionCardPicker({ existingTypes, unavailableTypes = [], onSelect, onClose }) {
   const dialogRef = useRef(null)
   const titleId = useId()
   useDialogFocus(dialogRef)
@@ -22,7 +22,7 @@ export default function SessionCardPicker({ existingTypes, onSelect, onClose }) 
   // persisted tipo (e.g. a leftover hp-ac entry) must never permanently
   // block that slot from being offered again.
   const existing = existingTypes.filter(tipo => CARD_REGISTRY[tipo])
-  const available = Object.entries(CARD_REGISTRY).filter(([tipo]) => !existing.includes(tipo))
+  const available = Object.entries(CARD_REGISTRY).filter(([tipo]) => !existing.includes(tipo) && !unavailableTypes.includes(tipo))
 
   return (
     <div

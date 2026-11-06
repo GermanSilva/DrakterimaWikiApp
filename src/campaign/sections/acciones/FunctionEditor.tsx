@@ -6,8 +6,7 @@ import { isStoredNumber } from '../../system/actions/function/lookup'
 import type { HabilidadTable } from '../../system/actions/tables'
 import { roleWriteKey } from '../../system/sheet/roles'
 import { ROLE_NAMES, type Column, type Sheet, type Table } from '../../system/sheet/sheetModel'
-import { newEffect, newParam, type Draft, type DraftStep } from './functionDraft'
-import { draftErrors } from './functionErrors'
+import { draftErrors, newEffect, newParam, type Draft, type DraftStep } from './functionDraft'
 
 const OP_LABEL: Record<EffectOp, string> = { set: 'Fijar', add: 'Sumar', subtract: 'Restar' }
 const MAX_STEPS = 20
