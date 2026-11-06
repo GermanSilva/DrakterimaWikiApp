@@ -79,10 +79,14 @@ export function createSystemRepository(client: Db) {
       return rows[0]?.document ?? null
     },
 
-    /** The action catalogue a system carries (copied into a campaign created from it), [] when it has none or is not visible. */
+    /**
+     * RPC: the action catalogue a system carries (copied into a campaign created from it). The column is not readable through the API
+     * (S37): only the hub owner (any system), the DMs of a homebrew's campaign and the owner of a frozen copy may read it. Anybody else, a
+     * missing or archived system: system_not_available (the same answer for all).
+     */
     async getSystemActions(systemId: string): Promise<SystemAction[]> {
-      const rows = unwrap<{ actions: SystemAction[] | null }[]>(await fromTable(client, 'systems').select('actions').eq('id', systemId).limit(1))
-      return rows[0]?.actions ?? []
+      const res = await client.rpc('get_system_actions', { p_system_id: systemId })
+      return (unwrap(res) as unknown as SystemAction[] | null) ?? []
     },
 
     /** RPC, DM of the campaign: a homebrew holding a copy of the campaign's current system. Errors: dm_only, invalid_name, systems_limit_reached. */

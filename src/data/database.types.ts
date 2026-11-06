@@ -1595,6 +1595,16 @@ export type Database = {
       _sheet_options: { Args: { p_path: string; p_src: Json }; Returns: Json }
       _sheet_structural_keys: { Args: { p_sheet: Json }; Returns: string[] }
       _sheet_value_ok: { Args: { spec: Json; v: Json }; Returns: boolean }
+      _system_summary: {
+        Args: { s: Database["public"]["Tables"]["systems"]["Row"] }
+        Returns: Database["public"]["CompositeTypes"]["system_summary"]
+        SetofOptions: {
+          from: "systems"
+          to: "system_summary"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       _validate_sheet_core: { Args: { p: Json }; Returns: Json }
       accept_invite: { Args: { p_code: string }; Returns: Json }
       approve_campaign_request: {
@@ -1603,22 +1613,10 @@ export type Database = {
       }
       archive_system: {
         Args: { p_archived: boolean; p_system_id: string }
-        Returns: {
-          actions: Json
-          archived_at: string | null
-          branched_from: string | null
-          campaign_id: string | null
-          created_at: string
-          document: Json
-          id: string
-          kind: string
-          name: string
-          owner_id: string | null
-          updated_at: string
-        }
+        Returns: Database["public"]["CompositeTypes"]["system_summary"]
         SetofOptions: {
           from: "*"
-          to: "systems"
+          to: "system_summary"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -1629,22 +1627,10 @@ export type Database = {
       }
       branch_system: {
         Args: { p_campaign_id: string; p_name: string }
-        Returns: {
-          actions: Json
-          archived_at: string | null
-          branched_from: string | null
-          campaign_id: string | null
-          created_at: string
-          document: Json
-          id: string
-          kind: string
-          name: string
-          owner_id: string | null
-          updated_at: string
-        }
+        Returns: Database["public"]["CompositeTypes"]["system_summary"]
         SetofOptions: {
           from: "*"
-          to: "systems"
+          to: "system_summary"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -1731,22 +1717,10 @@ export type Database = {
       }
       create_origin_from_campaign: {
         Args: { p_campaign_id: string; p_name: string }
-        Returns: {
-          actions: Json
-          archived_at: string | null
-          branched_from: string | null
-          campaign_id: string | null
-          created_at: string
-          document: Json
-          id: string
-          kind: string
-          name: string
-          owner_id: string | null
-          updated_at: string
-        }
+        Returns: Database["public"]["CompositeTypes"]["system_summary"]
         SetofOptions: {
           from: "*"
-          to: "systems"
+          to: "system_summary"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -1775,6 +1749,7 @@ export type Database = {
           visible_to: number[]
         }[]
       }
+      get_system_actions: { Args: { p_system_id: string }; Returns: Json }
       is_campaign_dm: { Args: { cid: string }; Returns: boolean }
       is_campaign_member: { Args: { cid: string }; Returns: boolean }
       is_hub_owner: { Args: never; Returns: boolean }
@@ -1787,22 +1762,10 @@ export type Database = {
       preview_invite: { Args: { p_code: string }; Returns: Json }
       promote_system: {
         Args: { p_name?: string; p_system_id: string }
-        Returns: {
-          actions: Json
-          archived_at: string | null
-          branched_from: string | null
-          campaign_id: string | null
-          created_at: string
-          document: Json
-          id: string
-          kind: string
-          name: string
-          owner_id: string | null
-          updated_at: string
-        }
+        Returns: Database["public"]["CompositeTypes"]["system_summary"]
         SetofOptions: {
           from: "*"
-          to: "systems"
+          to: "system_summary"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -1867,22 +1830,10 @@ export type Database = {
       }
       rename_system: {
         Args: { p_name: string; p_system_id: string }
-        Returns: {
-          actions: Json
-          archived_at: string | null
-          branched_from: string | null
-          campaign_id: string | null
-          created_at: string
-          document: Json
-          id: string
-          kind: string
-          name: string
-          owner_id: string | null
-          updated_at: string
-        }
+        Returns: Database["public"]["CompositeTypes"]["system_summary"]
         SetofOptions: {
           from: "*"
-          to: "systems"
+          to: "system_summary"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -1945,7 +1896,17 @@ export type Database = {
       [_ in never]: never
     }
     CompositeTypes: {
-      [_ in never]: never
+      system_summary: {
+        id: string | null
+        name: string | null
+        kind: string | null
+        campaign_id: string | null
+        owner_id: string | null
+        branched_from: string | null
+        archived_at: string | null
+        created_at: string | null
+        updated_at: string | null
+      }
     }
   }
 }

@@ -68,14 +68,14 @@ describe('system repository', () => {
     await expect(repo.branchSystem('c1', 'x')).rejects.toMatchObject({ kind: 'business', reason: 'systems_limit_reached' })
   })
 
-  it('getSystemActions returns the catalogue, or [] when the system is not visible or has none', async () => {
+  it('getSystemActions calls the RPC (the column is not readable) and keeps the typed refusal', async () => {
     const fake = createFakeClient()
-    fake.enqueue({ data: [{ actions: [{ table_key: 'hechizos', name: 'Luz' }] }] }, { data: [] }, { data: [{ actions: null }] })
+    fake.enqueue({ data: [{ table_key: 'hechizos', name: 'Luz' }] }, { data: null }, { error: { message: 'system_not_available', code: 'P0001' } })
     const repo = createSystemRepository(fake.db)
     expect(await repo.getSystemActions('s1')).toEqual([{ table_key: 'hechizos', name: 'Luz' }])
-    expect(opsNamed(fake.calls[0], 'select')).toEqual([['actions']])
+    expect(fake.calls[0]).toMatchObject({ kind: 'rpc', name: 'get_system_actions', args: { p_system_id: 's1' } })
     expect(await repo.getSystemActions('s2')).toEqual([])
-    expect(await repo.getSystemActions('s3')).toEqual([])
+    await expect(repo.getSystemActions('s3')).rejects.toMatchObject({ kind: 'business', reason: 'system_not_available' })
   })
 
   it('the list columns never carry the catalogue (it can be 1 MB)', () => {
