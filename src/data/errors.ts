@@ -59,6 +59,11 @@ export const KNOWN_REASONS = [
   'discarded_key_live',
   'discarded_rekey_invalid',
   'discarded_key_taken',
+  'system_not_found',
+  'system_not_available',
+  'system_owner_only',
+  'invalid_system_kind',
+  'systems_limit_reached',
 ] as const
 
 export type DataErrorReason = (typeof KNOWN_REASONS)[number]

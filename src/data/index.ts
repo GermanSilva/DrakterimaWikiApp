@@ -12,6 +12,7 @@ import { createPlayerNotesRepository } from './playerNotesRepository'
 import { createPresenceRepository } from './presenceRepository'
 import { createProfileRepository } from './profileRepository'
 import { createReadStateRepository } from './readStateRepository'
+import { createSystemRepository } from './systemRepository'
 import { saveEntityWithDmNotes, type SaveEntityTarget } from './saveEntityWithDmNotes'
 import { getSupabase } from './supabaseClient'
 import type { Db } from './types'
@@ -38,6 +39,7 @@ export * from './playerNotesRepository'
 export * from './presenceRepository'
 export * from './profileRepository'
 export * from './readStateRepository'
+export * from './systemRepository'
 export * from './visibilityRepository'
 export * from './saveEntityWithDmNotes'
 export * from './wikiIndexRepository'
@@ -73,6 +75,8 @@ export function createDataLayer(client: Db = getSupabase()) {
       saveEntityWithDmNotes(entity(table), dmNotes, target, flat),
     campaigns: createCampaignRepository(client),
     campaignRequests: createCampaignRequestRepository(client),
+    /** Origins, homebrew and frozen copies (S25). */
+    systems: createSystemRepository(client),
     profiles: createProfileRepository(client),
     visibility: createVisibilityRepository(client),
     dmNotes,

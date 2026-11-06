@@ -259,6 +259,7 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
       busySlots: busySlotsList,
     },
     campaigns: { listMembers: membersList, updateMemberRole, removeMember, setPjOwner, deleteCampaign, updateCampaign, setSystemProfile, purgeDiscardedItem, rekeyDiscardedItem, listInvites: invitesList, createInvite: invitesCreate, revokeInvite: invitesRevoke },
+    systems: { listAvailableBases: vi.fn(async () => []), listAllSystems: vi.fn(async () => []), getSystemDocument: vi.fn(async () => null), branchSystem: vi.fn(), renameSystem: vi.fn(), createOriginFromCampaign: vi.fn(), promoteSystem: vi.fn(), archiveSystem: vi.fn() },
     games: { getPot: potGet, listLogs: gameLogsList, playLoteria: vi.fn(), assignPotToCharacter: vi.fn(), removeLog: vi.fn(async () => undefined) },
     presence: { touch: presenceTouch, list: presenceList },
     actions: { listActions: actionsList, listLinks: actionLinksList, listLinkedActions, createAction, updateAction, removeAction, link: linkAction, unlink: unlinkAction, updateLinkState },

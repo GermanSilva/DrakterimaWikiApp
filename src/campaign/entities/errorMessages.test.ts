@@ -86,3 +86,18 @@ describe('discarded sheet items (G7b)', () => {
     expect(describeDataError(toDataError({ message: 'dm_only', code: '42501' }))).toBe('Solo el DM puede hacer esto.')
   })
 })
+
+describe('systems (G8a)', () => {
+  it('explains each system reason in Spanish', () => {
+    expect(describeDataError(raised('system_not_found'))).toBe('Ese sistema ya no existe o no tenés acceso a él.')
+    expect(describeDataError(raised('system_not_available'))).toBe('Ese sistema base ya no está disponible. Elegí otro o pedí la campaña sin base.')
+    expect(describeDataError(raised('invalid_system_kind'))).toBe('Ese sistema ya es un Sistema Origen.')
+    expect(describeDataError(raised('systems_limit_reached'))).toBe('Llegaste al máximo de sistemas propios. Renombrá o reutilizá alguno en lugar de crear otro.')
+    expect(describeDataError(toDataError({ message: 'system_owner_only', code: '42501' }))).toBe('Solo quien creó este sistema puede cambiarlo.')
+  })
+
+  it('keeps the previous permission messages', () => {
+    expect(describeDataError(toDataError({ message: 'hub_owner_only', code: '42501' }))).toBe('No tenés permiso para hacer esto.')
+    expect(describeDataError(toDataError({ message: 'dm_only', code: '42501' }))).toBe('Solo el DM puede hacer esto.')
+  })
+})

@@ -26,6 +26,15 @@ const DISCARD_MESSAGES: Partial<Record<string, string>> = {
   discarded_key_taken: 'Algún personaje ya tiene datos guardados con la clave nueva, así que no se restauró. Probá con otra clave.',
 }
 
+/** Systems (G8a, S25): reasons raised by the system RPCs and by the base-system check of campaign requests. */
+const SYSTEM_MESSAGES: Partial<Record<string, string>> = {
+  system_not_found: 'Ese sistema ya no existe o no tenés acceso a él.',
+  system_not_available: 'Ese sistema base ya no está disponible. Elegí otro o pedí la campaña sin base.',
+  invalid_system_kind: 'Ese sistema ya es un Sistema Origen.',
+  systems_limit_reached: 'Llegaste al máximo de sistemas propios. Renombrá o reutilizá alguno en lugar de crear otro.',
+  system_owner_only: 'Solo quien creó este sistema puede cambiarlo.',
+}
+
 /**
  * User-facing (Spanish, voseo) message for a failed data operation. Never shows raw database text:
  * the typed kind / stable reason decides, everything else is logged by the caller.
@@ -37,7 +46,7 @@ export function describeDataError(err: unknown, fallback = 'No se pudo completar
     case 'conflict':
       return 'Ya existe un registro con esos datos.'
     case 'permission':
-      return err.reason === 'dm_only' ? 'Solo el DM puede hacer esto.' : (err.reason && COLLECTION_MESSAGES[err.reason]) || 'No tenés permiso para hacer esto.'
+      return err.reason === 'dm_only' ? 'Solo el DM puede hacer esto.' : (err.reason && (COLLECTION_MESSAGES[err.reason] ?? SYSTEM_MESSAGES[err.reason])) || 'No tenés permiso para hacer esto.'
     case 'not_found':
       return 'Ese registro ya no existe.'
     case 'validation':
@@ -45,7 +54,7 @@ export function describeDataError(err: unknown, fallback = 'No se pudo completar
     case 'auth':
       return 'Tu sesión expiró. Iniciá sesión de nuevo.'
     case 'business':
-      return (err.reason && (REWARD_MESSAGES[err.reason] ?? DISCARD_MESSAGES[err.reason])) || fallback
+      return (err.reason && (REWARD_MESSAGES[err.reason] ?? DISCARD_MESSAGES[err.reason] ?? SYSTEM_MESSAGES[err.reason])) || fallback
     case 'written_not_visible':
       return 'Se guardó, pero con tu rol no podés verlo. Recargá antes de volver a intentar.'
     default:

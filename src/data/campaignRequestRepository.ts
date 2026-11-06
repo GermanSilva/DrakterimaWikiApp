@@ -21,6 +21,8 @@ export interface CampaignRequest {
   decision_note: string | null
   decided_at: string | null
   campaign_id: string | null
+  /** The base system chosen at request time (null = the default document); the campaign gets a copy on approval (S4, S25). */
+  system_id?: string | null
   created_at: string
   updated_at: string
 }
@@ -37,6 +39,8 @@ export interface NewCampaignRequest {
   tagline?: string | null
   accent_color?: string | null
   logo_url?: string | null
+  /** A system from systems.listAvailableBases(); refused with system_not_available when not usable (checked again at approval). */
+  system_id?: string | null
 }
 
 const SELECT = join(CAMPAIGN_REQUEST_COLUMNS)
@@ -45,7 +49,7 @@ const PROFILE_EMBED = 'id, display_name, avatar_url'
 /**
  * Hub owner / campaign requests (H15). The database enforces every rule; `isHubOwner` is only a hint for the UI.
  * Errors keep their reason (see errors.ts): hub_owner_only, too_many_pending_requests, too_many_requests_recently, request_not_pending,
- * request_not_found, slug_taken, invalid_slug, invalid_name, reserved_slug, campaign_limit_reached.
+ * request_not_found, slug_taken, invalid_slug, invalid_name, reserved_slug, campaign_limit_reached, system_not_available.
  */
 export function createCampaignRequestRepository(client: Db) {
   return {

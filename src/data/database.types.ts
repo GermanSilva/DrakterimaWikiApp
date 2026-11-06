@@ -281,6 +281,7 @@ export type Database = {
           requester_id: string
           slug_wanted: string | null
           status: string
+          system_id: string | null
           tagline: string | null
           updated_at: string
         }
@@ -298,6 +299,7 @@ export type Database = {
           requester_id?: string
           slug_wanted?: string | null
           status?: string
+          system_id?: string | null
           tagline?: string | null
           updated_at?: string
         }
@@ -315,6 +317,7 @@ export type Database = {
           requester_id?: string
           slug_wanted?: string | null
           status?: string
+          system_id?: string | null
           tagline?: string | null
           updated_at?: string
         }
@@ -340,10 +343,18 @@ export type Database = {
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "campaign_requests_system_id_fkey"
+            columns: ["system_id"]
+            isOneToOne: false
+            referencedRelation: "systems"
+            referencedColumns: ["id"]
+          },
         ]
       }
       campaigns: {
         Row: {
+          based_on_system: string | null
           branding: Json
           character_custom_fields: Json
           created_at: string
@@ -358,6 +369,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          based_on_system?: string | null
           branding?: Json
           character_custom_fields?: Json
           created_at?: string
@@ -372,6 +384,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          based_on_system?: string | null
           branding?: Json
           character_custom_fields?: Json
           created_at?: string
@@ -386,6 +399,13 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "campaigns_based_on_system_fkey"
+            columns: ["based_on_system"]
+            isOneToOne: false
+            referencedRelation: "systems"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "campaigns_created_by_fkey"
             columns: ["created_by"]
@@ -1470,11 +1490,74 @@ export type Database = {
           },
         ]
       }
+      systems: {
+        Row: {
+          archived_at: string | null
+          branched_from: string | null
+          campaign_id: string | null
+          created_at: string
+          document: Json
+          id: string
+          kind: string
+          name: string
+          owner_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          archived_at?: string | null
+          branched_from?: string | null
+          campaign_id?: string | null
+          created_at?: string
+          document: Json
+          id?: string
+          kind: string
+          name: string
+          owner_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          archived_at?: string | null
+          branched_from?: string | null
+          campaign_id?: string | null
+          created_at?: string
+          document?: Json
+          id?: string
+          kind?: string
+          name?: string
+          owner_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "systems_branched_from_fkey"
+            columns: ["branched_from"]
+            isOneToOne: false
+            referencedRelation: "systems"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "systems_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "systems_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      _discarded_data_keys: { Args: { p_item: Json }; Returns: string[] }
+      _discarded_rename_roots: { Args: { p_item: Json }; Returns: string[] }
       _lottery_stale_keys: {
         Args: { p_cfg: Json; p_target: Json }
         Returns: string[]
@@ -1486,6 +1569,7 @@ export type Database = {
       _reward_target: { Args: { p_campaign_id: string }; Returns: Json }
       _sheet_calc: { Args: { p_calc: Json; p_path: string }; Returns: Json }
       _sheet_columns: { Args: { p_path: string; v: Json }; Returns: Json }
+      _sheet_data_keys: { Args: { p_sheet: Json }; Returns: string[] }
       _sheet_editor: { Args: { p_path: string; v: Json }; Returns: string }
       _sheet_fail: { Args: { p_path: string }; Returns: undefined }
       _sheet_formula: { Args: { p_path: string; v: Json }; Returns: string }
@@ -1497,15 +1581,59 @@ export type Database = {
       _sheet_label: { Args: { p_path: string; v: Json }; Returns: string }
       _sheet_mark_reward_destination: { Args: { p_sheet: Json }; Returns: Json }
       _sheet_options: { Args: { p_path: string; p_src: Json }; Returns: Json }
+      _sheet_structural_keys: { Args: { p_sheet: Json }; Returns: string[] }
       _sheet_value_ok: { Args: { spec: Json; v: Json }; Returns: boolean }
+      _validate_sheet_core: { Args: { p: Json }; Returns: Json }
       accept_invite: { Args: { p_code: string }; Returns: Json }
       approve_campaign_request: {
         Args: { p_name?: string; p_request_id: number; p_slug?: string }
         Returns: string
       }
+      archive_system: {
+        Args: { p_archived: boolean; p_system_id: string }
+        Returns: {
+          archived_at: string | null
+          branched_from: string | null
+          campaign_id: string | null
+          created_at: string
+          document: Json
+          id: string
+          kind: string
+          name: string
+          owner_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "systems"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       assign_pot_to_character: {
         Args: { p_campaign_id: string; p_character_id: number; p_coins: Json }
         Returns: Json
+      }
+      branch_system: {
+        Args: { p_campaign_id: string; p_name: string }
+        Returns: {
+          archived_at: string | null
+          branched_from: string | null
+          campaign_id: string | null
+          created_at: string
+          document: Json
+          id: string
+          kind: string
+          name: string
+          owner_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "systems"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       campaign_busy_slots: {
         Args: { p_campaign_id: string }
@@ -1537,6 +1665,7 @@ export type Database = {
           p_tagline?: string
         }
         Returns: {
+          based_on_system: string | null
           branding: Json
           character_custom_fields: Json
           created_at: string
@@ -1565,6 +1694,7 @@ export type Database = {
           p_slug: string
         }
         Returns: {
+          based_on_system: string | null
           branding: Json
           character_custom_fields: Json
           created_at: string
@@ -1585,6 +1715,27 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_origin_from_campaign: {
+        Args: { p_campaign_id: string; p_name: string }
+        Returns: {
+          archived_at: string | null
+          branched_from: string | null
+          campaign_id: string | null
+          created_at: string
+          document: Json
+          id: string
+          kind: string
+          name: string
+          owner_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "systems"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       credit_character_coins: {
         Args: {
           p_campaign_id: string
@@ -1596,6 +1747,10 @@ export type Database = {
       }
       delete_campaign: {
         Args: { p_campaign_id: string; p_confirm_slug: string }
+        Returns: undefined
+      }
+      freeze_campaign_system: {
+        Args: { p_campaign_id: string; p_user: string }
         Returns: undefined
       }
       get_entity_visibility: {
@@ -1615,13 +1770,31 @@ export type Database = {
         Returns: Json
       }
       preview_invite: { Args: { p_code: string }; Returns: Json }
-      reject_campaign_request: {
-        Args: { p_note?: string; p_request_id: number }
-        Returns: undefined
+      promote_system: {
+        Args: { p_name?: string; p_system_id: string }
+        Returns: {
+          archived_at: string | null
+          branched_from: string | null
+          campaign_id: string | null
+          created_at: string
+          document: Json
+          id: string
+          kind: string
+          name: string
+          owner_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "systems"
+          isOneToOne: true
+          isSetofReturn: false
+        }
       }
       purge_discarded_item: {
         Args: { p_base: string; p_campaign_id: string; p_key: string }
         Returns: {
+          based_on_system: string | null
           branding: Json
           character_custom_fields: Json
           created_at: string
@@ -1642,9 +1815,20 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      reject_campaign_request: {
+        Args: { p_note?: string; p_request_id: number }
+        Returns: undefined
+      }
       rekey_discarded_item: {
-        Args: { p_base: string; p_campaign_id: string; p_key: string; p_profile: Json; p_renames: Json }
+        Args: {
+          p_base: string
+          p_campaign_id: string
+          p_key: string
+          p_profile: Json
+          p_renames: Json
+        }
         Returns: {
+          based_on_system: string | null
           branding: Json
           character_custom_fields: Json
           created_at: string
@@ -1661,6 +1845,27 @@ export type Database = {
         SetofOptions: {
           from: "*"
           to: "campaigns"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      rename_system: {
+        Args: { p_name: string; p_system_id: string }
+        Returns: {
+          archived_at: string | null
+          branched_from: string | null
+          campaign_id: string | null
+          created_at: string
+          document: Json
+          id: string
+          kind: string
+          name: string
+          owner_id: string | null
+          updated_at: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "systems"
           isOneToOne: true
           isSetofReturn: false
         }
@@ -1672,6 +1877,7 @@ export type Database = {
       set_system_profile: {
         Args: { p_base: string; p_campaign_id: string; p_profile: Json }
         Returns: {
+          based_on_system: string | null
           branding: Json
           character_custom_fields: Json
           created_at: string
@@ -1701,6 +1907,10 @@ export type Database = {
         Args: { p_keep_newlines?: boolean; p_text: string }
         Returns: string
       }
+      system_template: { Args: { p: Json }; Returns: Json }
+      system_usable_by:
+        | { Args: { p_system_id: string }; Returns: boolean }
+        | { Args: { p_system_id: string; p_user: string }; Returns: boolean }
       touch_campaign_presence: {
         Args: { p_campaign_id: string }
         Returns: undefined

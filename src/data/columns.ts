@@ -188,12 +188,16 @@ export const CAMPAIGN_REQUEST_COLUMNS = [
   'decision_note',
   'decided_at',
   'campaign_id',
+  'system_id',
   'created_at',
   'updated_at',
 ] as const
 
 /** The only columns a requester may send (column grant). */
-export const CAMPAIGN_REQUEST_WRITE_COLUMNS = ['name', 'slug_wanted', 'message', 'tagline', 'accent_color', 'logo_url'] as const
+export const CAMPAIGN_REQUEST_WRITE_COLUMNS = ['name', 'slug_wanted', 'message', 'tagline', 'accent_color', 'logo_url', 'system_id'] as const
+
+/** Systems without the document (select-only table; every write is an RPC). */
+export const SYSTEM_COLUMNS = ['id', 'name', 'kind', 'campaign_id', 'owner_id', 'branched_from', 'archived_at', 'created_at', 'updated_at'] as const
 
 export const CAMPAIGN_MEMBER_COLUMNS = ['campaign_id', 'user_id', 'role', 'created_at', 'updated_at'] as const
 
@@ -345,6 +349,7 @@ export const COLUMN_LIST_ENTRIES: readonly ColumnListEntry[] = [
   { name: 'campaigns', table: 'campaigns', columns: CAMPAIGN_COLUMNS },
   { name: 'campaign_requests', table: 'campaign_requests', columns: CAMPAIGN_REQUEST_COLUMNS },
   { name: 'campaign_requests_write', table: 'campaign_requests', columns: CAMPAIGN_REQUEST_WRITE_COLUMNS },
+  { name: 'systems', table: 'systems', columns: SYSTEM_COLUMNS },
   { name: 'campaign_members', table: 'campaign_members', columns: CAMPAIGN_MEMBER_COLUMNS },
   { name: 'campaign_invites', table: 'campaign_invites', columns: INVITE_COLUMNS },
   { name: 'campaign_invites_write', table: 'campaign_invites', columns: INVITE_WRITE_COLUMNS },
