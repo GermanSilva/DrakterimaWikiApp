@@ -420,3 +420,53 @@ describe('legacy host keeps its optimistic layout between renders', () => {
     expect(second.cards.map((c) => c.tipo)).toEqual(['inspiration', 'notes', 'combat'])
   })
 })
+
+describe('legacy session screen keeps the fixed D&D keys (no sheet, G5c)', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  const eldric = { id: 1, nombre: 'Eldric', stat_hp: 40, stat_hp_current: 31, stat_hp_temp: 5, stat_ac: 18, stat_ac_temp: 2, stat_speed: 30, recursos: [] }
+
+  function renderCards(cards: unknown[]) {
+    vi.stubGlobal('IntersectionObserver', class { observe() {} disconnect() {} unobserve() {} takeRecords() { return [] } })
+    window.scrollTo = vi.fn() as typeof window.scrollTo
+    const app = {
+      db: { pjs: [eldric], homebrew_rules: [], game_config: [{ id: 'session_screen', cards }] },
+      isDM: true,
+      saveSessionScreen: vi.fn(async () => undefined),
+      save: vi.fn(async () => undefined),
+      remove: vi.fn(async () => undefined),
+    }
+    render(
+      <AppContext.Provider value={app as never}>
+        <SessionScreen />
+      </AppContext.Provider>,
+    )
+    return app
+  }
+
+  it('stats card: HP (current / max, temp), AC (temp) and speed come from stat_hp, stat_ac, stat_speed', () => {
+    renderCards([{ id: 1, tipo: 'stats' }])
+    fireEvent.click(screen.getByRole('button', { name: /Eldric/ }))
+    const text = document.body.textContent ?? ''
+    expect(text).toContain('HP31 / 40 (+5)')
+    expect(text).toContain('CA18 (+2)')
+    expect(text).toContain('Vel.30 ft')
+  })
+
+  it('a long rest restores stat_hp_current from stat_hp', async () => {
+    const app = renderCards([{ id: 1, tipo: 'resources' }])
+    fireEvent.click(screen.getByRole('button', { name: /Eldric/ }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Descanso Largo' }))
+    await act(async () => {})
+    expect(app.save).toHaveBeenCalledWith('pjs', expect.objectContaining({ id: 1, stat_hp_current: 40 }))
+  })
+
+  it('combat: a character joins with the fixed keys and every control is drawn', async () => {
+    const app = renderCards([{ id: 1, tipo: 'combat', combatants: [] }])
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: '1' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar' }))
+    const saved = (app.saveSessionScreen.mock.calls.at(-1) as unknown[])[0] as { cards: { combatants: Record<string, unknown>[] }[] }
+    expect(saved.cards[0].combatants[0]).toMatchObject({ pj_id: 1, hp_actual: 31, hp_max: 40, hp_temp: 5, ac: 18, ac_temp: 2, velocidad: 30 })
+    for (const label of [/^HP Actual$/, /^HP M.ximo$/, /^HP Temporal$/, /^AC$/, /^AC Temporal$/, /^Velocidad$/]) expect(screen.getByText(label)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ordenar por HP actual' })).toBeInTheDocument()
+  })
+})

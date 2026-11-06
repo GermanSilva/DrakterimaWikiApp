@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Trash2 } from 'lucide-react'
 import { useSessionScreenPort } from '../../../ports'
 import { labelCls, inputCls, btnPrimary, btnSecondary } from '../../../constants'
+import { roleKeys, roleValues } from '../../../campaign/system/sheet/roles'
 import SessionCardShell from './SessionCardShell'
 import { consumeEcho, trackSent } from './inflightEchoes'
 
@@ -23,8 +24,11 @@ function borderColorCls(c) {
 // same pattern as SessionCardNotes' `entry.text` — no separate document,
 // no `db.pjs` mutation. Combatant fields are cached at add-time and never
 // re-synced with the source PJ afterwards (by design).
-export default function SessionCardCombat({ db, entry, onRemove }) {
+export default function SessionCardCombat({ db, sheet = null, entry, onRemove }) {
   const port = useSessionScreenPort()
+  // An unbound role hides its controls (a legacy campaign has them all).
+  const bound = roleKeys(sheet)
+  const shows = { hp: bound.hp !== undefined, ac: bound.ac !== undefined, speed: bound.speed !== undefined }
   const [combatants, setCombatants] = useState(entry?.combatants ?? [])
   const [selectedPjId, setSelectedPjId] = useState('')
   const [addingCustom, setAddingCustom] = useState(false)
@@ -62,17 +66,18 @@ export default function SessionCardCombat({ db, entry, onRemove }) {
   const availablePjs = pjs.filter(pj => !combatants.some(c => c.tipo === 'pj' && c.pj_id === pj.id))
 
   function buildPjCombatant(pj) {
+    const roles = roleValues(sheet, pj)
     return {
       tipo: 'pj',
       pj_id: pj.id,
       nombre: pj.nombre,
       iniciativa: 0,
-      hp_actual: pj.stat_hp_current ?? pj.stat_hp ?? 0,
-      hp_max: pj.stat_hp ?? 0,
-      hp_temp: pj.stat_hp_temp ?? 0,
-      ac: pj.stat_ac ?? 0,
-      ac_temp: pj.stat_ac_temp ?? 0,
-      velocidad: pj.stat_speed ?? 0,
+      hp_actual: roles.hp_current ?? roles.hp ?? 0,
+      hp_max: roles.hp ?? 0,
+      hp_temp: shows.hp ? pj.stat_hp_temp ?? 0 : 0,
+      ac: roles.ac ?? 0,
+      ac_temp: shows.ac ? pj.stat_ac_temp ?? 0 : 0,
+      velocidad: roles.speed ?? 0,
     }
   }
 
@@ -151,7 +156,7 @@ export default function SessionCardCombat({ db, entry, onRemove }) {
         <>
           <div className="mb-2 flex gap-2">
             <button type="button" className={btnSecondary} onClick={sortByIniciativa}>Ordenar por iniciativa</button>
-            <button type="button" className={btnSecondary} onClick={sortByHpActual}>Ordenar por HP actual</button>
+            {shows.hp && <button type="button" className={btnSecondary} onClick={sortByHpActual}>Ordenar por HP actual</button>}
           </div>
           <div className="space-y-2 mb-3">
             {combatants.map(c => (
@@ -188,66 +193,78 @@ export default function SessionCardCombat({ db, entry, onRemove }) {
                       onBlur={persistCurrent}
                     />
                   </div>
-                  <div>
-                    <label className={labelCls}>HP Actual</label>
-                    <input
-                      className={inputCls}
-                      type="number"
-                      value={c.hp_actual}
-                      onChange={e => updateField(c.id, 'hp_actual', e.target.value)}
-                      onBlur={persistCurrent}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelCls}>HP Máximo</label>
-                    <input
-                      className={inputCls}
-                      type="number"
-                      value={c.hp_max}
-                      onChange={e => updateField(c.id, 'hp_max', e.target.value)}
-                      onBlur={persistCurrent}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelCls}>HP Temporal</label>
-                    <input
-                      className={inputCls}
-                      type="number"
-                      value={c.hp_temp}
-                      onChange={e => updateField(c.id, 'hp_temp', e.target.value)}
-                      onBlur={persistCurrent}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelCls}>AC</label>
-                    <input
-                      className={inputCls}
-                      type="number"
-                      value={c.ac}
-                      onChange={e => updateField(c.id, 'ac', e.target.value)}
-                      onBlur={persistCurrent}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelCls}>AC Temporal</label>
-                    <input
-                      className={inputCls}
-                      type="number"
-                      value={c.ac_temp}
-                      onChange={e => updateField(c.id, 'ac_temp', e.target.value)}
-                      onBlur={persistCurrent}
-                    />
-                  </div>
-                  <div>
-                    <label className={labelCls}>Velocidad</label>
-                    <input
-                      className={inputCls}
-                      type="number"
-                      value={c.velocidad}
-                      onChange={e => updateField(c.id, 'velocidad', e.target.value)}
-                      onBlur={persistCurrent}
-                    />
-                  </div>
+                  {shows.hp && (
+                    <div>
+                      <label className={labelCls}>HP Actual</label>
+                      <input
+                        className={inputCls}
+                        type="number"
+                        value={c.hp_actual}
+                        onChange={e => updateField(c.id, 'hp_actual', e.target.value)}
+                        onBlur={persistCurrent}
+                      />
+                    </div>
+                  )}
+                  {shows.hp && (
+                    <div>
+                      <label className={labelCls}>HP Máximo</label>
+                      <input
+                        className={inputCls}
+                        type="number"
+                        value={c.hp_max}
+                        onChange={e => updateField(c.id, 'hp_max', e.target.value)}
+                        onBlur={persistCurrent}
+                      />
+                    </div>
+                  )}
+                  {shows.hp && (
+                    <div>
+                      <label className={labelCls}>HP Temporal</label>
+                      <input
+                        className={inputCls}
+                        type="number"
+                        value={c.hp_temp}
+                        onChange={e => updateField(c.id, 'hp_temp', e.target.value)}
+                        onBlur={persistCurrent}
+                      />
+                    </div>
+                  )}
+                  {shows.ac && (
+                    <div>
+                      <label className={labelCls}>AC</label>
+                      <input
+                        className={inputCls}
+                        type="number"
+                        value={c.ac}
+                        onChange={e => updateField(c.id, 'ac', e.target.value)}
+                        onBlur={persistCurrent}
+                      />
+                    </div>
+                  )}
+                  {shows.ac && (
+                    <div>
+                      <label className={labelCls}>AC Temporal</label>
+                      <input
+                        className={inputCls}
+                        type="number"
+                        value={c.ac_temp}
+                        onChange={e => updateField(c.id, 'ac_temp', e.target.value)}
+                        onBlur={persistCurrent}
+                      />
+                    </div>
+                  )}
+                  {shows.speed && (
+                    <div>
+                      <label className={labelCls}>Velocidad</label>
+                      <input
+                        className={inputCls}
+                        type="number"
+                        value={c.velocidad}
+                        onChange={e => updateField(c.id, 'velocidad', e.target.value)}
+                        onBlur={persistCurrent}
+                      />
+                    </div>
+                  )}
                 </div>
               </div>
             ))}
@@ -299,33 +316,39 @@ export default function SessionCardCombat({ db, entry, onRemove }) {
                 onChange={e => setCustomForm(f => ({ ...f, iniciativa: e.target.value }))}
               />
             </div>
-            <div>
-              <label className={labelCls}>HP Máximo</label>
-              <input
-                className={inputCls}
-                type="number"
-                value={customForm.hp_max}
-                onChange={e => setCustomForm(f => ({ ...f, hp_max: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className={labelCls}>AC</label>
-              <input
-                className={inputCls}
-                type="number"
-                value={customForm.ac}
-                onChange={e => setCustomForm(f => ({ ...f, ac: e.target.value }))}
-              />
-            </div>
-            <div>
-              <label className={labelCls}>Velocidad</label>
-              <input
-                className={inputCls}
-                type="number"
-                value={customForm.velocidad}
-                onChange={e => setCustomForm(f => ({ ...f, velocidad: e.target.value }))}
-              />
-            </div>
+            {shows.hp && (
+              <div>
+                <label className={labelCls}>HP Máximo</label>
+                <input
+                  className={inputCls}
+                  type="number"
+                  value={customForm.hp_max}
+                  onChange={e => setCustomForm(f => ({ ...f, hp_max: e.target.value }))}
+                />
+              </div>
+            )}
+            {shows.ac && (
+              <div>
+                <label className={labelCls}>AC</label>
+                <input
+                  className={inputCls}
+                  type="number"
+                  value={customForm.ac}
+                  onChange={e => setCustomForm(f => ({ ...f, ac: e.target.value }))}
+                />
+              </div>
+            )}
+            {shows.speed && (
+              <div>
+                <label className={labelCls}>Velocidad</label>
+                <input
+                  className={inputCls}
+                  type="number"
+                  value={customForm.velocidad}
+                  onChange={e => setCustomForm(f => ({ ...f, velocidad: e.target.value }))}
+                />
+              </div>
+            )}
           </div>
           <div className="flex gap-2">
             <button type="button" className={btnPrimary} onClick={addCustom}>Guardar</button>

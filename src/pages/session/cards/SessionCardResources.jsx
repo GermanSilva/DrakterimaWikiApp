@@ -2,11 +2,12 @@ import { useState } from 'react'
 import { useSessionScreenPort } from '../../../ports'
 import { exactEqual } from '../../../helpers/pjSections'
 import { btnSecondary } from '../../../constants'
+import { roleValues, roleWriteKey } from '../../../campaign/system/sheet/roles'
 import SessionCardShell from './SessionCardShell'
 import PJSubsection from './PJSubsection'
 import EmptyPjsState from './EmptyPjsState'
 
-export default function SessionCardResources({ db, onEdit, onRemove }) {
+export default function SessionCardResources({ db, sheet = null, onEdit, onRemove }) {
   const port = useSessionScreenPort()
   const pjs = db?.pjs ?? []
   const [collapsedIds, setCollapsedIds] = useState(() => new Set(pjs.map(pj => pj.id)))
@@ -18,7 +19,11 @@ export default function SessionCardResources({ db, onEdit, onRemove }) {
     return next
   })
 
+  // The current HP is written under the key bound to the hp_current role (nothing when it is unbound), restored to the hp role.
+  const hpKey = roleWriteKey(sheet, 'hp_current')
+
   function rest(pj, kind) {
+    const roles = roleValues(sheet, pj)
     const recursos = (pj.recursos ?? []).map(r =>
       (kind === 'largo' || r.recuperacion === 'corto') ? { ...r, actual: r.maximo } : r
     )
@@ -26,10 +31,10 @@ export default function SessionCardResources({ db, onEdit, onRemove }) {
     const patch = { recursos }
     if (kind === 'largo') {
       patch.spell_slots_current = { ...(pj.spell_slots ?? {}) }
-      patch.stat_hp_current = pj.stat_hp
+      if (hpKey && (!sheet || roles.hp !== undefined)) patch[hpKey] = roles.hp
     }
     // Skip what the rest does not change (a no-op rest writes nothing and does not stamp the sheet as updated).
-    const effective = { ...pj, stat_hp_current: pj.stat_hp_current ?? pj.stat_hp }
+    const effective = hpKey ? { ...pj, [hpKey]: roles.hp_current ?? roles.hp } : pj
     const changed = Object.fromEntries(Object.entries(patch).filter(([k, v]) => !exactEqual(effective[k], v)))
     if (Object.keys(changed).length === 0) return
     port.savePj(pj, changed)

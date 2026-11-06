@@ -9,6 +9,8 @@ import { useCampaign } from '../CampaignContext'
 import { useCampaignServices } from '../entities/campaignServicesContext'
 import { useEntities } from '../entities/useEntities'
 import { useEntityActions } from '../entities/useEntityActions'
+import { storedSheet } from '../system/sheet/searchable'
+import { useSystem } from '../system/useSystem'
 import { markSectionsSeen, pjSectionStamps } from '../pjStamps'
 import { SectionNotFound } from '../SectionRoute'
 import { Loading } from './DetailNotice'
@@ -39,6 +41,8 @@ function SessionScreenHost() {
   const pjActions = useEntityActions('pjs')
   const ruleActions = useEntityActions('homebrew_rules')
   const unread = useUnreadPort()
+  const system = useSystem()
+  const sheet = useMemo(() => storedSheet(system), [system])
 
   // The port reads the latest lists through refs: its identity (and so every card) does not churn with realtime.
   // Rows this screen wrote: the row the server returned is the latest known version until the realtime echo
@@ -122,7 +126,7 @@ function SessionScreenHost() {
           </button>
         </div>
       )}
-      <SessionScreenView db={db} cards={layout.cards} port={port} />
+      <SessionScreenView db={db} cards={layout.cards} port={port} sheet={sheet} />
     </>
   )
 }

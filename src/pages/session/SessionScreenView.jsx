@@ -16,7 +16,9 @@ const HEADER_H = 60
 // truth driving both the tab header and the stacked card list — no separate tabs state, so reorder/add/remove can
 // never desync the two) and every write goes through `port`. The legacy app and the hub each provide their own.
 // The caller owns the DM gate: this component renders character data without any visibility filter by design.
-export default function SessionScreenView({ db, cards, port }) {
+// `sheet` is the validated sheet of the campaign (null in the legacy app and in campaigns without one): the character
+// cards read the sheet roles through it instead of the fixed D&D keys.
+export default function SessionScreenView({ db, cards, port, sheet = null }) {
   // Defensive filter: drop any persisted entry whose `tipo` is no longer a
   // CARD_REGISTRY key (e.g. a leftover `hp-ac` entry) before it reaches
   // drag-and-drop index math, the empty-state check, or any child that
@@ -144,6 +146,7 @@ export default function SessionScreenView({ db, cards, port }) {
                       <div id={`session-card-${entry.id}`} data-card-id={entry.id}>
                         <Component
                           db={db}
+                          sheet={sheet}
                           entry={entry}
                           onEdit={pj => setEditing({ pj, cardType: entry.tipo })}
                           onRemove={() => removeCard(entry.id)}
