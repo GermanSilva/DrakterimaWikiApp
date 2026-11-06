@@ -7,6 +7,7 @@ import { useCampaignServices } from '../entities/campaignServicesContext'
 import { describeDataError } from '../entities/errorMessages'
 import { useEntities } from '../entities/useEntities'
 import { actionTablesOf, groupByCategory } from '../system/actions/tables'
+import { storedSheet } from '../system/sheet/searchable'
 import { useSystem } from '../system/useSystem'
 import { ActionForm } from './acciones/ActionForm'
 import { useActionCollection } from './acciones/useActionCollection'
@@ -18,12 +19,13 @@ const includesText = (haystack: string, needle: string) => haystack.toLowerCase(
 
 /**
  * DM catalogue of the shared action collection (S35-S37): the entries grouped by Habilidad table and category, searchable by
- * name, with create / edit / delete. Functions (S22) are not edited here. The registry only mounts it for the DM of a campaign
+ * name, with create / edit / delete, with the function editor (S22) inside the entry form. The registry only mounts it for the DM of a campaign
  * whose sheet has a Habilidad table.
  */
 export function AccionesPage() {
   const system = useSystem()
   const tables = useMemo(() => actionTablesOf(system), [system])
+  const sheet = useMemo(() => storedSheet(system), [system])
   const { layer } = useCampaignServices()
   const collection = useActionCollection()
   const pjs = useEntities('pjs')
@@ -55,8 +57,9 @@ export function AccionesPage() {
         </button>
       </PageHeader>
 
-      {editing && (
+      {editing && sheet && (
         <ActionForm
+          sheet={sheet}
           key={editing === 'new' ? 'new' : editing.id}
           tables={tables}
           characters={characters}

@@ -4,7 +4,12 @@ import type { ActionInput, CampaignAction } from '../../../data'
 import { useCampaignServices } from '../../entities/campaignServicesContext'
 import { describeDataError } from '../../entities/errorMessages'
 import { entryColumns, type HabilidadTable } from '../../system/actions/tables'
+import { validateActionFunction } from '../../system/actions/function/validate'
 import { Control } from '../../system/sheet/Control'
+import type { Sheet } from '../../system/sheet/sheetModel'
+import { FunctionEditor } from './FunctionEditor'
+import { draftErrors } from './functionErrors'
+import { toDraft, toRaw, type Draft } from './functionDraft'
 
 export interface PjOption {
   id: number
@@ -12,6 +17,7 @@ export interface PjOption {
 }
 
 interface Props {
+  sheet: Sheet
   tables: HabilidadTable[]
   characters: PjOption[]
   /** The entry being edited; null creates one. */
@@ -29,7 +35,7 @@ const startCategory = (table: HabilidadTable | undefined, current = ''): string 
 const isEmpty = (value: unknown) => value === undefined || value === null || value === ''
 
 /** Entry form of the DM catalogue: table, category, name, description, the entry-scope columns, and the character it is private to. */
-export function ActionForm({ tables, characters, initial, onSaved, onCancel }: Props) {
+export function ActionForm({ sheet, tables, characters, initial, onSaved, onCancel }: Props) {
   const { layer, campaignId } = useCampaignServices()
   const [tableKey, setTableKey] = useState(initial?.table_key ?? tables[0]?.key ?? '')
   const table = tables.find((t) => t.key === tableKey)
@@ -38,6 +44,9 @@ export function ActionForm({ tables, characters, initial, onSaved, onCancel }: P
   const [description, setDescription] = useState(initial?.description ?? '')
   const [extras, setExtras] = useState<Record<string, unknown>>(initial?.extras ?? {})
   const [privateTo, setPrivateTo] = useState<number | null>(initial?.private_to_pj ?? null)
+  const [fnDraft, setFnDraft] = useState<Draft | null>(() => toDraft(initial?.function))
+  // an untouched function is never sent back: a stored one we could not show stays exactly as it is
+  const [fnTouched, setFnTouched] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const columns = table ? entryColumns(table) : []
@@ -55,15 +64,24 @@ export function ActionForm({ tables, characters, initial, onSaved, onCancel }: P
       setError('El nombre es obligatorio.')
       return
     }
+    let fn: unknown
+    if (fnDraft !== null && (fnTouched || !initial)) {
+      if (draftErrors(fnDraft, sheet, table.key).length > 0) {
+        setError('Corregí los errores de la función antes de guardar.')
+        return
+      }
+      const checked = validateActionFunction(toRaw(fnDraft), sheet, table.key)
+      fn = checked.ok ? checked.fn : undefined
+    } else if (fnDraft === null && fnTouched) fn = null
     // only the entry-scope columns travel, and only the ones with a value (an empty control is no value)
     const sent = Object.fromEntries(columns.filter((c) => !isEmpty(extras[c.key])).map((c) => [c.key, extras[c.key]]))
-    const input: ActionInput = { table_key: table.key, category: startCategory(table, category), name: name.trim(), description, extras: sent, private_to_pj: privateTo }
+    const input: ActionInput = { table_key: table.key, category: startCategory(table, category), name: name.trim(), description, extras: sent, private_to_pj: privateTo, ...(fn !== undefined ? { function: fn } : {}) }
     setSaving(true)
     setError(null)
     try {
       if (initial) {
         // the table of an existing entry is not changed here
-        await layer.actions.updateAction(initial.id, { category: input.category, name: input.name, description, extras: sent, private_to_pj: privateTo })
+        await layer.actions.updateAction(initial.id, { category: input.category, name: input.name, description, extras: sent, private_to_pj: privateTo, ...(fn !== undefined ? { function: fn } : {}) })
       } else {
         await layer.actions.createAction(campaignId, input)
       }
@@ -142,6 +160,15 @@ export function ActionForm({ tables, characters, initial, onSaved, onCancel }: P
           ))}
         </select>
       </div>
+      <FunctionEditor
+        sheet={sheet}
+        table={table}
+        draft={fnDraft}
+        onChange={(next) => {
+          setFnDraft(next)
+          setFnTouched(true)
+        }}
+      />
       {error && (
         <p role="alert" className="text-[13px] text-accent-bright">
           {error}
