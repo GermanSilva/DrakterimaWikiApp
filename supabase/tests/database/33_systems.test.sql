@@ -10,7 +10,7 @@
 -- Self-contained fixture, rolled back at the end.
 begin;
 
-select plan(123);
+select plan(155);
 
 create schema tests;
 grant usage on schema tests to anon, authenticated;
@@ -496,6 +496,143 @@ update public.systems set document = jsonb_set(document, '{modules,mapas}', 'fal
 select results_eq(
   $$select c.system_profile = (select c2_default from base), c.based_on_system = s.id from public.campaigns c, public.systems s where c.slug = 'sys-q-cuatro' and s.name = 'Origen Cuatro'$$,
   $$values (true, true)$$, 'the campaign keeps its copy and its lineage after the source is edited and archived');
+
+------------------------------------------------------------------------------
+-- Part 7: G8a-2 (S38) systems carry the SHARED action entries of the campaign, never the private ones
+--   users 17, 18 DMs of C8 (sheet + actions), 19 player of C8 owning pj 99001; C9 (DM 18) holds 210 shared entries
+------------------------------------------------------------------------------
+select tests.as_postgres();
+create function tests.sheet8() returns jsonb language sql stable as $$
+  select $sheet${
+    "categories": [{"key": "c", "label": "C", "sections": [
+      {"key": "alpha", "label": "Alpha", "items": [
+        {"kind": "table", "type": "habilidad", "key": "hechizos", "label": "Hechizos", "editableBy": "player",
+         "categories": [{"key": "truco", "label": "Truco"}, {"key": "nivel1", "label": "Nivel 1"}],
+         "columns": [
+          {"key": "escuela", "label": "Escuela", "type": "short", "editableBy": "player", "scope": "entry"},
+          {"key": "preparado", "label": "Preparado", "type": "boolean", "editableBy": "player", "scope": "character"}]},
+        {"kind": "table", "type": "habilidad", "key": "rasgos", "label": "Rasgos", "editableBy": "dm",
+         "columns": [{"key": "fuente", "label": "Fuente", "type": "short", "editableBy": "dm"}]}
+      ], "blocks": []}]}],
+    "roles": {}
+  }$sheet$::jsonb;
+$$;
+grant execute on function tests.sheet8() to authenticated;
+
+insert into auth.users (instance_id, id, aud, role, email, raw_user_meta_data)
+select '00000000-0000-0000-0000-000000000000', ('aaaaaaaa-3300-4000-8000-' || lpad(n::text, 12, '0'))::uuid,
+       'authenticated', 'authenticated', 'sys-u' || n || '@example.test', json_build_object('full_name', 'Sys User ' || n)::jsonb
+from generate_series(17, 19) as n;
+insert into public.campaigns (id, slug, name, created_by) values
+  ('bbbbbbbb-3300-4000-8000-000000000018', 'sys-c8', 'Sys C8', 'aaaaaaaa-3300-4000-8000-000000000017'),
+  ('bbbbbbbb-3300-4000-8000-000000000019', 'sys-c9', 'Sys C9', 'aaaaaaaa-3300-4000-8000-000000000018');
+insert into public.campaign_members (campaign_id, user_id, role) values
+  ('bbbbbbbb-3300-4000-8000-000000000018', 'aaaaaaaa-3300-4000-8000-000000000017', 'dm'),
+  ('bbbbbbbb-3300-4000-8000-000000000018', 'aaaaaaaa-3300-4000-8000-000000000018', 'dm'),
+  ('bbbbbbbb-3300-4000-8000-000000000018', 'aaaaaaaa-3300-4000-8000-000000000019', 'player'),
+  ('bbbbbbbb-3300-4000-8000-000000000019', 'aaaaaaaa-3300-4000-8000-000000000018', 'dm');
+insert into public.pjs (id, campaign_id, owner_id, nombre) values
+  (99001, 'bbbbbbbb-3300-4000-8000-000000000018', 'aaaaaaaa-3300-4000-8000-000000000019', 'Pj acc');
+update public.campaigns set system_profile = system_profile || jsonb_build_object('sheet', tests.sheet8()) where slug in ('sys-c8', 'sys-c9');
+insert into public.campaign_actions (campaign_id, table_key, category, name, description, extras, private_to_pj, function) values
+  ('bbbbbbbb-3300-4000-8000-000000000018', 'hechizos', 'truco', 'Luz', 'Una luz.', '{"escuela": "evocacion"}', null, '{"steps":[{"kind":"note"}]}'),
+  ('bbbbbbbb-3300-4000-8000-000000000018', 'hechizos', 'nivel1', 'Escudo', '', '{}', null, null),
+  ('bbbbbbbb-3300-4000-8000-000000000018', 'rasgos', '', 'Vision', '', '{"fuente": "elfo"}', null, null),
+  ('bbbbbbbb-3300-4000-8000-000000000018', 'hechizos', 'truco', 'Mi truco', 'Privado.', '{}', 99001, '{"steps":[]}');
+insert into public.campaign_actions (campaign_id, table_key, category, name)
+select 'bbbbbbbb-3300-4000-8000-000000000019', 'hechizos', 'truco', 'bulk ' || n from generate_series(1, 210) n;
+
+select ok(
+  exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'systems' and column_name = 'actions' and is_nullable = 'NO')
+  and has_column_privilege('authenticated', 'public.campaign_requests', 'seeded_actions', 'select')
+  and not has_column_privilege('authenticated', 'public.campaign_requests', 'seeded_actions', 'insert'),
+  'systems.actions exists and the seeding counters of a request are readable, never writable');
+select ok(
+  not has_function_privilege('authenticated', 'public.system_capture_actions(uuid)', 'execute')
+  and not has_function_privilege('authenticated', 'public.system_seed_actions(uuid, jsonb, uuid)', 'execute')
+  and not has_function_privilege('anon', 'public.system_seed_actions(uuid, jsonb, uuid)', 'execute'),
+  'the capture and seed helpers are not callable through the API');
+
+-- capture on branch: shared entries only, the function travels
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000017');
+select lives_ok($$select public.branch_system('bbbbbbbb-3300-4000-8000-000000000018', 'HB-acc')$$, 'a DM branches a homebrew from a campaign with an action catalogue');
+select tests.as_postgres();
+select is((select jsonb_array_length(actions) from public.systems where name = 'HB-acc'), 3, 'the homebrew carries the three shared entries');
+select is((select count(*) from public.systems s, jsonb_array_elements(s.actions) a where s.name = 'HB-acc' and a ->> 'name' = 'Mi truco'), 0::bigint, 'the entry private to a character never travels');
+select is((select a -> 'function' from public.systems s, jsonb_array_elements(s.actions) a where s.name = 'HB-acc' and a ->> 'name' = 'Luz'), '{"steps":[{"kind":"note"}]}'::jsonb, 'the function of a shared entry travels');
+
+-- capture on origin creation and promotion
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000001');
+select lives_ok($$select public.create_origin_from_campaign('bbbbbbbb-3300-4000-8000-000000000018', 'Origin-acc')$$, 'the hub owner creates an origin from that campaign');
+select lives_ok($$select public.promote_system(tests.sid('HB-acc'), 'Prom-acc')$$, 'and promotes the homebrew');
+select tests.as_postgres();
+select is((select jsonb_array_length(actions) from public.systems where name = 'Origin-acc'), 3, 'the origin carries the three shared entries');
+select is((select actions = (select actions from public.systems where name = 'HB-acc') from public.systems where name = 'Prom-acc'), true, 'promotion copies the catalogue of the source');
+
+-- capture on freeze (trigger path)
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000018');
+select lives_ok($$update public.campaign_members set role = 'player' where campaign_id = 'bbbbbbbb-3300-4000-8000-000000000018' and user_id = 'aaaaaaaa-3300-4000-8000-000000000017'$$, 'a DM is demoted');
+select tests.as_postgres();
+select is((select jsonb_array_length(actions) from public.systems where kind = 'frozen' and owner_id = 'aaaaaaaa-3300-4000-8000-000000000017'), 3, 'the frozen copy carries the shared entries');
+select is((select count(*) from public.systems s, jsonb_array_elements(s.actions) a where s.kind = 'frozen' and s.owner_id = 'aaaaaaaa-3300-4000-8000-000000000017' and a ->> 'name' = 'Mi truco'), 0::bigint, 'and never the private one');
+
+-- bounds
+select throws_ok($$insert into public.systems (name, document, kind, actions) values ('bad1', (select c2_default from base), 'origin', '{"a":1}')$$, '23514', null, 'actions must be an array');
+select throws_ok($$insert into public.systems (name, document, kind, actions) select 'bad2', (select c2_default from base), 'origin', jsonb_agg(jsonb_build_object('table_key', 't', 'category', '', 'name', 'n' || i, 'description', '', 'extras', '{}'::jsonb, 'function', null)) from generate_series(1, 201) i$$, '23514', null, 'at most 200 entries');
+select throws_ok($$insert into public.systems (name, document, kind, actions) values ('bad3', (select c2_default from base), 'origin', '[{"table_key":"t","category":"","description":"","extras":{}}]')$$, '23514', null, 'every entry needs the full shape');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000018');
+select lives_ok($$select public.branch_system('bbbbbbbb-3300-4000-8000-000000000019', 'HB-bulk')$$, 'branching from a campaign with 210 shared entries still works');
+select tests.as_postgres();
+select is((select jsonb_array_length(actions) from public.systems where name = 'HB-bulk'), 200, 'and keeps the first 200');
+
+-- visibility did not widen
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000019');
+select is(tests.seen_name('HB-acc') + tests.seen('frozen') + tests.seen_name('HB-bulk'), 0::bigint, 'a player still sees no homebrew and no frozen copy (the catalogue is not a way in)');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000005');
+select is(tests.seen_name('HB-acc') + tests.seen_name('HB-bulk'), 0::bigint, 'an outsider neither');
+
+-- seeding on approval
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000006');
+select lives_ok($$insert into public.campaign_requests (name, slug_wanted, system_id) values ('q-acc', 'sys-q-acc', tests.sid('Origin-acc'))$$, 'a request on the origin with a catalogue');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000001');
+select is(public.approve_campaign_request(tests.rid('q-acc')), 'sys-q-acc', 'approved');
+select tests.as_postgres();
+select results_eq(
+  $$select (select count(*) from public.campaign_actions a where a.campaign_id = c.id),
+           (select count(*) from public.pj_action_links l where l.campaign_id = c.id),
+           (select count(*) from public.campaign_actions a where a.campaign_id = c.id and a.created_by = 'aaaaaaaa-3300-4000-8000-000000000006'),
+           r.seeded_actions, r.skipped_actions
+      from public.campaigns c, public.campaign_requests r where c.slug = 'sys-q-acc' and r.name = 'q-acc'$$,
+  $$values (3::bigint, 0::bigint, 3::bigint, 3, 0)$$,
+  'the new campaign starts with the 3 shared entries, created by the requester, no links, and the request reports 3 seeded / 0 skipped');
+select is((select a.function from public.campaign_actions a join public.campaigns c on c.id = a.campaign_id where c.slug = 'sys-q-acc' and a.name = 'Luz'), '{"steps":[{"kind":"note"}]}'::jsonb, 'the function was seeded too');
+update public.systems set actions = '[]' where name = 'Origin-acc';
+insert into public.campaign_actions (campaign_id, table_key, category, name) values ('bbbbbbbb-3300-4000-8000-000000000018', 'hechizos', 'truco', 'Nueva');
+select is((select count(*) from public.campaign_actions a join public.campaigns c on c.id = a.campaign_id where c.slug = 'sys-q-acc'), 3::bigint, 'later edits to the source never propagate (copy, not link)');
+insert into public.campaign_members (campaign_id, user_id, role) select id, 'aaaaaaaa-3300-4000-8000-000000000019', 'player' from public.campaigns where slug = 'sys-q-acc';
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000006');
+select is((select count(*) from public.campaign_actions a join public.campaigns c on c.id = a.campaign_id where c.slug = 'sys-q-acc'), 3::bigint, 'the DM of the new campaign sees the seeded entries');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000019');
+select is((select count(*) from public.campaign_actions a join public.campaigns c on c.id = a.campaign_id where c.slug = 'sys-q-acc'), 0::bigint, 'a player of the new campaign sees none until an entry is linked to their character');
+
+-- an entry the copied sheet rejects is skipped, not fatal
+select tests.as_postgres();
+insert into public.systems (name, document, kind, actions) values
+  ('Origin-skip', (select c2_default from base), 'origin',
+   '[{"table_key":"no_existe","category":"","name":"Sin tabla","description":"","extras":{},"function":null}]');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000006');
+select lives_ok($$insert into public.campaign_requests (name, slug_wanted, system_id) values ('q-skip', 'sys-q-skip', tests.sid('Origin-skip'))$$, 'a request on a catalogue the sheet cannot hold');
+select tests.as_user('aaaaaaaa-3300-4000-8000-000000000001');
+select is(public.approve_campaign_request(tests.rid('q-skip')), 'sys-q-skip', 'approval still succeeds');
+select tests.as_postgres();
+select results_eq(
+  $$select (select count(*) from public.campaign_actions a where a.campaign_id = c.id), r.seeded_actions, r.skipped_actions
+      from public.campaigns c, public.campaign_requests r where c.slug = 'sys-q-skip' and r.name = 'q-skip'$$,
+  $$values (0::bigint, 0, 1)$$, 'the rejected entry is skipped and counted');
+
+-- without a base: unchanged
+select is((select seeded_actions is null and skipped_actions is null from public.campaign_requests where name = 'q-sin-base'), true, 'a request without a base reports no seeding');
+select is((select count(*) from public.campaign_actions a join public.campaigns c on c.id = a.campaign_id where c.slug = 'sys-q-plain'), 0::bigint, 'and its campaign has an empty catalogue');
 
 select * from finish();
 rollback;
