@@ -1,4 +1,5 @@
 import { DataError } from '../data'
+import { describeDataError } from '../campaign/entities/errorMessages'
 
 /** Mirrors campaigns.slug check and create_campaign's reserved list (supabase migrations). */
 export const SLUG_MIN = 3
@@ -91,6 +92,10 @@ export function campaignRequestErrorMessage(error: unknown, action: 'request' | 
         return 'Esa persona llegó al máximo de campañas.'
       case 'request_not_pending':
         return 'Esta solicitud ya fue resuelta o cancelada. Actualizá la lista.'
+      case 'system_not_available':
+        return action === 'approve'
+          ? 'El sistema base elegido ya no está disponible. La solicitud sigue pendiente: rechazala o pedile a la persona que la repita con otra base.'
+          : describeDataError(error)
       case 'request_not_found':
         return 'No encontramos la solicitud. Actualizá la lista.'
     }

@@ -3,18 +3,22 @@ import { Link, useLocation, useNavigate } from 'react-router'
 import { btnPrimary, btnSecondary } from '../constants'
 import { ModalShell } from '../campaign/calendar/ModalShell'
 import { useAuth } from '../auth'
+import type { SystemSummary } from '../data'
 import { useHubData } from '../app/DataContext'
 import { CampaignList } from './CampaignList'
 import { CreateCampaignForm } from './CreateCampaignForm'
 import { JoinWithCodeForm } from './JoinWithCodeForm'
 import { MyCampaignRequests } from './MyCampaignRequests'
+import { MyTemplates } from './MyTemplates'
 import { RequestCampaignForm } from './RequestCampaignForm'
 import { RequestsInbox } from './RequestsInbox'
+import { myTemplates, usableBases } from './systemBases'
 import { useIsHubOwner } from './useIsHubOwner'
 import { useLoaded } from './useLoaded'
 import { useMyCampaigns } from './useMyCampaigns'
 
 const NO_REQUESTS: never[] = []
+const NO_SYSTEMS: SystemSummary[] = []
 
 type HubModal = 'request' | 'create' | 'join' | null
 
@@ -40,6 +44,9 @@ export function HubHome() {
   const mine = useLoaded(userId, () => data.listMyCampaignRequests(userId as string), NO_REQUESTS)
   const inbox = useLoaded(isOwner ? userId : null, () => data.listAllCampaignRequests(), NO_REQUESTS)
   const pending = inbox.value.filter((r) => r.status === 'pending')
+  // Bases for the request form and «Mis plantillas»; a failed read just hides both (the default document still applies).
+  const bases = useLoaded(userId, () => data.listAvailableSystems(), NO_SYSTEMS)
+  const ownerSystems = useLoaded(isOwner ? userId : null, () => data.listAllSystems(), NO_SYSTEMS)
 
   return (
     <>
@@ -80,6 +87,16 @@ export function HubHome() {
         </div>
       )}
       {(status === 'ready' || campaigns.length > 0) && <CampaignList campaigns={campaigns} canCreate={isOwner} />}
+      <MyTemplates
+        templates={myTemplates(bases.value, userId, campaigns)}
+        known={bases.value}
+        campaigns={campaigns}
+        userId={userId}
+        onRename={async (id, name) => {
+          await data.renameSystem(id, name)
+          bases.reload()
+        }}
+      />
 
       {isOwner && inbox.status === 'error' && (
         <div role="alert" className="mt-6 text-sm text-accent-bright">
@@ -94,6 +111,11 @@ export function HubHome() {
           requests={pending}
           onApprove={(id, overrides) => data.approveCampaignRequest(id, overrides)}
           onReject={(id, note) => data.rejectCampaignRequest(id, note)}
+          systems={ownerSystems.value}
+          loadApprovalResult={async (id) => {
+            const found = (await data.listAllCampaignRequests()).find((r) => r.id === id)
+            return { seeded_actions: found?.seeded_actions ?? null, skipped_actions: found?.skipped_actions ?? null }
+          }}
           onChanged={inbox.reload}
         />
       )}
@@ -109,6 +131,7 @@ export function HubHome() {
       {modal === 'request' && (
         <ModalShell title="Solicitar campaña" onClose={closeModal}>
           <RequestCampaignForm
+            bases={usableBases(bases.value, userId, campaigns)}
             onRequest={async (request) => {
               await data.createCampaignRequest(request)
               mine.reload()

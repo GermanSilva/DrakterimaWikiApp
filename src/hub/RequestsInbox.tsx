@@ -2,7 +2,7 @@ import { useId, useRef, useState, type FormEvent } from 'react'
 import { btnDanger, btnNeutral, btnPrimary, btnSecondary, inputCls, labelCls } from '../constants'
 import { DialogActions } from '../components/DialogActions'
 import { ModalShell } from '../campaign/calendar/ModalShell'
-import type { CampaignRequestWithRequester } from '../data'
+import type { CampaignRequestWithRequester, SystemSummary } from '../data'
 import {
   campaignRequestErrorMessage,
   DECISION_NOTE_MAX,
@@ -20,16 +20,26 @@ export interface RequestsInboxProps {
   /** Resolves with the new campaign's slug. */
   onApprove: (requestId: number, overrides: { slug: string; name: string }) => Promise<string>
   onReject: (requestId: number, note?: string) => Promise<void>
+  /** Systems the hub owner can read, to name the base each request chose. */
+  systems?: SystemSummary[]
+  /** Reads how many catalogue actions the approval seeded and skipped; asked only for requests that chose a base. */
+  loadApprovalResult?: (requestId: number) => Promise<{ seeded_actions: number | null; skipped_actions: number | null }>
   /** Called after a decision, and when the server says the request was no longer pending, so the lists reload. */
   onChanged: () => void
 }
 
 type Dialog = { kind: 'approve' | 'reject'; request: CampaignRequestWithRequester } | null
 
+const NO_SYSTEMS: SystemSummary[] = []
+
+/** The base a request chose; nothing for the default document. */
+const baseLine = (r: CampaignRequestWithRequester, systems: SystemSummary[]) =>
+  r.system_id ? `Sistema base: ${systems.find((s) => s.id === r.system_id)?.name ?? 'no se encuentra'}` : null
+
 const requesterName = (r: CampaignRequestWithRequester) => r.requester?.display_name?.trim() || 'Usuario sin nombre'
 
 /** The hub owner's inbox: pending campaign requests with Approve (editable address and name) and Reject (optional note). */
-export function RequestsInbox({ requests, onApprove, onReject, onChanged }: RequestsInboxProps) {
+export function RequestsInbox({ requests, onApprove, onReject, systems = NO_SYSTEMS, loadApprovalResult, onChanged }: RequestsInboxProps) {
   const [dialog, setDialog] = useState<Dialog>(null)
   const [notice, setNotice] = useState<string | null>(null)
 
@@ -69,6 +79,7 @@ export function RequestsInbox({ requests, onApprove, onReject, onChanged }: Requ
                 Pide: {requesterName(request)} · {request.slug_wanted ? `/${request.slug_wanted}` : 'sin dirección preferida'} ·{' '}
                 {new Date(request.created_at).toLocaleDateString('es-AR')}
               </p>
+              {baseLine(request, systems) && <p className="text-xs text-txt-secondary mt-1">{baseLine(request, systems)}</p>}
               {request.message && <p className="text-sm text-txt-secondary mt-2 whitespace-pre-wrap">{request.message}</p>}
             </RequestTile>
           ))}
@@ -78,11 +89,24 @@ export function RequestsInbox({ requests, onApprove, onReject, onChanged }: Requ
       {dialog?.kind === 'approve' && (
         <ApproveDialog
           request={dialog.request}
+          baseLabel={baseLine(dialog.request, systems)}
           onApprove={onApprove}
           onClose={() => setDialog(null)}
-          onDone={(slug) => {
+          onDone={async (slug) => {
+            const request = dialog.request
             setDialog(null)
-            setNotice(`Campaña /${slug} creada. ${requesterName(dialog.request)} es su DM.`)
+            const created = `Campaña /${slug} creada. ${requesterName(request)} es su DM.`
+            let counts = ''
+            if (request.system_id && loadApprovalResult) {
+              // The decision is already stored: the counts are a courtesy, so a failed read only drops them.
+              try {
+                const { seeded_actions, skipped_actions } = await loadApprovalResult(request.id)
+                if (seeded_actions !== null || skipped_actions !== null) counts = ` Acciones copiadas: ${seeded_actions ?? 0}. Omitidas: ${skipped_actions ?? 0}.`
+              } catch {
+                counts = ''
+              }
+            }
+            setNotice(created + counts)
             onChanged()
           }}
           onStale={onChanged}
@@ -107,12 +131,14 @@ export function RequestsInbox({ requests, onApprove, onReject, onChanged }: Requ
 
 function ApproveDialog({
   request,
+  baseLabel,
   onApprove,
   onClose,
   onDone,
   onStale,
 }: {
   request: CampaignRequestWithRequester
+  baseLabel: string | null
   onApprove: RequestsInboxProps['onApprove']
   onClose: () => void
   onDone: (slug: string) => void
@@ -153,6 +179,7 @@ function ApproveDialog({
         <p className="text-sm text-txt-secondary mb-4">
           Se crea la campaña y {requesterName(request)} queda como su DM.
         </p>
+        {baseLabel && <p className="text-sm text-txt-secondary mb-4">{baseLabel}</p>}
         <label htmlFor={nameId} className={labelCls}>
           Nombre
         </label>

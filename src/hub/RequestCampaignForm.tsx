@@ -1,6 +1,7 @@
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { btnPrimary, inputCls, labelCls } from '../constants'
 import { DialogActions } from '../components/DialogActions'
+import type { SystemSummary } from '../data'
 import { AccentField, LogoField, TaglineField } from './BrandingFields'
 import { CampaignPreview } from './CampaignPreview'
 import { useBrandingFields, type BrandingValues } from './campaignBranding'
@@ -14,16 +15,28 @@ import {
 } from './campaignSlug'
 import { useNameAndSlug } from './useNameAndSlug'
 
+const NO_BASES: SystemSummary[] = []
+
+const BASE_GROUPS = [
+  { kind: 'origin', label: 'Sistemas Origen' },
+  { kind: 'homebrew', label: 'Homebrew de mis campañas' },
+  { kind: 'frozen', label: 'Mis copias congeladas' },
+] as const
+
 export interface RequestCampaignFormProps {
   /** Resolves when the request was stored; rejects with the data-layer error. */
-  onRequest: (request: { name: string; slug_wanted: string | null; message: string | null } & BrandingValues) => Promise<void>
+  onRequest: (request: { name: string; slug_wanted: string | null; message: string | null; system_id?: string } & BrandingValues) => Promise<void>
+  /** What the requester may use as the base system (see usableBases); with none, the picker is not shown and the default document applies. */
+  bases?: SystemSummary[]
 }
 
 /** Ordinary users ask the hub owner for a campaign: name, pre-title, address (optional), accent colour, logo and a note. */
-export function RequestCampaignForm({ onRequest }: RequestCampaignFormProps) {
+export function RequestCampaignForm({ onRequest, bases = NO_BASES }: RequestCampaignFormProps) {
   const nameId = useId()
   const slugId = useId()
   const messageId = useId()
+  const baseId = useId()
+  const [baseChoice, setBaseChoice] = useState('')
   const fields = useNameAndSlug()
   const branding = useBrandingFields()
   const [message, setMessage] = useState('')
@@ -54,6 +67,7 @@ export function RequestCampaignForm({ onRequest }: RequestCampaignFormProps) {
         slug_wanted: slug === '' ? null : slug,
         message: message.trim() === '' ? null : message.trim(),
         ...values,
+        ...(baseChoice === '' ? {} : { system_id: baseChoice }),
       })
     } catch (error) {
       setFailure(campaignRequestErrorMessage(error, 'request'))
@@ -64,6 +78,7 @@ export function RequestCampaignForm({ onRequest }: RequestCampaignFormProps) {
     fields.reset()
     branding.reset()
     setMessage('')
+    setBaseChoice('')
     setSent(true)
     inFlight.current = false
     setPending(false)
@@ -120,6 +135,30 @@ export function RequestCampaignForm({ onRequest }: RequestCampaignFormProps) {
 
       <AccentField fields={branding} />
       <LogoField fields={branding} />
+
+      {bases.length > 0 && (
+        <>
+          <label htmlFor={baseId} className={`${labelCls} mt-3`}>
+            Sistema base
+          </label>
+          <select id={baseId} className={inputCls} value={baseChoice} onChange={(e) => setBaseChoice(e.target.value)}>
+            <option value="">D&D 5e (predeterminado)</option>
+            {BASE_GROUPS.map(({ kind, label }) => {
+              const group = bases.filter((s) => s.kind === kind)
+              return group.length === 0 ? null : (
+                <optgroup key={kind} label={label}>
+                  {group.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )
+            })}
+          </select>
+          <p className="mt-1 text-xs text-txt-muted">La campaña recibe una copia del sistema elegido; cambiarlo después no altera la campaña.</p>
+        </>
+      )}
 
       <label htmlFor={messageId} className={`${labelCls} mt-3`}>
         Mensaje (opcional)
