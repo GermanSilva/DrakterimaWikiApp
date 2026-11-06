@@ -25,14 +25,14 @@ export function TextInput({ label, value, onChange, readOnly = false, inputMode 
   )
 }
 
-export function SelectInput({ label, value, onChange, options }: { label: string; value: string; onChange: (value: string) => void; options: readonly { value: string; label: string }[] }) {
+export function SelectInput({ label, value, onChange, options, disabled = false }: { label: string; value: string; onChange: (value: string) => void; options: readonly { value: string; label: string }[]; disabled?: boolean }) {
   const id = useId()
   return (
     <div className="min-w-0">
       <label htmlFor={id} className={labelCls}>
         {label}
       </label>
-      <select id={id} value={value} onChange={(e) => onChange(e.target.value)} className={inputCls}>
+      <select id={id} value={value} disabled={disabled} onChange={(e) => onChange(e.target.value)} className={`${inputCls}${disabled ? ' opacity-70' : ''}`}>
         {options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}

@@ -51,12 +51,13 @@ export const newCategory = (draft: Node): Node => ({ _new: true, ...fresh(draft,
 
 export const newSection = (draft: Node): Node => ({ _new: true, ...fresh(draft, 'Nueva sección', 'sections', ['dm']), items: [], blocks: [] })
 
-export const newField = (draft: Node): Node => ({ _new: true, kind: 'field', ...fresh(draft, 'Nuevo campo', 'global'), type: 'short', editableBy: 'dm' })
+export const newField = (draft: Node): Node => ({ _new: true, _open: true, kind: 'field', ...fresh(draft, 'Nuevo campo', 'global'), type: 'short', editableBy: 'dm' })
 
-const newColumn = (label: string, key: string): Node => ({ _new: true, key, label, type: 'short', editableBy: 'dm' })
+/** A seeded column keeps its conventional key (the detail reads `nombre` and `categoria`) whatever the DM calls it. */
+const newColumn = (label: string, key: string): Node => ({ _new: true, _keyEdited: true, key, label, type: 'short', editableBy: 'dm' })
 
 export function newTable(draft: Node, type: TableType): Node {
-  const base = { _new: true, kind: 'table', type, ...fresh(draft, 'Nueva tabla', 'global') }
+  const base = { _new: true, _open: true, kind: 'table', type, ...fresh(draft, 'Nueva tabla', 'global') }
   switch (type) {
     case 'stat':
       return { ...base, rows: [] }
@@ -77,3 +78,32 @@ export function newTable(draft: Node, type: TableType): Node {
 export function newBlock(siblings: unknown): Node {
   return { _new: true, key: slugKey('Nuevo bloque', new Set(keysOfList(siblings, -1)), false), title: 'Nuevo bloque', mode: 'plano', items: [] }
 }
+
+const labelsOfList = (list: unknown): Set<string> => new Set(keysOfList(list, -1))
+
+/** An option of an options field or column (`siblings` are the options it already has). */
+export function newOption(siblings: unknown): Node {
+  const label = `Opción ${(Array.isArray(siblings) ? siblings.length : 0) + 1}`
+  return { _new: true, key: slugKey(label, labelsOfList(siblings), false), label }
+}
+
+export function newColumnNode(siblings: unknown): Node {
+  return { _new: true, key: slugKey('Nueva columna', labelsOfList(siblings), false), label: 'Nueva columna', type: 'short', editableBy: 'dm' }
+}
+
+export function newActionCategory(siblings: unknown): Node {
+  return { _new: true, key: slugKey('Nueva categoría de acciones', labelsOfList(siblings), false), label: 'Nueva categoría de acciones' }
+}
+
+export const newStatRow = (draft: Node): Node => ({ _new: true, ...fresh(draft, 'Nuevo stat', 'global'), modifier: '{valor}', editableBy: 'dm' })
+
+export const newCapacidadRow = (draft: Node, stat: string): Node => ({ _new: true, ...fresh(draft, 'Nueva capacidad', 'global'), stat, use: 'modificador', editableBy: 'dm' })
+
+/** A denomination worth ten times the largest one (or 1 for the first), so the values stay distinct. */
+export function newCoinRow(draft: Node, siblings: unknown): Node {
+  const values = Array.isArray(siblings) ? siblings.flatMap((r) => (isNode(r) && typeof r.value === 'number' ? [r.value] : [])) : []
+  return { _new: true, ...fresh(draft, 'Nueva moneda', 'global'), value: values.length === 0 ? 1 : Math.min(Math.max(...values) * 10, 1_000_000_000) }
+}
+
+/** Two fresh options for a field or column that just became an options one. */
+export const initialOptions = (): Node[] => [newOption([]), newOption([{ key: 'opcion_1' }])]

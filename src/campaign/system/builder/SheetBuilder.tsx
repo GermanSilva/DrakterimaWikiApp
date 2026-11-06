@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ConfirmDialog } from '../../sections/ajustes/ConfirmDialog'
 import { BuilderContext, type BuilderApi } from './builderContext'
 import { CategoryTabs } from './CategoryTabs'
@@ -19,14 +19,17 @@ function startDraft(initial: unknown): Node {
 interface Props {
   /** The stored `system_profile.sheet`, or anything else when the campaign has none yet. */
   initial: unknown
+  /** Called with the draft whenever it changes (and once with the starting draft). */
+  onChange?: (draft: unknown) => void
 }
 
 /** The sheet template editor: categories > sections > items and blocks, plus the roles. Pure UI over a draft. */
-export function SheetBuilder({ initial }: Props) {
+export function SheetBuilder({ initial, onChange }: Props) {
   const [draft, setDraft] = useState<Node>(() => startDraft(initial))
   const [selected, setSelected] = useState(0)
   const [pending, setPending] = useState<RemovalRequest | null>(null)
 
+  useEffect(() => onChange?.(draft), [draft, onChange])
   const edit = useCallback((change: (draft: Node) => Node) => setDraft(change), [])
   const requestRemoval = useCallback(
     (list: readonly (string | number)[], index: number) => {
