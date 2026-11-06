@@ -5,6 +5,7 @@ import { abilityMod, signedBonus } from '../../helpers/pjCalc'
 import { plainText } from '../../helpers'
 import { DND5E_PROFILE } from '../../campaign/system/systemProfile'
 import { identityTag } from './pjIdentity'
+import { roleKeys, roleValues, sheetKeys } from '../../campaign/system/sheet/roles'
 
 function ModStatBox({ label, base }) {
   const mod = abilityMod(base)
@@ -24,12 +25,17 @@ function ModStatBox({ label, base }) {
  * `hasDmNotes` shows the DM lock; `regionTag` is the host's region tag (legacy palette / campaign regions).
  */
 /**
- * @param {{ pj: Record<string, any>, hasDmNotes?: boolean, regionTag?: import('react').ReactNode, system?: import('../../campaign/system/systemProfile').SystemProfile, tags?: { key: string, label: string, text: string }[] }} props
+ * @param {{ pj: Record<string, any>, hasDmNotes?: boolean, regionTag?: import('react').ReactNode, system?: import('../../campaign/system/systemProfile').SystemProfile, tags?: { key: string, label: string, text: string }[], sheet?: import('../../campaign/system/sheet/sheetModel').Sheet | null }} props
  */
-export function PJCardContent({ pj, hasDmNotes = false, regionTag = null, system = DND5E_PROFILE, tags = [] }) {
+export function PJCardContent({ pj, hasDmNotes = false, regionTag = null, system = DND5E_PROFILE, tags = [], sheet = null }) {
   const { builtins } = system.character
   const identity = identityTag(pj, builtins)
-  const hasStats = pj.stat_hp || pj.stat_ac || pj.stat_str || pj.stat_dex || pj.stat_con || pj.stat_int || pj.stat_wis || pj.stat_cha
+  // Badges come from the sheet roles (an unbound role hides its badge); without a sheet, from the fixed D&D keys.
+  const roles = roleValues(sheet, pj)
+  const bound = roleKeys(sheet)
+  const stored = sheet ? sheetKeys(sheet) : null
+  const abilities = ABILITY_SCORES.filter(({ key }) => !stored || stored.has(key))
+  const hasStats = roles.hp || roles.ac || abilities.some(({ key }) => pj[key])
 
   return (
     <>
@@ -60,45 +66,45 @@ export function PJCardContent({ pj, hasDmNotes = false, regionTag = null, system
       {hasStats && (
         <div className="mt-2.5 pt-2.5 border-t border-border-base">
           <div className="flex justify-evenly gap-3 mb-2 flex-wrap">
-            {pj.stat_hp > 0 && (
+            {roles.hp > 0 && (
               <div className="flex flex-col justify-center items-center">
                 <span className="font-exo text-[13px] text-txt-muted uppercase">HP</span>
-                <span className="font-exo text-[14px] font-bold text-txt-primary">{pj.stat_hp}</span>
+                <span className="font-exo text-[14px] font-bold text-txt-primary">{roles.hp}</span>
               </div>
             )}
-            {pj.stat_hp_temp > 0 && (
+            {bound.hp !== undefined && pj.stat_hp_temp > 0 && (
               <div className="flex flex-col justify-center items-center">
                 <span className="font-exo text-[13px] text-txt-muted uppercase">HP Temp.</span>
                 <span className="font-exo text-[14px] font-bold text-accent-dim">{pj.stat_hp_temp}</span>
               </div>
             )}
-            {pj.stat_ac > 0 && (
+            {roles.ac > 0 && (
               <div className="flex flex-col justify-center items-center">
                 <span className="font-exo text-[13px] text-txt-muted uppercase">AC</span>
-                <span className="font-exo text-[14px] font-bold text-txt-primary">{pj.stat_ac}</span>
+                <span className="font-exo text-[14px] font-bold text-txt-primary">{roles.ac}</span>
               </div>
             )}
-            {pj.stat_ac_temp > 0 && (
+            {bound.ac !== undefined && pj.stat_ac_temp > 0 && (
               <div className="flex flex-col justify-center items-center">
                 <span className="font-exo text-[13px] text-txt-muted uppercase">AC Temp.</span>
                 <span className="font-exo text-[14px] font-bold text-accent-dim">{pj.stat_ac_temp}</span>
               </div>
             )}
-            {pj.stat_speed > 0 && (
+            {roles.speed > 0 && (
               <div className="flex flex-col justify-center items-center">
                 <span className="font-exo text-[13px] text-txt-muted uppercase">Vel.</span>
-                <span className="font-exo text-[14px] font-bold text-txt-primary">{pj.stat_speed}ft</span>
+                <span className="font-exo text-[14px] font-bold text-txt-primary">{roles.speed}ft</span>
               </div>
             )}
-            {pj.stat_initiative !== undefined && pj.stat_initiative !== 0 && (
+            {roles.initiative !== undefined && roles.initiative !== 0 && (
               <div className="flex flex-col justify-center items-center">
                 <span className="font-exo text-[13px] text-txt-muted uppercase">Init.</span>
-                <span className="font-exo text-[14px] font-bold text-txt-primary">{signedBonus(pj.stat_initiative)}</span>
+                <span className="font-exo text-[14px] font-bold text-txt-primary">{signedBonus(roles.initiative)}</span>
               </div>
             )}
           </div>
           <div className="flex gap-2 justify-between">
-            {ABILITY_SCORES.map(({ label, key }) => (
+            {abilities.map(({ label, key }) => (
               <ModStatBox key={key} label={label} base={pj[key] ?? 0} />
             ))}
           </div>

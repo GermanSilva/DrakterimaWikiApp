@@ -9,7 +9,7 @@ import { isPjUnreadVia } from '../../helpers/pjSections'
 import PJDetail from '../../pages/pj/PJDetail'
 import { PJCardContent } from '../../pages/pj/PJCardContent'
 import { searchableLabels, searchableTags, storedSheet, type SearchableTag } from '../system/sheet/searchable'
-import { validateSheet } from '../system/sheet/sheetModel'
+import { validateSheet, type Sheet } from '../system/sheet/sheetModel'
 import { useSystem } from '../system/useSystem'
 import type { SystemProfile } from '../system/systemProfile'
 import { useUnreadPort } from '../../ports'
@@ -114,13 +114,13 @@ function PjView({ entity, listPath }: EntityViewProps) {
   )
 }
 
-function PjCard({ pj, slug, hasDmNotes, dmStamp, search, tags }: { pj: FlatEntity; slug: string; hasDmNotes: boolean; dmStamp: string | null; search: string; tags: SearchableTag[] }) {
+function PjCard({ pj, slug, hasDmNotes, dmStamp, search, tags, sheet }: { pj: FlatEntity; slug: string; hasDmNotes: boolean; dmStamp: string | null; search: string; tags: SearchableTag[]; sheet: Sheet | null }) {
   const unread = isPjUnreadVia(useUnreadPort(), pj, hasDmNotes, dmStamp)
   const system = useSystem()
   return (
     <Link to={withSearch(entityPath(slug, 'pjs', pj.id), search)} className={`block ${entityCardCls}`}>
       <UnreadDot unread={unread} className="absolute top-2 right-2" />
-      <PJCardContent pj={pj} hasDmNotes={hasDmNotes} regionTag={<RegionTag region={str(pj.region)} />} system={system} tags={tags} />
+      <PJCardContent pj={pj} hasDmNotes={hasDmNotes} regionTag={<RegionTag region={str(pj.region)} />} system={system} tags={tags} sheet={sheet} />
     </Link>
   )
 }
@@ -193,7 +193,7 @@ function PjList() {
       ) : (
         <div className="grid grid-cols-[repeat(auto-fill,minmax(280px,1fr))] gap-3.5">
           {lista.map((p) => (
-            <PjCard key={p.id} pj={p} slug={campaign.slug} hasDmNotes={isDM && notes.ids.has(p.id)} dmStamp={isDM ? (notes.stamps.get(p.id) ?? null) : null} search={search} tags={tagsOf.get(p.id) ?? []} />
+            <PjCard key={p.id} pj={p} slug={campaign.slug} hasDmNotes={isDM && notes.ids.has(p.id)} dmStamp={isDM ? (notes.stamps.get(p.id) ?? null) : null} search={search} tags={tagsOf.get(p.id) ?? []} sheet={sheet} />
           ))}
         </div>
       )}
