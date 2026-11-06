@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import { btnSecondary } from '../constants'
 import { useCampaign } from './CampaignContext'
 import { findSection } from './sections'
+import { useHasActionTables } from './system/actions/tables'
 
 export function SectionNotFound() {
   const { campaign } = useCampaign()
@@ -17,13 +18,14 @@ export function SectionNotFound() {
   )
 }
 
-/** `/c/:slug/:section[/:id]`: looks the section up in SECTIONS; unknown or DM-only-for-a-player → 404 in layout. */
+/** `/c/:slug/:section[/:id]`: looks the section up in SECTIONS; unknown, DM-only-for-a-player or needing a sheet table the campaign lacks → 404 in layout. */
 export function SectionRoute() {
   const { section: path, id } = useParams()
   const { isDM } = useCampaign()
+  const hasActionTables = useHasActionTables()
   const section = findSection(path)
   // A player gets the same 404 as for a typo: nothing reveals that a DM-only section exists.
-  if (!section || (section.dmOnly && !isDM)) return <SectionNotFound />
+  if (!section || (section.dmOnly && !isDM) || (section.needsActionTables && !hasActionTables)) return <SectionNotFound />
   const Page = section.Component
   return (
     <Suspense

@@ -14,6 +14,8 @@ import { EstadoField, FormGroup, FormRow } from '../../../components/forms/formF
 import { btnDanger, btnPrimary, btnSecondary, inputCls, labelCls } from '../../../constants'
 import type { FlatEntity } from '../../../data'
 import { useFormActions, useFormPort } from '../../../ports'
+import { Computed, Control, type ControlSpec } from './Control'
+import { LOCKED, textOf } from './controlValues'
 import { resolveSheetItems, type ResolvedItem } from './resolveSheet'
 import { addRow, removeRow, resetCell, setAmount, setCell, setKey, sheetPatch, writeRules } from './sheetEditorModel'
 import type { Column, Field, Sheet, Table } from './sheetModel'
@@ -23,62 +25,6 @@ type Resolved<K extends ResolvedItem['kind']> = Extract<ResolvedItem, { kind: K 
 type RowTable = Extract<Table, { type: 'libre' | 'habilidad' }>
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
-const toNumber = (text: string): number | null => (text.trim() === '' ? null : Number(text))
-const numberText = (value: unknown): string => (typeof value === 'number' && Number.isFinite(value) ? String(value) : '')
-const textOf = (value: unknown): string => (typeof value === 'string' ? value : '')
-
-/** A value the viewer cannot type: a locked copy of the control. */
-const LOCKED = 'opacity-70 cursor-default'
-
-interface ControlSpec {
-  label: string
-  type: Column['type']
-  editable: boolean
-  value: unknown
-  min?: number
-  max?: number
-  options?: { key: string; label: string }[]
-  display?: 'select' | 'checkbox'
-  default?: string | number | boolean
-  id?: string
-  onChange: (value: unknown) => void
-  onFocus?: React.FocusEventHandler<HTMLTextAreaElement | HTMLInputElement>
-}
-
-/** One typed control by the type of its field or column; a locked one when the viewer cannot write it. */
-function Control({ label, type, editable, value, min, max, options = [], display, default: fallback, id, onChange, onFocus }: ControlSpec) {
-  if (type === 'number') {
-    return <input id={id} aria-label={id ? undefined : label} className={`${inputCls} ${editable ? '' : LOCKED}`} type="number" min={min} max={max} value={numberText(value)} readOnly={!editable} onChange={(e) => onChange(toNumber(e.target.value))} />
-  }
-  if (type === 'boolean') {
-    return <input id={id} aria-label={id ? undefined : label} type="checkbox" checked={value === true} disabled={!editable} onChange={(e) => onChange(e.target.checked)} />
-  }
-  if (type === 'options') {
-    const selected = typeof value === 'string' && options.some((o) => o.key === value) ? value : typeof fallback === 'string' ? fallback : ''
-    if (display === 'checkbox' && options.length === 2) {
-      return <input id={id} aria-label={id ? undefined : label} type="checkbox" checked={selected === options[1].key} disabled={!editable} onChange={(e) => onChange(e.target.checked ? options[1].key : options[0].key)} />
-    }
-    return (
-      <select id={id} aria-label={id ? undefined : label} className={`${inputCls} ${editable ? '' : LOCKED}`} value={selected} disabled={!editable} onChange={(e) => onChange(e.target.value === '' ? null : e.target.value)}>
-        {selected === '' && <option value="">—</option>}
-        {options.map((o) => (
-          <option key={o.key} value={o.key}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    )
-  }
-  if (type === 'paragraph') {
-    return <textarea id={id} aria-label={id ? undefined : label} className={`${inputCls} resize-y min-h-[70px] ${editable ? '' : LOCKED}`} rows={3} value={textOf(value)} readOnly={!editable} onFocus={onFocus} onChange={(e) => onChange(e.target.value)} />
-  }
-  return <input id={id} aria-label={id ? undefined : label} className={`${inputCls} ${editable ? '' : LOCKED}`} value={textOf(value)} readOnly={!editable} onChange={(e) => onChange(e.target.value)} />
-}
-
-/** A computed value (formula, calculation, option result): shown, never typed. */
-function Computed({ label, text, id, error = false }: { label: string; text: string; id?: string; error?: boolean }) {
-  return <input id={id} aria-label={id ? undefined : label} className={`${inputCls} ${LOCKED}`} readOnly value={error ? '—' : text} title={error ? 'No se pudo calcular' : 'Valor calculado'} />
-}
 
 const optionsOf = (source: Field | Column) => source.options?.map((o) => ({ key: o.key, label: o.label }))
 

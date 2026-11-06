@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Outlet, useParams } from 'react-router'
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { ConnectedUserMenu } from '../app/ConnectedUserMenu'
@@ -9,6 +9,7 @@ import { accentStyle, parseLogoUrl, topbarTagline } from './branding'
 import { CampaignHeader } from './CampaignHeader'
 import { CampaignSidebar } from './CampaignSidebar'
 import { findSection, sectionsFor } from './sections'
+import { hasActionTablesIn } from './system/actions/tables'
 import type { CampaignContextValue } from './CampaignContext'
 
 export interface CampaignShellProps {
@@ -25,7 +26,8 @@ export function CampaignShell({ campaign, isDM, campaigns, userMenu }: CampaignS
   const [collapsed, setCollapsed] = useState(false)
   const { section } = useParams()
   const current = findSection(section)
-  useDocumentTitle(formatTitle(current && (!current.dmOnly || isDM) && current.label, campaign.name))
+  const hasActionTables = useMemo(() => hasActionTablesIn(campaign.system_profile), [campaign.system_profile])
+  useDocumentTitle(formatTitle(current && (!current.dmOnly || isDM) && (!current.needsActionTables || hasActionTables) && current.label, campaign.name))
   const fullBleed = !!findSection(section)?.fullBleed && (isDM || !findSection(section)?.dmOnly)
   return (
     <div style={accentStyle(campaign.branding)} className="min-h-screen bg-bg-deep">
@@ -41,7 +43,7 @@ export function CampaignShell({ campaign, isDM, campaigns, userMenu }: CampaignS
       <CampaignSidebar
         slug={campaign.slug}
         campaigns={campaigns}
-        sections={sectionsFor(isDM)}
+        sections={sectionsFor(isDM, hasActionTables)}
         open={menuOpen}
         collapsed={collapsed}
         onNavigate={() => setMenuOpen(false)}

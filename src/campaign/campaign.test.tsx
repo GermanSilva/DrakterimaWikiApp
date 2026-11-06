@@ -133,7 +133,8 @@ describe('role-based navigation', () => {
   it('links every registered section and marks the active one with aria-current', async () => {
     renderApp('/c/demo/pnjs', { data: dataFor(dm) })
     const nav = await screen.findByRole('navigation', { name: 'Secciones de la campaña' })
-    for (const section of SECTIONS) {
+    // the action catalogue only exists in a campaign whose sheet has a Habilidad table (AccionesPage.test.tsx)
+    for (const section of SECTIONS.filter((s) => !s.needsActionTables)) {
       expect(within(nav).getByRole('link', { name: new RegExp(section.label.replace(/[()]/g, '\\$&')) })).toHaveAttribute(
         'href',
         `/c/demo/${section.path}`,

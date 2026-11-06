@@ -1,7 +1,7 @@
 import { lazy, type ComponentType } from 'react'
 import {
   BookOpen, CalendarDays, Dices, Gem, Hammer, Landmark, Map, NotebookPen, Scroll, Shield,
-  SlidersHorizontal, Swords, Users, type LucideIcon,
+  SlidersHorizontal, Sparkles, Swords, Users, type LucideIcon,
 } from 'lucide-react'
 
 export interface SectionPageProps {
@@ -21,6 +21,8 @@ export interface SectionDef {
   fullBleed?: boolean
   /** Hidden from the nav AND unreachable (404 in layout) for players. The DB stays the real boundary. */
   dmOnly?: boolean
+  /** Only exists in a campaign whose stored sheet has at least one Habilidad table (the action catalogue); hidden and 404 otherwise. */
+  needsActionTables?: boolean
   /**
    * The page. H7-H9 replace the lazy placeholder with `lazy(() => import('../pages/...'))` for the
    * section they port; nothing else in the shell changes.
@@ -41,6 +43,7 @@ const Notas = lazy(() => import('./sections/NotasPage').then((m) => ({ default: 
 const Calendario = lazy(() => import('./sections/CalendarioPage').then((m) => ({ default: m.CalendarioPage })))
 const Juegos = lazy(() => import('./sections/JuegosPage').then((m) => ({ default: m.JuegosPage })))
 const SesionEnVivo = lazy(() => import('./sections/SesionEnVivoPage').then((m) => ({ default: m.SesionEnVivoPage })))
+const Acciones = lazy(() => import('./sections/AccionesPage').then((m) => ({ default: m.AccionesPage })))
 const Ajustes = lazy(() => import('./sections/AjustesPage').then((m) => ({ default: m.AjustesPage })))
 const Placeholder = lazy(() => import('./SectionPlaceholder').then((m) => ({ default: m.SectionPlaceholder })))
 
@@ -49,7 +52,7 @@ const section = (
   label: string,
   group: string,
   icon: LucideIcon,
-  extra: { dmOnly?: boolean; fullBleed?: boolean; Component?: ComponentType<SectionPageProps> } = {},
+  extra: { dmOnly?: boolean; fullBleed?: boolean; needsActionTables?: boolean; Component?: ComponentType<SectionPageProps> } = {},
 ): SectionDef => ({ key, label, path: key, group, icon, Component: Placeholder, ...extra })
 
 /** Single registry of campaign sections: nav, routing and role gating all read it. */
@@ -61,6 +64,7 @@ export const SECTIONS: readonly SectionDef[] = [
   section('calendario', 'Calendario', 'Principal', CalendarDays, { Component: Calendario }),
   section('pjs', 'Jugadores (PJ)', 'Personajes', Shield, { Component: PJs }),
   section('pnjs', 'PNJs', 'Personajes', Users, { Component: PNJs }),
+  section('acciones', 'Acciones', 'Personajes', Sparkles, { dmOnly: true, needsActionTables: true, Component: Acciones }),
   section('mapas', 'Mapas', 'Mundo', Map, { fullBleed: true, Component: Mapas }),
   section('lugares', 'Lugares', 'Mundo', Map, { Component: Lugares }),
   section('facciones', 'Facciones', 'Mundo', Landmark, { Component: Facciones }),
@@ -74,8 +78,9 @@ export function findSection(path: string | undefined): SectionDef | undefined {
   return SECTIONS.find((s) => s.path === path)
 }
 
-export function sectionsFor(isDM: boolean): SectionDef[] {
-  return SECTIONS.filter((s) => !s.dmOnly || isDM)
+/** `hasActionTables`: the campaign sheet has a Habilidad table (see actionTablesOf); the catalogue section only exists then. */
+export function sectionsFor(isDM: boolean, hasActionTables = false): SectionDef[] {
+  return SECTIONS.filter((s) => (!s.dmOnly || isDM) && (!s.needsActionTables || hasActionTables))
 }
 
 /** Sections grouped for the sidebar, preserving registry order. */
