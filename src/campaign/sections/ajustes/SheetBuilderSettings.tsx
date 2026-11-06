@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { expiringSoon, formatDeletionDate, deletionDate, DISCARDED_WARNING_DAYS } from '../../system/builder/discardedLifecycle'
 import { SheetBuilder } from '../../system/builder/SheetBuilder'
 import { parseSystemProfile } from '../../system/systemProfile'
 import { ConfirmDialog } from './ConfirmDialog'
@@ -8,6 +9,9 @@ import { useCampaignSave } from './useCampaignSave'
 type Sheet = Record<string, unknown>
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
+
+const discardedDates = (value: unknown): { at: string }[] =>
+  Array.isArray(value) ? value.flatMap((e) => (isRecord(e) && typeof e.at === 'string' ? [{ at: e.at }] : [])) : []
 
 /**
  * The character sheet template of the campaign (DM only). The builder validates on every change; saving writes the whole
@@ -23,6 +27,8 @@ export function SheetBuilderSettings() {
   const [busy, setBusy] = useState(false)
   const discarded = isRecord(stored.sheet) && Array.isArray(stored.sheet.discarded) && stored.sheet.discarded.length > 0
   const review = useDiscardedReview({ enabled: discarded, campaign, setNotice })
+  const expiring = discarded && isRecord(stored.sheet) ? expiringSoon(discardedDates(stored.sheet.discarded), new Date()) : []
+  const firstDate = expiring.length > 0 ? formatDeletionDate(expiring.reduce((a, b) => (deletionDate(b.at) < deletionDate(a.at) ? b : a)).at) : null
 
   async function write(sheet: Sheet): Promise<void> {
     setNotice(null)
@@ -58,6 +64,13 @@ export function SheetBuilderSettings() {
       {!hasSheet && (
         <p className="text-[13px] text-txt-secondary">
           Esta campaña todavía usa la ficha clásica. Al guardar una plantilla, el formulario, el detalle, las tarjetas y la sesión en vivo pasan a leerla.
+        </p>
+      )}
+      {expiring.length > 0 && (
+        <p role="status" aria-label="Eliminación automática de campos descartados" className="text-[13px] text-amber-400">
+          {expiring.length === 1
+            ? `1 campo descartado se eliminará automáticamente en los próximos ${DISCARDED_WARNING_DAYS} días (el ${firstDate}).`
+            : `${expiring.length} campos descartados se eliminarán automáticamente en los próximos ${DISCARDED_WARNING_DAYS} días (el primero, el ${firstDate}).`}
         </p>
       )}
       <SheetBuilder key={builderKey} initial={stored.sheet ?? null} onSave={onSave} review={review} />

@@ -1,5 +1,6 @@
 import type { DiscardedItem } from '../sheet/sheetModel'
 import type { DiscardedNode } from './discard'
+import { formatDeletionDate, isNearDeletion } from './discardedLifecycle'
 import { describeHeld, heldKeys } from './discardedValues'
 import { itemKindLabel } from './itemLabels'
 import { smallBtn } from './ui'
@@ -22,6 +23,8 @@ interface Props {
   savedKeys: ReadonlySet<string>
   dirty: boolean
   error: string | null
+  /** The clock of the deletion warnings (tests fix it). */
+  now?: Date
   onRestore: (key: string) => void
   onDelete: (key: string) => void
 }
@@ -33,7 +36,8 @@ const KIND_LABEL = (item: DiscardedItem & Record<string, unknown>): string =>
   item.kind === 'row' ? (item.type === 'capacidades' ? 'Fila de capacidades' : 'Fila de stats') : itemKindLabel(item)
 
 /** "Campos descartados": what the DM removed from the template while characters hold data for it. Review, restore or delete. */
-export function DiscardedPanel({ entries, sectionLabels, characters, canDelete, savedKeys, dirty, error, onRestore, onDelete }: Props) {
+export function DiscardedPanel({ entries, sectionLabels, characters, canDelete, savedKeys, dirty, error, now, onRestore, onDelete }: Props) {
+  const today = now ?? new Date()
   return (
     <section aria-label="Campos descartados" className="border border-border-base px-4 py-3 flex flex-col gap-3">
       <h3 className="font-exo text-[11px] font-semibold tracking-[0.15em] uppercase text-txt-primary">Campos descartados</h3>
@@ -55,6 +59,8 @@ export function DiscardedPanel({ entries, sectionLabels, characters, canDelete, 
         })
         const section = sectionLabels.get(entry.section)
         const deletable = canDelete && savedKeys.has(key) && !dirty
+        const deletesOn = formatDeletionDate(entry.at)
+        const near = deletesOn !== null && isNearDeletion(entry.at, today)
         return (
           <div key={key} role="group" aria-label={`Descartado ${label}`} className="border border-border-base px-3 py-3 flex flex-col gap-2">
             <div className="flex flex-wrap items-baseline gap-3">
@@ -64,6 +70,12 @@ export function DiscardedPanel({ entries, sectionLabels, characters, canDelete, 
               <span className="text-[12px] text-txt-muted">{`Descartado el ${formatDiscardDate(entry.at)}`}</span>
               <span className="text-[12px] text-txt-muted">{section !== undefined ? `Sección «${section}»` : 'Su sección ya no existe: vuelve a la última'}</span>
             </div>
+            {deletesOn !== null &&
+              (near ? (
+                <p className="text-[12px] text-amber-400">{`Se eliminará automáticamente el ${deletesOn}`}</p>
+              ) : (
+                <p className="text-[12px] text-txt-muted">{`Se elimina el ${deletesOn}`}</p>
+              ))}
             {characters !== null &&
               (held.length === 0 ? (
                 <p className="text-[13px] text-txt-secondary">Ningún personaje tiene datos guardados.</p>
