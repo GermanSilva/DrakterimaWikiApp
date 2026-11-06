@@ -128,6 +128,7 @@ export function useSessionActionsHost(sheet: Sheet | null, onSaved: (entity: Fla
       },
       async undo(item, plan) {
         if (Object.keys(plan.patch.pj).length === 0 && !plan.patch.linkState) return { status: 'error', message: 'No hay nada que deshacer.' }
+        if (plan.warnings.some((w) => w.kind === 'invalid_value')) return { status: 'error', message: 'Hay un valor que no es un número: corregilo en la ficha antes de deshacer.' }
         const { outcome } = await commit(plan.pj, plan.linked, plan.patch, 'Se deshizo en el personaje, pero no se pudo deshacer el estado de la acción. La acción sigue en la lista con esa parte pendiente.')
         if (outcome.status === 'ok') {
           store.update((list) => list.filter((h) => h.id !== item.id))

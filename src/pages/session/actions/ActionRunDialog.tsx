@@ -51,7 +51,9 @@ export function ActionRunDialog({ pj, linked, onClose }: Props) {
   const dialogRef = useRef<HTMLDivElement>(null)
   const titleId = useId()
   const busy = phase.name === 'saving'
-  const partialRef = useRef(false) // once set, no read may bring the dialog back to a state that can write again
+  // a read (the api may change identity mid-session) must never move the dialog while it saves, nor after a partial save
+  const partialRef = useRef(false)
+  const savingRef = useRef(false)
   const close = useCallback(() => {
     if (!busy) onClose()
   }, [busy, onClose])
@@ -67,14 +69,14 @@ export function ActionRunDialog({ pj, linked, onClose }: Props) {
   const steps = useMemo(() => (parsed.ok ? parsed.fn.steps.filter((s): s is ParamStep => s.kind === 'param') : []), [parsed])
 
   const load = useCallback(async () => {
-    if (partialRef.current) return
+    if (partialRef.current || savingRef.current) return
     setPhase({ name: 'loading' })
     try {
       const fresh = await api.read(pj.id, action.id)
-      if (!partialRef.current) setPhase({ name: 'ready', source: fresh })
+      if (!partialRef.current && !savingRef.current) setPhase({ name: 'ready', source: fresh })
     } catch (err) {
       console.error('No se pudo leer el personaje', err)
-      if (!partialRef.current) setPhase({ name: 'failed', message: 'No se pudo leer el personaje ni su acción. Cerrá y volvé a intentar.' })
+      if (!partialRef.current && !savingRef.current) setPhase({ name: 'failed', message: 'No se pudo leer el personaje ni su acción. Cerrá y volvé a intentar.' })
     }
   }, [api, pj.id, action.id])
   useEffect(() => {
@@ -92,7 +94,10 @@ export function ActionRunDialog({ pj, linked, onClose }: Props) {
     if (!source || !result || blocked) return
     setProblem(null)
     setPhase({ name: 'saving', source })
-    const outcome = await api.apply(source, result)
+    savingRef.current = true
+    const outcome = await api.apply(source, result).finally(() => {
+      savingRef.current = false
+    })
     if (outcome.status === 'ok') return onClose()
     if (outcome.status === 'conflict') return setPhase({ name: 'conflict', source })
     if (outcome.status === 'partial') {

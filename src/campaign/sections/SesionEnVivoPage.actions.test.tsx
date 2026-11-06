@@ -472,3 +472,55 @@ describe('session screen: partial failures (G6c-2 fix, S22)', () => {
     expect(writes(spies)).toHaveLength(0)
   })
 })
+
+describe('session screen: undo that cannot proceed (G6c-2 round 2)', () => {
+  async function applyHands() {
+    fireEvent.click(await screen.findByRole('button', { name: 'Usar Imponer manos' }))
+    const run = within(await dialog('Usar Imponer manos'))
+    set(run.getByLabelText('Puntos'), '3')
+    fireEvent.click(run.getByRole('button', { name: 'Aplicar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  }
+
+  it('an item with only link-state effects whose action was unlinked can be removed from the list', async () => {
+    const { spies } = await open()
+    await expand()
+    await applyHands()
+    fireEvent.click(await screen.findByRole('button', { name: 'Deshacer Imponer manos de Eldric' }))
+    let box = within(await dialog('Deshacer Imponer manos'))
+    await waitFor(() => expect(box.getByRole('button', { name: 'Deshacer' })).toBeEnabled())
+    spies.updateLinkState.mockRejectedValueOnce(new ConflictError())
+    fireEvent.click(box.getByRole('button', { name: 'Deshacer' }))
+    expect(await box.findByRole('alert')).toHaveTextContent('Se deshizo en el personaje')
+    fireEvent.click(box.getByRole('button', { name: 'Cerrar' }))
+    spies.listLinkedActions.mockResolvedValue([]) // the action was unlinked meanwhile
+    spies.saveEntityWithDmNotes.mockClear()
+    fireEvent.click(await screen.findByRole('button', { name: 'Deshacer Imponer manos de Eldric' }))
+    box = within(await dialog('Deshacer Imponer manos'))
+    expect(await box.findByText('No hay nada que deshacer en la ficha actual.')).toBeInTheDocument()
+    expect(box.getByRole('button', { name: 'Deshacer' })).toBeDisabled()
+    fireEvent.click(box.getByRole('button', { name: 'Quitar de la lista' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.queryByRole('list', { name: 'Acciones aplicadas' })).toBeNull()
+    expect(writes(spies)).toHaveLength(0)
+  })
+
+  it('a target stored as text blocks the undo: no confirmation, nothing written, the item stays whole', async () => {
+    const { spies, layer } = await open()
+    await expand()
+    await applyHands()
+    await layer.saveEntityWithDmNotes('pjs', { campaignId: 'c1', id: 1 }, { hp_current: '23' }) // hand-edited
+    spies.saveEntityWithDmNotes.mockClear()
+    spies.updateLinkState.mockClear()
+    fireEvent.click(await screen.findByRole('button', { name: 'Deshacer Imponer manos de Eldric' }))
+    const box = within(await dialog('Deshacer Imponer manos'))
+    expect(await box.findByRole('list', { name: 'Avisos' })).toHaveTextContent('no es un número')
+    expect(box.queryByRole('button', { name: 'Deshacer' })).toBeNull()
+    expect(box.queryByRole('button', { name: 'Deshacer igual' })).toBeNull()
+    expect(box.queryByRole('button', { name: 'Quitar de la lista' })).toBeNull()
+    fireEvent.click(box.getByRole('button', { name: 'Cancelar' }))
+    expect(screen.getByRole('button', { name: 'Deshacer Imponer manos de Eldric' })).toBeInTheDocument()
+    expect(writes(spies)).toHaveLength(0)
+    expect(spies.updateLinkState).not.toHaveBeenCalled()
+  })
+})

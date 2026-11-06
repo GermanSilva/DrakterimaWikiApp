@@ -47,9 +47,11 @@ export function ActionUndoDialog({ item, onClose }: { item: HistoryItem; onClose
   const plan = phase.name === 'ready' || phase.name === 'saving' || phase.name === 'conflict' ? phase.plan : null
   const nothing = !!plan && Object.keys(plan.patch.pj).length === 0 && !plan.patch.linkState
   const warned = !!plan && plan.warnings.length > 0
+  // a stored value that is not a number cannot be subtracted from: undoing the rest would lose that part for good
+  const blocked = !!plan && plan.warnings.some((w) => w.kind === 'invalid_value')
 
   async function submit() {
-    if (!plan || nothing) return
+    if (!plan || nothing || blocked) return
     setProblem(null)
     setPhase({ name: 'saving', plan })
     const outcome = await api.undo(item, plan)
@@ -122,7 +124,7 @@ export function ActionUndoDialog({ item, onClose }: { item: HistoryItem; onClose
           <button type="button" className={btnSecondary} disabled={busy} onClick={close}>
             {phase.name === 'partial' ? 'Cerrar' : 'Cancelar'}
           </button>
-          {phase.name === 'failed' && (
+          {(phase.name === 'failed' || (phase.name === 'ready' && nothing)) && (
             <button
               type="button"
               className={btnPrimary}
@@ -134,7 +136,7 @@ export function ActionUndoDialog({ item, onClose }: { item: HistoryItem; onClose
               Quitar de la lista
             </button>
           )}
-          {phase.name === 'partial' || phase.name === 'failed' ? null : phase.name === 'conflict' ? (
+          {phase.name === 'partial' || phase.name === 'failed' || (blocked && phase.name !== 'conflict') ? null : phase.name === 'conflict' ? (
             <button type="button" className={btnPrimary} onClick={() => void load()}>
               Sobrescribir
             </button>
