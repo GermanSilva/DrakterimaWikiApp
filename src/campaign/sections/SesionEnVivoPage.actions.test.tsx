@@ -282,3 +282,115 @@ describe('session screen: who gets the action buttons', () => {
     expect(screen.getByRole('button', { name: 'Acciones' })).toBeInTheDocument()
   })
 })
+
+describe('session screen: undo list (G6c-2, S22, S32)', () => {
+  async function apply(name: string, fill: (box: ReturnType<typeof within>) => void = () => undefined) {
+    fireEvent.click(await screen.findByRole('button', { name: `Usar ${name}` }))
+    const box = within(await dialog(`Usar ${name}`))
+    fill(box)
+    fireEvent.click(box.getByRole('button', { name: 'Aplicar' }))
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  }
+  const spend = (level: string) => (box: ReturnType<typeof within>) => set(box.getByLabelText('Nivel del espacio'), level)
+  const undoButton = (action: string, who = 'Eldric') => screen.findByRole('button', { name: `Deshacer ${action} de ${who}` })
+
+  it('lists the applied actions of this screen, newest first, and nothing before the first one', async () => {
+    await open()
+    await expand()
+    await screen.findByRole('button', { name: 'Usar Bendición' })
+    expect(screen.queryByRole('list', { name: 'Acciones aplicadas' })).toBeNull()
+    await apply('Lanzar hechizo', spend('1'))
+    await apply('Bendición')
+    const list = within(await screen.findByRole('list', { name: 'Acciones aplicadas' }))
+    expect(list.getAllByRole('listitem').map((li) => li.getAttribute('data-name'))).toEqual(['Eldric · Bendición', 'Eldric · Lanzar hechizo'])
+  })
+
+  it('undoes an action: subtracts what it applied on the current data, writes only the touched key, no stamp, and leaves the list', async () => {
+    const { spies } = await open()
+    await expand()
+    await apply('Lanzar hechizo', spend('1'))
+    spies.saveEntityWithDmNotes.mockClear()
+    fireEvent.click(await undoButton('Lanzar hechizo'))
+    const box = within(await dialog('Deshacer Lanzar hechizo'))
+    await waitFor(() => expect(box.getByRole('button', { name: 'Deshacer' })).toBeEnabled())
+    expect(box.queryByRole('list', { name: 'Avisos' })).toBeNull()
+    fireEvent.click(box.getByRole('button', { name: 'Deshacer' }))
+    await waitFor(() => expect(writes(spies)).toHaveLength(1))
+    expect(writes(spies)[0][1]).toMatchObject({ id: 1, base: { updated_at: 'w1' } })
+    expect(writes(spies)[0][2]).toEqual({ espacios_conjuro: slots(0) })
+    await waitFor(() => expect(screen.queryByRole('list', { name: 'Acciones aplicadas' })).toBeNull())
+  })
+
+  it('undoes the link state and the character with the current versions', async () => {
+    const { spies } = await open()
+    await expand()
+    await apply('Imponer manos', (box) => set(box.getByLabelText('Puntos'), '3'))
+    expect(spies.updateLinkState).toHaveBeenCalledWith(1, 2, { reserva: 2 }, { base: { updated_at: 'l1' } })
+    fireEvent.click(await undoButton('Imponer manos'))
+    const box = within(await dialog('Deshacer Imponer manos'))
+    await waitFor(() => expect(box.getByRole('button', { name: 'Deshacer' })).toBeEnabled())
+    fireEvent.click(box.getByRole('button', { name: 'Deshacer' }))
+    await waitFor(() => expect(spies.updateLinkState).toHaveBeenCalledTimes(2))
+    expect(spies.updateLinkState).toHaveBeenLastCalledWith(1, 2, { reserva: 5 }, { base: { updated_at: 'l1+' } })
+    expect(writes(spies).at(-1)?.[2]).toEqual({ hp_current: 20 })
+  })
+
+  it('warns when the value changed since the action and needs a confirmation before writing', async () => {
+    const { spies, layer } = await open()
+    await expand()
+    await apply('Lanzar hechizo', spend('1'))
+    await layer.saveEntityWithDmNotes('pjs', { campaignId: 'c1', id: 1 }, { espacios_conjuro: slots(5) }) // someone edited the slots
+    spies.saveEntityWithDmNotes.mockClear()
+    fireEvent.click(await undoButton('Lanzar hechizo'))
+    const box = within(await dialog('Deshacer Lanzar hechizo'))
+    expect(await box.findByRole('list', { name: 'Avisos' })).toHaveTextContent('cambió después de la acción (se esperaba 1, ahora es 5)')
+    expect(box.queryByRole('button', { name: 'Deshacer' })).toBeNull()
+    expect(writes(spies)).toHaveLength(0)
+    fireEvent.click(box.getByRole('button', { name: 'Deshacer igual' }))
+    await waitFor(() => expect(writes(spies)).toHaveLength(1))
+    expect(writes(spies)[0][2]).toEqual({ espacios_conjuro: slots(4) })
+  })
+
+  it('Cancelar leaves the action in the list and writes nothing', async () => {
+    const { spies } = await open()
+    await expand()
+    await apply('Bendición')
+    spies.saveEntityWithDmNotes.mockClear()
+    fireEvent.click(await undoButton('Bendición'))
+    fireEvent.click(within(await dialog('Deshacer Bendición')).getByRole('button', { name: 'Cancelar' }))
+    expect(screen.queryByRole('dialog')).toBeNull()
+    expect(screen.getByRole('list', { name: 'Acciones aplicadas' })).toBeInTheDocument()
+    expect(writes(spies)).toHaveLength(0)
+  })
+
+  it('a conflict while undoing warns, and Sobrescribir plans again on the fresh data', async () => {
+    const { spies, layer } = await open()
+    await expand()
+    await apply('Lanzar hechizo', spend('1'))
+    fireEvent.click(await undoButton('Lanzar hechizo'))
+    const box = within(await dialog('Deshacer Lanzar hechizo'))
+    await waitFor(() => expect(box.getByRole('button', { name: 'Deshacer' })).toBeEnabled())
+    await layer.saveEntityWithDmNotes('pjs', { campaignId: 'c1', id: 1 }, { espacios_conjuro: slots(2) }) // edited while the dialog is open
+    spies.saveEntityWithDmNotes.mockClear()
+    fireEvent.click(box.getByRole('button', { name: 'Deshacer' }))
+    expect(await box.findByRole('alert')).toHaveTextContent('Alguien más modificó este personaje')
+    fireEvent.click(box.getByRole('button', { name: 'Sobrescribir' }))
+    expect(await box.findByRole('list', { name: 'Avisos' })).toHaveTextContent('ahora es 2')
+    expect(writes(spies)).toHaveLength(1) // only the refused attempt
+    fireEvent.click(box.getByRole('button', { name: 'Deshacer igual' }))
+    await waitFor(() => expect(writes(spies)).toHaveLength(2))
+    expect(writes(spies)[1][2]).toEqual({ espacios_conjuro: slots(1) })
+  })
+
+  it('the history belongs to the open screen: a new screen starts empty', async () => {
+    await open()
+    await expand()
+    await apply('Bendición')
+    expect(await screen.findByRole('list', { name: 'Acciones aplicadas' })).toBeInTheDocument()
+    document.body.innerHTML = ''
+    await open()
+    await expand()
+    await screen.findByRole('button', { name: 'Usar Bendición' })
+    expect(screen.queryByRole('list', { name: 'Acciones aplicadas' })).toBeNull()
+  })
+})

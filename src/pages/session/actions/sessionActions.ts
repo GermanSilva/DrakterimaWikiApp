@@ -2,11 +2,29 @@ import { createContext, useContext } from 'react'
 import type { ActionCollectionRepository, CampaignAction, FlatEntity, LinkedAction } from '../../../data'
 import type { ActionFunction } from '../../../campaign/system/actions/function/model'
 import type { ParamValue, RunResult } from '../../../campaign/system/actions/function/run'
+import type { UndoEntry, UndoWarning } from '../../../campaign/system/actions/function/undo'
+import type { Patch } from '../../../campaign/system/actions/function/working'
 
 /** A character and one of its links as they are stored NOW (read when the DM clicks, never the copy the screen loaded). */
 export interface ActionSource {
   pj: FlatEntity
   linked: LinkedAction
+}
+/** One action applied during this session: what `Deshacer` subtracts again (S22, S32). The list lives as long as the open screen. */
+export interface HistoryItem {
+  id: number
+  pjId: number
+  pjName: string
+  actionId: number
+  actionName: string
+  entry: UndoEntry
+}
+/** An undo planned on the character and link as they are now; the link is null when the action was unlinked meanwhile. */
+export interface UndoPlan {
+  pj: FlatEntity
+  linked: LinkedAction | null
+  patch: Patch
+  warnings: UndoWarning[]
 }
 export type ParsedFunction = { ok: true; fn: ActionFunction } | { ok: false; errors: string[] }
 export type ApplyOutcome = { status: 'ok' } | { status: 'conflict' } | { status: 'error'; message: string }
@@ -25,6 +43,12 @@ export interface SessionActions {
   run(fn: ActionFunction, source: ActionSource, params: Record<string, ParamValue>): RunResult
   /** Writes only the touched keys (character) and link state with the versions of `source`, never a section stamp. */
   apply(source: ActionSource, result: RunResult): Promise<ApplyOutcome>
+  /** Newest first. */
+  history: HistoryItem[]
+  /** Reads the character and link now and plans the undo (pure after the read). */
+  planUndo(item: HistoryItem): Promise<UndoPlan>
+  /** Writes the plan like `apply` does (touched keys only, current versions, no stamp); on success the item leaves the list. */
+  undo(item: HistoryItem, plan: UndoPlan): Promise<ApplyOutcome>
 }
 
 export const SessionActionsContext = createContext<SessionActions | null>(null)
