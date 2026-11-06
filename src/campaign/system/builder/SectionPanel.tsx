@@ -35,7 +35,7 @@ export function SectionPanel({ path, index, count }: Props) {
   const list = path.slice(0, -1)
 
   return (
-    <Panel name={`Sección ${typeof section.label === 'string' ? section.label : ''}`}>
+    <Panel name={`Sección ${typeof section.label === 'string' ? section.label : ''}`} path={path}>
       <NameAndKey path={path} nameLabel="Nombre de la sección" keyLabel="Clave de la sección" scope="sections" />
       <ReorderButtons noun="sección" index={index} count={count} onMove={(delta) => edit((d) => moveIn(d, list, index, delta))} onRemove={() => requestRemoval(list, index)} />
 

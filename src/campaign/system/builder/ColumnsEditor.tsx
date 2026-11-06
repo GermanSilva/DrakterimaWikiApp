@@ -92,7 +92,7 @@ function ColumnPanel({ path, index, count, kind, label, siblings }: ColumnProps)
   }
 
   return (
-    <Panel name={`Columna ${label}`}>
+    <Panel name={`Columna ${label}`} path={path}>
       <NameAndKey path={path} nameLabel="Nombre de la columna" keyLabel="Clave de la columna" scope="siblings" />
       <div className="grid gap-3 sm:grid-cols-3">
         <SelectInput label="Tipo de la columna" value={type} onChange={changeType} options={TYPE_OPTIONS} disabled={!isNew} />

@@ -68,7 +68,7 @@ function OptionPanel({ path, index, count, label }: { path: Path; index: number;
   const { node, patch } = useNode(path)
   const list = path.slice(0, -1)
   return (
-    <Panel name={`Opción ${label}`}>
+    <Panel name={`Opción ${label}`} path={path}>
       <NameAndKey path={path} nameLabel="Nombre de la opción" keyLabel="Clave de la opción" scope="siblings" />
       <FormulaInput label="Fórmula de la opción" value={text(node.formula)} optional onChange={(v) => patch({ formula: v === '' ? undefined : v })} />
       <ReorderButtons noun="opción" index={index} count={count} onMove={(delta) => edit((d) => moveIn(d, list, index, delta))} onRemove={() => requestRemoval(list, index)} />

@@ -45,7 +45,7 @@ function RowPanel({ path, index, count, kind, label }: { path: Path; index: numb
   const list = path.slice(0, -1)
   const stats = statRows(draft)
   return (
-    <Panel name={`Fila ${label}`}>
+    <Panel name={`Fila ${label}`} path={path}>
       <NameAndKey path={path} nameLabel="Nombre de la fila" keyLabel="Clave de la fila" scope="global" />
       {kind === 'stat' && <FormulaInput label="Fórmula del modificador" value={text(node.modifier)} onChange={(modifier) => patch({ modifier })} />}
       {kind === 'capacidades' && (

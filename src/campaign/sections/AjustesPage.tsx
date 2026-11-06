@@ -14,6 +14,7 @@ import { PlayersSettings } from './ajustes/PlayersSettings'
 import { PotSettings } from './ajustes/PotSettings'
 import { RegionsSettings } from './ajustes/RegionsSettings'
 import { SavedCampaignProvider } from './ajustes/SavedCampaignProvider'
+import { SheetBuilderSettings } from './ajustes/SheetBuilderSettings'
 import { SystemSettings } from './ajustes/SystemSettings'
 
 /**
@@ -36,6 +37,10 @@ function AjustesSections() {
 
       <AdminSection title="Sistema">
         <SystemSettings />
+      </AdminSection>
+
+      <AdminSection title="Plantilla de ficha">
+        <SheetBuilderSettings />
       </AdminSection>
 
       <AdminSection title="Campos de personaje">

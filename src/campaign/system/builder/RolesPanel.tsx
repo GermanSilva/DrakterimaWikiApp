@@ -1,15 +1,8 @@
-import { ROLE_NAMES, type RoleName } from '../sheet/sheetModel'
+import { ROLE_NAMES } from '../sheet/sheetModel'
 import { useBuilder } from './builderContext'
 import { isNode, type Node } from './draft'
-import { SelectInput } from './ui'
-
-const ROLE_LABEL: Record<RoleName, string> = {
-  hp: 'Vida máxima',
-  hp_current: 'Vida actual',
-  ac: 'Clase de armadura',
-  speed: 'Velocidad',
-  initiative: 'Iniciativa',
-}
+import { ROLE_LABEL } from './roleLabels'
+import { PanelErrors, SelectInput } from './ui'
 
 const nodes = (v: unknown): Node[] => (Array.isArray(v) ? v.filter(isNode) : [])
 
@@ -30,6 +23,7 @@ export function RolesPanel() {
   return (
     <fieldset className="border border-border-base px-4 py-3 flex flex-col gap-3">
       <legend className="px-1 font-exo text-[11px] font-semibold tracking-[0.15em] uppercase text-txt-primary">Roles</legend>
+      <PanelErrors path={['roles']} />
       <p className="text-[12px] text-txt-muted">Las tarjetas de personajes y la sesión en vivo leen estos valores. Un rol sin asignar simplemente no se muestra.</p>
       <div className="grid gap-3 sm:grid-cols-3">
         {ROLE_NAMES.map((role) => (

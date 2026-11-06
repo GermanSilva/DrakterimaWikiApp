@@ -20,7 +20,7 @@ export function ItemRow({ path, index, count }: Props) {
   const list = path.slice(0, -1)
   const label = typeof item.label === 'string' ? item.label : ''
   return (
-    <Panel name={`Ítem ${label}`}>
+    <Panel name={`Ítem ${label}`} path={path}>
       <div className="flex flex-wrap items-baseline gap-3">
         <span className="font-exo text-[12px] font-semibold text-txt-primary">{label}</span>
         <span className="text-[12px] text-txt-muted">{itemKindLabel(item)}</span>

@@ -1,6 +1,8 @@
 /** Small form pieces shared by the builder editors. Copy is Spanish; the look matches the rest of Ajustes. */
 import { useId, type ReactNode } from 'react'
 import { btnSecondary, inputCls } from '../../../constants'
+import { useBuilder } from './builderContext'
+import type { Path } from './draft'
 
 export const smallBtn = `${btnSecondary} !px-2 !py-1 disabled:opacity-40 disabled:cursor-not-allowed`
 const labelCls = 'block font-exo text-[10px] font-medium tracking-[0.2em] uppercase text-txt-muted mb-1.5'
@@ -78,9 +80,24 @@ export function ReorderButtons({ noun, index, count, onMove, onRemove }: Reorder
   )
 }
 
-export function Panel({ name, children }: { name: string; children: ReactNode }) {
+/** The errors of the part at `path`, listed where the DM is editing it. */
+export function PanelErrors({ path }: { path: Path }) {
+  const { errorsFor } = useBuilder()
+  const errors = errorsFor(path)
+  if (errors.length === 0) return null
+  return (
+    <ul aria-label="Errores de este elemento" className="text-[13px] text-red-400 list-disc pl-5">
+      {errors.map((e, i) => (
+        <li key={i}>{e.field !== '' ? `${e.field}: ${e.text}` : e.text}</li>
+      ))}
+    </ul>
+  )
+}
+
+export function Panel({ name, path, children }: { name: string; path: Path; children: ReactNode }) {
   return (
     <div role="group" aria-label={name} className="border border-border-base px-3 py-3 flex flex-col gap-3">
+      <PanelErrors path={path} />
       {children}
     </div>
   )

@@ -85,7 +85,7 @@ function ActionCategories({ path }: { path: Path }) {
     <div className="flex flex-col gap-2">
       <h4 className="font-exo text-[10px] tracking-[0.2em] uppercase text-txt-muted">Categorías de acciones</h4>
       {categories.map((category, i) => (
-        <Panel key={i} name={`Categoría de acciones ${text(category.label)}`}>
+        <Panel key={i} name={`Categoría de acciones ${text(category.label)}`} path={[...listPath, i]}>
           <NameAndKey path={[...listPath, i]} nameLabel="Nombre de la categoría de acciones" keyLabel="Clave de la categoría de acciones" scope="siblings" />
           <ReorderButtons noun="categoría de acciones" index={i} count={categories.length} onMove={(delta) => edit((d) => moveIn(d, listPath, i, delta))} onRemove={() => requestRemoval(listPath, i)} />
         </Panel>

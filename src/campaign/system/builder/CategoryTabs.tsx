@@ -3,7 +3,7 @@ import { appendAt, isNode, moveIn, type Node } from './draft'
 import { newCategory, newSection } from './factories'
 import { NameAndKey } from './NameAndKey'
 import { SectionPanel } from './SectionPanel'
-import { ReorderButtons, smallBtn } from './ui'
+import { PanelErrors, ReorderButtons, smallBtn } from './ui'
 
 const nodes = (v: unknown): Node[] => (Array.isArray(v) ? v.filter(isNode) : [])
 
@@ -14,7 +14,7 @@ interface Props {
 
 /** The categories (the tabs of the character editor) and the sections of the selected one. */
 export function CategoryTabs({ selected, onSelect }: Props) {
-  const { draft, edit, requestRemoval } = useBuilder()
+  const { draft, edit, requestRemoval, hasErrorsUnder } = useBuilder()
   const categories = nodes(draft.categories)
   const index = Math.min(selected, categories.length - 1)
   const category = categories[index]
@@ -30,10 +30,12 @@ export function CategoryTabs({ selected, onSelect }: Props) {
               type="button"
               role="tab"
               aria-selected={i === index}
+              data-invalid={hasErrorsUnder(['categories', i]) ? true : undefined}
               onClick={() => onSelect(i)}
               className={`font-exo text-[11px] font-semibold tracking-[0.1em] uppercase px-3 py-2 border cursor-pointer ${i === index ? 'border-accent text-txt-primary' : 'border-border-base text-txt-muted'}`}
             >
               {typeof c.label === 'string' ? c.label : ''}
+              {hasErrorsUnder(['categories', i]) && <span aria-hidden="true" className="text-red-400"> ●</span>}
             </button>
           ))}
         </div>
@@ -51,6 +53,7 @@ export function CategoryTabs({ selected, onSelect }: Props) {
 
       {category && (
         <div role="tabpanel" className="flex flex-col gap-3">
+          <PanelErrors path={['categories', index]} />
           <NameAndKey path={['categories', index]} nameLabel="Nombre de la categoría" keyLabel="Clave de la categoría" scope="categories" />
           <ReorderButtons
             noun="categoría"

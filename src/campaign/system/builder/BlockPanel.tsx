@@ -66,7 +66,7 @@ export function BlockPanel({ path, items, others, index, count }: Props) {
   const moveFilter = (at: number, delta: -1 | 1) => edit((d) => moveIn(d, [...path, 'filterCategories'], at, delta))
 
   return (
-    <Panel name={`Bloque ${blockName(block)}`}>
+    <Panel name={`Bloque ${blockName(block)}`} path={path}>
       <NameAndKey path={path} nameLabel="Título del bloque" keyLabel="Clave del bloque" scope="siblings" field="title" />
       <SelectInput label="Modo" value={mode} onChange={changeMode} options={BLOCK_MODES.map((m) => ({ value: m, label: MODE_LABEL[m] }))} />
       <fieldset className="flex flex-col gap-1">
