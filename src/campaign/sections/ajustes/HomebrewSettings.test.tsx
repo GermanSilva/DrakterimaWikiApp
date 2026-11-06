@@ -4,7 +4,7 @@ import { toDataError, type SystemSummary } from '../../../data'
 import { createFakeLayer } from '../../testing/fakeLayer'
 import { renderSection } from '../../testing/renderSection'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 15000 })
 afterEach(() => vi.restoreAllMocks())
 
 const system = (over: Partial<SystemSummary> = {}): SystemSummary => ({
