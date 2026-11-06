@@ -50,3 +50,30 @@ describe('buildCampaignExport', () => {
     expect(out.campaign.system_profile).toEqual(profile)
   })
 })
+
+describe('buildCampaignExport: action collection (G6b)', () => {
+  const action = { id: 5, campaign_id: 'c1', table_key: 'hechizos', category: 'trucos', name: 'Rayo', description: '', extras: {}, private_to_pj: null, function: null, created_by: null, created_at: '', updated_at: '' }
+  const link = { pj_id: 1, action_id: 5, campaign_id: 'c1', state: { prep: true }, created_at: '', updated_at: '' }
+
+  it('includes the entries and the links as a new part, and keeps every earlier key', async () => {
+    const { layer } = createFakeLayer({ actions: [action], actionLinks: [link] })
+    const out = await buildCampaignExport(layer, makeCampaign({ id: 'c1' }))
+    expect(out.actions).toEqual({ entries: [action], links: [link] })
+    expect(Object.keys(out).sort()).toEqual(
+      ['actions', 'campaign', 'config', 'dmNotes', 'entities', 'exportedAt', 'format', 'games', 'playerNotes', 'version', 'visibility'],
+    )
+    expect(out.version).toBe(1) // additive part: readers that ignore unknown keys keep working
+  })
+
+  it('exports an empty part for a campaign without actions', async () => {
+    const { layer } = createFakeLayer()
+    const out = await buildCampaignExport(layer, makeCampaign({ id: 'c1' }))
+    expect(out.actions).toEqual({ entries: [], links: [] })
+  })
+
+  it('aborts naming the part when the collection cannot be read', async () => {
+    const { layer, spies } = createFakeLayer()
+    spies.actionLinksList.mockRejectedValueOnce(new Error('boom'))
+    await expect(buildCampaignExport(layer, makeCampaign({ id: 'c1' }))).rejects.toMatchObject({ name: 'ExportError', part: 'acciones (vínculos)' })
+  })
+})

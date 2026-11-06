@@ -455,7 +455,7 @@ describe('Ajustes: export', () => {
     expect(data.config).toMatchObject({ loteria: { value: LOTERIA.loteria.value }, session_screen: { value: { cards: [] } } })
     expect(data.games).toMatchObject({ pot: { gp: 12 }, logs: [{ id: 1 }] })
     // nothing about accounts, membership or invitations
-    expect(Object.keys(data).sort()).toEqual(['campaign', 'config', 'dmNotes', 'entities', 'exportedAt', 'format', 'games', 'playerNotes', 'version', 'visibility'])
+    expect(Object.keys(data).sort()).toEqual(['actions', 'campaign', 'config', 'dmNotes', 'entities', 'exportedAt', 'format', 'games', 'playerNotes', 'version', 'visibility'])
     expect(JSON.stringify(data)).not.toMatch(/u-ana"?,"role|invite|email/)
   })
 

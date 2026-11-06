@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { vi } from 'vitest'
 import { AuthContext } from '../../auth/AuthContext'
 import { makeAuth, makeCampaign } from '../../app/testing/renderApp'
-import { ConflictError, DataError, type Campaign, type CampaignPatch, type BusySlot, type CampaignPresence, type DataLayer, type Disponibilidad, type Member, type FlatEntity, type GameLog, type GamePot, type Invite, type NewInvite, type PlayerAvailability, type PlayerNote, type WikiIndexItem } from '../../data'
+import { ConflictError, DataError, type ActionInput, type ActionPatch, type Campaign, type CampaignAction, type PjActionLink, type CampaignPatch, type BusySlot, type CampaignPresence, type DataLayer, type Disponibilidad, type Member, type FlatEntity, type GameLog, type GamePot, type Invite, type NewInvite, type PlayerAvailability, type PlayerNote, type WikiIndexItem } from '../../data'
 import { createFakeClient } from '../../data/testing/fakeClient'
 import { UnreadPortContext, type UnreadPort } from '../../ports'
 import { CampaignContext, type CampaignContextValue } from '../CampaignContext'
@@ -33,6 +33,9 @@ export interface FakeLayerOptions {
   invites?: Invite[]
   /** Stored campaign row behind `campaigns.updateCampaign` (match it with the campaign the loader returns). */
   campaign?: Partial<Campaign>
+  /** Shared action collection entries and the character links (`layer.actions`). */
+  actions?: CampaignAction[]
+  actionLinks?: PjActionLink[]
   /** `campaign_config` rows by key (value + the `updated_at` version the guarded patch compares). */
   config?: Record<string, { value: Record<string, unknown>; updated_at?: string; visibility?: 'members' | 'dm' }>
 }
@@ -142,6 +145,59 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
     return options.presence ?? []
   })
   const playerNotesList = vi.fn(async () => options.playerNotes ?? [])
+  // actions: an in-memory collection; writes change what the next list returns, like the repository
+  let actionRows = [...(options.actions ?? [])]
+  let linkRows = [...(options.actionLinks ?? [])]
+  let actionSeq = 1000
+  const actionsList = vi.fn(async (campaignId?: string) => {
+    void campaignId
+    return [...actionRows]
+  })
+  const actionLinksList = vi.fn(async (campaignId?: string) => {
+    void campaignId
+    return [...linkRows]
+  })
+  const listLinkedActions = vi.fn(async (pjId: number) =>
+    linkRows.flatMap((link) => {
+      const action = actionRows.find((a) => a.id === link.action_id)
+      return link.pj_id === pjId && action ? [{ action, link }] : []
+    }),
+  )
+  const createAction = vi.fn(async (campaignId: string, input: ActionInput) => {
+    actionSeq += 1
+    const row = {
+      id: actionSeq, campaign_id: campaignId, description: '', extras: {}, private_to_pj: null, function: null, created_by: 'user-1',
+      created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', ...input,
+    } as CampaignAction
+    actionRows = [...actionRows, row]
+    return row
+  })
+  const updateAction = vi.fn(async (id: number, patch: ActionPatch) => {
+    const current = actionRows.find((a) => a.id === id)
+    if (!current) throw new DataError('not_found', `campaign_actions/${id}: not found`)
+    const row = { ...current, ...patch, updated_at: '2026-01-02T00:00:00Z' } as CampaignAction
+    actionRows = actionRows.map((a) => (a.id === id ? row : a))
+    return row
+  })
+  const removeAction = vi.fn(async (id: number) => {
+    actionRows = actionRows.filter((a) => a.id !== id)
+    linkRows = linkRows.filter((l) => l.action_id !== id)
+  })
+  const linkAction = vi.fn(async (campaignId: string, pjId: number, actionId: number, state: Record<string, unknown> = {}) => {
+    const row: PjActionLink = { pj_id: pjId, action_id: actionId, campaign_id: campaignId, state, created_at: '2026-01-01T00:00:00Z', updated_at: 'l1' }
+    linkRows = [...linkRows, row]
+    return row
+  })
+  const unlinkAction = vi.fn(async (pjId: number, actionId: number) => {
+    linkRows = linkRows.filter((l) => !(l.pj_id === pjId && l.action_id === actionId))
+  })
+  const updateLinkState = vi.fn(async (pjId: number, actionId: number, patch: Record<string, unknown>) => {
+    const current = linkRows.find((l) => l.pj_id === pjId && l.action_id === actionId)
+    if (!current) throw new DataError('not_found', `pj_action_links/${pjId}/${actionId}: not found`)
+    const row = { ...current, state: { ...current.state, ...patch }, updated_at: `${current.updated_at}+` }
+    linkRows = linkRows.map((l) => (l === current ? row : l))
+    return row
+  })
   const layer = {
     client: fake.db,
     entity: (table: string) => {
@@ -172,9 +228,10 @@ export function createFakeLayer(options: FakeLayerOptions = {}) {
     campaigns: { listMembers: membersList, updateMemberRole, removeMember, setPjOwner, deleteCampaign, updateCampaign, setSystemProfile, listInvites: invitesList, createInvite: invitesCreate, revokeInvite: invitesRevoke },
     games: { getPot: potGet, listLogs: gameLogsList, playLoteria: vi.fn(), assignPotToCharacter: vi.fn(), removeLog: vi.fn(async () => undefined) },
     presence: { touch: presenceTouch, list: presenceList },
+    actions: { listActions: actionsList, listLinks: actionLinksList, listLinkedActions, createAction, updateAction, removeAction, link: linkAction, unlink: unlinkAction, updateLinkState },
     playerNotes: { list: playerNotesList, upsert: vi.fn(), update: vi.fn(), remove: vi.fn() },
   } as unknown as DataLayer
-  return { layer, fake, spies: { updateMemberRole, removeMember, setPjOwner, deleteCampaign, updateCampaign, setSystemProfile, invitesList, invitesCreate, invitesRevoke, presenceTouch, presenceList, membersList, busySlotsList, disponibilidadList, playerAvailabilityList, potGet, gameLogsList, playerNotesList, configGet, configPatch, configRows, entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
+  return { layer, fake, spies: { updateMemberRole, removeMember, setPjOwner, deleteCampaign, updateCampaign, setSystemProfile, invitesList, invitesCreate, invitesRevoke, presenceTouch, presenceList, membersList, busySlotsList, disponibilidadList, playerAvailabilityList, potGet, gameLogsList, playerNotesList, actionsList, actionLinksList, listLinkedActions, createAction, updateAction, removeAction, linkAction, unlinkAction, updateLinkState, configGet, configPatch, configRows, entityGet, entityList, indexList, saveEntityWithDmNotes, dmNotesGet, dmNotesList, dmNotesUpsert, getVisibility, setVisibility, entityRemove } }
 }
 
 export const fakeUnread = (): UnreadPort & { markRead: ReturnType<typeof vi.fn> } => ({

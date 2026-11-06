@@ -35,6 +35,11 @@ export interface CampaignExport {
   dmNotes: Awaited<ReturnType<DataLayer['dmNotes']['list']>>
   playerNotes: Awaited<ReturnType<DataLayer['playerNotes']['list']>>
   config: Record<string, { value: Record<string, unknown>; visibility: string; updated_at: string } | null>
+  /** The shared action collection (G6b): entries and the links of characters with their own state. */
+  actions: {
+    entries: Awaited<ReturnType<DataLayer['actions']['listActions']>>
+    links: Awaited<ReturnType<DataLayer['actions']['listLinks']>>
+  }
   games: {
     pot: Awaited<ReturnType<DataLayer['games']['getPot']>>
     logs: Awaited<ReturnType<DataLayer['games']['listLogs']>>
@@ -49,13 +54,15 @@ export interface CampaignExport {
  */
 export async function buildCampaignExport(layer: DataLayer, campaign: Campaign, now: Date = new Date()): Promise<CampaignExport> {
   const campaignId = campaign.id
-  const [lists, dmNotes, playerNotes, configRows, pot, logs] = await Promise.all([
+  const [lists, dmNotes, playerNotes, configRows, pot, logs, actionEntries, actionLinks] = await Promise.all([
     Promise.all(ENTITY_TABLES.map((table) => part(table, () => layer.entity(table).list(campaignId)))),
     part('notas del DM', () => layer.dmNotes.list(campaignId)),
     part('notas de jugadores', () => layer.playerNotes.list(campaignId)),
     Promise.all(CONFIG_KEYS.map((key) => part(`configuración ${key}`, () => layer.config.get(campaignId, key)))),
     part('pozo', () => layer.games.getPot(campaignId)),
     part('tiradas', () => layer.games.listLogs(campaignId)),
+    part('acciones', () => layer.actions.listActions(campaignId)),
+    part('acciones (vínculos)', () => layer.actions.listLinks(campaignId)),
   ])
 
   const entities = Object.fromEntries(ENTITY_TABLES.map((table, i) => [table, lists[i]])) as Record<EntityTable, FlatEntity[]>
@@ -95,6 +102,7 @@ export async function buildCampaignExport(layer: DataLayer, campaign: Campaign, 
       }),
     ),
     games: { pot, logs },
+    actions: { entries: actionEntries, links: actionLinks },
   }
 }
 
