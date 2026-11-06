@@ -22,6 +22,7 @@ export const FUNCTION_SHEET_RAW = {
             field('titulo', 'short'),
             field('forma', 'options', { display: 'select', options: [{ key: 'a', label: 'A' }, { key: 'b', label: 'B' }] }),
             field('oro', 'number', { min: -10 }),
+            field('karma', 'number'),
             {
               kind: 'table', type: 'libre', key: 'espacios_conjuro', label: 'Espacios de conjuro', editableBy: 'dm',
               columns: [column('nivel', 'number'), column('total', 'number'), column('gastados', 'number'), column('nota', 'short'), column('doble', 'number', { formula: '{total} * 2' })],

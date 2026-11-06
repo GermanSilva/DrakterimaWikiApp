@@ -474,7 +474,7 @@ function build(sheet: Sheet, pj: Record<string, unknown>) {
       sections.push({ key: section.key, label: section.label, category: category.label, blocks, empty: blocks.every((b) => b.empty) })
     }
   }
-  return { sections, resolveItem }
+  return { sections, resolveItem, globalRef }
 }
 
 /** `linked`: collection entries the character links; they join the rows of their Habilidad table after the stored ones (withLinkedRows). */
@@ -488,4 +488,24 @@ export function resolveSheetItems(sheet: Sheet, pj: Record<string, unknown>): Re
   const items: Record<string, ResolvedItem> = {}
   for (const category of sheet.categories) for (const section of category.sections) for (const item of section.items) items[item.key] = resolveItem(item)
   return items
+}
+
+export type FormulaOutcome = { ok: true; value: number } | { ok: false; error: string }
+
+/**
+ * Evaluates formulas against one character exactly as the sheet does (formula and calc fields computed, rows and
+ * tables readable). `local` names win over the sheet. Only a number is a result; a problem is a result, never a throw.
+ */
+export function sheetEvaluator(sheet: Sheet, pj: Record<string, unknown>): (formula: string, local?: (ref: string) => unknown) => FormulaOutcome {
+  const { globalRef } = build(sheet, pj)
+  return (formula, local) => {
+    const parsed = parseFormula(formula)
+    if (!parsed.ok) return { ok: false, error: parsed.error }
+    const result = evaluateFormula(parsed.ast, (ref) => {
+      const near = local?.(ref)
+      return near !== undefined ? near : globalRef(ref)
+    })
+    if (!result.ok) return { ok: false, error: result.error }
+    return typeof result.value === 'number' ? { ok: true, value: result.value } : { ok: false, error: 'the result is a text, not a number' }
+  }
 }
