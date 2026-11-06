@@ -303,6 +303,28 @@ export const GAME_POT_COLUMNS = ['campaign_id', 'cp', 'sp', 'ep', 'gp', 'pp', 'u
 
 export const CAMPAIGN_PRESENCE_COLUMNS = ['campaign_id', 'user_id', 'last_seen_at'] as const
 
+/** Entries of the shared action collection (G6a). */
+export const ACTION_COLUMNS = [
+  'id',
+  'campaign_id',
+  'table_key',
+  'category',
+  'name',
+  'description',
+  'extras',
+  'private_to_pj',
+  'function',
+  'created_by',
+  'created_at',
+  'updated_at',
+] as const
+
+/** The only columns the client may send for an entry (column-level INSERT / UPDATE grants; campaign_id only on insert). */
+export const ACTION_WRITE_COLUMNS = ['table_key', 'category', 'name', 'description', 'extras', 'private_to_pj', 'function'] as const
+
+/** A character's link to an entry with its own state (G6a). */
+export const ACTION_LINK_COLUMNS = ['pj_id', 'action_id', 'campaign_id', 'state', 'created_at', 'updated_at'] as const
+
 export const join = (cols: readonly string[]): string => cols.join(', ')
 
 /** A column list together with the table it is selected from (checked against the real schema). */
@@ -337,6 +359,9 @@ export const COLUMN_LIST_ENTRIES: readonly ColumnListEntry[] = [
   { name: 'game_logs', table: 'game_logs', columns: GAME_LOG_COLUMNS },
   { name: 'game_pot', table: 'game_pot', columns: GAME_POT_COLUMNS },
   { name: 'campaign_presence', table: 'campaign_presence', columns: CAMPAIGN_PRESENCE_COLUMNS },
+  { name: 'campaign_actions', table: 'campaign_actions', columns: ACTION_COLUMNS },
+  { name: 'campaign_actions_write', table: 'campaign_actions', columns: ACTION_WRITE_COLUMNS },
+  { name: 'pj_action_links', table: 'pj_action_links', columns: ACTION_LINK_COLUMNS },
 ]
 
 /** Every list above by name, for the guard test (no `*`, no `visible_to`). */

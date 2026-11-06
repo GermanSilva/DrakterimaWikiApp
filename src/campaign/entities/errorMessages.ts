@@ -8,6 +8,16 @@ const REWARD_MESSAGES: Partial<Record<string, string>> = {
   invalid_coins: 'Las monedas indicadas no coinciden con las denominaciones de la hoja de la campaña.',
 }
 
+/** Shared action collection (G6a, S35-S37): reasons raised by the entry and link triggers. */
+const COLLECTION_MESSAGES: Partial<Record<string, string>> = {
+  action_not_in_sheet: 'La tabla de la acción ya no existe en la hoja de la campaña.',
+  invalid_action_category: 'La categoría no es una de las que define la tabla de la hoja.',
+  invalid_action_extras: 'Los datos extra de la acción no coinciden con las columnas de la hoja.',
+  action_private_to_other_character: 'Esa acción es privada de otro personaje.',
+  invalid_link_state: 'El valor no es válido para esa columna de la hoja.',
+  link_state_not_writable: 'Esa tabla de la hoja no se puede editar con tu rol.',
+}
+
 /**
  * User-facing (Spanish, voseo) message for a failed data operation. Never shows raw database text:
  * the typed kind / stable reason decides, everything else is logged by the caller.
@@ -19,11 +29,11 @@ export function describeDataError(err: unknown, fallback = 'No se pudo completar
     case 'conflict':
       return 'Ya existe un registro con esos datos.'
     case 'permission':
-      return err.reason === 'dm_only' ? 'Solo el DM puede hacer esto.' : 'No tenés permiso para hacer esto.'
+      return err.reason === 'dm_only' ? 'Solo el DM puede hacer esto.' : (err.reason && COLLECTION_MESSAGES[err.reason]) || 'No tenés permiso para hacer esto.'
     case 'not_found':
       return 'Ese registro ya no existe.'
     case 'validation':
-      return 'Hay datos inválidos. Revisá el formulario.'
+      return (err.reason && COLLECTION_MESSAGES[err.reason]) || 'Hay datos inválidos. Revisá el formulario.'
     case 'auth':
       return 'Tu sesión expiró. Iniciá sesión de nuevo.'
     case 'business':

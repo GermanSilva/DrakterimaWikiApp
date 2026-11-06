@@ -1,3 +1,4 @@
+import { createActionCollectionRepository } from './actionCollectionRepository'
 import { createCampaignRepository } from './campaignRepository'
 import { createCampaignRequestRepository } from './campaignRequestRepository'
 import type { EntityTable, WikiIndexTable } from './columns'
@@ -24,6 +25,7 @@ export * from './realtime'
 export * from './supabaseClient'
 export * from './types'
 export * from './useCampaignTable'
+export * from './actionCollectionRepository'
 export * from './campaignRepository'
 export * from './campaignRequestRepository'
 export * from './configRepository'
@@ -80,6 +82,8 @@ export function createDataLayer(client: Db = getSupabase()) {
     playerAvailability: createPlayerAvailabilityRepository(client),
     config: createConfigRepository(client),
     games: createGamesRepository(client),
+    /** Shared action collection: entries and the links of characters with their own state (S35-S37). */
+    actions: createActionCollectionRepository(client),
     presence: createPresenceRepository(client),
   }
 }

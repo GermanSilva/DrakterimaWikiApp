@@ -48,6 +48,12 @@ export const KNOWN_REASONS = [
   'invalid_accent_color',
   'invalid_logo_url',
   'invalid_system_profile',
+  'action_not_in_sheet',
+  'invalid_action_category',
+  'invalid_action_extras',
+  'action_private_to_other_character',
+  'invalid_link_state',
+  'link_state_not_writable',
   'campaign_not_found',
 ] as const
 

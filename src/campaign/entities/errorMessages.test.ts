@@ -42,3 +42,33 @@ describe('stale lottery configuration (G5b, S12)', () => {
     expect(describeGameError(err)).toBe(message)
   })
 })
+
+describe('action collection errors (G6a)', () => {
+  const trigger = (message: string, code: string) => toDataError({ message, code })
+
+  it('keeps the entry reasons as validation errors and the closed state as a permission error', () => {
+    for (const reason of ['action_not_in_sheet', 'invalid_action_category', 'invalid_action_extras', 'action_private_to_other_character', 'invalid_link_state']) {
+      const err = trigger(reason, '23514')
+      expect(err.kind, reason).toBe('validation')
+      expect(err.reason, reason).toBe(reason)
+    }
+    const closed = trigger('link_state_not_writable', '42501')
+    expect(closed.kind).toBe('permission')
+    expect(closed.reason).toBe('link_state_not_writable')
+  })
+
+  it('explains each one in Spanish', () => {
+    expect(describeDataError(trigger('action_not_in_sheet', '23514'))).toBe('La tabla de la acción ya no existe en la hoja de la campaña.')
+    expect(describeDataError(trigger('invalid_action_category', '23514'))).toBe('La categoría no es una de las que define la tabla de la hoja.')
+    expect(describeDataError(trigger('invalid_action_extras', '23514'))).toBe('Los datos extra de la acción no coinciden con las columnas de la hoja.')
+    expect(describeDataError(trigger('action_private_to_other_character', '23514'))).toBe('Esa acción es privada de otro personaje.')
+    expect(describeDataError(trigger('invalid_link_state', '23514'))).toBe('El valor no es válido para esa columna de la hoja.')
+    expect(describeDataError(trigger('link_state_not_writable', '42501'))).toBe('Esa tabla de la hoja no se puede editar con tu rol.')
+  })
+
+  it('leaves the other validation and permission errors as before', () => {
+    expect(describeDataError(trigger('check violated', '23514'))).toBe('Hay datos inválidos. Revisá el formulario.')
+    expect(describeDataError(trigger('permission denied', '42501'))).toBe('No tenés permiso para hacer esto.')
+    expect(describeDataError(trigger('dm_only', '42501'))).toBe('Solo el DM puede hacer esto.')
+  })
+})

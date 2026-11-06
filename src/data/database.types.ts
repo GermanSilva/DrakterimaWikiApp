@@ -34,6 +34,73 @@ export type Database = {
   }
   public: {
     Tables: {
+      campaign_actions: {
+        Row: {
+          campaign_id: string
+          category: string
+          created_at: string
+          created_by: string | null
+          description: string
+          extras: Json
+          function: Json | null
+          id: number
+          name: string
+          private_to_pj: number | null
+          table_key: string
+          updated_at: string
+        }
+        Insert: {
+          campaign_id: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          extras?: Json
+          function?: Json | null
+          id?: number
+          name: string
+          private_to_pj?: number | null
+          table_key: string
+          updated_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          category?: string
+          created_at?: string
+          created_by?: string | null
+          description?: string
+          extras?: Json
+          function?: Json | null
+          id?: number
+          name?: string
+          private_to_pj?: number | null
+          table_key?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "campaign_actions_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_actions_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "campaign_actions_private_to_pj_campaign_id_fkey"
+            columns: ["private_to_pj", "campaign_id"]
+            isOneToOne: false
+            referencedRelation: "pjs"
+            referencedColumns: ["id", "campaign_id"]
+          },
+        ]
+      }
       campaign_config: {
         Row: {
           campaign_id: string
@@ -962,6 +1029,55 @@ export type Database = {
           },
         ]
       }
+      pj_action_links: {
+        Row: {
+          action_id: number
+          campaign_id: string
+          created_at: string
+          pj_id: number
+          state: Json
+          updated_at: string
+        }
+        Insert: {
+          action_id: number
+          campaign_id: string
+          created_at?: string
+          pj_id: number
+          state?: Json
+          updated_at?: string
+        }
+        Update: {
+          action_id?: number
+          campaign_id?: string
+          created_at?: string
+          pj_id?: number
+          state?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pj_action_links_action_id_campaign_id_fkey"
+            columns: ["action_id", "campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaign_actions"
+            referencedColumns: ["id", "campaign_id"]
+          },
+          {
+            foreignKeyName: "pj_action_links_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "pj_action_links_pj_id_campaign_id_fkey"
+            columns: ["pj_id", "campaign_id"]
+            isOneToOne: false
+            referencedRelation: "pjs"
+            referencedColumns: ["id", "campaign_id"]
+          },
+        ]
+      }
       pjs: {
         Row: {
           campaign_id: string
@@ -1359,6 +1475,29 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _lottery_stale_keys: {
+        Args: { p_cfg: Json; p_target: Json }
+        Returns: string[]
+      }
+      _reward_normalize: {
+        Args: { p_coins: Json; p_target: Json }
+        Returns: Json
+      }
+      _reward_target: { Args: { p_campaign_id: string }; Returns: Json }
+      _sheet_calc: { Args: { p_calc: Json; p_path: string }; Returns: Json }
+      _sheet_columns: { Args: { p_path: string; v: Json }; Returns: Json }
+      _sheet_editor: { Args: { p_path: string; v: Json }; Returns: string }
+      _sheet_fail: { Args: { p_path: string }; Returns: undefined }
+      _sheet_formula: { Args: { p_path: string; v: Json }; Returns: string }
+      _sheet_formula_uses: { Args: { p_text: string }; Returns: Json }
+      _sheet_key: {
+        Args: { p_path: string; p_scoped: boolean; v: Json }
+        Returns: string
+      }
+      _sheet_label: { Args: { p_path: string; v: Json }; Returns: string }
+      _sheet_mark_reward_destination: { Args: { p_sheet: Json }; Returns: Json }
+      _sheet_options: { Args: { p_path: string; p_src: Json }; Returns: Json }
+      _sheet_value_ok: { Args: { spec: Json; v: Json }; Returns: boolean }
       accept_invite: { Args: { p_code: string }; Returns: Json }
       approve_campaign_request: {
         Args: { p_name?: string; p_request_id: number; p_slug?: string }
@@ -1508,6 +1647,10 @@ export type Database = {
         }
       }
       shares_campaign_with: { Args: { uid: string }; Returns: boolean }
+      sheet_guard_access: {
+        Args: { p_campaign_id: string; p_new_data: Json; p_old_data: Json }
+        Returns: Json
+      }
       strip_control_chars: {
         Args: { p_keep_newlines?: boolean; p_text: string }
         Returns: string
@@ -1516,6 +1659,7 @@ export type Database = {
         Args: { p_campaign_id: string }
         Returns: undefined
       }
+      validate_sheet: { Args: { p: Json }; Returns: Json }
       validate_system_profile: { Args: { p: Json }; Returns: Json }
     }
     Enums: {
