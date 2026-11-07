@@ -48,7 +48,7 @@ export interface FormPort {
   motivoLabel?: string
   /** The system document of the campaign (character built-ins and sheet blocks). Absent = the D&D 5e document (legacy app). */
   system?: Readonly<SystemProfile>
-  /** Hub, opt-in (`?sheet=1`, a valid stored sheet): the character editor is drawn from this sheet instead of the fixed D&D form. */
+  /** Hub, whenever the campaign has a valid stored sheet: the character editor is drawn from this sheet instead of the fixed D&D form. */
   sheet?: Sheet
   /** Hub: `jugador` follows the DM's assignment of the character (the database derives it), so the form shows it read-only. Legacy: typed by hand. */
   jugadorFromAssignment?: boolean
