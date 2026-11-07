@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Link, useLocation, useNavigate, useSearchParams } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { Shield } from 'lucide-react'
 import { EmptyState, PageHeader } from '../../components/Shared'
 import UnreadDot from '../../components/UnreadDot'
@@ -11,7 +11,7 @@ import { PJCardContent } from '../../pages/pj/PJCardContent'
 import { habilidadTables } from '../system/actions/tables'
 import { useLinkedActions } from '../system/actions/useLinkedActions'
 import { searchableLabels, searchableTags, storedSheet, type SearchableTag } from '../system/sheet/searchable'
-import { validateSheet, type Sheet } from '../system/sheet/sheetModel'
+import type { Sheet } from '../system/sheet/sheetModel'
 import { useSystem } from '../system/useSystem'
 import type { SystemProfile } from '../system/systemProfile'
 import { useUnreadPort } from '../../ports'
@@ -64,13 +64,8 @@ function PjView({ entity, listPath }: EntityViewProps) {
   const customFields = useMemo(() => parseCharacterFields(campaign.character_custom_fields), [campaign.character_custom_fields])
   const system = useSystem()
   const { layer } = useCampaignServices()
-  const [params] = useSearchParams()
-  // The sheet renderer is opt-in (?sheet=1) until it reaches parity and the data is migrated; an invalid sheet never gets here
-  const sheet = useMemo(() => {
-    if (params.get('sheet') !== '1' || !system.sheet) return null
-    const result = validateSheet(system.sheet)
-    return result.ok ? result.sheet : null
-  }, [params, system.sheet])
+  // a valid stored sheet always draws the detail; an absent or invalid one keeps today's D&D detail
+  const sheet = useMemo(() => storedSheet(system), [system])
   // collection entries the character links (S36): read only when the detail is drawn from a sheet that has a Habilidad table
   const linkedActions = useLinkedActions(layer.actions, entity.id, sheet !== null && habilidadTables(sheet).length > 0, entity.updated_at)
   const isOwnPlayer = !isDM && myCharacterIds.includes(entity.id)

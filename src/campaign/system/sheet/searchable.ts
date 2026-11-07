@@ -8,7 +8,7 @@ export interface SearchableTag {
   text: string
 }
 
-/** The stored sheet of the campaign when it validates (the same check as the ?sheet=1 opt-in), else null. */
+/** The stored sheet of the campaign when it validates (the check that decides the sheet detail and editor), else null. */
 export function storedSheet(system: { sheet?: unknown }): Sheet | null {
   if (system.sheet === undefined || system.sheet === null) return null
   const result = validateSheet(system.sheet)

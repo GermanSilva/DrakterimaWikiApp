@@ -1,4 +1,4 @@
-/** G6b: the character detail (?sheet=1) shows linked collection entries next to the legacy rows; the editor links and edits state. */
+/** G6b: the character detail (sheet) shows linked collection entries next to the legacy rows; the editor links and edits state. */
 import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { DataError } from '../../data'
@@ -22,7 +22,7 @@ const ENTRIES = [
   action(15, { name: 'Llama', category: 'truco' }), // not linked yet
 ]
 const LINKS = [link(1, 10, { preparado: true }), link(1, 11), link(1, 12, { cargas: 2 })]
-const URL = '/c/demo/pjs/1?sheet=1'
+const URL = '/c/demo/pjs/1'
 const REGIONS = [{ key: 'magral', label: 'Tierras de Magral' }]
 
 function open(options: FakeLayerOptions = {}, { isDM = true, url = URL, characterIds = [] as number[], campaign = withActionSheet() as Record<string, unknown> } = {}) {
@@ -80,8 +80,8 @@ describe('PJ detail: linked entries next to the legacy rows (S36, S16)', () => {
     expect(await section('magia').findByRole('button', { name: 'Rayo' })).toBeInTheDocument()
   })
 
-  it('does not ask for links without ?sheet=1, nor when the sheet has no Habilidad table (today detail untouched)', async () => {
-    const { spies } = open({}, { url: '/c/demo/pjs/1' })
+  it('does not ask for links when the stored sheet does not validate (today detail untouched)', async () => {
+    const { spies } = open({}, { campaign: withActionSheet({ categories: 'nope' }) })
     await heading()
     expect(spies.listLinkedActions).not.toHaveBeenCalled()
   })

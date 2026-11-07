@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { useSearchParams } from 'react-router'
 import FormShell from '../components/FormShell'
 import { ENTITY_FORMS, FORM_TITLES } from '../components/forms/entityForms'
 import { extractDmNotes, withoutDmNotes, type DmNotesFields, type FlatEntity } from '../data'
@@ -23,7 +22,7 @@ import { markSectionsSeen, pjSectionStamps, type SectionStamps } from './pjStamp
 import { ActionLinksContext, type ActionLinksPort } from './system/actions/linksContext'
 import SheetEditor from './system/sheet/SheetEditor'
 import { sheetPatch, sheetStamps } from './system/sheet/sheetEditorModel'
-import { validateSheet } from './system/sheet/sheetModel'
+import { storedSheet } from './system/sheet/searchable'
 
 const NOTE_KEYS = ['notas', 'secreto', 'ganchos'] as const
 
@@ -63,10 +62,10 @@ interface Seed {
  * an OWNER save: only the identity fields the database guard allows are ever sent, never DM notes or
  * visibility, whatever the form state holds.
  *
- * Opt-in (`?sheet=1` on the page that opened the form, and a stored sheet that validates): a character is edited with the
+ * With a stored sheet that validates, a character is edited with the
  * editor drawn from the sheet, and its payload and unread stamps come from the sheet (sheetPatch / sheetStamps: a player's
- * keys are exactly what the database guard derives from the same sheet) instead of the fixed D&D lists. Anything else
- * opens today's form unchanged. The hub never sends `jugador` on an update: the database derives it from the assignment.
+ * keys are exactly what the database guard derives from the same sheet) instead of the fixed D&D lists. An absent or
+ * invalid sheet opens today's form unchanged. The hub never sends `jugador` on an update: the database derives it from the assignment.
  */
 function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onClose: () => void }) {
   const { isDM } = useCampaign()
@@ -91,7 +90,6 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
   // maps: only one may be the default (unique index), so saving a new default first demotes the current one
   const mapsList = useEntities('mapas', { enabled: table === 'mapas' })
   const { layer, campaignId } = useCampaignServices()
-  const [params] = useSearchParams()
 
   const dmReady = !isDM || !openedAsEdit || dm.status === 'ready' || dm.status === 'idle'
   const visReady = !isDM || !openedAsEdit || vis.status === 'ready' || vis.status === 'idle'
@@ -121,12 +119,7 @@ function EntityFormHost({ request, onClose }: { request: EntityFormRequest; onCl
 
   const basePort = useFormPort()
   const stored = basePort.system?.sheet
-  const wantsSheet = isPj && params.get('sheet') === '1'
-  const sheet = useMemo(() => {
-    if (!wantsSheet || !stored) return null
-    const result = validateSheet(stored)
-    return result.ok ? result.sheet : null
-  }, [wantsSheet, stored])
+  const sheet = useMemo(() => (isPj && stored ? storedSheet({ sheet: stored }) : null), [isPj, stored])
   const port = useMemo(
     () => ({
       ...basePort,

@@ -37,7 +37,7 @@ const ELDRIC = pj(1, {
   edad: '30', personalidad: 'Calmo y paciente',
 })
 
-const SHEET_URL = '/c/demo/pjs/1?sheet=1'
+const SHEET_URL = '/c/demo/pjs/1'
 const section = (key: string) => {
   const el = document.getElementById(`pj-section-${key}`)
   if (!el) throw new Error(`no section ${key}`)
@@ -54,11 +54,11 @@ const open = async (pjs = [ELDRIC], url = SHEET_URL, campaign: Record<string, un
   else expect(sheetView(), 'today detail is mounted').toBeNull()
 }
 
-describe('PJ detail drawn from the sheet (?sheet=1)', () => {
-  it('keeps the header and still draws today detail without the flag', async () => {
-    await open([ELDRIC], '/c/demo/pjs/1', withSheet(), false)
-    expect(screen.getByText('Perc. Pasiva')).toBeInTheDocument() // today label
-    expect(screen.queryByText('Percepción pasiva')).toBeNull()
+describe('PJ detail drawn from the sheet (default for a valid stored sheet)', () => {
+  it('draws the sheet without any URL flag and keeps the header', async () => {
+    await open([ELDRIC], '/c/demo/pjs/1', withSheet(), true)
+    expect(screen.getByText('Percepción pasiva')).toBeInTheDocument()
+    expect(screen.queryByText('Perc. Pasiva')).toBeNull() // today label
   })
 
   it('draws the sheet sections under the same ids and keys as today, with a nav button per non-empty section', async () => {

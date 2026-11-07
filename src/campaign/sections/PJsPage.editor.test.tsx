@@ -1,4 +1,4 @@
-/** G4b: the hub character editor drawn from the sheet (?sheet=1): opt-in, save payload, DM vs player, unread stamps. */
+/** G4b: the hub character editor drawn from the sheet (default for a valid stored sheet): fallback, save payload, DM vs player, unread stamps. */
 import { configure, fireEvent, screen, waitFor, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { ENTITY, SHEET } from '../system/sheet/editorFixture'
@@ -25,7 +25,7 @@ const tab = (name: string) => fireEvent.click(within(dialogEl()).getByRole('butt
 async function openEditor(opts: { url?: string; isDM?: boolean; campaign?: Record<string, unknown>; pjs?: unknown[] } = {}) {
   const { layer, spies } = createFakeLayer({ entities: { pjs: (opts.pjs ?? [ANA]) as never[] }, dmNotes: {}, visibility: { 1: [] } })
   const isDM = opts.isDM ?? true
-  renderSection(opts.url ?? '/c/demo/pjs/1?sheet=1', { layer, isDM, characterIds: isDM ? [] : [1], regions: REGIONS, campaign: opts.campaign ?? withSheet() })
+  renderSection(opts.url ?? '/c/demo/pjs/1', { layer, isDM, characterIds: isDM ? [] : [1], regions: REGIONS, campaign: opts.campaign ?? withSheet() })
   await screen.findByRole('heading', { level: 1, name: 'Ana' })
   fireEvent.click(screen.getByRole('button', { name: 'Editar' }))
   await screen.findByRole('dialog')
@@ -33,25 +33,24 @@ async function openEditor(opts: { url?: string; isDM?: boolean; campaign?: Recor
 }
 const sheetEditor = () => dialogEl().querySelector('[data-sheet-editor]')
 
-describe('opt-in (?sheet=1), exactly like the sheet detail', () => {
-  it('without the flag the editor is today\'s form, even when the campaign has a valid sheet', async () => {
+describe('default for a valid stored sheet, exactly like the sheet detail', () => {
+  it('a valid sheet needs no URL flag: the editor is drawn from it', async () => {
     await openEditor({ url: '/c/demo/pjs/1' })
-    expect(sheetEditor()).toBeNull()
-    for (const name of ['Identidad', 'Mecánicas', 'Equipo & Rasgos']) expect(within(dialogEl()).getByRole('button', { name })).toBeInTheDocument()
+    expect(sheetEditor()).not.toBeNull()
   })
 
-  it('with the flag but an invalid stored sheet, today\'s form opens', async () => {
+  it('with an invalid stored sheet, today\'s form opens', async () => {
     await openEditor({ campaign: withSheet({ categories: 'nope' }) })
     expect(sheetEditor()).toBeNull()
     expect(within(dialogEl()).getByRole('button', { name: 'Mecánicas' })).toBeInTheDocument()
   })
 
-  it('with the flag and no sheet at all, today\'s form opens', async () => {
+  it('with no sheet at all, today\'s form opens', async () => {
     await openEditor({ campaign: {} })
     expect(sheetEditor()).toBeNull()
   })
 
-  it('with the flag and a valid sheet, the editor is drawn from it', async () => {
+  it('with a valid sheet, the editor is drawn from it', async () => {
     await openEditor()
     expect(sheetEditor()).not.toBeNull()
     expect(within(dialogEl()).getAllByRole('button').map((b) => b.textContent)).toEqual(expect.arrayContaining(['Identidad', 'General', 'Mecánicas']))
@@ -142,7 +141,7 @@ describe('DM saves from the sheet editor', () => {
 
   it('create: the DM fills the editor; the payload has the identity defaults and a "general" stamp', async () => {
     const { layer, spies } = createFakeLayer()
-    renderSection('/c/demo/pjs?sheet=1', { layer, regions: REGIONS, campaign: withSheet() })
+    renderSection('/c/demo/pjs', { layer, regions: REGIONS, campaign: withSheet() })
     await screen.findByRole('heading', { level: 1, name: 'El Grupo' })
     fireEvent.click(screen.getByRole('button', { name: '+ Nuevo PJ' }))
     await screen.findByRole('dialog')
