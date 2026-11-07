@@ -12,6 +12,7 @@ import { buildImport, formatReport } from './index.mjs'
 import { LegacyFormatError } from './legacy.mjs'
 import { ImportAbort, describeDbError, findUserIdByEmail, readCounts, runImport } from './load.mjs'
 import { completionBanner } from './report.mjs'
+import { formatV2 } from './v2.mjs'
 import { buildSyncReport, formatSyncSummary, runSync } from './sync.mjs'
 
 /** Repo root from this file's location (falls back to the cwd where import.meta.url is not a file: URL, e.g. jsdom tests). */
@@ -183,6 +184,8 @@ export async function main(argv, env, io = {}) {
     }
     if (dmUser === 'created') out('DM auth user: created by this run.')
     out(`DB rows written: ${Object.entries(result.db.written).map(([t, n]) => `${t}=${n}`).join(' ')}`)
+    const v2Line = formatV2(result.db.v2)
+    if (v2Line) out(v2Line)
     out(`Claim invites: ${result.db.invites.created} created, ${result.db.invites.reused} reused${args.apply ? '' : ' (not persisted)'}`)
     out(`Report: ${reportPath}`)
     if (invitesPath) out(`Invites: ${invitesPath}`)

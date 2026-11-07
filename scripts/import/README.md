@@ -85,6 +85,23 @@ default, and the campaign must carry the importer's marker.
 - `db.postApplyCounts` in the report lists the rows the database now holds per table.
 - Sequences: new records created in the hub get ids above every imported one.
 
+## D&D v2 shape of the characters
+
+When the target campaign carries the D&D preset v2 sheet (every campaign created from the current default does), the import
+writes the characters the way `20261107120000_dnd5e_v2_data.sql` leaves migrated ones: skills as `no`/`competente`/`experto`,
+hit dice as `dado_golpe` + `dados_disponibles`, spell slots as `espacios_conjuro` rows, `recursos.recuperacion` as
+`largo`/`corto`, the campaign custom fields as paragraph fields of the sheet (section `campos_campana`), and the spells as
+collection entries + links (same name with different content: private to each character). The legacy `jugador` text stays
+until the character is claimed (the invite CSV needs it; claiming replaces it with the player's display name). A campaign
+whose sheet is not the v2 preset keeps the legacy shape. The run prints one `dnd5e v2 data:` line with counts and warning
+codes only. The code needs Node 22.18+ (it loads `src/campaign/system/sheet/migration/migrateDnd5eV2.ts` directly).
+
+To see what the migration would do to an export before importing anything (counts and codes only, nothing written):
+
+```bash
+node scripts/migrate/dryRunDnd5eV2.mjs ./export.json
+```
+
 ## What is dropped
 
 - Login logs (`login_logs`), and the **players' passwords** (`player_password`, `player_must_change`): never imported.

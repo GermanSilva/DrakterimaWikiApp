@@ -20,6 +20,7 @@ import {
   quoteIdent,
   sequenceStateQuery,
 } from './sql.mjs'
+import { planV2, readV2Context, summariseV2, writeCollectionV2, writeSheetV2 } from './v2.mjs'
 
 export class ImportAbort extends Error {
   constructor(code, message) {
@@ -202,6 +203,11 @@ export async function runImport(client, opts) {
     const withCampaign = (rows) => rows.map((r) => ({ ...r, campaign_id: campaignId }))
     const written = {}
 
+    // D&D v2 shape (G10c): characters, campaign sheet fields and collection entries, only when the campaign carries the v2 preset
+    const v2Context = await readV2Context(client, campaignId)
+    const v2 = planV2({ ...v2Context, pjRows: output.tables.pjs ?? [] })
+    await writeSheetV2(client, campaignId, v2)
+
     await client.query(
       "insert into public.campaign_members (campaign_id, user_id, role) values ($1, $2, 'dm') on conflict (campaign_id, user_id) do nothing",
       [campaignId, dmId],
@@ -217,10 +223,12 @@ export async function runImport(client, opts) {
     for (const table of ENTITY_WRITE_ORDER) {
       written[table] = await upsertOwned(
         client,
-        { table, rows: withCampaign(output.tables[table] ?? []), conflictColumns: ['id'], onConflict: 'update', returning: 'id' },
+        { table, rows: withCampaign(table === 'pjs' && v2.applied ? v2.rows : output.tables[table] ?? []), conflictColumns: ['id'], onConflict: 'update', returning: 'id' },
         table,
       )
     }
+
+    if (v2.applied) Object.assign(written, await writeCollectionV2(client, campaignId, v2))
 
     written.entity_dm_notes = await upsertOwned(
       client,
@@ -270,6 +278,7 @@ export async function runImport(client, opts) {
       gameLogsSkipped,
       counts: await readCounts(client, campaignId),
       sequences: sequenceChecks,
+      v2: summariseV2(v2),
       invites: { created: invites.filter((i) => i.status === 'created').length, reused: invites.filter((i) => i.status === 'reused').length },
     }
     if (apply && Object.values(sequenceChecks).some((c) => !c.ok)) throw new ImportAbort('sequence_behind', 'a sequence is not past the highest preserved id')
