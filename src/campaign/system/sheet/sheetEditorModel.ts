@@ -16,8 +16,8 @@ type Draft = Record<string, unknown>
 type RowTable = Extract<Table, { type: 'libre' | 'habilidad' }>
 
 /** Promoted columns the editor writes. `jugador` never: the database derives it from the assignment (S30). */
-const IDENTITY_DM = ['nombre', 'imagen_url', 'region', 'estado'] as const
-const IDENTITY_PLAYER = ['nombre', 'imagen_url', 'region'] as const
+const IDENTITY_DM = ['nombre', 'clase', 'raza', 'imagen_url', 'region', 'estado'] as const
+const IDENTITY_PLAYER = ['nombre', 'clase', 'raza', 'imagen_url', 'region'] as const
 const MAX_AMOUNT = 1e12
 
 export interface PatchError {
@@ -109,6 +109,11 @@ export function sheetPatch(sheet: Sheet, entity: Draft, draft: Draft, isDM: bool
   const errors: PatchError[] = []
   for (const key of isDM ? IDENTITY_DM : IDENTITY_PLAYER) {
     if (key in draft && !sameValue(entity[key], draft[key])) patch[key] = draft[key]
+  }
+  // nivel is DM only (OWNER_COLUMNS); a whole number, 1 when empty or invalid, like today's form
+  if (isDM && 'nivel' in draft) {
+    const nivel = parseInt(String(draft.nivel), 10) || 1
+    if (nivel !== (entity.nivel ?? 1)) patch.nivel = nivel // a character without a stored level is level 1
   }
   const tables = rowTables(sheet)
   for (const [key, rule] of Object.entries(writeRules(sheet, isDM))) {

@@ -43,7 +43,7 @@ describe('sheetPatch: the payload of a save', () => {
       false,
     )
     expect(errors).toEqual([])
-    expect(patch).toEqual({ nombre: 'Ana B', region: 'nezor', imagen_url: 'https://x/y.png', edad: '31', fue: 15, atl: 4, inspirado: true, postura: 'alta' })
+    expect(patch).toEqual({ nombre: 'Ana B', region: 'nezor', imagen_url: 'https://x/y.png', clase: 'Mago', edad: '31', fue: 15, atl: 4, inspirado: true, postura: 'alta' })
   })
 
   it('never includes jugador, even for a DM (it follows the assignment)', () => {
@@ -184,5 +184,29 @@ describe('sheetStamps: the unread dot is per sheet section (S13, C4)', () => {
 
   it('a key of no section counts as "general"', () => {
     expect(sheetStamps(SHEET, { estado: 'secreto' }, NOW).sections).toEqual(['general'])
+  })
+})
+
+describe('sheetPatch: clase, raza and nivel (G10a)', () => {
+  const stored = { ...ENTITY, clase: 'Paladín', raza: 'Humano', nivel: 3 }
+  const patch = (draft: Loose, isDM: boolean) => sheetPatch(SHEET, stored, { ...stored, ...draft }, isDM)
+
+  it('sends nothing for them when untouched', () => {
+    expect(patch({}, true)).toEqual({ patch: {}, errors: [] })
+    expect(patch({}, false)).toEqual({ patch: {}, errors: [] })
+  })
+
+  it('the DM sends the ones that changed, nivel as a whole number (empty or invalid counts as 1, like today)', () => {
+    expect(patch({ clase: 'Pícaro', raza: 'Elfo', nivel: '7' }, true).patch).toEqual({ clase: 'Pícaro', raza: 'Elfo', nivel: 7 })
+    expect(patch({ nivel: '' }, true).patch).toEqual({ nivel: 1 })
+    expect(patch({ nivel: '3' }, true).patch).toEqual({})
+  })
+
+  it('a character with no stored nivel is level 1: showing 1 is not an edit', () => {
+    expect(sheetPatch(SHEET, ENTITY, { ...ENTITY, nivel: 1 }, true).patch).toEqual({})
+  })
+
+  it('a player sends clase and raza, never nivel (the guard would reject it)', () => {
+    expect(patch({ clase: 'Mago', raza: 'Enano', nivel: 9 }, false).patch).toEqual({ clase: 'Mago', raza: 'Enano' })
   })
 })

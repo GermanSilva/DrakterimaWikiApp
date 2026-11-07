@@ -3,6 +3,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { FlatEntity } from '../../../data'
 import { FormActionsContext, FormPortContext, type FormActions, type FormPort } from '../../../ports'
+import { dnd5eProfile } from '../systemProfile'
 import { ENTITY, SHEET } from './editorFixture'
 import SheetEditor from './SheetEditor'
 
@@ -245,5 +246,59 @@ describe('row editors (S16 A12 reset, sorted display)', () => {
     expect(isLocked(doble)).toBe(true)
     fireEvent.change(screen.getByLabelText('Horas (fila 1 de Diario)'), { target: { value: '6' } })
     expect(screen.getByLabelText('Doble (fila 1 de Diario)')).toHaveValue('12')
+  })
+})
+
+/** G10a: clase, raza and nivel follow the system builtins (enabled, label, range) and the owner rules of today's form. */
+describe('identity builtins: clase, raza, nivel', () => {
+  const builtins = (over: Record<string, unknown> = {}) => {
+    const base = dnd5eProfile()
+    return { ...base, character: { ...base.character, builtins: { ...base.character.builtins, ...over } } }
+  }
+  const item = { ...ENTITY, clase: 'Paladín', raza: 'Humano', nivel: 3 }
+
+  it('the DM sees the three with the stock labels ("Raza / Especie") and a nivel inside the system range', () => {
+    mount({}, item)
+    expect(screen.getByLabelText('Clase')).toHaveValue('Paladín')
+    expect(screen.getByLabelText('Raza / Especie')).toHaveValue('Humano')
+    const nivel = screen.getByLabelText('Nivel')
+    expect(nivel).toHaveAttribute('type', 'number')
+    expect(nivel).toHaveAttribute('min', '1')
+    expect(nivel).toHaveAttribute('max', '20')
+    expect(nivel).toHaveValue(3)
+    expect([screen.getByLabelText('Clase'), screen.getByLabelText('Raza / Especie'), nivel].some(isLocked)).toBe(false)
+  })
+
+  it('shows only the enabled builtins, with the label the system gives them and its range', () => {
+    mount({ system: builtins({ clase: { enabled: false, label: 'Clase' }, raza: { enabled: true, label: 'Especie' }, nivel: { enabled: true, label: 'Rango', min: 0, max: 5 } }) }, item)
+    expect(screen.queryByLabelText('Clase')).toBeNull()
+    expect(screen.queryByLabelText('Raza / Especie')).toBeNull()
+    expect(screen.getByLabelText('Especie')).toHaveValue('Humano')
+    const rango = screen.getByLabelText('Rango')
+    expect(rango).toHaveAttribute('min', '0')
+    expect(rango).toHaveAttribute('max', '5')
+    expect(screen.queryByLabelText('Nivel')).toBeNull()
+  })
+
+  it('draws none of them when the system disables all three', () => {
+    mount({ system: builtins({ clase: { enabled: false, label: 'Clase' }, raza: { enabled: false, label: 'Raza' }, nivel: { enabled: false, label: 'Nivel', min: 1, max: 20 } }) }, item)
+    for (const name of ['Clase', 'Raza / Especie', 'Raza', 'Nivel']) expect(screen.queryByLabelText(name)).toBeNull()
+  })
+
+  it('the DM edits them and the typed values reach the save', () => {
+    const actions = mount({}, item)
+    fireEvent.change(screen.getByLabelText('Clase'), { target: { value: 'Pícaro' } })
+    fireEvent.change(screen.getByLabelText('Raza / Especie'), { target: { value: 'Elfo' } })
+    fireEvent.change(screen.getByLabelText('Nivel'), { target: { value: '7' } })
+    expect(saved(actions)[1]).toMatchObject({ id: 1, clase: 'Pícaro', raza: 'Elfo', nivel: '7' })
+  })
+
+  it('the owning player edits clase and raza but sees nivel read-only (or not at all)', () => {
+    const actions = mount({ isDM: false, ownCharacterIds: [1] }, item)
+    expect(isLocked(screen.getByLabelText('Clase'))).toBe(false)
+    expect(isLocked(screen.getByLabelText('Raza / Especie'))).toBe(false)
+    expect(isLocked(screen.getByLabelText('Nivel'))).toBe(true)
+    fireEvent.change(screen.getByLabelText('Clase'), { target: { value: 'Mago' } })
+    expect(saved(actions)[1]).toMatchObject({ clase: 'Mago', nivel: 3 })
   })
 })

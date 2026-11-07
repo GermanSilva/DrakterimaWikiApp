@@ -13,7 +13,7 @@ import { Plus, RotateCcw, X } from 'lucide-react'
 import { EstadoField, FormGroup, FormRow } from '../../../components/forms/formFields'
 import { btnDanger, btnPrimary, btnSecondary, inputCls, labelCls } from '../../../constants'
 import type { FlatEntity } from '../../../data'
-import { useFormActions, useFormPort } from '../../../ports'
+import { useFormActions, useFormPort, useFormSystem } from '../../../ports'
 import { ActionLinksPanel } from '../actions/ActionLinksPanel'
 import { Computed, Control, type ControlSpec } from './Control'
 import { LOCKED, textOf } from './controlValues'
@@ -240,11 +240,15 @@ export default function SheetEditor({ item, openPicker }: Props) {
   const port = useFormPort()
   const { isDM, regions } = port
   const sheet = port.sheet as Sheet
+  const { clase, raza, nivel } = useFormSystem().character.builtins
+  // the stock D&D names keep the wording of today's form; a renamed field shows exactly what the DM typed
+  const razaLabel = raza.label === 'Raza' ? 'Raza / Especie' : raza.label
   const [draft, setDraft] = useState<Draft>(() => ({
     ...(item ?? {}),
     nombre: item?.nombre ?? '',
     jugador: item?.jugador ?? '',
     imagen_url: item?.imagen_url ?? '',
+    nivel: item?.nivel ?? 1,
     region: item?.region ?? regions[0]?.key ?? 'magral',
     estado: item?.estado ?? 'publicado',
     visibilidad: item?.visibilidad ?? [],
@@ -310,7 +314,29 @@ export default function SheetEditor({ item, openPicker }: Props) {
                 <input id="sheet-jugador" className={`${inputCls} ${LOCKED}`} value={textOf(draft.jugador)} readOnly title="Se completa al asignar el personaje a un jugador" />
               </div>
             </FormRow>
+            {(clase.enabled || raza.enabled) && (
+              <FormRow>
+                {clase.enabled && (
+                  <div>
+                    <label className={labelCls} htmlFor="sheet-clase">{clase.label}</label>
+                    <input id="sheet-clase" className={inputCls} value={textOf(draft.clase)} onChange={set('clase')} placeholder={clase.label === 'Clase' ? 'Ej: Paladín, Pícaro...' : undefined} />
+                  </div>
+                )}
+                {raza.enabled && (
+                  <div>
+                    <label className={labelCls} htmlFor="sheet-raza">{razaLabel}</label>
+                    <input id="sheet-raza" className={inputCls} value={textOf(draft.raza)} onChange={set('raza')} placeholder={raza.label === 'Raza' ? 'Ej: Humano, Dracónido...' : undefined} />
+                  </div>
+                )}
+              </FormRow>
+            )}
             <FormRow>
+              {nivel.enabled && (
+                <div>
+                  <label className={labelCls} htmlFor="sheet-nivel">{nivel.label}</label>
+                  <input id="sheet-nivel" className={`${inputCls} ${isDM ? '' : LOCKED}`} type="number" value={String(draft.nivel ?? '')} readOnly={!isDM} onChange={set('nivel')} min={nivel.min} max={nivel.max} />
+                </div>
+              )}
               <div>
                 <label className={labelCls} htmlFor="sheet-region">Región de Origen</label>
                 <select id="sheet-region" className={inputCls} value={textOf(draft.region)} onChange={set('region')}>
@@ -322,6 +348,8 @@ export default function SheetEditor({ item, openPicker }: Props) {
                   ))}
                 </select>
               </div>
+            </FormRow>
+            <FormRow>
               <div>
                 <label className={labelCls} htmlFor="sheet-imagen">Imagen (URL externa)</label>
                 <input id="sheet-imagen" className={inputCls} type="url" placeholder="https://i.imgur.com/..." value={imagen} onChange={set('imagen_url')} />
