@@ -149,12 +149,40 @@ describe('custom fields (S17)', () => {
   })
 
   it('a key that collides with the sheet becomes campo_<key> and warns', () => {
-    const out = run([pj(1, { custom_fields: { magralita: 'Pulso.' }, magralita: 'del preset' })], {
-      character_custom_fields: [{ key: 'magralita', label: 'Relación', type: 'text' }],
+    const out = run([pj(1, { custom_fields: { idiomas: 'Abisal' }, idiomas: 'Común' })], {
+      character_custom_fields: [{ key: 'idiomas', label: 'Idiomas secretos', type: 'text' }],
     })
-    expect(section(out.sheet)?.items.map((i) => i.key)).toEqual(['campo_magralita'])
-    expect(out.pjs[0].newData).toEqual({ campo_magralita: 'Pulso.', magralita: 'del preset' })
+    expect(section(out.sheet)?.items.map((i) => i.key)).toEqual(['campo_idiomas'])
+    expect(out.pjs[0].newData).toEqual({ campo_idiomas: 'Abisal', idiomas: 'Común' })
     expect(codes(out)).toEqual(['custom_field_key_collision'])
+  })
+
+  it('the preset has no magralita field: the campaign field of that key lands at data.magralita without a warning', () => {
+    const out = run([pj(1, { custom_fields: { magralita: 'Pulso.' } })], { character_custom_fields: [{ key: 'magralita', label: 'Relación', type: 'text' }] })
+    expect(section(out.sheet)?.items.map((i) => i.key)).toEqual(['magralita'])
+    expect(out.pjs[0].newData).toEqual({ magralita: 'Pulso.' })
+    expect(out.report.warnings).toEqual([])
+  })
+
+  it('a flat legacy value equal to the custom value is just kept', () => {
+    const out = run([pj(1, { magralita: 'Pulso.', custom_fields: { magralita: 'Pulso.' } })], { character_custom_fields: [{ key: 'magralita', label: 'R', type: 'text' }] })
+    expect(out.pjs[0].newData).toEqual({ magralita: 'Pulso.' })
+    expect(out.report.warnings).toEqual([])
+  })
+
+  it('a flat legacy value that is empty gives way to the custom value', () => {
+    const out = run([pj(1, { magralita: '', custom_fields: { magralita: 'Pulso.' } })], { character_custom_fields: [{ key: 'magralita', label: 'R', type: 'text' }] })
+    expect(out.pjs[0].newData).toEqual({ magralita: 'Pulso.' })
+  })
+
+  it('a different flat legacy value is never overwritten: both values survive and it warns', () => {
+    const data = { magralita: 'plano', custom_fields: { magralita: 'del campo', otro: 'x' } }
+    const first = run([pj(1, data)], { character_custom_fields: [{ key: 'magralita', label: 'R', type: 'text' }] })
+    expect(first.pjs[0].newData).toEqual(data)
+    expect(codes(first)).toEqual(['custom_field_conflict', 'custom_field_orphan'])
+    const only = run([pj(1, { magralita: 'plano', custom_fields: { magralita: 'del campo' } })], { character_custom_fields: [{ key: 'magralita', label: 'R', type: 'text' }] })
+    expect(only.pjs[0].changed).toBe(false)
+    expect(codes(only)).toEqual(['custom_field_conflict'])
   })
 
   it('does not touch the input sheet', () => {

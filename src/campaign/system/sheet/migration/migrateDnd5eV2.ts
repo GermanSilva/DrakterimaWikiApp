@@ -13,6 +13,8 @@
  *    content in every holder -> one SHARED entry linked by all; different content -> one entry PRIVATE to each holder
  *  - recursos.recuperacion text -> largo | corto (anything else: largo, warns)
  *  - the campaign custom fields -> paragraph fields of the sheet section `campos_campana`; their values move to data[newKey]
+ *    (the key itself, or campo_<key> when the preset already uses it). A different value already stored under that key is kept
+ *    and the custom value stays in data.custom_fields (warning custom_field_conflict): never lose a value
  *  - jugador -> display name of the assigned owner, '' when unowned (the legacy free text is discarded, S33)
  * Running it again on migrated data changes nothing.
  */
@@ -342,6 +344,7 @@ export function migrateDnd5eV2(input: MigrationInput): MigrationOutput {
     // custom field values
     if (custom.keyMap.size > 0 && isObj(data.custom_fields)) {
       const rest: Obj = { ...data.custom_fields }
+      const conflicted = new Set<string>()
       for (const [oldKey, target] of custom.keyMap) {
         if (!has(rest, oldKey)) continue
         const v = rest[oldKey]
@@ -353,16 +356,23 @@ export function migrateDnd5eV2(input: MigrationInput): MigrationOutput {
         }
         if (value !== '') {
           const prior = data[target]
-          if (typeof prior === 'string' && prior !== '' && prior !== value) warn('custom_field_conflict')
+          const occupied = prior !== undefined && prior !== null && prior !== ''
+          if (occupied && prior !== value) {
+            // the character already holds a different value under the field key (a flat legacy key): the value that is already
+            // there stays, and the custom value stays where it is, so nothing is lost
+            warn('custom_field_conflict')
+            conflicted.add(oldKey)
+            continue
+          }
           newData[target] = value
-          bump('custom_values_moved')
+          if (!occupied) bump('custom_values_moved')
         }
         delete rest[oldKey]
       }
       if (Object.keys(rest).length === 0) drop('custom_fields')
       else {
         newData.custom_fields = rest
-        warn('custom_field_orphan')
+        if (Object.keys(rest).some((k) => !conflicted.has(k))) warn('custom_field_orphan')
       }
     }
 

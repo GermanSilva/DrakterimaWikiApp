@@ -2,7 +2,8 @@
   "campaign": {
     "character_custom_fields": [
       {"key": "magralita", "label": "Relación con la Magralita", "type": "text"},
-      {"key": "ancla", "label": "Ancla", "type": "text"}
+      {"key": "ancla", "label": "Ancla", "type": "text"},
+      {"key": "idiomas", "label": "Idiomas secretos", "type": "text"}
     ]
   },
   "pjs": [
@@ -22,7 +23,7 @@
           {"id": 1, "nombre": "Ki", "actual": 1, "maximo": 2, "recuperacion": "corto", "notas": ""},
           {"id": 2, "nombre": "Furia", "actual": 0, "maximo": 2, "recuperacion": "largo", "notas": ""}
         ],
-        "custom_fields": {"magralita": "Siente su pulso.", "ancla": "Torre"}
+        "custom_fields": {"magralita": "Siente su pulso.", "ancla": "Torre", "idiomas": "Abisal"}
       }
     },
     {
@@ -74,6 +75,10 @@
     {
       "id": 9106, "nivel": 1, "owner_display_name": null, "jugador": "",
       "data": {}
+    },
+    {
+      "id": 9107, "nivel": 1, "owner_display_name": null, "jugador": "",
+      "data": {"magralita": "valor plano", "custom_fields": {"magralita": "valor del campo"}}
     }
   ]
 }

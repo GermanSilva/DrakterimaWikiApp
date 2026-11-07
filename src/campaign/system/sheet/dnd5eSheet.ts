@@ -19,8 +19,10 @@ import type { Block, Category, Column, Field, Item, Sheet, Table } from './sheet
  *  - monedas / monedas_guardado: stored in their own jsonb columns, written by the DM and by the lottery/pot RPCs;
  *    the coin table below describes the denominations only (S12, S14).
  *  - custom_fields: the per-campaign custom fields, superseded by the builder itself.
+ *  - magralita: a Drakterima campaign custom field, not D&D content; the data migration (G10c) turns the campaign custom fields into
+ *    paragraph fields of the campaign's own sheet section (S17).
  */
-export const DND5E_SHEET_GAPS: readonly string[] = ['spell_slots', 'spell_slots_current', 'monedas', 'monedas_guardado', 'custom_fields']
+export const DND5E_SHEET_GAPS: readonly string[] = ['spell_slots', 'spell_slots_current', 'monedas', 'monedas_guardado', 'custom_fields', 'magralita']
 
 const num = (key: string, label: string, extra: Partial<Field> = {}): Field => ({ kind: 'field', key, label, type: 'number', editableBy: 'dm', ...extra })
 const short = (key: string, label: string, editableBy: Field['editableBy'] = 'dm'): Field => ({ kind: 'field', key, label, type: 'short', editableBy })
@@ -204,7 +206,7 @@ const traits = [
   long('rasgos_clase', 'Rasgos de clase'), long('otros_rasgos', 'Otros rasgos'), short('idiomas', 'Idiomas'),
   short('prof_armas', 'Competencia con armas'), short('prof_armaduras', 'Competencia con armaduras'), short('prof_herramientas', 'Competencia con herramientas'),
 ]
-const story = [long('trasfondo', 'Trasfondo', 'player'), long('motivo', 'Motivo', 'player'), long('magralita', 'Magralita')]
+const story = [long('trasfondo', 'Trasfondo', 'player'), long('motivo', 'Motivo', 'player')]
 const looks = ['edad', 'altura', 'peso', 'ojos', 'piel', 'pelo'].map((key) => short(key, key[0].toUpperCase() + key.slice(1), 'player'))
 const personality = [
   long('apariencia', 'Apariencia', 'player'), long('personalidad', 'Personalidad', 'player'), long('ideales', 'Ideales', 'player'),

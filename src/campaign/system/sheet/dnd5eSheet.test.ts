@@ -48,6 +48,11 @@ describe('the D&D 5e sheet preset', () => {
     expect(missing).toEqual([])
   })
 
+  it('has no campaign-specific field: magralita is a campaign custom field, not part of the preset', () => {
+    expect(storedKeys(DND5E_SHEET).has('magralita')).toBe(false)
+    expect(DND5E_SHEET_GAPS).toContain('magralita')
+  })
+
   it('documents only gaps that really are absent', () => {
     const keys = storedKeys(DND5E_SHEET)
     for (const gap of DND5E_SHEET_GAPS) expect(keys.has(gap), gap).toBe(false)

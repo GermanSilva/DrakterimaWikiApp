@@ -3,7 +3,7 @@
   "pjs_changed": 5,
   "entries_created": 6,
   "links_created": 7,
-  "warnings": 5
+  "warnings": 6
  },
  "pjs": [
   {
@@ -48,8 +48,9 @@
       "maximo": 2
      }
     ],
-    "campo_magralita": "Siente su pulso.",
-    "ancla": "Torre"
+    "magralita": "Siente su pulso.",
+    "ancla": "Torre",
+    "campo_idiomas": "Abisal"
    },
    "jugador": "Ana Dueña"
   },
@@ -68,7 +69,7 @@
       "maximo": 4
      }
     ],
-    "campo_magralita": "Duda."
+    "magralita": "Duda."
    },
    "jugador": "Beto Dueño"
   },
@@ -187,6 +188,16 @@
   {
    "id": 9106,
    "data": {},
+   "jugador": ""
+  },
+  {
+   "id": 9107,
+   "data": {
+    "magralita": "valor plano",
+    "custom_fields": {
+     "magralita": "valor del campo"
+    }
+   },
    "jugador": ""
   }
  ],
@@ -356,7 +367,7 @@
   "items": [
    {
     "kind": "field",
-    "key": "campo_magralita",
+    "key": "magralita",
     "label": "Relación con la Magralita",
     "type": "paragraph",
     "editableBy": "dm"
@@ -367,6 +378,13 @@
     "label": "Ancla",
     "type": "paragraph",
     "editableBy": "dm"
+   },
+   {
+    "kind": "field",
+    "key": "campo_idiomas",
+    "label": "Idiomas secretos",
+    "type": "paragraph",
+    "editableBy": "dm"
    }
   ],
   "blocks": [
@@ -374,8 +392,9 @@
     "key": "b_campos_campana",
     "mode": "tile",
     "items": [
-     "campo_magralita",
-     "ancla"
+     "magralita",
+     "ancla",
+     "campo_idiomas"
     ]
    }
   ]

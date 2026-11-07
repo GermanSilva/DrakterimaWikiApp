@@ -19,7 +19,7 @@ describe('planV2 (importer writes the v2 shape)', () => {
     })
     expect(plan.applied).toBe(true)
     expect(plan.rows[0].jugador).toBe('Texto libre')
-    expect(plan.rows[0].data).toMatchObject({ skill_arcana: 'competente', dado_golpe: '1d8', dados_disponibles: 1, campo_magralita: 'x' })
+    expect(plan.rows[0].data).toMatchObject({ skill_arcana: 'competente', dado_golpe: '1d8', dados_disponibles: 1, magralita: 'x' })
     expect(plan.rows[0].data.hechizos).toBeUndefined()
     expect(plan.actions).toHaveLength(1)
     expect(plan.links).toEqual([{ pj_id: 1, action: { table_key: 'hechizos', category: 'trucos', name: 'Luz', private_to_pj: null }, state: { preparado: true } }])
