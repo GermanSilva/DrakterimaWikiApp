@@ -96,22 +96,27 @@ describe('the D&D 5e sheet preset', () => {
     })
   })
 
-  it('keeps spell slots as a free table with one row per spell level (level, total, spent)', () => {
+  it('keeps spell slots as a free table with one row per spell level (level, available, maximum)', () => {
     const slots = items(DND5E_SHEET).find((item) => item.key === 'espacios_conjuro')
     expect(slots).toMatchObject({ kind: 'table', type: 'libre', editableBy: 'dm' })
-    expect(slots && slots.kind === 'table' && 'columns' in slots && slots.columns.map((c) => c.key)).toEqual(['nivel', 'total', 'gastados'])
+    expect(slots && slots.kind === 'table' && 'columns' in slots && slots.columns.map((c) => c.key)).toEqual(['nivel', 'disponibles', 'maximo'])
     const section = DND5E_SHEET.categories.flatMap((c) => c.sections).find((s) => s.key === 'hechizos')
     expect(section?.blocks.some((b) => b.mode === 'plano' && b.items.includes('espacios_conjuro'))).toBe(true)
   })
 
-  it('declares the skill and save bonus as a signed formula column over the linked modifier', () => {
-    for (const key of ['tabla_habilidades', 'tabla_salvaciones']) {
-      const table = items(DND5E_SHEET).find((item) => item.key === key)
-      const bonus = table && table.kind === 'table' && table.type === 'capacidades' ? table.columns.find((c) => c.key === 'bono') : undefined
-      expect(bonus, key).toMatchObject({ type: 'number', format: 'signed' })
-      expect(bonus?.formula, key).toContain('{modificador}')
-      expect(bonus?.formula, key).toContain('{stat_proficiency_bonus}')
-    }
+  it('declares the save bonus as a signed formula column over the linked modifier', () => {
+    const table = items(DND5E_SHEET).find((item) => item.key === 'tabla_salvaciones')
+    const bonus = table && table.kind === 'table' && table.type === 'capacidades' ? table.columns.find((c) => c.key === 'bono') : undefined
+    expect(bonus).toMatchObject({ type: 'number', format: 'signed' })
+    expect(bonus?.formula).toContain('{modificador}')
+    expect(bonus?.formula).toContain('{stat_proficiency_bonus}')
+  })
+
+  it('declares the skill bonus as the formulas of the proficiency options, over the linked modifier', () => {
+    const table = items(DND5E_SHEET).find((item) => item.key === 'tabla_habilidades')
+    const column = table && table.kind === 'table' && table.type === 'capacidades' ? table.columns[0] : undefined
+    expect(column).toMatchObject({ key: 'competencia', type: 'options', format: 'signed' })
+    for (const option of column?.options ?? []) expect(option.formula, option.key).toContain('{modificador}')
   })
 
   it('draws saves and skills in one capacidades block, so each ability heads one tile with its save and its skills', () => {
@@ -127,10 +132,10 @@ describe('the D&D 5e sheet preset', () => {
     expect(field).toMatchObject({ kind: 'field', overridable: true, format: 'signed', formula: '2 + floor(({nivel} - 1) / 4)' })
   })
 
-  it('shows the spell list as a modal filtered by spell level', () => {
+  it('shows the spell list as a modal filtered by cantrips, spell levels and features', () => {
     const section = DND5E_SHEET.categories.flatMap((c) => c.sections).find((s) => s.key === 'hechizos')
     const modal = section?.blocks.find((b) => b.mode === 'modal')
     expect(modal?.items).toEqual(['hechizos'])
-    expect(modal?.filterCategories).toHaveLength(10)
+    expect(modal?.filterCategories).toHaveLength(11)
   })
 })

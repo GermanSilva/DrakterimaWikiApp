@@ -22,9 +22,11 @@ const cells = (resolved: ResolvedSheet, table: string, row: string) => {
 const hero = {
   nivel: 5,
   stat_str: 16, stat_dex: 12, stat_con: 14, stat_int: 10, stat_wis: 14, stat_cha: 8,
-  skill_athletics: 2, skill_perception: 1, skill_stealth: 0,
+  skill_athletics: 'experto', skill_perception: 'competente', skill_stealth: 'no',
   save_str: true, save_dex: false,
 }
+// preset v2 stores the proficiency of a skill as an option key; today's number 0 / 1 / 2 maps to it
+const LEVEL_KEY = ['no', 'competente', 'experto']
 
 const custom = (fields: Record<string, unknown>[]): Sheet =>
   ({
@@ -63,9 +65,9 @@ describe('resolveSheet: the D&D 5e sheet', () => {
   })
 
   it('adds the proficiency bonus once for proficiency and twice for expertise (skills)', () => {
-    expect(cells(resolved, 'tabla_habilidades', 'skill_athletics').bono).toMatchObject({ value: 9, text: '+9' }) // 3 + 3 + 3
-    expect(cells(resolved, 'tabla_habilidades', 'skill_perception').bono).toMatchObject({ value: 5, text: '+5' }) // 2 + 3
-    expect(cells(resolved, 'tabla_habilidades', 'skill_stealth').bono).toMatchObject({ value: 1, text: '+1' }) // dex only
+    expect(cells(resolved, 'tabla_habilidades', 'skill_athletics').competencia).toMatchObject({ value: 9, text: '+9' }) // 3 + 3 + 3
+    expect(cells(resolved, 'tabla_habilidades', 'skill_perception').competencia).toMatchObject({ value: 5, text: '+5' }) // 2 + 3
+    expect(cells(resolved, 'tabla_habilidades', 'skill_stealth').competencia).toMatchObject({ value: 1, text: '+1' }) // dex only
   })
 
   it('adds the proficiency bonus to a proficient save only', () => {
@@ -83,22 +85,22 @@ describe('resolveSheet: the D&D 5e sheet', () => {
 
   it('counts a missing proficiency as none, through the column defaults, instead of failing', () => {
     const bare = resolveSheet(DND5E_SHEET, { nivel: 5, stat_wis: 14 })
-    expect(cells(bare, 'tabla_habilidades', 'skill_perception').bono).toMatchObject({ value: 2, error: false })
+    expect(cells(bare, 'tabla_habilidades', 'skill_perception').competencia).toMatchObject({ value: 2, error: false })
     expect(cells(bare, 'tabla_salvaciones', 'save_wis').bono).toMatchObject({ value: 2, error: false })
     expect(cells(bare, 'tabla_salvaciones', 'save_wis').competente).toMatchObject({ value: false })
     expect(item(bare, 'percepcion_pasiva')).toMatchObject({ value: 12, error: false })
   })
 
-  it('shows the stored proficiency level next to the computed bonus', () => {
-    expect(cells(resolved, 'tabla_habilidades', 'skill_athletics').competencia).toMatchObject({ value: 2, type: 'number' })
+  it('shows the selected proficiency as the computed bonus (the option label is not the value)', () => {
+    expect(cells(resolved, 'tabla_habilidades', 'skill_athletics').competencia).toMatchObject({ value: 9, type: 'options' })
     expect(cells(resolved, 'tabla_salvaciones', 'save_str').competente).toMatchObject({ value: true, type: 'boolean' })
   })
 
   it('computes the passive perception the way the sheet does today', () => {
     expect(item(resolved, 'percepcion_pasiva')).toMatchObject({ value: 15 }) // 10 + 2 + 3
     expect(item(resolveSheet(DND5E_SHEET, { ...hero, stat_proficiency_bonus: 4 }), 'percepcion_pasiva')).toMatchObject({ value: 16 })
-    expect(item(resolveSheet(DND5E_SHEET, { ...hero, skill_perception: 2 }), 'percepcion_pasiva')).toMatchObject({ value: 18 })
-    expect(item(resolveSheet(DND5E_SHEET, { ...hero, skill_perception: 0 }), 'percepcion_pasiva')).toMatchObject({ value: 12 })
+    expect(item(resolveSheet(DND5E_SHEET, { ...hero, skill_perception: 'experto' }), 'percepcion_pasiva')).toMatchObject({ value: 18 })
+    expect(item(resolveSheet(DND5E_SHEET, { ...hero, skill_perception: 'no' }), 'percepcion_pasiva')).toMatchObject({ value: 12 })
   })
 
   it('hides nothing of the stats section and keeps the legacy section keys', () => {
@@ -121,7 +123,7 @@ const LEVELS = [1, 4, 5, 8, 9, 12, 13, 16, 17, 20]
 describe('resolveSheet: differential against the calculations the sheet uses today (pjCalc.js)', () => {
   const rank = (resolved: ResolvedSheet, table: string, row: string) => {
     const c = cells(resolved, table, row)
-    return c.bono.value
+    return (c.bono ?? c.competencia).value
   }
 
   it('gives the same passive perception for every level, wisdom, proficiency and stored bonus', () => {
@@ -130,8 +132,8 @@ describe('resolveSheet: differential against the calculations the sheet uses tod
       for (const wis of [1, 8, 9, 10, 11, 14, 15, 20, 30]) {
         for (const skill of [0, 1, 2]) {
           for (const stored of [undefined, 2, 3, 4, 5, 6]) {
-            const pj = { nivel, stat_wis: wis, skill_perception: skill, stat_proficiency_bonus: stored }
-            const expected = passivePerception(pj)
+            const pj = { nivel, stat_wis: wis, skill_perception: LEVEL_KEY[skill], stat_proficiency_bonus: stored }
+            const expected = passivePerception({ ...pj, skill_perception: skill })
             const got = (item(resolveSheet(DND5E_SHEET, pj), 'percepcion_pasiva') as { value: number }).value
             if (got !== expected) mismatches.push(`nivel ${nivel} wis ${wis} skill ${skill} stored ${stored}: ${got} != ${expected}`)
           }
@@ -148,7 +150,7 @@ describe('resolveSheet: differential against the calculations the sheet uses tod
         for (const level of [0, 1, 2]) {
           for (const stored of [undefined, 4]) {
             const prof = stored ?? suggestedProfBonus(nivel)
-            const pj = { nivel, stat_dex: score, skill_stealth: level, save_dex: level > 0, stat_proficiency_bonus: stored }
+            const pj = { nivel, stat_dex: score, skill_stealth: LEVEL_KEY[level], save_dex: level > 0, stat_proficiency_bonus: stored }
             const resolved = resolveSheet(DND5E_SHEET, pj)
             const skillToday = abilityModNum(score) + (level > 0 ? prof : 0) + (level > 1 ? prof : 0)
             const saveToday = abilityModNum(score) + (level > 0 ? prof : 0)

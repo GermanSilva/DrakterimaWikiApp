@@ -21,17 +21,17 @@ const ELDRIC = pj(1, {
   nombre: 'Eldric', jugador: 'Ana', clase: 'Paladín', raza: 'Humano', nivel: 5, alineamiento: 'Leal Bueno',
   stat_hp: 40, stat_hp_current: 31, stat_ac: 18, stat_speed: 30, stat_initiative: 2,
   stat_str: 16, stat_dex: 10, stat_con: 14, stat_int: 8, stat_wis: 12, stat_cha: 15, stat_proficiency_bonus: 3,
-  save_str: true, skill_athletics: 1, skill_perception: 2,
+  save_str: true, skill_athletics: 'competente', skill_perception: 'experto',
   ataques: [
     { id: 1, nombre: 'Espada larga', bono_ataque: '+6', dano: '1d8+3', tipo_dano: 'Cortante', portando: true },
     { id: 2, nombre: 'Daga', bono_ataque: '+4', dano: '1d4+1', tipo_dano: 'Perforante', portando: false },
   ],
   monedas: { cp: 7, sp: 0, ep: 0, gp: 120, pp: 2 },
   monedas_guardado: { cp: 0, sp: 30, ep: 0, gp: 0, pp: 0 },
-  // `categoria` is what the modal block groups by: today's spells only carry `nivel` (data migration, see odd/tasks)
+  // `categoria` is the declared category key the modal block groups by (preset v2: trucos, nivel_1...)
   hechizos: [
-    { id: 1, nombre: 'Luz', nivel: 0, categoria: 'Truco', escuela: 'Evocación', descripcion: 'Una luz.' },
-    { id: 2, nombre: 'Bendecir', nivel: 1, categoria: 'Nivel 1', preparado: true, descripcion: 'Bendice a tus aliados.' },
+    { id: 1, nombre: 'Luz', categoria: 'trucos', escuela: 'Evocación', a_niveles_superiores: 'Una luz.' },
+    { id: 2, nombre: 'Bendecir', categoria: 'nivel_1', preparado: true, a_niveles_superiores: 'Bendice a tus aliados.' },
   ],
   rasgos_clase: 'Sentido divino', idiomas: 'Común, Celestial',
   edad: '30', personalidad: 'Calmo y paciente',
@@ -151,7 +151,7 @@ describe('PJ detail drawn from the sheet (?sheet=1)', () => {
   it('lists the spells by category and opens one in a dialog with its fields', async () => {
     await open()
     const spells = section('hechizos')
-    expect(spells.getByText('Truco')).toBeInTheDocument()
+    expect(spells.getByText('Trucos')).toBeInTheDocument()
     expect(spells.getByText('Nivel 1')).toBeInTheDocument()
     fireEvent.click(spells.getByRole('button', { name: 'Bendecir' }))
     const dialog = await screen.findByRole('dialog')
