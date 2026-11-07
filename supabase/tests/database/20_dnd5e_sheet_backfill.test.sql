@@ -2,7 +2,7 @@
 -- by default; saving through set_system_profile keeps it. Self-contained: rolled back at the end.
 begin;
 
-select plan(9);
+select plan(13);
 
 -- 1-2: the backfill covered every existing campaign and left a valid document
 select is((select count(*)::int from public.campaigns where not (system_profile ? 'sheet')), 0, 'no campaign is left without a sheet');
@@ -29,7 +29,21 @@ select is(
   'the coin table defines cp 1, sp 10, ep 50, gp 100, pp 1000');
 select is((select system_profile #>> '{sheet,categories,2,sections,2,items,1,type}' from public.campaigns where id = 'cccccccc-0000-4000-8000-0000000000aa'), 'monedas', 'and it is the coin table');
 
--- 8-9: the DM write path keeps the sheet
+-- 8-11: preset v2 (G10b): what a new campaign gets by default
+select is(
+  (select jsonb_array_length(system_profile #> '{sheet,categories,1,sections,2,items,4,categories}') from public.campaigns where id = 'cccccccc-0000-4000-8000-0000000000aa'),
+  11, 'the spell table declares eleven categories (cantrips, nine levels, features)');
+select is(
+  (select array_agg(o ->> 'key') from public.campaigns c, jsonb_array_elements(c.system_profile #> '{sheet,categories,1,sections,1,items,1,columns,0,options}') o where c.id = 'cccccccc-0000-4000-8000-0000000000aa'),
+  array['no', 'competente', 'experto'], 'skill proficiency is an options column with three levels');
+select is(
+  (select array_agg(c2 ->> 'key') from public.campaigns c, jsonb_array_elements(c.system_profile #> '{sheet,categories,1,sections,2,items,3,columns}') c2 where c.id = 'cccccccc-0000-4000-8000-0000000000aa'),
+  array['nivel', 'disponibles', 'maximo'], 'spell slots are [nivel, disponibles, maximo]');
+select is(
+  (select c2 #>> '{reset,column}' from public.campaigns c, jsonb_array_elements(c.system_profile #> '{sheet,categories,1,sections,2,items,3,columns}') c2 where c.id = 'cccccccc-0000-4000-8000-0000000000aa' and c2 ->> 'key' = 'disponibles'),
+  'maximo', 'and the available slots reset to the maximum');
+
+-- 12-13: the DM write path keeps the sheet
 create function pg_temp.save_as_dm() returns void language plpgsql as $$
 begin
   execute 'reset role';
