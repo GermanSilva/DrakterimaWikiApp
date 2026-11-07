@@ -2,7 +2,7 @@
 -- by default; saving through set_system_profile keeps it. Self-contained: rolled back at the end.
 begin;
 
-select plan(13);
+select plan(14);
 
 -- 1-2: the backfill covered every existing campaign and left a valid document
 select is((select count(*)::int from public.campaigns where not (system_profile ? 'sheet')), 0, 'no campaign is left without a sheet');
@@ -42,8 +42,12 @@ select is(
 select is(
   (select c2 #>> '{reset,column}' from public.campaigns c, jsonb_array_elements(c.system_profile #> '{sheet,categories,1,sections,2,items,3,columns}') c2 where c.id = 'cccccccc-0000-4000-8000-0000000000aa' and c2 ->> 'key' = 'disponibles'),
   'maximo', 'and the available slots reset to the maximum');
+select is(
+  (select c2 ->> 'formula' from public.campaigns c, jsonb_array_elements(c.system_profile #> '{sheet,categories,2,sections,0,items,0,columns}') c2 where c.id = 'cccccccc-0000-4000-8000-0000000000aa' and c2 ->> 'key' = 'valor'),
+  '{precio} * lookup({dinero}, "key", {precio_moneda}, "value", lookup({dinero}, "key", "gp", "value", 0))',
+  'attacks carry a value per row, an unknown currency counting as gold');
 
--- 12-13: the DM write path keeps the sheet
+-- 13-14: the DM write path keeps the sheet
 create function pg_temp.save_as_dm() returns void language plpgsql as $$
 begin
   execute 'reset role';

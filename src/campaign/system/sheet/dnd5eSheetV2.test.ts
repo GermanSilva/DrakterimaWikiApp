@@ -29,6 +29,7 @@ const SKILL_VALUES = DND5E_V2_MIGRATION_MAP.find((m) => m.oldKey === 'skill_*')?
 const migrateSkills = (pj: Record<string, unknown>): Record<string, unknown> =>
   Object.fromEntries(Object.entries(pj).map(([k, v]) => [k, k.startsWith('skill_') && typeof v === 'number' ? SKILL_VALUES[v] : v]))
 
+const GP_VALUE_FORMULA = '{precio} * {cantidad} * lookup({dinero}, "key", {precio_moneda}, "value", lookup({dinero}, "key", "gp", "value", 0))'
 const LEVELS = [1, 4, 5, 8, 9, 12, 13, 16, 17, 20]
 
 describe('D&D preset v2', () => {
@@ -233,21 +234,46 @@ describe('D&D preset v2', () => {
       { nombre: 'Cero', cantidad: 0, precio: 50, precio_moneda: 'pp' },
       { nombre: 'Rubí', cantidad: 2, precio: 1, precio_moneda: 'pp' },
       { nombre: 'Electrum', cantidad: 4, precio: 3, precio_moneda: 'ep' },
+      { nombre: 'Perla', cantidad: 2, precio: 5, precio_moneda: 'bronce' }, // unknown currency counts gp, like today
+    ]
+    const ataques = [
+      { nombre: 'Espada larga', precio: 15, precio_moneda: 'gp', portando: true },
+      { nombre: 'Daga', precio: 2, precio_moneda: 'sp', portando: false },
+      { nombre: 'Honda', precio: 3 }, // missing currency counts gp
+      { nombre: 'Palo' }, // no price
+      { nombre: 'Lanza', precio: 4, precio_moneda: 'moneda rara' },
     ]
 
     it('adds a value column per row and a calc field with the total', () => {
       const t = tableOf('equipo')
-      expect(t.columns.find((c) => c.key === 'valor')?.formula).toBe('{precio} * {cantidad} * lookup({dinero}, "key", {precio_moneda}, "value", 0)')
+      expect(t.columns.find((c) => c.key === 'valor')?.formula).toBe(GP_VALUE_FORMULA)
       expect(t.columns.find((c) => c.key === 'portando')).toMatchObject({ type: 'boolean', default: true })
       const all = DND5E_SHEET.categories.flatMap((c) => c.sections.flatMap((s) => s.items))
-      expect(all.find((i) => i.key === 'valor_inventario')).toMatchObject({ kind: 'field', label: 'Valor del inventario', calc: { table: 'equipo', column: 'valor', op: 'suma' } })
+      expect(all.find((i) => i.key === 'valor_inventario')).toMatchObject({ kind: 'field', label: 'Valor del inventario', formula: '{valor_equipo} + {valor_ataques}' })
+      expect(all.find((i) => i.key === 'valor_equipo')).toMatchObject({ kind: 'field', hidden: true, calc: { table: 'equipo', column: 'valor', op: 'suma' } })
+      expect(all.find((i) => i.key === 'valor_ataques')).toMatchObject({ kind: 'field', hidden: true, calc: { table: 'ataques', column: 'valor', op: 'suma' } })
+      const attackValue = tableOf('ataques').columns.find((c) => c.key === 'valor')
+      expect(attackValue?.formula).toBe('{precio} * lookup({dinero}, "key", {precio_moneda}, "value", lookup({dinero}, "key", "gp", "value", 0))')
+      expect(tableOf('ataques').columns.find((c) => c.key === 'portando')).toMatchObject({ default: true })
     })
 
     it('totals the same copper value as today (calcTotalCP) on the fixture', () => {
-      const resolved = resolveSheet(DND5E_SHEET, { nivel: 2, equipo })
-      expect(find(resolved, 'valor_inventario')).toMatchObject({ value: calcTotalCP(equipo, []), error: false })
+      const resolved = resolveSheet(DND5E_SHEET, { nivel: 2, equipo, ataques })
+      expect(find(resolved, 'valor_inventario')).toMatchObject({ value: calcTotalCP(equipo, ataques), error: false })
       const rows = find(resolved, 'equipo')
-      expect(rows.kind === 'rows' && rows.rows.map((r) => r.valor)).toEqual([1500, 100, 60, 700, 0, 0, 2000, 600])
+      expect(rows.kind === 'rows' && rows.rows.map((r) => r.valor)).toEqual([1500, 100, 60, 700, 0, 0, 2000, 600, 1000])
+      const attacks = find(resolved, 'ataques')
+      expect(attacks.kind === 'rows' && attacks.rows.map((r) => r.valor)).toEqual([1500, 20, 300, 0, 400])
+    })
+
+    it('counts equipment and attacks separately: each side alone matches calcTotalCP', () => {
+      expect(find(resolveSheet(DND5E_SHEET, { nivel: 2, equipo }), 'valor_inventario')).toMatchObject({ value: calcTotalCP(equipo, []) })
+      expect(find(resolveSheet(DND5E_SHEET, { nivel: 2, ataques }), 'valor_inventario')).toMatchObject({ value: calcTotalCP([], ataques) })
+    })
+
+    it('counts an unknown currency as gold, like today', () => {
+      const one = [{ nombre: 'X', cantidad: 3, precio: 2, precio_moneda: 'plata' }]
+      expect(find(resolveSheet(DND5E_SHEET, { nivel: 2, equipo: one }), 'valor_inventario')).toMatchObject({ value: calcTotalCP(one, []), error: false })
     })
 
     it('counts a missing portando as carrying', () => {

@@ -80,6 +80,10 @@ const skillsTable: Table = {
 type RowTable = Extract<Table, { type: 'libre' | 'habilidad' }>
 const table = (type: 'libre' | 'habilidad', key: string, label: string, columns: Column[]): RowTable => ({ kind: 'table', type, key, label, columns, editableBy: 'dm' })
 
+// An unknown currency counts as gold, like the sheet does today.
+const GOLD_RATE = 'lookup({dinero}, "key", {precio_moneda}, "value", lookup({dinero}, "key", "gp", "value", 0))'
+const valueColumn = (formula: string): Column => ({ key: 'valor', label: 'Valor', type: 'number', formula, editableBy: 'dm' })
+
 const priceColumns = [col('precio', 'Precio', 'number'), col('precio_moneda', 'Moneda', 'short')]
 
 const attacks = table('libre', 'ataques', 'Ataques', [
@@ -89,8 +93,10 @@ const attacks = table('libre', 'ataques', 'Ataques', [
   col('tipo_dano', 'Tipo', 'short'),
   col('alcance', 'Alcance', 'short'),
   col('notas', 'Notas', 'paragraph'),
-  ...priceColumns,
-  col('portando', 'Portando', 'boolean'),
+  { ...priceColumns[0], default: 0 },
+  { ...priceColumns[1], default: 'gp' },
+  { ...col('portando', 'Portando', 'boolean'), default: true },
+  valueColumn(`{precio} * ${GOLD_RATE}`),
 ])
 
 const resources = table('libre', 'recursos', 'Recursos', [
@@ -120,9 +126,12 @@ const equipment = table('libre', 'equipo', 'Equipo', [
   { ...priceColumns[0], default: 0 },
   { ...priceColumns[1], default: 'gp' },
   { ...col('portando', 'Portando', 'boolean'), default: true },
-  { key: 'valor', label: 'Valor', type: 'number', formula: '{precio} * {cantidad} * lookup({dinero}, "key", {precio_moneda}, "value", 0)', editableBy: 'dm' },
+  valueColumn(`{precio} * {cantidad} * ${GOLD_RATE}`),
 ])
-const inventoryValue: Field = { kind: 'field', key: 'valor_inventario', label: 'Valor del inventario', type: 'number', editableBy: 'dm', calc: { table: 'equipo', column: 'valor', op: 'suma' } }
+// Today's total counts equipment and attacks: two hidden sums feed the visible total
+const equipmentSum: Field = { kind: 'field', key: 'valor_equipo', label: 'Valor del equipo', type: 'number', editableBy: 'dm', hidden: true, calc: { table: 'equipo', column: 'valor', op: 'suma' } }
+const attacksSum: Field = { kind: 'field', key: 'valor_ataques', label: 'Valor de los ataques', type: 'number', editableBy: 'dm', hidden: true, calc: { table: 'ataques', column: 'valor', op: 'suma' } }
+const inventoryValue: Field = { kind: 'field', key: 'valor_inventario', label: 'Valor del inventario', type: 'number', editableBy: 'dm', formula: '{valor_equipo} + {valor_ataques}' }
 
 const spellSlots: RowTable = {
   ...table('libre', 'espacios_conjuro', 'Espacios de conjuro', [
@@ -229,7 +238,7 @@ const categories: Category[] = [
     sections: [
       { key: 'ataques', label: 'Ataques', items: [attacks], blocks: [plain('b_attacks', attacks)] },
       { key: 'recursos', label: 'Recursos', items: [resources], blocks: [plain('b_resources', resources)] },
-      { key: 'equipo', label: 'Equipo', items: [equipment, coins, inventoryValue], blocks: [plain('b_equipment', equipment), plain('b_coins', coins), tiles('b_inventory_value', [inventoryValue])] },
+      { key: 'equipo', label: 'Equipo', items: [equipment, coins, equipmentSum, attacksSum, inventoryValue], blocks: [plain('b_equipment', equipment), plain('b_coins', coins), tiles('b_inventory_value', [inventoryValue])] },
       { key: 'rasgos', label: 'Rasgos', items: traits, blocks: [tiles('b_traits', traits)] },
     ],
   },
@@ -317,12 +326,12 @@ export const DND5E_V2_MIGRATION_MAP: readonly MigrationRule[] = [
     oldShape: 'array of rows { nombre, cantidad, descripcion, precio, precio_moneda, portando }',
     newKey: 'equipo',
     newShape: 'same rows; valor is computed (never stored) and valor_inventario is a calc field',
-    note: 'no data change: a missing portando counts as true, quantity 1, currency gp, price 0 (column defaults)',
+    note: 'no data change (ataques too: valor is computed there as well): a missing portando counts as true, quantity 1, currency gp, price 0 (column defaults)',
   },
   {
     oldKey: '(none)',
     oldShape: 'no counterpart',
     newKey: 'valor_inventario',
-    newShape: 'calc field (suma of equipo.valor), never stored',
+    newShape: 'formula field (equipo.valor sum + ataques.valor sum, through the hidden calc fields valor_equipo and valor_ataques), never stored',
   },
 ]
