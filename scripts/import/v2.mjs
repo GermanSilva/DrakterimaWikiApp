@@ -20,14 +20,14 @@ export function sheetIsV2(sheet) {
 }
 
 /**
- * @param {{ sheet: object|null|undefined, customFields: unknown, pjRows: object[], existingActions?: object[] }} input
+ * @param {{ sheet: object|null|undefined, customFields: unknown, pjRows: object[], existingActions?: object[], existingLinks?: object[] }} input
  * @returns {{ applied: false, reason: string } | { applied: true, rows: object[], sheet: object, sheetChanged: boolean, actions: object[], links: object[], report: object }}
  */
-export function planV2({ sheet, customFields, pjRows, existingActions = [] }) {
+export function planV2({ sheet, customFields, pjRows, existingActions = [], existingLinks = [] }) {
   if (!sheet || typeof sheet !== 'object') return { applied: false, reason: 'no_sheet' }
   if (!sheetIsV2(sheet)) return { applied: false, reason: 'sheet_not_v2' }
   const out = migrateDnd5eV2({
-    campaign: { sheet, character_custom_fields: customFields, existing_actions: existingActions },
+    campaign: { sheet, character_custom_fields: customFields, existing_actions: existingActions, existing_links: existingLinks },
     pjs: pjRows.map((r) => ({ id: Number(r.id), nivel: typeof r.nivel === 'number' ? r.nivel : null, owner_display_name: null, jugador: r.jugador ?? '', data: r.data ?? {} })),
   })
   const byId = new Map(out.pjs.map((p) => [p.id, p]))
@@ -55,18 +55,27 @@ const ACTION_SQL =
   'insert into public.campaign_actions (campaign_id, table_key, category, name, description, extras, private_to_pj) ' +
   'values ($1::uuid, $2, $3, $4, $5, $6::jsonb, $7::bigint) on conflict do nothing'
 
+/** Same normalisation as the migration (_dnd5e_v2_norm): case, surrounding and repeated whitespace ignored, accents kept. */
+const NORM = (expr) => `lower(btrim(regexp_replace(${expr}, '[ \t\n\r\f\v]+', ' ', 'g')))`
+
 const LINK_SQL =
   'insert into public.pj_action_links (pj_id, action_id, campaign_id, state) ' +
   'select $1::bigint, a.id, $2::uuid, $3::jsonb from public.campaign_actions a ' +
-  'where a.campaign_id = $2::uuid and a.table_key = $4 and a.category = $5 and lower(btrim(a.name)) = lower($6) and coalesce(a.private_to_pj, 0) = $7::bigint ' +
+  `where a.campaign_id = $2::uuid and a.table_key = $4 and a.category = $5 and ${NORM('a.name')} = ${NORM('$6::text')} and coalesce(a.private_to_pj, 0) = $7::bigint ` +
   'on conflict do nothing'
 
-/** What the writer needs from the database before the characters are written: the stored sheet and the entries that exist. */
+/** What the writer needs from the database before the characters are written: the stored sheet, the entries and links that exist. */
 export async function readV2Context(client, campaignId) {
   const sheet = (await client.query('select system_profile -> \'sheet\' as sheet, character_custom_fields from public.campaigns where id = $1', [campaignId])).rows[0]
-  if (!sheet?.sheet || !sheetIsV2(sheet.sheet)) return { sheet: sheet?.sheet ?? null, customFields: sheet?.character_custom_fields ?? [], existingActions: [] }
-  const existing = (await client.query("select category, name, private_to_pj from public.campaign_actions where campaign_id = $1 and table_key = 'hechizos'", [campaignId])).rows
-  return { sheet: sheet.sheet, customFields: sheet.character_custom_fields ?? [], existingActions: existing }
+  if (!sheet?.sheet || !sheetIsV2(sheet.sheet)) return { sheet: sheet?.sheet ?? null, customFields: sheet?.character_custom_fields ?? [], existingActions: [], existingLinks: [] }
+  const existing = (await client.query("select category, name, private_to_pj, description, extras from public.campaign_actions where campaign_id = $1 and table_key = 'hechizos'", [campaignId])).rows
+  const links = (
+    await client.query(
+      "select l.pj_id, a.category, a.name, a.private_to_pj, l.state from public.pj_action_links l join public.campaign_actions a on a.id = l.action_id and a.campaign_id = l.campaign_id where l.campaign_id = $1 and a.table_key = 'hechizos'",
+      [campaignId],
+    )
+  ).rows
+  return { sheet: sheet.sheet, customFields: sheet.character_custom_fields ?? [], existingActions: existing, existingLinks: links }
 }
 
 export async function writeSheetV2(client, campaignId, plan) {

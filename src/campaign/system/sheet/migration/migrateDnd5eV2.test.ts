@@ -48,6 +48,13 @@ describe('hit dice', () => {
     expect(dataOf({ stat_hit_dice: '1d8' }, { nivel: 5 })).toEqual({ dado_golpe: '1d8', dados_disponibles: 5 })
   })
 
+  it('a total different from the level warns (the total is the level; b only survives in the backup)', () => {
+    const out = run([pj(1, { stat_hit_dice: '2d10 (0/5)' }, { nivel: 2 })])
+    expect(out.pjs[0].newData).toEqual({ dado_golpe: '2d10', dados_disponibles: 0 })
+    expect(out.report.warnings).toEqual([{ code: 'hit_dice_total_differs', pj_id: 1 }])
+    expect(run([pj(1, { stat_hit_dice: '1d8 (2/2)' }, { nivel: 2 })]).report.warnings).toEqual([])
+  })
+
   it('drops the key and reports it in removedKeys', () => {
     expect(run([pj(1, { stat_hit_dice: '1d8 (2/2)' })]).pjs[0].removedKeys).toEqual(['stat_hit_dice'])
   })
@@ -89,6 +96,24 @@ describe('spell slots', () => {
     const slots = Object.fromEntries(Array.from({ length: 9 }, (_, i) => [String(i + 1), 9 - i]))
     const rows = dataOf({ spell_slots: slots, spell_slots_current: {} }).espacios_conjuro as { nivel: number; maximo: number }[]
     expect(rows.map((r) => [r.nivel, r.maximo])).toEqual(Array.from({ length: 9 }, (_, i) => [i + 1, 9 - i]))
+  })
+
+  it('warns about a current value for a level with no maximum, also when only the current map exists', () => {
+    const out = run([pj(1, { spell_slots: { '1': 2 }, spell_slots_current: { '1': 1, '3': 2, '4': 0 } }), pj(2, { spell_slots_current: { '1': 2 } }), pj(3, { spell_slots: { '2': 0 }, spell_slots_current: { '2': 1 } })])
+    expect(out.pjs[0].newData).toEqual({ espacios_conjuro: [{ id: 1, nivel: 1, disponibles: 1, maximo: 2 }] })
+    expect(out.pjs[1].newData).toEqual({})
+    expect(out.pjs[1].removedKeys).toEqual(['spell_slots_current'])
+    expect(out.report.warnings).toEqual([
+      { code: 'slots_current_orphan', pj_id: 1 },
+      { code: 'slots_current_orphan', pj_id: 2 },
+      { code: 'slots_current_orphan', pj_id: 3 },
+    ])
+  })
+
+  it('a current that is not a number counts as full and warns', () => {
+    const out = run([pj(1, { spell_slots: { '1': 3 }, spell_slots_current: { '1': 'poco' } })])
+    expect(out.pjs[0].newData.espacios_conjuro).toEqual([{ id: 1, nivel: 1, disponibles: 3, maximo: 3 }])
+    expect(out.report.warnings).toEqual([{ code: 'slots_current_invalid', pj_id: 1 }])
   })
 
   it('writes nothing when every level is zero, and still drops the old keys', () => {
@@ -263,9 +288,22 @@ describe('hechizos -> collection entries (S36, S39)', () => {
     expect(out.report.counts.entries_private).toBe(3)
   })
 
-  it('groups by lower(trim(name)) but a different spelling counts as different content', () => {
-    const out = held([spell(' Bola ', 3)], [spell('bola', 3)])
+  it('names compare ignoring case and surrounding or repeated whitespace; the entry keeps the first holder spelling', () => {
+    const out = held([spell('Luz', 0, { preparado: true })], [spell(' luz ', 0)], [spell('LUZ', 0)])
+    expect(out.actions.map((a) => [a.name, a.private_to_pj])).toEqual([['Luz', null]])
+    expect(out.links.map((l) => l.pj_id)).toEqual([1, 2, 3])
+    const inner = held([spell('Bola  de   Fuego', 3)], [spell('bola de fuego', 3)])
+    expect(inner.actions.map((a) => [a.name, a.private_to_pj])).toEqual([['Bola  de   Fuego', null]])
+  })
+
+  it('the normalized name is part of the content: different content stays private, keeping each spelling', () => {
+    const out = held([spell(' Bola ', 3, { descripcion: 'a' })], [spell('bola', 3, { descripcion: 'b' })])
     expect(out.actions.map((a) => [a.name, a.private_to_pj])).toEqual([['Bola', 1], ['bola', 2]])
+  })
+
+  it('accents are kept: Luz and Lúz are different spells', () => {
+    const out = held([spell('Luz', 0)], [spell('Lúz', 0)])
+    expect(out.actions.map((a) => a.name)).toEqual(['Luz', 'Lúz'])
   })
 
   it('the same name in another category is another entry', () => {
@@ -283,6 +321,45 @@ describe('hechizos -> collection entries (S36, S39)', () => {
     expect(out.actions).toEqual([])
     expect(out.links).toHaveLength(1)
     expect(out.report.counts.entries_reused).toBe(1)
+  })
+
+  it('reuses a differing existing shared entry but warns so the DM can review it', () => {
+    const existing = [{ category: 'trucos', name: ' LUZ', private_to_pj: null, description: 'del DM', extras: {} }]
+    const out = run([pj(7, { hechizos: [spell('Luz', 0, { descripcion: 'del jugador' })] })], { existing_actions: existing })
+    expect(out.actions).toEqual([])
+    expect(out.links).toHaveLength(1)
+    expect(out.report.counts.entries_reused).toBe(1)
+    expect(out.report.warnings).toEqual([{ code: 'existing_entry_differs', pj_id: 7 }])
+    const same = run([pj(7, { hechizos: [spell('Luz', 0, { descripcion: 'del DM' })] })], { existing_actions: existing })
+    expect(same.report.warnings).toEqual([])
+  })
+
+  it('an existing link keeps its state: it is not written again, and a different preparado warns', () => {
+    const existing = [{ category: 'trucos', name: 'Luz', private_to_pj: null, description: 'd', extras: {} }]
+    const link = { pj_id: 1, category: 'trucos', name: 'luz', private_to_pj: null, state: { preparado: true } }
+    const differs = run([pj(1, { hechizos: [spell('Luz', 0, { preparado: false })] })], { existing_actions: existing, existing_links: [link] })
+    expect(differs.links).toEqual([])
+    expect(differs.report.counts.links).toBe(0)
+    expect(differs.report.warnings).toEqual([{ code: 'existing_link_differs', pj_id: 1 }])
+    const same = run([pj(1, { hechizos: [spell('Luz', 0, { preparado: true })] })], { existing_actions: existing, existing_links: [link] })
+    expect(same.links).toEqual([])
+    expect(same.report.warnings).toEqual([])
+  })
+
+  it('preparado, concentracion and ritual stored as "true"/"false" strings become booleans; anything else warns', () => {
+    const ok = held([spell('A', 1, { preparado: 'true', concentracion: ' TRUE ', ritual: 'false' })])
+    expect(ok.actions[0].extras).toEqual({ concentracion: true })
+    expect(ok.links[0].state).toEqual({ preparado: true })
+    expect(ok.report.warnings).toEqual([])
+    const bad = held([spell('B', 1, { preparado: 'quizás', ritual: 1 })])
+    expect(bad.links[0].state).toEqual({ preparado: false })
+    expect(bad.report.warnings).toEqual([{ code: 'spell_flag_invalid', pj_id: 1 }])
+  })
+
+  it('non-text values of text columns are stringified (numbers) or dropped (others) and warn', () => {
+    const out = held([spell('A', 1, { escuela: 5, alcance: { x: 1 }, duracion: true, nombre: 'A' })])
+    expect(out.actions[0].extras).toEqual({ escuela: '5' })
+    expect(out.report.warnings).toEqual([{ code: 'spell_value_not_text', pj_id: 1 }])
   })
 
   it('warns about rows it has to repair or skip, never with text', () => {

@@ -21,12 +21,17 @@
 --                                          under that key (a flat legacy key) is kept and the custom value stays in custom_fields (nothing is lost)
 --        jugador                        -> display_name of the assigned owner, '' when unowned (the legacy free text is discarded, S33)
 --   4. hechizos rows -> campaign_actions entries (table hechizos) + pj_action_links (state {preparado}), S39: grouped by category +
---      lower(trim(name)); one holder, or identical content (name, description, extras) in every holder -> ONE shared entry linked by
---      all; different content -> one entry PRIVATE to each holder (they keep their name). nivel 0 -> trucos, 1..9 -> nivel_N, 10 ->
+--      normalised name (case, surrounding and repeated whitespace ignored, accents kept); one holder, or identical content (name, description, extras) in every holder -> ONE shared entry linked by
+--      all; different content -> one entry PRIVATE to each holder. The entry keeps the spelling of the first holder (lowest id), private ones their own. nivel 0 -> trucos, 1..9 -> nivel_N, 10 ->
 --      rasgos; descripcion -> description; casting_time -> extras.tiempo_lanzamiento; the other columns -> extras of the same key (only
---      non-empty text and true flags are stored). An entry that already exists (same table, category, name, character) is reused.
+--      non-empty text and true flags are stored). An entry that already exists (same table, category, normalised name, character) is reused as it is, and so is a link that already
+--      exists (its state is kept); a reused entry whose content differs, or a link with another preparado, is counted as a warning.
+--      preparado, concentracion and ritual stored as "true"/"false" text become booleans.
 --      data.hechizos is removed. Writes run with no request identity, so pjs_enforce_jugador accepts jugador.
--- Warnings never print stored text: the NOTICE lines carry counts only.
+-- NO SILENT DROPS: every value that would survive only in the backup is a warning (a count in the NOTICE, never any text): a hit dice
+-- total different from nivel, a current slot value for a level without maximum, a non-numeric current (counts as full), flags that
+-- are not boolean text, non-text values in text columns, unknown skill values, an existing espacios_conjuro, a custom value that
+-- conflicts with a flat one, unreadable spell rows. The NOTICE lines carry counts only.
 --
 -- IDEMPOTENT: a second run finds nothing to change (migrated data has none of the legacy keys; the sheet is recognised with or
 -- without the campaign-fields section) and writes nothing, not even backup rows.
@@ -48,7 +53,8 @@
 --   -- afterwards (only when you also want the objects gone): drop table public.migration_backup_dnd5e_v2;
 --   --   drop function public._dnd5e_v2_migrate_campaign(uuid), public._dnd5e_v2_spell_entries(jsonb), public._dnd5e_v2_spell_rows(bigint, jsonb),
 --   --   public._dnd5e_v2_pj_data(jsonb, integer, jsonb), public._dnd5e_v2_custom_section(jsonb, jsonb), public._dnd5e_v2_sheet_kind(jsonb),
---   --   public._dnd5e_v2_strip_custom(jsonb), public._dnd5e_v2_recovery(jsonb), public._dnd5e_v2_text(jsonb), public._dnd5e_v2_whole(jsonb),
+--   --   public._dnd5e_v2_strip_custom(jsonb), public._dnd5e_v2_recovery(jsonb), public._dnd5e_v2_norm(text), public._dnd5e_v2_flag(jsonb),
+--   --   public._dnd5e_v2_flag_ok(jsonb), public._dnd5e_v2_nontext(jsonb), public._dnd5e_v2_text(jsonb), public._dnd5e_v2_whole(jsonb),
 --   --   public._dnd5e_v2_sheet_v1(), public._dnd5e_v2_sheet_v2();
 --   commit;
 
@@ -131,6 +137,46 @@ as $$
   select t.t
     from (select regexp_replace(btrim(lower(v #>> '{}')), '^descanso +', '') as t where jsonb_typeof(v) = 'string') t
    where t.t in ('largo', 'corto')
+$$;
+
+-- the name a spell is compared by (S39): case, surrounding and repeated whitespace ignored, accents kept
+create function public._dnd5e_v2_norm(p text)
+returns text
+language sql
+immutable
+set search_path = ''
+as $$
+  select lower(btrim(regexp_replace(p, '[ \t\n\r\f\v]+', ' ', 'g')))
+$$;
+
+-- a boolean, or "true"/"false" text (any case, surrounding spaces); absent, null and anything else count as false
+create function public._dnd5e_v2_flag(v jsonb)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select coalesce(v = 'true'::jsonb or (jsonb_typeof(v) = 'string' and lower(btrim(v #>> '{}')) = 'true'), false)
+$$;
+
+-- false when the value is something other than absent, null, a boolean or "true"/"false" text
+create function public._dnd5e_v2_flag_ok(v jsonb)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select v is null or jsonb_typeof(v) in ('null', 'boolean') or (jsonb_typeof(v) = 'string' and lower(btrim(v #>> '{}')) in ('true', 'false'))
+$$;
+
+-- a value present in a text column that is not text (a number is stringified, the rest dropped): it must be reported
+create function public._dnd5e_v2_nontext(v jsonb)
+returns boolean
+language sql
+immutable
+set search_path = ''
+as $$
+  select v is not null and jsonb_typeof(v) not in ('null', 'string')
 $$;
 
 ------------------------------------------------------------------------------
@@ -340,6 +386,10 @@ begin
       if btrim(v_s) <> '' then
         m := regexp_match(btrim(lower(v_s)), '^([0-9]{1,6}d[0-9]{1,6})(?:[ \t]*\([ \t]*([0-9]{1,9})[ \t]*/[ \t]*([0-9]{1,9})[ \t]*\))?$');
         if m is not null then
+          -- the total b is the level: a different b only survives in the backup
+          if m[3] is not null and p_nivel is not null and m[3]::numeric <> p_nivel then
+            v_warn := v_warn + 1;
+          end if;
           if not (p_data ? 'dado_golpe') then
             v := v || jsonb_build_object('dado_golpe', m[1]);
           end if;
@@ -372,13 +422,22 @@ begin
       select e.key as k,
              case when e.key ~ '^[0-9]{1,3}$' then e.key::int end as nivel,
              public._dnd5e_v2_whole(e.value) as maximo,
-             case when v_cur ? e.key then public._dnd5e_v2_whole(v_cur -> e.key) else public._dnd5e_v2_whole(e.value) end as cur
+             v_cur ? e.key as has_cur,
+             public._dnd5e_v2_whole(v_cur -> e.key) as cur
         from jsonb_each(v_max) e
     ), good as (
-      select row_number() over (order by s.nivel, s.k) as rn, s.nivel, s.maximo, coalesce(s.cur, s.maximo) as disp
+      select row_number() over (order by s.nivel, s.k) as rn, s.nivel, s.maximo, s.has_cur, s.cur,
+             case when s.has_cur then coalesce(s.cur, s.maximo) else s.maximo end as disp
         from s where s.nivel is not null and s.maximo is not null and s.maximo > 0
     )
-    select (select count(*) from s where s.nivel is null or s.maximo is null),
+    select (select count(*) from s where s.nivel is null or s.maximo is null)
+           -- a current that is not a number counts as full
+           + (select count(*) from good g where g.has_cur and g.cur is null)
+           -- a current value for a level that gets no row (no maximum, or a zero one) only survives in the backup
+           + (select count(*) from jsonb_each(v_cur) c
+               where not exists (select 1 from s where s.k = c.key and s.nivel is not null and s.maximo is not null and s.maximo > 0)
+                 and not exists (select 1 from s where s.k = c.key and (s.nivel is null or s.maximo is null))
+                 and public._dnd5e_v2_whole(c.value) is distinct from 0),
            (select jsonb_agg(jsonb_build_object('id', g.rn, 'nivel', g.nivel, 'disponibles', g.disp, 'maximo', g.maximo) order by g.rn) from good g)
       into v_bad, v_slots;
     v_warn := v_warn + v_bad;
@@ -476,12 +535,13 @@ $$;
 ------------------------------------------------------------------------------
 -- Spells: normalised rows of one character, and the S39 entries of a whole campaign
 ------------------------------------------------------------------------------
--- One row per hechizos element. problem: row_invalid | name_missing | duplicate (a repeated category + name inside the character,
--- the first one wins) | null; nivel_fallback: the level was unreadable (category rasgos); truncated: a value was cut to the entry limit;
--- dropped: the row had keys that no entry column holds.
+-- One row per hechizos element. problem: row_invalid | name_missing | duplicate (a repeated category + normalised name inside the
+-- character, the first one wins) | null; nivel_fallback: the level was unreadable (category rasgos); truncated: a value was cut to the
+-- entry limit; dropped: the row had keys that no entry column holds; not_text: a text column held a number (stringified) or another
+-- non-text value (dropped); flag_invalid: concentracion, ritual or preparado held something that is not a boolean or "true"/"false".
 create function public._dnd5e_v2_spell_rows(p_pj bigint, p_rows jsonb)
 returns table (pj_id bigint, ord int, category text, name text, description text, extras jsonb, preparado boolean,
-               problem text, nivel_fallback boolean, truncated boolean, dropped boolean)
+               problem text, nivel_fallback boolean, truncated boolean, dropped boolean, not_text boolean, flag_invalid boolean)
 language sql
 immutable
 set search_path = ''
@@ -495,7 +555,7 @@ as $$
            public._dnd5e_v2_whole(r.v -> 'nivel') as lvl
       from r
   ), c as (
-    select n.ord, n.vo, n.nm,
+    select n.ord, n.vo, n.nm, public._dnd5e_v2_norm(n.nm) as nn,
            case when n.lvl = 0 then 'trucos' when n.lvl between 1 and 9 then 'nivel_' || n.lvl::int::text when n.lvl = 10 then 'rasgos' end as cat0,
            public._dnd5e_v2_text(n.vo -> 'escuela') as t_escuela,
            public._dnd5e_v2_text(case when n.vo ? 'casting_time' then n.vo -> 'casting_time' else n.vo -> 'tiempo_lanzamiento' end) as t_tiempo,
@@ -503,14 +563,18 @@ as $$
            public._dnd5e_v2_text(n.vo -> 'componentes') as t_componentes,
            public._dnd5e_v2_text(n.vo -> 'duracion') as t_duracion,
            public._dnd5e_v2_text(n.vo -> 'a_niveles_superiores') as t_superiores,
-           public._dnd5e_v2_text(n.vo -> 'descripcion') as t_descripcion
+           public._dnd5e_v2_text(n.vo -> 'descripcion') as t_descripcion,
+           public._dnd5e_v2_nontext(n.vo -> 'nombre') or public._dnd5e_v2_nontext(n.vo -> 'descripcion')
+             or public._dnd5e_v2_nontext(n.vo -> 'escuela') or public._dnd5e_v2_nontext(case when n.vo ? 'casting_time' then n.vo -> 'casting_time' else n.vo -> 'tiempo_lanzamiento' end)
+             or public._dnd5e_v2_nontext(n.vo -> 'alcance') or public._dnd5e_v2_nontext(n.vo -> 'componentes') or public._dnd5e_v2_nontext(n.vo -> 'duracion')
+             or public._dnd5e_v2_nontext(n.vo -> 'a_niveles_superiores') as t_nontext
       from n
   ), y as (
     select c.*, coalesce(c.cat0, 'rasgos') as cat,
-           case when c.vo is null then 'row_invalid' when c.nm = '' then 'name_missing' end as p0
+           case when c.vo is null then 'row_invalid' when c.nn = '' then 'name_missing' end as p0
       from c
   ), z as (
-    select y.*, row_number() over (partition by (y.p0 is null), y.cat, lower(y.nm) order by y.ord) as rn from y
+    select y.*, row_number() over (partition by (y.p0 is null), y.cat, y.nn order by y.ord) as rn from y
   )
   select p_pj, z.ord, z.cat, z.nm, left(z.t_descripcion, 20000),
          jsonb_strip_nulls(jsonb_build_object(
@@ -520,22 +584,24 @@ as $$
            'componentes', nullif(left(z.t_componentes, 500), ''),
            'duracion', nullif(left(z.t_duracion, 500), ''),
            'a_niveles_superiores', nullif(left(z.t_superiores, 20000), ''),
-           'concentracion', case when z.vo -> 'concentracion' = 'true'::jsonb then true end,
-           'ritual', case when z.vo -> 'ritual' = 'true'::jsonb then true end)),
-         coalesce(z.vo -> 'preparado' = 'true'::jsonb, false),
+           'concentracion', case when public._dnd5e_v2_flag(z.vo -> 'concentracion') then true end,
+           'ritual', case when public._dnd5e_v2_flag(z.vo -> 'ritual') then true end)),
+         public._dnd5e_v2_flag(z.vo -> 'preparado'),
          coalesce(z.p0, case when z.rn > 1 then 'duplicate' end),
          z.cat0 is null,
          greatest(char_length(z.t_escuela), char_length(z.t_tiempo), char_length(z.t_alcance), char_length(z.t_componentes), char_length(z.t_duracion)) > 500
            or char_length(z.t_superiores) > 20000 or char_length(z.t_descripcion) > 20000,
          coalesce(exists (select 1 from jsonb_object_keys(z.vo) k
                            where k <> all (array['id', 'nombre', 'nivel', 'preparado', 'descripcion', 'casting_time', 'tiempo_lanzamiento', 'escuela', 'alcance',
-                                                  'componentes', 'duracion', 'a_niveles_superiores', 'concentracion', 'ritual'])), false)
+                                                  'componentes', 'duracion', 'a_niveles_superiores', 'concentracion', 'ritual'])), false),
+         coalesce(z.t_nontext, false),
+         not (public._dnd5e_v2_flag_ok(z.vo -> 'concentracion') and public._dnd5e_v2_flag_ok(z.vo -> 'ritual') and public._dnd5e_v2_flag_ok(z.vo -> 'preparado'))
     from z
    order by z.ord
 $$;
 
 -- S39 over the normalised rows [{ pj_id, category, name, description, extras, preparado }] of a campaign: private is true when the
--- same category + lower(name) is held by several characters with different content (name, description, extras)
+-- same category + normalised name is held by several characters with different content (normalised name, description, extras)
 create function public._dnd5e_v2_spell_entries(p_rows jsonb)
 returns table (pj_id bigint, category text, name text, description text, extras jsonb, preparado boolean, private boolean)
 language sql
@@ -545,11 +611,12 @@ as $$
   with s as (
     select * from jsonb_to_recordset(p_rows) as x(pj_id bigint, category text, name text, description text, extras jsonb, preparado boolean)
   ), g as (
-    select s.category, lower(s.name) as lname, count(*) as holders, count(distinct jsonb_build_array(s.name, s.description, s.extras)) as contents
+    select s.category, public._dnd5e_v2_norm(s.name) as nname, count(*) as holders,
+           count(distinct jsonb_build_array(public._dnd5e_v2_norm(s.name), s.description, s.extras)) as contents
       from s group by 1, 2
   )
   select s.pj_id, s.category, s.name, s.description, s.extras, s.preparado, g.holders > 1 and g.contents > 1
-    from s join g on g.category = s.category and g.lname = lower(s.name)
+    from s join g on g.category = s.category and g.nname = public._dnd5e_v2_norm(s.name)
 $$;
 
 ------------------------------------------------------------------------------
@@ -581,6 +648,8 @@ declare
   v_new_ids bigint[];
   v_new_links jsonb;
   v_sheet_changed boolean;
+  v_differs int := 0;
+  v_link_differs int := 0;
   p record;
 begin
   select c.system_profile, c.character_custom_fields into v_profile, v_fields
@@ -616,7 +685,11 @@ begin
     if jsonb_typeof(p.data -> 'hechizos') = 'array' then
       select coalesce(jsonb_agg(jsonb_build_object('pj_id', s.pj_id, 'category', s.category, 'name', s.name, 'description', s.description,
                                                    'extras', s.extras, 'preparado', s.preparado) order by s.ord) filter (where s.problem is null), '[]'::jsonb),
-             count(*) filter (where s.problem is not null) + count(*) filter (where s.problem is null and (s.nivel_fallback or s.truncated or s.dropped))
+             count(*) filter (where s.problem in ('row_invalid', 'name_missing'))
+               + count(*) filter (where s.nivel_fallback and (s.problem is null or s.problem = 'duplicate'))
+               + count(*) filter (where s.problem = 'duplicate')
+               + count(*) filter (where s.problem is null and s.truncated) + count(*) filter (where s.problem is null and s.dropped)
+               + count(*) filter (where s.problem is null and s.not_text) + count(*) filter (where s.problem is null and s.flag_invalid)
         into v_spells, v_problem
         from public._dnd5e_v2_spell_rows(p.id, p.data -> 'hechizos') s;
       v_rows := v_rows || v_spells;
@@ -647,32 +720,51 @@ begin
    where pj.id = x.id and pj.campaign_id = p_campaign;
   v_changed := jsonb_array_length(v_plan);
 
-  -- 4. entries and links (S39)
+  -- 4. entries and links (S39). Entries that already exist (same table, category, normalised name, character) are reused; their
+  -- content and the state of links that already exist are never touched, but a difference is counted as a warning.
   if jsonb_array_length(v_rows) > 0 then
     with e as (select * from public._dnd5e_v2_spell_entries(v_rows)),
     pick as (
-      (select distinct on (e.category, lower(e.name)) e.category, e.name, e.description, e.extras, null::bigint as owner
-         from e where not e.private order by e.category, lower(e.name), e.pj_id)
+      (select distinct on (e.category, public._dnd5e_v2_norm(e.name)) e.category, e.name, e.description, e.extras, null::bigint as owner
+         from e where not e.private order by e.category, public._dnd5e_v2_norm(e.name), e.pj_id)
       union all
       select e.category, e.name, e.description, e.extras, e.pj_id from e where e.private
+    ), hit as (
+      select k.*, x.id as action_id, x.description as x_description, x.extras as x_extras
+        from pick k left join lateral (
+          select a.id, a.description, a.extras from public.campaign_actions a
+           where a.campaign_id = p_campaign and a.table_key = 'hechizos' and a.category = k.category
+             and public._dnd5e_v2_norm(a.name) = public._dnd5e_v2_norm(k.name) and coalesce(a.private_to_pj, 0) = coalesce(k.owner, 0)
+           order by a.id limit 1) x on true
     ), ins as (
       insert into public.campaign_actions (campaign_id, table_key, category, name, description, extras, private_to_pj)
-      select p_campaign, 'hechizos', k.category, k.name, k.description, k.extras, k.owner from pick k
+      select p_campaign, 'hechizos', k.category, k.name, k.description, k.extras, k.owner from hit k where k.action_id is null
       on conflict do nothing
       returning id
     )
-    select coalesce(array_agg(ins.id), '{}'), (select count(*) from pick) into v_new_ids, v_entries from ins;
+    select coalesce((select array_agg(ins.id) from ins), '{}'), (select count(*) from hit),
+           (select count(*) from hit h where h.action_id is not null and (h.x_description is distinct from h.description or h.x_extras is distinct from h.extras))
+      into v_new_ids, v_entries, v_differs;
     with e as (select * from public._dnd5e_v2_spell_entries(v_rows)),
-    ins as (
+    m as (
+      select e.*, x.id as action_id
+        from e left join lateral (
+          select a.id from public.campaign_actions a
+           where a.campaign_id = p_campaign and a.table_key = 'hechizos' and a.category = e.category
+             and public._dnd5e_v2_norm(a.name) = public._dnd5e_v2_norm(e.name)
+             and coalesce(a.private_to_pj, 0) = case when e.private then e.pj_id else 0 end
+           order by a.id limit 1) x on true
+    ), ins as (
       insert into public.pj_action_links (pj_id, action_id, campaign_id, state)
-      select e.pj_id, a.id, p_campaign, jsonb_build_object('preparado', e.preparado)
-        from e join public.campaign_actions a
-          on a.campaign_id = p_campaign and a.table_key = 'hechizos' and a.category = e.category
-         and lower(btrim(a.name)) = lower(e.name) and coalesce(a.private_to_pj, 0) = case when e.private then e.pj_id else 0 end
+      select m.pj_id, m.action_id, p_campaign, jsonb_build_object('preparado', m.preparado) from m where m.action_id is not null
       on conflict do nothing
       returning pj_id, action_id
     )
-    select coalesce(jsonb_agg(jsonb_build_array(ins.pj_id, ins.action_id)), '[]'::jsonb) into v_new_links from ins;
+    select coalesce((select jsonb_agg(jsonb_build_array(ins.pj_id, ins.action_id)) from ins), '[]'::jsonb),
+           (select count(*) from m join public.pj_action_links l on l.pj_id = m.pj_id and l.action_id = m.action_id
+             where (l.state -> 'preparado' = 'true'::jsonb) is distinct from m.preparado)
+      into v_new_links, v_link_differs;
+    v_warn := v_warn + v_differs + v_link_differs;
     update public.migration_backup_dnd5e_v2 b
        set inserted_action_ids = b.inserted_action_ids || v_new_ids, inserted_links = b.inserted_links || v_new_links
      where b.pj_id is null and b.campaign_id = p_campaign;
@@ -695,7 +787,8 @@ $$;
 
 revoke execute on function
   public._dnd5e_v2_sheet_v1(), public._dnd5e_v2_sheet_v2(), public._dnd5e_v2_whole(jsonb), public._dnd5e_v2_text(jsonb),
-  public._dnd5e_v2_recovery(jsonb), public._dnd5e_v2_strip_custom(jsonb), public._dnd5e_v2_sheet_kind(jsonb),
+  public._dnd5e_v2_recovery(jsonb), public._dnd5e_v2_norm(text), public._dnd5e_v2_flag(jsonb), public._dnd5e_v2_flag_ok(jsonb),
+  public._dnd5e_v2_nontext(jsonb), public._dnd5e_v2_strip_custom(jsonb), public._dnd5e_v2_sheet_kind(jsonb),
   public._dnd5e_v2_custom_section(jsonb, jsonb), public._dnd5e_v2_pj_data(jsonb, integer, jsonb),
   public._dnd5e_v2_spell_rows(bigint, jsonb), public._dnd5e_v2_spell_entries(jsonb), public._dnd5e_v2_migrate_campaign(uuid)
   from public, anon, authenticated;

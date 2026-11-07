@@ -1,9 +1,9 @@
 {
  "counts": {
-  "pjs_changed": 5,
-  "entries_created": 6,
-  "links_created": 7,
-  "warnings": 6
+  "pjs_changed": 6,
+  "entries_created": 7,
+  "links_created": 9,
+  "warnings": 12
  },
  "pjs": [
   {
@@ -199,9 +199,35 @@
     }
    },
    "jugador": ""
+  },
+  {
+   "id": 9108,
+   "data": {
+    "dado_golpe": "2d10",
+    "dados_disponibles": 0,
+    "espacios_conjuro": [
+     {
+      "id": 1,
+      "nivel": 1,
+      "disponibles": 2,
+      "maximo": 2
+     }
+    ]
+   },
+   "jugador": ""
   }
  ],
  "actions": [
+  {
+   "table_key": "hechizos",
+   "category": "nivel_1",
+   "name": "Eco",
+   "private_to_pj": null,
+   "description": "Repite.",
+   "extras": {
+    "escuela": "5"
+   }
+  },
   {
    "table_key": "hechizos",
    "category": "nivel_1",
@@ -354,6 +380,30 @@
     "table_key": "hechizos",
     "category": "rasgos",
     "name": "Aura Final",
+    "private_to_pj": null
+   },
+   "state": {
+    "preparado": true
+   }
+  },
+  {
+   "pj_id": 9108,
+   "action": {
+    "table_key": "hechizos",
+    "category": "nivel_1",
+    "name": "Eco",
+    "private_to_pj": null
+   },
+   "state": {
+    "preparado": false
+   }
+  },
+  {
+   "pj_id": 9108,
+   "action": {
+    "table_key": "hechizos",
+    "category": "trucos",
+    "name": "Luz",
     "private_to_pj": null
    },
    "state": {

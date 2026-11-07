@@ -36,6 +36,18 @@ export interface ExistingAction {
   category: string
   name: string
   private_to_pj: number | null
+  /** content of the stored entry; when given, a reused entry whose content differs from the character's is reported */
+  description?: string
+  extras?: Record<string, unknown>
+}
+
+export interface ExistingLink {
+  pj_id: number
+  category: string
+  name: string
+  private_to_pj: number | null
+  /** the link state as stored: it is kept; a different legacy preparado is reported */
+  state?: { preparado?: unknown }
 }
 
 export interface MigrationInput {
@@ -46,6 +58,8 @@ export interface MigrationInput {
     character_custom_fields?: unknown
     /** shared/private entries already in the collection: matching entries are linked instead of created */
     existing_actions?: ExistingAction[]
+    /** links already in place: they are not written again and keep their state */
+    existing_links?: ExistingLink[]
   }
   pjs: MigrationPjInput[]
 }
@@ -127,6 +141,20 @@ const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T
 const has = (o: Obj, k: string) => Object.prototype.hasOwnProperty.call(o, k)
 /** Spaces only, like Postgres btrim: the SQL twin must trim exactly the same characters. */
 const btrim = (s: string) => s.replace(/^ +| +$/g, '')
+/** The name a spell is compared by (S39): case, surrounding and repeated whitespace ignored, accents kept. */
+const norm = (s: string) => btrim(s.replace(/[ \t\n\r\f\v]+/g, ' ')).toLowerCase()
+/** true/false, or "true"/"false" text (any case, surrounding spaces); null = not a flag value (absent and null count as false). */
+function flag(v: unknown): boolean | null {
+  if (v === undefined || v === null || typeof v === 'boolean') return v === true
+  if (typeof v === 'string') {
+    const t = btrim(v.toLowerCase())
+    if (t === 'true') return true
+    if (t === 'false') return false
+  }
+  return null
+}
+/** A value present in a text column that is not text (numbers are stringified, the rest dropped): it must be reported. */
+const nonText = (v: unknown) => v !== undefined && v !== null && typeof v !== 'string'
 const byCodepoint = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0)
 
 /** Whole numbers as a number, or a numeric string holding one; anything else is not a number for the migration. */
@@ -162,8 +190,8 @@ interface SpellRow {
   preparado: boolean
 }
 
-const spellKey = (r: { category: string; name: string }) => `${r.category}\u0000${r.name.toLowerCase()}`
-const entryKey = (category: string, name: string, priv: number | null) => `${category}\u0000${name.toLowerCase()}\u0000${priv ?? 0}`
+const spellKey = (r: { category: string; name: string }) => `${r.category}\u0000${norm(r.name)}`
+const entryKey = (category: string, name: string, priv: number | null) => `${category}\u0000${norm(name)}\u0000${priv ?? 0}`
 
 /** The sheet with the custom-field section added/extended; also the map of custom key -> data key. */
 function withCustomFields(sheetIn: Obj, fieldsIn: unknown, warn: (code: string) => void): { sheet: Obj; keyMap: Map<string, string>; added: number } {
@@ -282,6 +310,7 @@ export function migrateDnd5eV2(input: MigrationInput): MigrationOutput {
         const m = /^([0-9]{1,6}d[0-9]{1,6})(?:[ \t]*\([ \t]*([0-9]{1,9})[ \t]*\/[ \t]*([0-9]{1,9})[ \t]*\))?$/.exec(btrim(raw.toLowerCase()))
         if (m) {
           bump('hit_dice_parsed')
+          if (m[3] !== undefined && typeof pj.nivel === 'number' && Number(m[3]) !== pj.nivel) warn('hit_dice_total_differs')
           if (!has(data, 'dado_golpe')) newData.dado_golpe = m[1]
           if (!has(data, 'dados_disponibles')) {
             if (m[2] !== undefined) newData.dados_disponibles = Number(m[2])
@@ -301,16 +330,25 @@ export function migrateDnd5eV2(input: MigrationInput): MigrationOutput {
       const max = isObj(data.spell_slots) ? data.spell_slots : {}
       const cur = isObj(data.spell_slots_current) ? data.spell_slots_current : {}
       const rows: { nivel: number; disponibles: number; maximo: number }[] = []
+      const invalidLevels = new Set<string>()
+      const withRow = new Set<string>()
       for (const key of Object.keys(max)) {
         const nivel = /^[0-9]{1,3}$/.test(key) ? Number(key) : null
         const maximo = whole(max[key])
         if (nivel === null || maximo === null) {
           warn('slots_invalid')
+          invalidLevels.add(key)
           continue
         }
         if (maximo <= 0) continue
         const left = has(cur, key) ? whole(cur[key]) : maximo
+        if (has(cur, key) && left === null) warn('slots_current_invalid')
+        withRow.add(key)
         rows.push({ nivel, disponibles: left ?? maximo, maximo })
+      }
+      // a current value for a level that gets no row (no maximum, or a zero one) only survives in the backup
+      for (const key of Object.keys(cur)) {
+        if (!withRow.has(key) && !invalidLevels.has(key) && whole(cur[key]) !== 0) warn('slots_current_orphan')
       }
       rows.sort((a, b) => a.nivel - b.nivel)
       const existing = newData.espacios_conjuro
@@ -384,7 +422,7 @@ export function migrateDnd5eV2(input: MigrationInput): MigrationOutput {
         ;(data.hechizos as unknown[]).forEach((row, ord) => {
           if (!isObj(row)) return void warn('spell_row_invalid')
           const name = btrim(btrim(text(row.nombre)).slice(0, NAME_MAX))
-          if (name === '') return void warn('spell_name_missing')
+          if (norm(name) === '') return void warn('spell_name_missing')
           const level = whole(row.nivel)
           let category = level === null ? null : CATEGORY_BY_LEVEL(level)
           if (category === null) {
@@ -396,17 +434,23 @@ export function migrateDnd5eV2(input: MigrationInput): MigrationOutput {
           seen.add(key)
           const extras: Record<string, string | boolean> = {}
           let truncated = false
+          let notText = nonText(row.nombre) || nonText(row.descripcion)
           for (const [extra, source, cap] of SPELL_TEXT_EXTRAS) {
-            const raw = text(has(row, source) ? row[source] : source === 'casting_time' ? row.tiempo_lanzamiento : undefined)
+            const value = has(row, source) ? row[source] : source === 'casting_time' ? row.tiempo_lanzamiento : undefined
+            if (nonText(value)) notText = true
+            const raw = text(value)
             if (raw.length > cap) truncated = true
             if (raw !== '') extras[extra] = raw.slice(0, cap)
           }
-          for (const flag of SPELL_FLAG_EXTRAS) if (row[flag] === true) extras[flag] = true
+          const flagInvalid = [...SPELL_FLAG_EXTRAS, 'preparado'].some((k) => flag(row[k]) === null)
+          for (const k of SPELL_FLAG_EXTRAS) if (flag(row[k]) === true) extras[k] = true
           const description = text(row.descripcion)
           if (description.length > PARAGRAPH_MAX) truncated = true
           if (truncated) warn('spell_value_truncated')
           if (Object.keys(row).some((k) => !SPELL_KNOWN_KEYS.has(k))) warn('spell_field_dropped')
-          spellRows.push({ pjId: pj.id, ord, category, name, description: description.slice(0, PARAGRAPH_MAX), extras, preparado: row.preparado === true })
+          if (notText) warn('spell_value_not_text')
+          if (flagInvalid) warn('spell_flag_invalid')
+          spellRows.push({ pjId: pj.id, ord, category, name, description: description.slice(0, PARAGRAPH_MAX), extras, preparado: flag(row.preparado) === true })
           bump('spell_rows')
         })
       } else if (data.hechizos !== null) warn('spell_row_invalid')
@@ -424,22 +468,34 @@ export function migrateDnd5eV2(input: MigrationInput): MigrationOutput {
   // collection entries (S39)
   const groups = new Map<string, SpellRow[]>()
   for (const r of spellRows) groups.set(spellKey(r), [...(groups.get(spellKey(r)) ?? []), r])
-  const existing = new Set((input.campaign.existing_actions ?? []).map((a) => entryKey(a.category, a.name, a.private_to_pj)))
+  const existing = new Map((input.campaign.existing_actions ?? []).map((a) => [entryKey(a.category, a.name, a.private_to_pj), a]))
+  const existingLinks = new Map((input.campaign.existing_links ?? []).map((l) => [`${l.pj_id}\u0000${entryKey(l.category, l.name, l.private_to_pj)}`, l]))
   const actions: MigrationAction[] = []
   const links: MigrationLink[] = []
   for (const rows of groups.values()) {
-    const contents = new Set(rows.map((r) => canonical({ name: r.name, description: r.description, extras: r.extras })))
+    const contents = new Set(rows.map((r) => canonical({ name: norm(r.name), description: r.description, extras: r.extras })))
     const priv = rows.length > 1 && contents.size > 1
     const owners = priv ? rows.map((r) => r.pjId) : [null]
     for (const owner of owners) {
       const source = priv ? rows.find((r) => r.pjId === owner)! : rows[0]
       const ref: ActionRef = { table_key: SPELL_TABLE_KEY, category: source.category, name: source.name, private_to_pj: owner }
-      if (existing.has(entryKey(ref.category, ref.name, owner))) bump('entries_reused')
-      else {
+      const stored = existing.get(entryKey(ref.category, ref.name, owner))
+      if (stored) {
+        bump('entries_reused')
+        const differs =
+          (stored.description !== undefined && stored.description !== source.description) ||
+          (stored.extras !== undefined && canonical(stored.extras) !== canonical(source.extras))
+        if (differs) warnFor(source.pjId)('existing_entry_differs')
+      } else {
         actions.push({ ...ref, description: source.description, extras: source.extras })
         bump(priv ? 'entries_private' : 'entries_shared')
       }
       for (const r of priv ? [source] : rows) {
+        const link = existingLinks.get(`${r.pjId}\u0000${entryKey(ref.category, ref.name, owner)}`)
+        if (link) {
+          if ((link.state?.preparado === true) !== r.preparado) warnFor(r.pjId)('existing_link_differs')
+          continue
+        }
         links.push({ pj_id: r.pjId, action: ref, state: { preparado: r.preparado } })
         bump('links')
       }

@@ -33,7 +33,7 @@ describe('dry run over a legacy export', () => {
     expect(result.ok).toBe(true)
     expect(result.pjs).toBe(2)
     expect(result.summary.counts).toMatchObject({ pjs: 2, pjs_changed: 2, skills_converted: 2, hit_dice_parsed: 1, hit_dice_unparsed: 1, slot_rows: 1, spell_rows: 3, links: 3 })
-    expect(result.summary.warnings).toEqual({ hit_dice_unparsed: 1, recuperacion_unknown: 1, skill_value_unknown: 1 })
+    expect(result.summary.warnings).toEqual({ hit_dice_total_differs: 1, hit_dice_unparsed: 1, recuperacion_unknown: 1, skill_value_unknown: 1 })
     expect(result.warningPjs.hit_dice_unparsed).toEqual([2])
   })
 

@@ -43,6 +43,19 @@ describe('planV2 (importer writes the v2 shape)', () => {
     expect(plan.links).toHaveLength(1)
   })
 
+  it('reports a reused entry whose content differs and a link whose preparado differs, and does not write that link again', () => {
+    const plan = planV2({
+      sheet: V2,
+      customFields: [],
+      pjRows: [legacyPj(1, { data: { hechizos: [{ nombre: ' LUZ ', nivel: 0, preparado: false, descripcion: 'del jugador' }] } })],
+      existingActions: [{ category: 'trucos', name: 'Luz', private_to_pj: null, description: 'del DM', extras: {} }],
+      existingLinks: [{ pj_id: 1, category: 'trucos', name: 'Luz', private_to_pj: null, state: { preparado: true } }],
+    })
+    expect(plan.actions).toEqual([])
+    expect(plan.links).toEqual([])
+    expect(summariseV2(plan).warnings).toEqual({ existing_entry_differs: 1, existing_link_differs: 1 })
+  })
+
   it('summary and text hold counts and codes only', () => {
     const plan = planV2({ sheet: V2, customFields: [], pjRows: [legacyPj(1, { data: { stat_hit_dice: 'texto privado raro', skill_arcana: 9 } })] })
     const summary = summariseV2(plan)
