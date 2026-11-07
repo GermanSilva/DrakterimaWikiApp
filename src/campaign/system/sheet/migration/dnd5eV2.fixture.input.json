@@ -1,0 +1,79 @@
+{
+  "campaign": {
+    "character_custom_fields": [
+      {"key": "magralita", "label": "Relación con la Magralita", "type": "text"},
+      {"key": "ancla", "label": "Ancla", "type": "text"}
+    ]
+  },
+  "pjs": [
+    {
+      "id": 9101, "nivel": 2, "owner_display_name": "Ana Dueña", "jugador": "texto libre viejo",
+      "data": {
+        "stat_hp": 20, "skill_acrobatics": 0, "skill_arcana": 1, "skill_athletics": 2, "save_str": true,
+        "stat_hit_dice": "1d8 (2/2)",
+        "spell_slots": {"1": 3, "2": 2}, "spell_slots_current": {"1": 1},
+        "hechizos": [
+          {"id": 1, "nombre": "Bola de Fuego", "nivel": 3, "preparado": true, "escuela": "Evocación", "casting_time": "1 acción", "alcance": "150 pies", "componentes": "V, S, M", "duracion": "Instantáneo", "descripcion": "Explota.", "a_niveles_superiores": "+1d6", "concentracion": false, "ritual": false},
+          {"id": 2, "nombre": "Luz", "nivel": 0, "preparado": true, "escuela": "Evocación", "casting_time": "1 acción", "alcance": "Toque", "componentes": "V, M", "duracion": "1 hora", "descripcion": "Un objeto brilla.", "a_niveles_superiores": "", "concentracion": false, "ritual": false},
+          {"id": 3, "nombre": "Rayo Solo", "nivel": 1, "preparado": false, "escuela": "Evocación", "descripcion": "Un rayo.", "concentracion": true, "ritual": true},
+          {"id": 4, "nombre": "Segunda Ola", "nivel": 10, "preparado": true, "descripcion": "Rasgo de clase."}
+        ],
+        "recursos": [
+          {"id": 1, "nombre": "Ki", "actual": 1, "maximo": 2, "recuperacion": "corto", "notas": ""},
+          {"id": 2, "nombre": "Furia", "actual": 0, "maximo": 2, "recuperacion": "largo", "notas": ""}
+        ],
+        "custom_fields": {"magralita": "Siente su pulso.", "ancla": "Torre"}
+      }
+    },
+    {
+      "id": 9102, "nivel": 3, "owner_display_name": "Beto Dueño", "jugador": "",
+      "data": {
+        "skill_stealth": 1, "skill_perception": 2,
+        "stat_hit_dice": "1d10 (1/2)",
+        "spell_slots": {"1": 4},
+        "hechizos": [
+          {"id": 1, "nombre": "Bola de Fuego", "nivel": 3, "preparado": false, "escuela": "Evocación", "casting_time": "1 acción", "alcance": "150 pies", "componentes": "V, S, M", "duracion": "Instantáneo", "descripcion": "Explota distinto.", "a_niveles_superiores": "+2d6", "concentracion": false, "ritual": false},
+          {"id": 2, "nombre": "Luz", "nivel": 0, "preparado": false, "escuela": "Evocación", "casting_time": "1 acción", "alcance": "Toque", "componentes": "V, M", "duracion": "1 hora", "descripcion": "Un objeto brilla.", "a_niveles_superiores": "", "concentracion": false, "ritual": false}
+        ],
+        "custom_fields": {"magralita": "Duda."}
+      }
+    },
+    {
+      "id": 9103, "nivel": 2, "owner_display_name": null, "jugador": "Nombre libre",
+      "data": {
+        "skill_history": 0,
+        "stat_hit_dice": "1d8",
+        "spell_slots": {"1": 4, "2": 3, "3": 3, "4": 3, "5": 2, "6": 1, "7": 1, "8": 1, "9": 1},
+        "spell_slots_current": {"1": 4, "2": 0, "3": 3, "4": 3, "5": 2, "6": 1, "7": 1, "8": 1, "9": 0},
+        "hechizos": [
+          {"id": 1, "nombre": "Aura Final", "nivel": 10, "preparado": true, "descripcion": "Rasgo."}
+        ],
+        "recursos": [
+          {"id": 1, "nombre": "Inspiración", "actual": 1, "maximo": 3, "recuperacion": "Cuando amanece", "notas": ""}
+        ]
+      }
+    },
+    {
+      "id": 9104, "nivel": 5, "owner_display_name": null, "jugador": "",
+      "data": {
+        "skill_stealth": 3, "skill_survival": 1,
+        "stat_hit_dice": "muy raro",
+        "spell_slots": {"1": 0}
+      }
+    },
+    {
+      "id": 9105, "nivel": 2, "owner_display_name": "Cleo Dueña", "jugador": "Cleo Dueña",
+      "data": {
+        "skill_arcana": "competente", "skill_history": "no",
+        "dado_golpe": "1d6", "dados_disponibles": 1,
+        "spell_slots": {"1": 2},
+        "espacios_conjuro": [{"id": 1, "nivel": 1, "disponibles": 1, "maximo": 1}],
+        "recursos": [{"id": 1, "nombre": "Bendición", "actual": 1, "maximo": 1, "recuperacion": "largo", "notas": ""}]
+      }
+    },
+    {
+      "id": 9106, "nivel": 1, "owner_display_name": null, "jugador": "",
+      "data": {}
+    }
+  ]
+}

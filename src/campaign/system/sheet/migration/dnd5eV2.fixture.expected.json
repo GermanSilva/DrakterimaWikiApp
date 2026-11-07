@@ -1,0 +1,383 @@
+{
+ "counts": {
+  "pjs_changed": 5,
+  "entries_created": 6,
+  "links_created": 7,
+  "warnings": 5
+ },
+ "pjs": [
+  {
+   "id": 9101,
+   "data": {
+    "stat_hp": 20,
+    "skill_acrobatics": "no",
+    "skill_arcana": "competente",
+    "skill_athletics": "experto",
+    "save_str": true,
+    "recursos": [
+     {
+      "id": 1,
+      "nombre": "Ki",
+      "actual": 1,
+      "maximo": 2,
+      "recuperacion": "corto",
+      "notas": ""
+     },
+     {
+      "id": 2,
+      "nombre": "Furia",
+      "actual": 0,
+      "maximo": 2,
+      "recuperacion": "largo",
+      "notas": ""
+     }
+    ],
+    "dado_golpe": "1d8",
+    "dados_disponibles": 2,
+    "espacios_conjuro": [
+     {
+      "id": 1,
+      "nivel": 1,
+      "disponibles": 1,
+      "maximo": 3
+     },
+     {
+      "id": 2,
+      "nivel": 2,
+      "disponibles": 2,
+      "maximo": 2
+     }
+    ],
+    "campo_magralita": "Siente su pulso.",
+    "ancla": "Torre"
+   },
+   "jugador": "Ana Dueña"
+  },
+  {
+   "id": 9102,
+   "data": {
+    "skill_stealth": "competente",
+    "skill_perception": "experto",
+    "dado_golpe": "1d10",
+    "dados_disponibles": 1,
+    "espacios_conjuro": [
+     {
+      "id": 1,
+      "nivel": 1,
+      "disponibles": 4,
+      "maximo": 4
+     }
+    ],
+    "campo_magralita": "Duda."
+   },
+   "jugador": "Beto Dueño"
+  },
+  {
+   "id": 9103,
+   "data": {
+    "skill_history": "no",
+    "recursos": [
+     {
+      "id": 1,
+      "nombre": "Inspiración",
+      "actual": 1,
+      "maximo": 3,
+      "recuperacion": "largo",
+      "notas": ""
+     }
+    ],
+    "dado_golpe": "1d8",
+    "dados_disponibles": 2,
+    "espacios_conjuro": [
+     {
+      "id": 1,
+      "nivel": 1,
+      "disponibles": 4,
+      "maximo": 4
+     },
+     {
+      "id": 2,
+      "nivel": 2,
+      "disponibles": 0,
+      "maximo": 3
+     },
+     {
+      "id": 3,
+      "nivel": 3,
+      "disponibles": 3,
+      "maximo": 3
+     },
+     {
+      "id": 4,
+      "nivel": 4,
+      "disponibles": 3,
+      "maximo": 3
+     },
+     {
+      "id": 5,
+      "nivel": 5,
+      "disponibles": 2,
+      "maximo": 2
+     },
+     {
+      "id": 6,
+      "nivel": 6,
+      "disponibles": 1,
+      "maximo": 1
+     },
+     {
+      "id": 7,
+      "nivel": 7,
+      "disponibles": 1,
+      "maximo": 1
+     },
+     {
+      "id": 8,
+      "nivel": 8,
+      "disponibles": 1,
+      "maximo": 1
+     },
+     {
+      "id": 9,
+      "nivel": 9,
+      "disponibles": 0,
+      "maximo": 1
+     }
+    ]
+   },
+   "jugador": ""
+  },
+  {
+   "id": 9104,
+   "data": {
+    "skill_stealth": 3,
+    "skill_survival": "competente",
+    "dado_golpe": "muy raro"
+   },
+   "jugador": ""
+  },
+  {
+   "id": 9105,
+   "data": {
+    "skill_arcana": "competente",
+    "skill_history": "no",
+    "dado_golpe": "1d6",
+    "dados_disponibles": 1,
+    "espacios_conjuro": [
+     {
+      "id": 1,
+      "nivel": 1,
+      "disponibles": 1,
+      "maximo": 1
+     }
+    ],
+    "recursos": [
+     {
+      "id": 1,
+      "nombre": "Bendición",
+      "actual": 1,
+      "maximo": 1,
+      "recuperacion": "largo",
+      "notas": ""
+     }
+    ]
+   },
+   "jugador": "Cleo Dueña"
+  },
+  {
+   "id": 9106,
+   "data": {},
+   "jugador": ""
+  }
+ ],
+ "actions": [
+  {
+   "table_key": "hechizos",
+   "category": "nivel_1",
+   "name": "Rayo Solo",
+   "private_to_pj": null,
+   "description": "Un rayo.",
+   "extras": {
+    "escuela": "Evocación",
+    "concentracion": true,
+    "ritual": true
+   }
+  },
+  {
+   "table_key": "hechizos",
+   "category": "rasgos",
+   "name": "Aura Final",
+   "private_to_pj": null,
+   "description": "Rasgo.",
+   "extras": {}
+  },
+  {
+   "table_key": "hechizos",
+   "category": "rasgos",
+   "name": "Segunda Ola",
+   "private_to_pj": null,
+   "description": "Rasgo de clase.",
+   "extras": {}
+  },
+  {
+   "table_key": "hechizos",
+   "category": "trucos",
+   "name": "Luz",
+   "private_to_pj": null,
+   "description": "Un objeto brilla.",
+   "extras": {
+    "escuela": "Evocación",
+    "tiempo_lanzamiento": "1 acción",
+    "alcance": "Toque",
+    "componentes": "V, M",
+    "duracion": "1 hora"
+   }
+  },
+  {
+   "table_key": "hechizos",
+   "category": "nivel_3",
+   "name": "Bola de Fuego",
+   "private_to_pj": 9101,
+   "description": "Explota.",
+   "extras": {
+    "escuela": "Evocación",
+    "tiempo_lanzamiento": "1 acción",
+    "alcance": "150 pies",
+    "componentes": "V, S, M",
+    "duracion": "Instantáneo",
+    "a_niveles_superiores": "+1d6"
+   }
+  },
+  {
+   "table_key": "hechizos",
+   "category": "nivel_3",
+   "name": "Bola de Fuego",
+   "private_to_pj": 9102,
+   "description": "Explota distinto.",
+   "extras": {
+    "escuela": "Evocación",
+    "tiempo_lanzamiento": "1 acción",
+    "alcance": "150 pies",
+    "componentes": "V, S, M",
+    "duracion": "Instantáneo",
+    "a_niveles_superiores": "+2d6"
+   }
+  }
+ ],
+ "links": [
+  {
+   "pj_id": 9101,
+   "action": {
+    "table_key": "hechizos",
+    "category": "nivel_1",
+    "name": "Rayo Solo",
+    "private_to_pj": null
+   },
+   "state": {
+    "preparado": false
+   }
+  },
+  {
+   "pj_id": 9101,
+   "action": {
+    "table_key": "hechizos",
+    "category": "rasgos",
+    "name": "Segunda Ola",
+    "private_to_pj": null
+   },
+   "state": {
+    "preparado": true
+   }
+  },
+  {
+   "pj_id": 9101,
+   "action": {
+    "table_key": "hechizos",
+    "category": "trucos",
+    "name": "Luz",
+    "private_to_pj": null
+   },
+   "state": {
+    "preparado": true
+   }
+  },
+  {
+   "pj_id": 9101,
+   "action": {
+    "table_key": "hechizos",
+    "category": "nivel_3",
+    "name": "Bola de Fuego",
+    "private_to_pj": 9101
+   },
+   "state": {
+    "preparado": true
+   }
+  },
+  {
+   "pj_id": 9102,
+   "action": {
+    "table_key": "hechizos",
+    "category": "trucos",
+    "name": "Luz",
+    "private_to_pj": null
+   },
+   "state": {
+    "preparado": false
+   }
+  },
+  {
+   "pj_id": 9102,
+   "action": {
+    "table_key": "hechizos",
+    "category": "nivel_3",
+    "name": "Bola de Fuego",
+    "private_to_pj": 9102
+   },
+   "state": {
+    "preparado": false
+   }
+  },
+  {
+   "pj_id": 9103,
+   "action": {
+    "table_key": "hechizos",
+    "category": "rasgos",
+    "name": "Aura Final",
+    "private_to_pj": null
+   },
+   "state": {
+    "preparado": true
+   }
+  }
+ ],
+ "custom_section": {
+  "key": "campos_campana",
+  "label": "Campos de la campaña",
+  "items": [
+   {
+    "kind": "field",
+    "key": "campo_magralita",
+    "label": "Relación con la Magralita",
+    "type": "paragraph",
+    "editableBy": "dm"
+   },
+   {
+    "kind": "field",
+    "key": "ancla",
+    "label": "Ancla",
+    "type": "paragraph",
+    "editableBy": "dm"
+   }
+  ],
+  "blocks": [
+   {
+    "key": "b_campos_campana",
+    "mode": "tile",
+    "items": [
+     "campo_magralita",
+     "ancla"
+    ]
+   }
+  ]
+ }
+}
