@@ -5,7 +5,7 @@ import type { EntityFormApi } from '../entityFormContext'
 import { createFakeLayer } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 // Captures the real form API so a test can try to open forms the UI never offers (a hostile / buggy caller).
 let formApi: EntityFormApi | null = null

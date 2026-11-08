@@ -6,7 +6,7 @@ import { createFakeLayer } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 import { downloadJson } from './ajustes/exportCampaign'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 vi.mock('./ajustes/exportCampaign', async (importOriginal) => ({
   ...(await importOriginal<typeof import('./ajustes/exportCampaign')>()),

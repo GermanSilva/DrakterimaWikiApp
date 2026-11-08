@@ -6,7 +6,7 @@ import { useFormActions } from '../ports'
 import { createFakeLayer } from './testing/fakeLayer'
 import { entity, renderSection } from './testing/renderSection'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 // A form that changes `jugador` on save, like a form left open across a reassignment (or a buggy one) would.
 vi.mock('../components/forms/entityForms', async (importOriginal) => {

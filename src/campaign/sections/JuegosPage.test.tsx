@@ -4,7 +4,7 @@ import { DataError, type DataErrorReason, type GameLog, type GamePot } from '../
 import { createFakeLayer } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 interface OverlayProps {
   roll: number

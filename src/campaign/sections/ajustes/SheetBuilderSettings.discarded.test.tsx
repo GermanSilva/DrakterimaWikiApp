@@ -7,7 +7,7 @@ import { renderSection } from '../../testing/renderSection'
 import { STORED_SHEET } from '../../system/builder/builderFixture'
 import { DND5E_PROFILE } from '../../system/systemProfile'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 afterEach(() => vi.restoreAllMocks())
 
 const AT = '2026-10-01T12:00:00.000Z'

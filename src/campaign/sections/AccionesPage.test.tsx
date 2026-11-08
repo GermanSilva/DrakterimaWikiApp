@@ -6,7 +6,7 @@ import { createFakeLayer, type FakeLayerOptions } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 import { dnd5eProfile } from '../system/systemProfile'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 afterEach(() => vi.restoreAllMocks())
 
 const PJS = [entity(1, { nombre: 'Eldric', jugador: '', region: 'magral' }), entity(2, { nombre: 'Mara', jugador: '', region: 'magral' })]

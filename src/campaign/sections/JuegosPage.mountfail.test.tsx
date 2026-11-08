@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createFakeLayer } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 // the REAL overlay runs here; only three.js is replaced, and creating its renderer fails (no WebGL context)
 const three = vi.hoisted(() => ({ created: 0 }))

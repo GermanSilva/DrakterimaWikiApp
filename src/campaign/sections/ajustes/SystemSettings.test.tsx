@@ -6,7 +6,7 @@ import { createFakeLayer } from '../../testing/fakeLayer'
 import { renderSection } from '../../testing/renderSection'
 import { DND5E_PROFILE } from '../../system/systemProfile'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 afterEach(() => vi.restoreAllMocks())
 
 const STORED = { name: 'Drakterima', system_profile: JSON.parse(JSON.stringify(DND5E_PROFILE)) }

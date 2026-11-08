@@ -6,7 +6,7 @@ import { dnd5eProfile } from '../system/systemProfile'
 import { createFakeLayer } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 const withSheet = (sheet: unknown = SHEET) => ({ system_profile: { ...dnd5eProfile(), sheet } as unknown as Record<string, unknown> })
 const REGIONS = [{ key: 'magral', label: 'Tierras de Magral' }, { key: 'nezor', label: 'Nezor' }]

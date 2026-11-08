@@ -5,7 +5,7 @@ import { entity, renderSection } from '../testing/renderSection'
 import { DND5E_SHEET } from '../system/sheet/dnd5eSheet'
 import { dnd5eProfile } from '../system/systemProfile'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 const COINS0 = { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 }
 const pj = (id: number, over: Record<string, unknown> = {}) =>

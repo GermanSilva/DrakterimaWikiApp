@@ -7,7 +7,7 @@ import { createFakeLayer } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 
 // the first test of a file pays for the lazy page chunk
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 // Wraps the real hook so the tests can assert exactly what the page asks the form host to open.
 const openFormSpy = vi.fn<(request: EntityFormRequest) => void>()

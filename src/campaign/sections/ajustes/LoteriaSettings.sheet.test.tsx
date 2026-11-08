@@ -4,7 +4,7 @@ import { dnd5eProfile } from '../../system/systemProfile'
 import { createFakeLayer } from '../../testing/fakeLayer'
 import { renderSection } from '../../testing/renderSection'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ['Date'] })

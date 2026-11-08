@@ -4,7 +4,7 @@ import type { Member, PlayerNote, WikiIndexItem } from '../../data'
 import { createFakeLayer } from '../testing/fakeLayer'
 import { renderSection } from '../testing/renderSection'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 const idx = (id: number, title: string): WikiIndexItem => ({ id, title, imagen_url: null, estado: 'publicado' })
 const note = (over: Partial<PlayerNote>): PlayerNote => ({

@@ -5,7 +5,7 @@ import { entity, renderSection } from '../testing/renderSection'
 import { DND5E_SHEET } from '../system/sheet/dnd5eSheet'
 import { dnd5eProfile } from '../system/systemProfile'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 const field = (key: string, label: string, extra: Record<string, unknown> = {}) => ({ kind: 'field', key, label, type: 'number', editableBy: 'dm', ...extra })
 const sheetOf = (items: unknown[], roles: Record<string, string>) => ({

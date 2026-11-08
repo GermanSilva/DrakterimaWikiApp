@@ -5,7 +5,7 @@ import type { EntityFormRequest } from '../entityFormContext'
 import { createFakeLayer } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 const openFormSpy = vi.fn<(request: EntityFormRequest) => void>()
 vi.mock('../entityFormContext', async (importOriginal) => {

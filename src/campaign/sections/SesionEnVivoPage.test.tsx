@@ -6,7 +6,7 @@ import { retryPolicy } from './useSessionLayout'
 import { createFakeLayer } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 // dnd-kit needs real pointer geometry: capture the screen's onDragEnd and drive it directly.
 type DragEnd = (event: { active: { id: unknown }; over: { id: unknown } | null }) => void

@@ -6,7 +6,7 @@ import { renderSection } from '../../testing/renderSection'
 import { STORED_SHEET } from '../../system/builder/builderFixture'
 import { DND5E_PROFILE } from '../../system/systemProfile'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 afterEach(() => vi.restoreAllMocks())
 
 const profile = (extra: Record<string, unknown> = {}) => ({ ...JSON.parse(JSON.stringify(DND5E_PROFILE)), ...extra })

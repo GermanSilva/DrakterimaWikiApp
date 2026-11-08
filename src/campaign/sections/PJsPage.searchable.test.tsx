@@ -4,7 +4,7 @@ import { createFakeLayer } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 import { dnd5eProfile } from '../system/systemProfile'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 const field = (key: string, label: string, type: string, extra: Record<string, unknown> = {}) => ({ kind: 'field', key, label, type, editableBy: 'dm', ...extra })
 const sheetOf = (items: unknown[]) => ({

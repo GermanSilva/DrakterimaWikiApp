@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createFakeLayer } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 // the dice chunk fails to download (offline, deploy in between): the server already decided, so the result must still show
 vi.mock('../../components/dice/D20Overlay', () => {

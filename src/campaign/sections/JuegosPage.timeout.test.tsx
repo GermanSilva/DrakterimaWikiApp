@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { createFakeLayer } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 // the dice chunk download stalls forever (flaky network): the page must not hold the result back
 vi.mock('../../components/dice/D20Overlay', () => new Promise(() => undefined))

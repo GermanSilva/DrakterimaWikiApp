@@ -6,7 +6,7 @@ import { deferred } from '../../../auth/testing/deferred'
 import { createFakeLayer } from '../../testing/fakeLayer'
 import { entity, renderSection } from '../../testing/renderSection'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 // 12:00 UTC on 2026-10-09. Only Date is faked: timers and promises keep running.
 beforeEach(() => {

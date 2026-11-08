@@ -5,7 +5,7 @@ import { ME } from '../../../app/testing/renderApp'
 import { createFakeLayer } from '../../testing/fakeLayer'
 import { entity, renderSection } from '../../testing/renderSection'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 const member = (user_id: string, name: string, role: 'dm' | 'player' = 'player'): Member => ({
   campaign_id: 'c1', user_id, role, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',

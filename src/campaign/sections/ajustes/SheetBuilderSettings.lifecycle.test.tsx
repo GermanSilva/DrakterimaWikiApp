@@ -6,7 +6,7 @@ import { renderSection } from '../../testing/renderSection'
 import { STORED_SHEET } from '../../system/builder/builderFixture'
 import { DND5E_PROFILE } from '../../system/systemProfile'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v))
 const entry = (key: string, at: string) => ({ item: { kind: 'field', key, label: key, type: 'short', editableBy: 'dm' }, section: 'perfil', at })

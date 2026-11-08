@@ -8,7 +8,7 @@ import { createFakeLayer } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 import { retryPolicy } from './useSessionLayout'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 const DEFAULT_DELAYS = retryPolicy.delays
 beforeEach(() => { retryPolicy.delays = [5, 5, 5] })

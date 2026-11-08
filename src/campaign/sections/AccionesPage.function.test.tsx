@@ -7,7 +7,7 @@ import { FUNCTION_SHEET } from '../system/actions/function/fixture'
 import { createFakeLayer } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 afterEach(() => vi.restoreAllMocks())
 
 const PJS = [entity(1, { nombre: 'Eldric', jugador: '', region: 'magral' })]

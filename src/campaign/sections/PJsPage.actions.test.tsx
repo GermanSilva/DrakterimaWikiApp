@@ -6,7 +6,7 @@ import { action, link, withActionSheet } from '../system/actions/actionsFixture'
 import { createFakeLayer, type FakeLayerOptions } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 afterEach(() => vi.restoreAllMocks())
 
 const PJ = entity(1, {

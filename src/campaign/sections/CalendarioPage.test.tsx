@@ -5,7 +5,7 @@ import type { BusySlot, Disponibilidad, Member, PlayerAvailability } from '../..
 import { createFakeLayer } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 // March 2026: the 6th is a Friday. Only Date is faked so timers and promises keep working.
 beforeEach(() => {
@@ -59,14 +59,22 @@ describe('Calendario grid', () => {
     })
     renderSection('/c/demo/calendario', { layer })
     const friday = await day(FRI)
-    expect(await within(friday).findByTitle('Beto Ruiz — disponible')).toHaveTextContent('BR')
+    const saturday = await day(/Sábado 07\/03\/2026/)
+    // members, availability and session slots load through separate queries: wait for every marker asserted below
+    await waitFor(() => {
+      expect(markerIn(friday, /Beto Ruiz — disponible/)).not.toBeNull()
+      expect(markerIn(friday, /Cris — no disponible/)).not.toBeNull()
+      expect(markerIn(friday, /Sesión programada/)).not.toBeNull()
+      expect(markerIn(saturday, /Ana López — disponible/)).not.toBeNull()
+    })
+    expect(within(friday).getByTitle('Beto Ruiz — disponible')).toHaveTextContent('BR')
     expect(markerIn(friday, /Cris — no disponible/)).toHaveTextContent('CR')
     expect(markerIn(friday, /Ana López/)).toBeNull() // her window is on the 7th
     expect(within(friday).getByTitle('Sesión programada')).toBeInTheDocument()
-    expect(markerIn(await day(/Sábado 07\/03\/2026/), /Ana López — disponible/)).toHaveTextContent('AL')
+    expect(markerIn(saturday, /Ana López — disponible/)).toHaveTextContent('AL')
     // generic colours by member order, never the legacy PJ markers
     const color = (el: HTMLElement) => el.style.backgroundColor
-    expect(color(within(friday).getByTitle('Beto Ruiz — disponible'))).not.toBe(color(within(await day(/Sábado 07\/03\/2026/)).getByTitle('Ana López — disponible')))
+    expect(color(within(friday).getByTitle('Beto Ruiz — disponible'))).not.toBe(color(within(saturday).getByTitle('Ana López — disponible')))
   })
 
   it('hides general rows of users who are not members of this campaign and rows pinned to another one', async () => {

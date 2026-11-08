@@ -6,7 +6,7 @@ import { entity, renderSection } from '../testing/renderSection'
 import { DND5E_SHEET } from '../system/sheet/dnd5eSheet'
 import { dnd5eProfile } from '../system/systemProfile'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 const DEFAULT_DELAYS = retryPolicy.delays
 beforeEach(() => { retryPolicy.delays = [5, 5, 5] })

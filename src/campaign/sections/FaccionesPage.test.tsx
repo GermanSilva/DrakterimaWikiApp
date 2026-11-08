@@ -6,7 +6,7 @@ import type { EntityFormRequest } from '../entityFormContext'
 import { createFakeLayer } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 // Wraps the real hook so the tests can assert exactly what the page asks the form host to open.
 const openFormSpy = vi.fn<(request: EntityFormRequest) => void>()

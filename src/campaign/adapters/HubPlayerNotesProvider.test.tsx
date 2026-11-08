@@ -78,7 +78,7 @@ describe('hub player notes port: all()', () => {
     expect(getPort().all()).toEqual([])
     act(() => getPort().reload?.())
     await waitFor(() => expect(getPort().failed).toBe(false))
-    expect(getPort().all()).toHaveLength(1)
+    await waitFor(() => expect(getPort().all()).toHaveLength(1)) // the flag clears when the retry starts, the notes land after it
     errorSpy.mockRestore()
   })
 

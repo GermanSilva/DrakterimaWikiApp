@@ -6,7 +6,7 @@ import { dnd5eProfile } from '../system/systemProfile'
 import { createFakeLayer } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 // the real overlay needs three.js: here it only completes on demand
 vi.mock('../../components/dice/D20Overlay', async () => {

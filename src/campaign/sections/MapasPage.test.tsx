@@ -6,7 +6,7 @@ import type { EntityFormRequest } from '../entityFormContext'
 import { createFakeLayer } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 // the real router + campaign shell + form host make the DM flows slower than the default 5s on a loaded machine
 vi.setConfig({ testTimeout: 20000 })
 

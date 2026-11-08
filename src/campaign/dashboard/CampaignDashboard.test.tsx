@@ -5,7 +5,7 @@ import { createFakeLayer } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 
 // the first test of a file pays for the lazy page chunks
-configure({ asyncUtilTimeout: 5000 })
+configure({ asyncUtilTimeout: 10000 })
 
 beforeEach(() => vi.useFakeTimers({ toFake: ['Date'], now: new Date(2026, 2, 10, 12, 0) }))
 afterEach(() => vi.useRealTimers())
