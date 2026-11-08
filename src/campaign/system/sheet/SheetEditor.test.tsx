@@ -32,6 +32,8 @@ const saved = (actions: FormActions) => {
   fireEvent.click(screen.getByRole('button', { name: 'Guardar' }))
   return (actions.save as ReturnType<typeof vi.fn>).mock.calls[0] as [string, Record<string, unknown>]
 }
+const openTable = (label: string, verb = 'Editar') => fireEvent.click(screen.getByRole('button', { name: `${verb} ${label}` }))
+const listo = () => fireEvent.click(screen.getByRole('button', { name: 'Listo' }))
 const isLocked = (el: HTMLElement) => el.hasAttribute('readonly') || (el as HTMLInputElement).disabled
 
 describe('tabs and identity', () => {
@@ -172,13 +174,16 @@ describe('player: only what the guard allows is editable, the rest is read-only'
     expect(isLocked(screen.getByLabelText('Sigilo Bonus'))).toBe(true) // DM row
   })
 
-  it('tables: a player table has the row editor, a DM table is read-only with no buttons', () => {
+  it('tables: a player table opens the row editor, a DM table opens read-only with no buttons', () => {
     player()
     tab('Mecánicas')
-    expect(screen.getByRole('button', { name: 'Agregar fila a Diario' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Agregar fila a Espacios' })).toBeNull()
-    expect(screen.queryByRole('button', { name: /Restablecer Gastados/ })).toBeNull() // gastados is in a DM table
+    expect(screen.queryByRole('button', { name: 'Editar Espacios' })).toBeNull()
+    openTable('Diario')
+    expect(screen.getByRole('button', { name: 'Agregar fila' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Restablecer Horas (fila 1 de Diario)' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }))
+    openTable('Espacios', 'Ver')
+    expect(screen.queryByRole('button', { name: /Agregar fila|Restablecer|Quitar|Listo/ })).toBeNull() // gastados is in a DM table
     expect(isLocked(screen.getByLabelText('Nivel (fila 1 de Espacios)'))).toBe(true)
     expect(screen.getByLabelText('Nivel (fila 1 de Espacios)')).toHaveValue(3)
   })
@@ -202,10 +207,12 @@ describe('row editors (S16 A12 reset, sorted display)', () => {
   it('shows the table in its sortBy order but edits and resets the STORED row', () => {
     const actions = mount({}, { ...ENTITY, espacios: rows })
     tab('Mecánicas')
+    openTable('Espacios')
     expect(cells('Nivel')).toEqual(['1', '2', '3']) // sorted by nivel
     // the first DISPLAYED row is stored row 1 (id b): editing it must not touch stored row 0
     fireEvent.change(screen.getByLabelText('Total (fila 1 de Espacios)'), { target: { value: '6' } })
     fireEvent.click(screen.getByRole('button', { name: 'Restablecer Gastados (fila 1 de Espacios)' })) // to the total of its OWN row: 6
+    listo()
     const patch = saved(actions)[1].espacios as Record<string, unknown>[]
     expect(patch).toEqual([rows[0], { id: 'b', nivel: 1, total: 6, gastados: 6 }, rows[2]])
   })
@@ -213,16 +220,24 @@ describe('row editors (S16 A12 reset, sorted display)', () => {
   it('reset buttons exist only for number columns with a reset, icon-only with an accessible name', () => {
     mount({}, { ...ENTITY, espacios: rows })
     tab('Mecánicas')
+    openTable('Espacios')
     const resets = screen.getAllByRole('button', { name: /Restablecer/ })
-    expect(resets).toHaveLength(3 + 1) // espacios gastados x3, diario horas x1 (no conjuros stored)
+    expect(resets).toHaveLength(3) // espacios gastados x3
     for (const button of resets) expect(button.textContent).toBe('')
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar' }))
+    openTable('Diario')
+    expect(screen.getAllByRole('button', { name: /Restablecer/ })).toHaveLength(1) // diario horas x1 (no conjuros stored)
   })
 
   it('reset to zero and to a fixed value', () => {
     const actions = mount({}, { ...ENTITY, diario: [{ id: 1, texto: 'x', horas: 5 }], conjuros: [{ id: 1, nombre: 'Luz', categoria: 'a', mana: 1 }] })
     tab('Mecánicas')
+    openTable('Diario')
     fireEvent.click(screen.getByRole('button', { name: 'Restablecer Horas (fila 1 de Diario)' }))
+    listo()
+    openTable('Conjuros')
     fireEvent.click(screen.getByRole('button', { name: 'Restablecer Mana (fila 1 de Conjuros)' }))
+    listo()
     const data = saved(actions)[1]
     expect(data.diario).toEqual([{ id: 1, texto: 'x', horas: 0 }])
     expect(data.conjuros).toEqual([{ id: 1, nombre: 'Luz', categoria: 'a', mana: 9 }])
@@ -231,9 +246,11 @@ describe('row editors (S16 A12 reset, sorted display)', () => {
   it('adds a row with a new unique id and removes the displayed row it was asked to', () => {
     const actions = mount({}, { ...ENTITY, espacios: rows })
     tab('Mecánicas')
-    fireEvent.click(screen.getByRole('button', { name: 'Agregar fila a Espacios' }))
+    openTable('Espacios')
+    fireEvent.click(screen.getByRole('button', { name: 'Agregar fila' }))
     expect(cells('Nivel')).toHaveLength(4)
     fireEvent.click(screen.getByRole('button', { name: 'Quitar fila 1 de Espacios' })) // displayed first = stored 'b'
+    listo()
     const draft = saved(actions)[1].espacios as Record<string, unknown>[]
     expect(draft.map((r) => r.id)).toEqual(['a', 'c', 1]) // 'b' gone; the new row got an id none of the others has
   })
@@ -241,6 +258,7 @@ describe('row editors (S16 A12 reset, sorted display)', () => {
   it('formula columns of a row are read-only values', () => {
     mount({}, { ...ENTITY, diario: [{ id: 1, texto: 'x', horas: 5 }] })
     tab('Mecánicas')
+    openTable('Diario')
     const doble = screen.getByLabelText('Doble (fila 1 de Diario)')
     expect(doble).toHaveValue('10')
     expect(isLocked(doble)).toBe(true)

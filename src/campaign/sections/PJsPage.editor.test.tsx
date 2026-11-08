@@ -20,6 +20,9 @@ const call = (spies: Spies) => {
   return { table, target, patch }
 }
 const stamped = (patch: Record<string, unknown>) => Object.keys((patch.sections_updated ?? {}) as Record<string, string>).sort()
+const modalEl = () => screen.getByRole('dialog', { name: 'Espacios' })
+const openEspacios = (verb = 'Editar') => fireEvent.click(within(dialogEl()).getByRole('button', { name: `${verb} Espacios` }))
+const listo = () => fireEvent.click(within(modalEl()).getByRole('button', { name: 'Listo' }))
 const tab = (name: string) => fireEvent.click(within(dialogEl()).getByRole('button', { name }))
 
 async function openEditor(opts: { url?: string; isDM?: boolean; campaign?: Record<string, unknown>; pjs?: unknown[] } = {}) {
@@ -98,7 +101,9 @@ describe('DM saves from the sheet editor', () => {
   it('accidental zero rows are not persisted: an added blank row alone writes nothing, next to a real one it is dropped', async () => {
     const blank = await openEditor()
     tab('Mecánicas')
-    fireEvent.click(within(dialogEl()).getByRole('button', { name: 'Agregar fila a Espacios' }))
+    openEspacios()
+    fireEvent.click(within(modalEl()).getByRole('button', { name: 'Agregar fila' }))
+    listo()
     fireEvent.click(within(dialogEl()).getByRole('button', { name: 'Guardar' }))
     await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
     expect(blank.spies.saveEntityWithDmNotes).not.toHaveBeenCalled()
@@ -107,10 +112,12 @@ describe('DM saves from the sheet editor', () => {
   it('a real new row is saved with a new id; the blank rows next to it are dropped; coins are written as integers', async () => {
     const { spies } = await openEditor()
     tab('Mecánicas')
-    const add = within(dialogEl()).getByRole('button', { name: 'Agregar fila a Espacios' })
+    openEspacios()
+    const add = within(modalEl()).getByRole('button', { name: 'Agregar fila' })
     fireEvent.click(add)
     fireEvent.click(add)
-    fireEvent.change(within(dialogEl()).getAllByLabelText(/^Nivel \(fila \d+ de Espacios\)$/)[2], { target: { value: '5' } }) // displayed last (sorted: empty cells last)
+    fireEvent.change(within(modalEl()).getAllByLabelText(/^Nivel \(fila \d+ de Espacios\)$/)[2], { target: { value: '5' } }) // displayed last (sorted: empty cells last)
+    listo()
     fireEvent.change(within(dialogEl()).getByLabelText('Oro (en mano) (Monedas)'), { target: { value: '9' } })
     fireEvent.click(within(dialogEl()).getByRole('button', { name: 'Guardar' }))
     await waitFor(() => expect(spies.saveEntityWithDmNotes).toHaveBeenCalledTimes(1))
@@ -172,7 +179,9 @@ describe('the player who owns the character', () => {
     tab('Mecánicas')
     fireEvent.change(within(dialogEl()).getByLabelText('Fuerza'), { target: { value: '15' } })
     fireEvent.change(within(dialogEl()).getByLabelText('Destreza'), { target: { value: '20' } })
-    fireEvent.change(within(dialogEl()).getByLabelText('Nivel (fila 1 de Espacios)'), { target: { value: '8' } })
+    openEspacios('Ver') // a DM table: the player can only look, whatever the form state holds
+    expect(within(modalEl()).getByLabelText('Nivel (fila 1 de Espacios)')).toHaveAttribute('readonly')
+    fireEvent.click(within(modalEl()).getByRole('button', { name: 'Cerrar' }))
     fireEvent.change(within(dialogEl()).getByLabelText('Oro (en mano) (Monedas)'), { target: { value: '99' } })
     fireEvent.click(within(dialogEl()).getByRole('button', { name: 'Guardar' }))
     await waitFor(() => expect(spies.saveEntityWithDmNotes).toHaveBeenCalledTimes(1))

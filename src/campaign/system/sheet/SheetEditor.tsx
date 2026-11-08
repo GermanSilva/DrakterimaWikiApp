@@ -9,7 +9,6 @@
  * one place that decides what is sent.
  */
 import { Fragment, useId, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
-import { Plus, RotateCcw, X } from 'lucide-react'
 import { EstadoField, FormGroup, FormRow } from '../../../components/forms/formFields'
 import { btnDanger, btnPrimary, btnSecondary, inputCls, labelCls } from '../../../constants'
 import type { FlatEntity } from '../../../data'
@@ -17,8 +16,9 @@ import { useFormActions, useFormPort, useFormSystem } from '../../../ports'
 import { ActionLinksPanel } from '../actions/ActionLinksPanel'
 import { Computed, Control, type ControlSpec } from './Control'
 import { LOCKED, textOf } from './controlValues'
+import { TableRowsModal } from './TableRowsModal'
 import { resolveSheetItems, type ResolvedItem } from './resolveSheet'
-import { addRow, removeRow, resetCell, setAmount, setCell, setKey, sheetPatch, writeRules } from './sheetEditorModel'
+import { setAmount, setKey, sheetPatch, writeRules } from './sheetEditorModel'
 import type { Column, Field, Sheet, Table } from './sheetModel'
 
 type Draft = Record<string, unknown>
@@ -118,70 +118,32 @@ function CapacidadesWidget({ table, resolved, editable, draft, setDraft }: { tab
   )
 }
 
-/** Libre / Habilidad: a row editor. Every edit addresses the STORED row (`storedIndex`), whatever order the table is shown in. */
+/** Libre / Habilidad: only the title, the row count and a button in the main form; the rows are edited in a modal (S40). */
 function RowsWidget({ sheet, table, resolved, editable, draft, setDraft }: { sheet: Sheet; table: RowTable; resolved: Resolved<'rows'>; editable: boolean; draft: Draft; setDraft: Dispatch<SetStateAction<Draft>> }) {
-  const stored = Array.isArray(draft[table.key]) ? (draft[table.key] as unknown[]) : []
+  const [open, setOpen] = useState(false)
+  const count = resolved.rows.length
   return (
-    <div className="px-8 mb-[18px] overflow-x-auto">
-      <div className="flex items-center justify-between mb-1.5">
+    <div className="px-8 mb-[18px] flex items-center justify-between gap-3">
+      <div>
         <div className={labelCls}>{table.label}</div>
-        {editable && (
-          <button type="button" className={`${btnSecondary} flex items-center gap-1.5`} aria-label={`Agregar fila a ${table.label}`} onClick={() => setDraft((prev) => addRow(prev, table.key))}>
-            <Plus size={13} /> Agregar fila
-          </button>
-        )}
+        <div className="text-[12px] text-txt-muted">{count === 0 ? 'Sin filas' : count === 1 ? '1 fila' : `${count} filas`}</div>
       </div>
-      <table className="w-full text-[13px]" aria-label={table.label}>
-        <thead>
-          <tr>
-            {table.columns.map((column) => (
-              <th key={column.key} className={`${labelCls} text-left`}>
-                {column.label}
-              </th>
-            ))}
-            {editable && <th aria-hidden="true" />}
-          </tr>
-        </thead>
-        <tbody>
-          {resolved.rows.map((shown, position) => {
-            const index = resolved.storedIndex[position]
-            const row = isRecord(stored[index]) ? (stored[index] as Draft) : {}
-            const rowLabel = `fila ${position + 1}`
-            return (
-              <tr key={String(row.id ?? `i${index}`)}>
-                {table.columns.map((column) => {
-                  const label = `${column.label} (${rowLabel} de ${table.label})`
-                  const computed = column.formula !== undefined
-                  const value = computed ? shown[column.key] : row[column.key]
-                  return (
-                    <td key={column.key} className="pr-2 py-1">
-                      <div className="flex items-center gap-1">
-                        {computed ? (
-                          <Computed label={label} text={typeof value === 'number' ? String(Math.round(value * 100) / 100) : value === true ? 'Sí' : value === false ? 'No' : textOf(value)} />
-                        ) : (
-                          <Control label={label} type={column.type} editable={editable} value={value} options={optionsOf(column)} display={column.display} default={column.default} onChange={(next) => setDraft((prev) => setCell(prev, table.key, index, column.key, next))} />
-                        )}
-                        {editable && column.reset && column.type === 'number' && (
-                          <button type="button" className="cursor-pointer bg-transparent border-none text-txt-muted hover:text-accent-bright p-1" aria-label={`Restablecer ${column.label} (${rowLabel} de ${table.label})`} title="Restablecer" onClick={() => setDraft((prev) => resetCell(sheet, prev, table.key, index, column.key))}>
-                            <RotateCcw size={14} />
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  )
-                })}
-                {editable && (
-                  <td>
-                    <button type="button" className="cursor-pointer bg-transparent border-none text-txt-muted hover:text-accent-bright p-1" aria-label={`Quitar ${rowLabel} de ${table.label}`} title="Quitar fila" onClick={() => setDraft((prev) => removeRow(prev, table.key, index))}>
-                      <X size={14} />
-                    </button>
-                  </td>
-                )}
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
+      <button type="button" className={btnSecondary} aria-label={`${editable ? 'Editar' : 'Ver'} ${table.label}`} onClick={() => setOpen(true)}>
+        {editable ? 'Editar' : 'Ver'}
+      </button>
+      {open && (
+        <TableRowsModal
+          sheet={sheet}
+          table={table}
+          draft={draft}
+          editable={editable}
+          onClose={() => setOpen(false)}
+          onApply={(rows) => {
+            if (rows !== undefined) setDraft((prev) => setKey(prev, table.key, rows))
+            setOpen(false)
+          }}
+        />
+      )}
     </div>
   )
 }
