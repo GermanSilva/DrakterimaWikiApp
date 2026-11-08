@@ -47,18 +47,19 @@ describe('CampaignLayout loading', () => {
 })
 
 describe('topbar pre-title', () => {
-  const topbar = () => within(document.querySelector('header')!)
+  // the header mounts with the campaign, not with the first h1 (which can be a loading/error screen)
+  const topbar = async () => within(await waitFor(() => { const h = document.querySelector('header'); expect(h).not.toBeNull(); return h! }))
 
   it('shows the branding pre-title in the topbar, above the name', async () => {
     renderApp('/c/demo', { data: dataFor(makeCampaign({ branding: { tagline: '  Que empiece la aventura ' } })) })
     await screen.findByRole('heading', { level: 1 })
-    expect(topbar().getByText('Que empiece la aventura')).toBeInTheDocument()
+    expect((await topbar()).getByText('Que empiece la aventura')).toBeInTheDocument()
   })
 
   it('cuts a legacy pre-title longer than 35 characters', async () => {
     renderApp('/c/demo', { data: dataFor(makeCampaign({ branding: { tagline: 'y'.repeat(50) } })) })
     await screen.findByRole('heading', { level: 1 })
-    expect(topbar().getByText('y'.repeat(34) + '…')).toBeInTheDocument()
+    expect((await topbar()).getByText('y'.repeat(34) + '…')).toBeInTheDocument()
   })
 
   it.each([
@@ -69,6 +70,7 @@ describe('topbar pre-title', () => {
   ])('renders no pre-title for a %s value', async (_name, branding) => {
     renderApp('/c/demo', { data: dataFor(makeCampaign({ branding })) })
     await screen.findByRole('heading', { level: 1 })
+    await topbar()
     expect(document.querySelector('header [data-testid="topbar-pretitle"]')).toBeNull()
   })
 })

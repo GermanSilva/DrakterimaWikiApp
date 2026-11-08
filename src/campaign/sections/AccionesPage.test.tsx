@@ -94,7 +94,8 @@ describe('Acciones: catalogue', () => {
   it('marks an entry private to a character with that character name', async () => {
     open()
     const rasgos = await screen.findByRole('region', { name: 'Rasgos' })
-    expect(within(rasgos).getByText('Privada de Eldric')).toBeInTheDocument()
+    // the character names load apart from the actions: until they arrive the label falls back to "personaje N"
+    expect(await within(rasgos).findByText('Privada de Eldric')).toBeInTheDocument()
   })
 
   it('searches by name', async () => {
