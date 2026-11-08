@@ -204,3 +204,49 @@ describe('sortBy keeps editing the stored row', () => {
     expect(saved(actions)[1].espacios).toEqual([rows[0], { id: 'b', nivel: 1, total: 6, gastados: 6 }, rows[2]])
   })
 })
+
+describe('staging feedback: repeated title and checkbox defaults', () => {
+  const SAME = {
+    categories: [
+      {
+        key: 'combate', label: 'Combate',
+        sections: [
+          {
+            key: 'ataques_sec', label: 'Ataques',
+            items: [
+              {
+                kind: 'table', type: 'libre', key: 'ataques', label: 'Ataques', editableBy: 'player',
+                columns: [col('arma', 'short', { editableBy: 'player' }), col('portando', 'boolean', { editableBy: 'player', default: true })],
+              },
+            ],
+            blocks: [],
+          },
+        ],
+      },
+    ],
+    roles: {},
+  }
+  const parsedSame = validateSheet(SAME)
+  if (!parsedSame.ok) throw new Error(JSON.stringify(parsedSame.errors))
+
+  it('does not repeat the table title when its section has the same name', () => {
+    mount(parsedSame.sheet, {}, { ...ENTITY, ataques: [] })
+    const section = screen.getByRole('region', { name: 'Ataques' })
+    expect(within(section).getAllByText('Ataques')).toHaveLength(1)
+    expect(within(section).getByText('Sin filas')).toBeInTheDocument()
+    expect(within(section).getByRole('button', { name: 'Editar Ataques' })).toBeInTheDocument()
+  })
+
+  it('keeps the table title when the section has another name', () => {
+    mountAtaques()
+    expect(within(screen.getByRole('region', { name: 'Armas' })).getByText('Ataques')).toBeInTheDocument()
+  })
+
+  it('a new row shows a boolean column with default true as checked, and an explicit false unchecked', () => {
+    mount(parsedSame.sheet, {}, { ...ENTITY, ataques: [{ id: 'x', arma: 'Daga', portando: false }] })
+    fireEvent.click(screen.getByRole('button', { name: 'Editar Ataques' }))
+    expect(within(row('Ataques', 1)).getByLabelText('Portando')).not.toBeChecked()
+    fireEvent.click(within(modal('Ataques')).getByRole('button', { name: 'Agregar fila' }))
+    expect(within(row('Ataques', 2)).getByLabelText('Portando')).toBeChecked()
+  })
+})

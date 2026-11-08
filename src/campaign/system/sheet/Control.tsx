@@ -28,7 +28,7 @@ export function Control({ label, type, editable, value, min, max, options = [], 
     return <input id={id} aria-label={name ?? (id ? undefined : label)} className={`${inputCls} ${editable ? '' : LOCKED}`} type="number" min={min} max={max} value={numberText(value)} readOnly={!editable} onBlur={onBlur} onChange={(e) => onChange(toNumber(e.target.value))} />
   }
   if (type === 'boolean') {
-    return <input id={id} aria-label={name ?? (id ? undefined : label)} type="checkbox" checked={value === true} disabled={!editable} onChange={(e) => onChange(e.target.checked)} />
+    return <input id={id} aria-label={name ?? (id ? undefined : label)} type="checkbox" checked={typeof value === 'boolean' ? value : fallback === true} disabled={!editable} onChange={(e) => onChange(e.target.checked)} />
   }
   if (type === 'options') {
     const selected = typeof value === 'string' && options.some((o) => o.key === value) ? value : typeof fallback === 'string' ? fallback : ''

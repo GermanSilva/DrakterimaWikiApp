@@ -119,13 +119,14 @@ function CapacidadesWidget({ table, resolved, editable, draft, setDraft }: { tab
 }
 
 /** Libre / Habilidad: only the title, the row count and a button in the main form; the rows are edited in a modal (S40). */
-function RowsWidget({ sheet, table, resolved, editable, draft, setDraft }: { sheet: Sheet; table: RowTable; resolved: Resolved<'rows'>; editable: boolean; draft: Draft; setDraft: Dispatch<SetStateAction<Draft>> }) {
+function RowsWidget({ sheet, table, resolved, editable, draft, setDraft, hideTitle = false }: { sheet: Sheet; table: RowTable; resolved: Resolved<'rows'>; editable: boolean; draft: Draft; setDraft: Dispatch<SetStateAction<Draft>>; hideTitle?: boolean }) {
   const [open, setOpen] = useState(false)
   const count = resolved.rows.length
   return (
     <div className="px-8 mb-[18px] flex items-center justify-between gap-3">
       <div>
-        <div className={labelCls}>{table.label}</div>
+        {/* the section heading already names a table with the same title */}
+        {!hideTitle && <div className={labelCls}>{table.label}</div>}
         <div className="text-[12px] text-txt-muted">{count === 0 ? 'Sin filas' : count === 1 ? '1 fila' : `${count} filas`}</div>
       </div>
       <button type="button" className={btnSecondary} aria-label={`${editable ? 'Editar' : 'Ver'} ${table.label}`} onClick={() => setOpen(true)}>
@@ -147,6 +148,8 @@ function RowsWidget({ sheet, table, resolved, editable, draft, setDraft }: { she
     </div>
   )
 }
+
+const sameTitle = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
 
 /** Amounts per denomination: the coin table (carried and stored) and the economy tables. DM only. */
 function AmountsWidget({ title, denominations, keys, editable, draft, setDraft }: { title: string; denominations: { key: string; label: string }[]; keys: { key: string; suffix: string }[]; editable: boolean; draft: Draft; setDraft: Dispatch<SetStateAction<Draft>> }) {
@@ -347,7 +350,7 @@ export default function SheetEditor({ item, openPicker }: Props) {
               if ((entry.type === 'libre' || entry.type === 'habilidad') && done?.kind === 'rows') {
                 return (
                   <Fragment key={entry.key}>
-                    <RowsWidget sheet={sheet} table={entry} resolved={done} editable={editable(entry.key)} draft={draft} setDraft={setDraft} />
+                    <RowsWidget sheet={sheet} table={entry} resolved={done} editable={editable(entry.key)} draft={draft} setDraft={setDraft} hideTitle={sameTitle(entry.label, section.label)} />
                     {entry.type === 'habilidad' && item?.id !== undefined && <ActionLinksPanel table={entry} pjId={item.id} isDM={isDM} />}
                   </Fragment>
                 )
