@@ -1,4 +1,4 @@
-import { vi } from 'vitest'
+import { beforeAll, vi } from 'vitest'
 import { makeCampaign, makeData, renderApp } from '../../app/testing/renderApp'
 import type { CampaignWithRole, DataLayer, FlatEntity } from '../../data'
 
@@ -26,6 +26,15 @@ function installIntersectionObserver() {
   }
   vi.stubGlobal('IntersectionObserver', StubObserver)
 }
+
+/**
+ * The section pages are lazy chunks. The first render of a file paid for transforming and evaluating the page graph
+ * inside its first findBy*, which overran the 5s budget when the machine was saturated (12 workers reproduced it).
+ * Loading them before the file's tests makes each test wait only for what it asserts.
+ */
+beforeAll(async () => {
+  await Promise.all(Object.values(import.meta.glob('../sections/*Page.tsx')).map((load) => load()))
+}, 60_000)
 
 export interface RenderSectionOptions {
   layer: DataLayer
