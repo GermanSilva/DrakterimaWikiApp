@@ -58,7 +58,7 @@ export function ListEditor<T extends { uid: number }>({
     const target = index + delta
     if (target < 0 || target >= items.length) return
     const next = [...items]
-    ;[next[index], next[target]] = [next[target], next[index]]
+      ;[next[index], next[target]] = [next[target], next[index]]
     onChange(next)
   }
   const update = (uid: number) => (patch: Partial<T>) => onChange(items.map((it) => (it.uid === uid ? { ...it, ...patch } : it)))
@@ -71,7 +71,7 @@ export function ListEditor<T extends { uid: number }>({
           const policy = removal(item)
           const reasonId = `${listId}-${item.uid}-reason`
           return (
-            <li key={item.uid} aria-label={name} className="bg-bg-card border border-border-base px-4 py-3 flex flex-col gap-3">
+            <li key={item.uid} aria-label={name} className="bg-bg-card border-l-4 border-accent-dim pl-2 flex flex-col gap-3">
               <div className="flex items-start gap-3">
                 <div className="flex-1 min-w-0">{renderFields(item, update(item.uid))}</div>
                 <div className="flex gap-1 shrink-0">
@@ -94,7 +94,7 @@ export function ListEditor<T extends { uid: number }>({
                 </div>
               </div>
               {policy.blocked && (
-                <p id={reasonId} className="text-[12px] text-txt-muted">
+                <p id={reasonId} className="text-[12px] text-txt-muted p-1 bg-red-950 border-2 border-red-600">
                   {policy.blocked}
                 </p>
               )}
