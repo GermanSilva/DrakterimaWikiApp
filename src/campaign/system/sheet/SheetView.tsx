@@ -3,6 +3,7 @@
  * display mode. Section ids are `pj-section-<key>` so the nav, the unread observer and the scroll offsets of PJDetail
  * work unchanged. Copy and classes follow today's detail sections (src/pages/pj/detail) on purpose.
  */
+import { ChevronDown } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import UnreadDot from '../../../components/UnreadDot'
 import WikiText from '../../../components/WikiText'
@@ -324,25 +325,58 @@ function Block({ block, sectionLabel }: { block: ResolvedBlock; sectionLabel: st
   )
 }
 
-export default function SheetView({ resolved, unread }: { resolved: ResolvedSheet; unread: Record<string, boolean> }) {
+function Section({ section, unread, open, onToggle }: { section: ResolvedSheet['sections'][number]; unread: boolean | undefined; open: boolean; onToggle: () => void }) {
+  const contentId = useId()
+  return (
+    <div id={`pj-section-${section.key}`} className="pt-4">
+      <h3 className={sectionTitleCls}>
+        <button type="button" aria-expanded={open} aria-controls={contentId} onClick={onToggle} className="flex items-center gap-2 w-full text-left font-[inherit] tracking-[inherit] uppercase text-inherit bg-transparent border-none p-0 cursor-pointer">
+          <ChevronDown size={16} aria-hidden="true" className={`shrink-0 transition-transform ${open ? '' : '-rotate-90'}`} />
+          <span>{section.label}</span>
+          <UnreadDot unread={unread} className="inline-block align-middle" />
+        </button>
+      </h3>
+      <div id={contentId} hidden={!open}>
+        <div className="flex flex-col gap-3">
+          {section.blocks
+            .filter((block) => !block.empty)
+            .map((block) => (
+              <Block key={block.key} block={block} sectionLabel={section.label} />
+            ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Every section starts expanded and the collapsed state is not kept. `reveal` is how the nav asks for a section:
+ * each new `n` expands `key` again, even when it was already asked before.
+ */
+export default function SheetView({ resolved, unread, reveal }: { resolved: ResolvedSheet; unread: Record<string, boolean>; reveal?: { key: string; n: number } | null }) {
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
+  useEffect(() => {
+    if (!reveal) return
+    const target = reveal.key
+    setCollapsed((prev) => {
+      if (!prev.has(target)) return prev
+      const next = new Set(prev)
+      next.delete(target)
+      return next
+    })
+  }, [reveal])
+  const toggle = (key: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev)
+      if (!next.delete(key)) next.add(key)
+      return next
+    })
   return (
     <div data-sheet-view>
       {resolved.sections
         .filter((section) => !section.empty)
         .map((section) => (
-          <div key={section.key} id={`pj-section-${section.key}`} className="pt-4">
-            <div className={sectionTitleCls}>
-              {section.label}
-              <UnreadDot unread={unread[section.key]} className="ml-2 inline-block align-middle" />
-            </div>
-            <div className="flex flex-col gap-3">
-              {section.blocks
-                .filter((block) => !block.empty)
-                .map((block) => (
-                  <Block key={block.key} block={block} sectionLabel={section.label} />
-                ))}
-            </div>
-          </div>
+          <Section key={section.key} section={section} unread={unread[section.key]} open={!collapsed.has(section.key)} onToggle={() => toggle(section.key)} />
         ))}
     </div>
   )

@@ -120,9 +120,11 @@ export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = f
   const [showStickyNav, setShowStickyNav] = useState(false)
   const { backBarRef, nameRef, showNameInHeader } = useStickyTitle()
   const [lightbox, setLightbox] = useState(false)
+  const [reveal, setReveal] = useState(null)
   const hasNav = visibleSections.length > 0 || hasDMNotes
 
   function scrollTo(id) {
+    setReveal(prev => ({ key: id, n: (prev?.n ?? 0) + 1 }))
     const el = document.getElementById(`${SECTION_ID_PREFIX}${id}`)
     if (!el) return
     const offset = HEADER_H + (backBarRef.current?.offsetHeight ?? 0) + (stickyNavRef.current?.offsetHeight ?? 0)
@@ -230,7 +232,7 @@ export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = f
       </div>
 
       {resolved
-        ? <SheetView resolved={resolved} unread={unread} />
+        ? <SheetView resolved={resolved} unread={unread} reveal={reveal} />
         : visibleSections.map(({ id, Component }) => (
           <Component key={id} pj={pj} unread={unread[id]} customFields={customFields} motivoLabel={motivoLabel} />
         ))}

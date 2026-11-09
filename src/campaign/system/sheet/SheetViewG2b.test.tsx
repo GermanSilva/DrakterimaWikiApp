@@ -189,7 +189,7 @@ describe('SheetView: tables with options columns and a default sort', () => {
     draw([section('magia', 'modal', [habilidad], { filterCategories: ['Trucos'] })], {
       hechizos: [{ nombre: 'Zap', categoria: 'Trucos', escuela: 'evo' }, { nombre: 'Aura', categoria: 'Trucos', escuela: 'abj' }],
     })
-    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['Aura', 'Zap'])
+    expect(screen.getAllByRole('button').filter((b) => !b.hasAttribute('aria-expanded')).map((b) => b.textContent)).toEqual(['Aura', 'Zap'])
     fireEvent.click(screen.getByText('Zap'))
     const dialog = screen.getByRole('dialog')
     expect(within(dialog).getByText('Escuela')).toBeTruthy()

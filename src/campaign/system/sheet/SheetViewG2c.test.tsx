@@ -42,7 +42,7 @@ describe('SheetView: action categories', () => {
     const { container } = draw([acciones], [block], pj)
     const titles = [...container.querySelectorAll('div')].map((d) => d.textContent).filter((t) => ['Trucos', 'Nivel 1', 'Otras'].includes(t ?? ''))
     expect(titles).toEqual(['Trucos', 'Nivel 1', 'Otras'])
-    expect(screen.getAllByRole('button').map((b) => b.textContent)).toEqual(['Luz', 'Rayo', 'Rara'])
+    expect(screen.getAllByRole('button').filter((b) => !b.hasAttribute('aria-expanded')).map((b) => b.textContent)).toEqual(['Luz', 'Rayo', 'Rara'])
     expect(screen.queryByText('nivel_1')).toBeNull()
   })
 
