@@ -337,10 +337,10 @@ export default function SheetEditor({ item, openPicker }: Props) {
           </div>
         )}
 
-        {category?.sections.map((section) => (
+        {category?.sections.map((section, i) => (
           <section key={section.key} aria-label={section.label}>
-            <div className="px-8 mt-5 mb-3">
-              <h3 className="font-exo text-[9px] font-semibold tracking-[0.25em] uppercase text-txt-muted border-t border-border-base pt-3">{section.label}</h3>
+            <div className={"px-8 mb-3 " + (i > 0 ? "mt-5" : "")}>
+              <h3 className={"font-exo text-[9px] font-semibold tracking-[0.25em] uppercase text-txt-muted text-red-700 " + (i > 0 ? "border-t border-border-base pt-3" : "")}>{section.label}</h3>
             </div>
             {section.items.map((entry) => {
               const done = resolved[entry.key]
