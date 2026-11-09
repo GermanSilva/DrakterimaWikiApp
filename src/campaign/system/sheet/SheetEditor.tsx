@@ -10,6 +10,7 @@
  */
 import { Fragment, useId, useMemo, useState, type Dispatch, type SetStateAction } from 'react'
 import { EstadoField, FormGroup, FormRow } from '../../../components/forms/formFields'
+import ScrollStrip from '../../../components/ScrollStrip'
 import { btnDanger, btnPrimary, btnSecondary, inputCls, labelCls } from '../../../constants'
 import type { FlatEntity } from '../../../data'
 import { useFormActions, useFormPort, useFormSystem } from '../../../ports'
@@ -252,18 +253,19 @@ export default function SheetEditor({ item, openPicker }: Props) {
             </button>
           )}
         </div>
-        <div className="flex gap-0 -mb-px overflow-x-auto">
+        <ScrollStrip activeKey={tab} className="-mb-px" stripClassName="flex gap-0">
           {tabs.map((t) => (
             <button
               key={t.key}
               type="button"
               className={`font-exo text-[11px] font-semibold tracking-[0.1em] uppercase px-5 py-2.5 border-none cursor-pointer transition-colors whitespace-nowrap ${tab === t.key ? 'text-txt-primary border-b-2 border-b-accent bg-transparent' : 'text-txt-muted bg-transparent hover:text-txt-secondary border-b-2 border-b-transparent'}`}
+              data-active={tab === t.key ? 'true' : undefined}
               onClick={() => setTab(t.key)}
             >
               {t.label}
             </button>
           ))}
-        </div>
+        </ScrollStrip>
       </div>
 
       <div className="pt-5">

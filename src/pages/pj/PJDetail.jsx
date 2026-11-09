@@ -11,6 +11,7 @@ import UnreadDot from '../../components/UnreadDot'
 import { isSectionUnreadVia } from '../../helpers/pjSections'
 import { LEGACY_CHARACTER_FIELDS } from '../../helpers/pjCustomFields'
 import { SECTION_SHOW } from './pjConstants'
+import ScrollStrip from '../../components/ScrollStrip'
 import LazyImg from '../../components/LazyImg'
 import { Lock, Shield } from 'lucide-react'
 import { detailTextCls } from '../../constants'
@@ -188,10 +189,10 @@ export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = f
       {showStickyNav && hasNav && (
         <div
           ref={stickyNavRef}
-          className="sticky z-10 bg-bg-card border-b border-border-base overflow-x-auto"
+          className="sticky z-10 bg-bg-card border-b border-border-base"
           style={{ top: HEADER_H + (backBarRef.current?.offsetHeight ?? 0) }}
         >
-          <div className="flex min-w-max">{navButtons}</div>
+          <ScrollStrip stripClassName="flex">{navButtons}</ScrollStrip>
         </div>
       )}
 
@@ -224,8 +225,8 @@ export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = f
           </div>
 
           {hasNav && (
-            <div ref={sentinelRef} className="overflow-x-auto border-b border-border-base">
-              <div className="flex flex-wrap min-w-fit">{navButtons}</div>
+            <div ref={sentinelRef} className="border-b border-border-base">
+              <ScrollStrip stripClassName="flex">{navButtons}</ScrollStrip>
             </div>
           )}
         </div>

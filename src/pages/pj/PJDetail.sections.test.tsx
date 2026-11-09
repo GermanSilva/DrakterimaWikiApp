@@ -36,3 +36,17 @@ describe('PJDetail: nav to a collapsed sheet section (S41)', () => {
     expect(screen.getByRole('button', { name: 'Uno', expanded: true })).toBeInTheDocument()
   })
 })
+
+describe('PJDetail: section nav in a scroll strip (S41)', () => {
+  it('draws the nav buttons inside a ScrollStrip', () => {
+    render(
+      <UnreadPortContext.Provider value={port}>
+        {/* @ts-expect-error PJDetail is untyped JS */}
+        <PJDetail pj={PJ} back={<span>volver</span>} sheet={SHEET} />
+      </UnreadPortContext.Provider>,
+    )
+    const strip = screen.getByTestId('scroll-strip')
+    expect(strip).toContainElement(screen.getAllByRole('button', { name: 'Uno' }).find((b) => !b.hasAttribute('aria-expanded')) as HTMLElement)
+    expect(strip).toContainElement(screen.getAllByRole('button', { name: 'Dos' }).find((b) => !b.hasAttribute('aria-expanded')) as HTMLElement)
+  })
+})
