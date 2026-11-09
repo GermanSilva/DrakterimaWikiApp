@@ -25,7 +25,6 @@ describe('PJDetail: nav to a collapsed sheet section (S41)', () => {
   it('expands the section the nav button points to', () => {
     render(
       <UnreadPortContext.Provider value={port}>
-        {/* @ts-expect-error PJDetail is untyped JS */}
         <PJDetail pj={PJ} back={<span>volver</span>} sheet={SHEET} />
       </UnreadPortContext.Provider>,
     )
@@ -41,7 +40,6 @@ describe('PJDetail: section nav in a scroll strip (S41)', () => {
   it('draws the nav buttons inside a ScrollStrip', () => {
     render(
       <UnreadPortContext.Provider value={port}>
-        {/* @ts-expect-error PJDetail is untyped JS */}
         <PJDetail pj={PJ} back={<span>volver</span>} sheet={SHEET} />
       </UnreadPortContext.Provider>,
     )
