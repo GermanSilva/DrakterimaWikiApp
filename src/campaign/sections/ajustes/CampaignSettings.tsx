@@ -16,9 +16,9 @@ interface Notice {
   text: string
 }
 
-function Field({ id, label, hint, error, children }: { id: string; label: string; hint?: string; error?: string; children: ReactNode }) {
+function Field({ id, label, hint, error, wide, children }: { id: string; label: string; hint?: string; error?: string; wide?: boolean; children: ReactNode }) {
   return (
-    <div>
+    <div className={wide ? 'md:col-span-2' : undefined}>
       <label htmlFor={id} className={labelCls}>
         {label}
       </label>
@@ -44,7 +44,7 @@ function Preview({ values }: { values: CampaignFormInput }) {
   const name = values.name.trim()
   const tagline = values.tagline.trim()
   return (
-    <div role="group" aria-label="Vista previa" style={accentStyle({ accent_color: accent })} className="bg-bg-mid border border-border-base px-4 py-3 flex flex-col gap-2">
+    <div role="group" aria-label="Vista previa" style={accentStyle({ accent_color: accent })} className="md:col-span-2 bg-bg-mid border border-border-base px-4 py-3 flex flex-col gap-2">
       <div className="flex items-center gap-2.5 min-w-0">
         {logo && <img src={logo} alt="" referrerPolicy="no-referrer" className="w-7 h-7 object-contain shrink-0" />}
         <span className="font-exo text-[17px] font-bold text-accent-bright tracking-[0.08em] uppercase truncate">{name || 'Nombre de la campaña'}</span>
@@ -79,7 +79,7 @@ function CampaignForm({ campaign, notice, onSave }: { campaign: Campaign; notice
   const colorPickerValue = parseAccentColor(values.accentColor.trim()) ?? parseAccentColor(campaign.branding?.accent_color) ?? FALLBACK_ACCENT
 
   return (
-    <form noValidate onSubmit={submit} aria-label="Datos de la campaña" className="bg-bg-card border border-border-base px-5 py-4 flex flex-col gap-4">
+    <form noValidate onSubmit={submit} aria-label="Datos de la campaña" className="bg-bg-card border border-border-base px-5 py-4 grid grid-cols-1 md:grid-cols-2 items-start gap-4">
       <Field id="campaign-slug" label="Identificador (slug)" hint="Es parte de la dirección de la campaña y no se puede cambiar.">
         <input id="campaign-slug" type="text" readOnly aria-readonly="true" aria-describedby="campaign-slug-hint" value={campaign.slug} className={inputCls + ' opacity-70 cursor-not-allowed'} />
       </Field>
@@ -134,7 +134,7 @@ function CampaignForm({ campaign, notice, onSave }: { campaign: Campaign; notice
         />
       </Field>
 
-      <Field id="campaign-accent" label="Color de acento (opcional)" hint="Formato #rrggbb. Dejalo vacío para usar el color por defecto." error={errors.accentColor}>
+      <Field id="campaign-accent" wide label="Color de acento (opcional)" hint="Formato #rrggbb. Dejalo vacío para usar el color por defecto." error={errors.accentColor}>
         <div className="flex items-center gap-3">
           <input
             type="color"
@@ -159,11 +159,11 @@ function CampaignForm({ campaign, notice, onSave }: { campaign: Campaign; notice
       <Preview values={values} />
 
       {notice && (
-        <p role={notice.kind === 'error' ? 'alert' : 'status'} className={notice.kind === 'error' ? 'text-[13px] text-red-400' : 'text-[13px] text-accent-bright'}>
+        <p role={notice.kind === 'error' ? 'alert' : 'status'} className={`md:col-span-2 text-[13px] ${notice.kind === 'error' ? 'text-red-400' : 'text-accent-bright'}`}>
           {notice.text}
         </p>
       )}
-      <div>
+      <div className="md:col-span-2">
         <button type="submit" className={btnSecondary} disabled={saving}>
           {saving ? 'Guardando…' : 'Guardar campaña'}
         </button>
