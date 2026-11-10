@@ -25,7 +25,12 @@ export interface OptionDef {
   key: string
   label: string
   formula?: string
+  /** Short marker (1 to 3 characters) a capacidades table shows before a row on this option, and its legend. */
+  mark?: string
 }
+
+/** The longest option mark, in characters (code points). */
+export const MARK_MAX = 3
 /** A computed field over one column of a Libre, Habilidad or coin table (`conteo` may count the rows). */
 export interface Calc {
   table: string
@@ -299,7 +304,9 @@ export function validateSheet(raw: unknown): SheetResult {
         const at = `${path}.options[${i}]`
         if (!isRecord(o)) return void fail(at, 'invalid option'), { key: '', label: '' }
         const formula = formulaOf(o.formula, `${at}.formula`)
-        return { key: plainKey(o.key, `${at}.key`, seen), label: label(o.label, `${at}.label`), ...(formula !== undefined ? { formula } : {}) }
+        const mark = o.mark === undefined ? undefined : label(o.mark, `${at}.mark`)
+        if (mark !== undefined && Array.from(mark).length > MARK_MAX) fail(`${at}.mark`, 'a mark has 1 to 3 characters')
+        return { key: plainKey(o.key, `${at}.key`, seen), label: label(o.label, `${at}.label`), ...(formula !== undefined ? { formula } : {}), ...(mark ? { mark } : {}) }
       })
     }
     const display: OptionDisplay = src.display === 'select' || src.display === 'checkbox' ? src.display : (fail(`${path}.display`, 'display must be select or checkbox'), 'select')

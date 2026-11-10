@@ -71,6 +71,8 @@ function OptionPanel({ path, index, count, label }: { path: Path; index: number;
     <Panel name={`Opción ${label}`} path={path}>
       <NameAndKey path={path} nameLabel="Nombre de la opción" keyLabel="Clave de la opción" scope="siblings" />
       <FormulaInput label="Fórmula de la opción" value={text(node.formula)} optional onChange={(v) => patch({ formula: v === '' ? undefined : v })} />
+      {/* S9 (ficha-indice-lateral): the marker a capacidades row on this option shows, and its legend */}
+      <TextInput label="Marca (hasta 3 caracteres, opcional)" value={text(node.mark)} onChange={(v) => patch({ mark: v === '' ? undefined : v })} />
       <ReorderButtons noun="opción" index={index} count={count} onMove={(delta) => edit((d) => moveIn(d, list, index, delta))} onRemove={() => requestRemoval(list, index)} />
     </Panel>
   )

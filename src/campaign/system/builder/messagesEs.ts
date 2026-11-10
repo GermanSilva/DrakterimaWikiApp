@@ -49,6 +49,7 @@ const SHEET_ERRORS: [RegExp, (m: RegExpMatchArray) => string][] = [
   [/^invalid option$/, () => 'La opción no es válida.'],
   [/^display must be select or checkbox$/, () => 'Elegí cómo se muestra: lista desplegable o casilla.'],
   [/^a checkbox has exactly two options$/, () => 'Una casilla tiene exactamente dos opciones.'],
+  [/^a mark has 1 to 3 characters$/, () => 'La marca tiene de 1 a 3 caracteres.'],
   [/^reset needs a custom number column/, () => 'El reinicio necesita una columna numérica propia (sin fórmula) de una tabla Libre o Habilidad.'],
   [/^invalid reset$/, () => 'El reinicio no es válido.'],
   [/^reset to a value needs a finite number$/, () => 'El reinicio a un valor necesita un número.'],

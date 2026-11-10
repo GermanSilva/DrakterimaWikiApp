@@ -171,6 +171,23 @@ describe('field editor: options', () => {
     })
   })
 
+  it('gives an option an optional mark of up to 3 characters, and says when it is too long (ficha-indice-lateral S9)', () => {
+    const stored = {
+      categories: [{ key: 'c', label: 'C', sections: [{ key: 's', label: 'S', blocks: [], items: [{ kind: 'field', key: 'rango', label: 'Rango', type: 'options', display: 'select', editableBy: 'dm', options: [{ key: 'u', label: 'Sin entrenar' }, { key: 'e', label: 'Entrenado' }] }] }] }],
+      roles: {},
+    }
+    const t = setup(stored)
+    click('Editar ítem', within(item('Rango')))
+    const f = item('Rango')
+    type(within(group(within(f), 'Opción Entrenado')).getByLabelText('Marca (hasta 3 caracteres, opcional)'), 'E')
+    expect(itemsOf(t.sheet())[0]).toMatchObject({ options: [{ key: 'u', label: 'Sin entrenar' }, { key: 'e', label: 'Entrenado', mark: 'E' }] })
+    type(within(group(within(f), 'Opción Entrenado')).getByLabelText('Marca (hasta 3 caracteres, opcional)'), 'Entr')
+    expect(screen.getAllByText(/La marca tiene de 1 a 3 caracteres\./).length).toBeGreaterThan(0)
+    type(within(group(within(f), 'Opción Entrenado')).getByLabelText('Marca (hasta 3 caracteres, opcional)'), '')
+    expect(itemsOf(t.sheet())[0]).toMatchObject({ options: [{ key: 'u' }, { key: 'e', label: 'Entrenado' }] })
+    expect((itemsOf(t.sheet())[0] as unknown as { options: Record<string, unknown>[] }).options[1]).not.toHaveProperty('mark')
+  })
+
   it('reorders and removes options, a saved option keeps its key, a checkbox display is offered', () => {
     const stored = {
       categories: [{ key: 'c', label: 'C', sections: [{ key: 's', label: 'S', blocks: [], items: [{ kind: 'field', key: 'modo', label: 'Modo', type: 'options', display: 'select', editableBy: 'dm', options: [{ key: 'a', label: 'A' }, { key: 'b', label: 'B' }, { key: 'c', label: 'Cc' }] }] }] }],

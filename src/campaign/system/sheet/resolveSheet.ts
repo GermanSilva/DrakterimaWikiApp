@@ -36,6 +36,8 @@ export interface Cell {
   value: Scalar
   text: string
   error: boolean
+  /** Options columns: the key of the selected option (stored, else the default), absent when none is. */
+  option?: string
 }
 
 /** What a row of a Libre/Habilidad table holds in an options column: the resolved value, how to show it, whether it failed. */
@@ -343,7 +345,17 @@ function build(sheet: Sheet, pj: Record<string, unknown>) {
   const cell = (table: CapacidadesTable, row: CapacidadRow, index: number): Cell => {
     const column = table.columns[index]
     const computed = cellValue(table, row, index)
-    return { key: column.key, label: column.label, type: column.type, ...(column.format ? { format: column.format } : {}), value: computed.value, text: computed.text ?? textOf(computed.value, column.format), error: computed.error }
+    const picked = column.type === 'options' && column.options ? pickOption({ options: column.options, default: column.default }, own(pj, index === 0 ? row.key : `${row.key}__${column.key}`)) : null
+    return {
+      key: column.key,
+      label: column.label,
+      type: column.type,
+      ...(column.format ? { format: column.format } : {}),
+      value: computed.value,
+      text: computed.text ?? textOf(computed.value, column.format),
+      error: computed.error,
+      ...(picked ? { option: picked.key } : {}),
+    }
   }
 
   const coinList = (raw: unknown, denominations: { key: string; label: string; value: number }[]): CoinAmount[] => {

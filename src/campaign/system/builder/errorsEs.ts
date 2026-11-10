@@ -32,7 +32,7 @@ const FIELD: Record<string, string> = {
   filterCategories: 'Categorías que muestra', columns: 'Columnas', rows: 'Filas', stat: 'Stat asociado', use: 'Usa', value: 'Valor', reset: 'Reinicio',
   scope: 'Pertenece a', sortBy: 'Orden', direction: 'Dirección', calc: 'Cálculo', table: 'Tabla', column: 'Columna', op: 'Operación', overridable: 'Reemplazable',
   hidden: 'Oculto', searchable: 'Buscable', rewardDestination: 'Destino de recompensa', categories: 'Categorías de acciones', sections: 'Secciones',
-  blocks: 'Bloques', kind: 'Tipo de ítem',
+  blocks: 'Bloques', kind: 'Tipo de ítem', mark: 'Marca',
 }
 
 const nameOf = (node: unknown, index: number): string => {

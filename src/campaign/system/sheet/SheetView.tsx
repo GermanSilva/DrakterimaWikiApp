@@ -81,9 +81,12 @@ function StatTiles({ item }: { item: Item<'stat'> }) {
   )
 }
 
-/** ◌ ● ◆ for a proficiency level 0 1 2 (or a flag), the plain value for anything else. */
-function marker(cell: Cell | undefined): string {
-  if (cell?.type === 'options') return ''
+/**
+ * The marker of a row from its first column: the mark of the selected option (options columns, S9), ◌ ● ◆ for a
+ * proficiency level 0 1 2 (or a flag), the plain value for anything else.
+ */
+function marker(cell: Cell | undefined, column: Column | undefined): string {
+  if (cell?.type === 'options') return column?.options?.find((o) => o.key === cell.option)?.mark ?? ''
   if (!cell || cell.value === null) return '◌'
   if (typeof cell.value === 'boolean') return cell.value ? '●' : '◌'
   if (typeof cell.value === 'number') return cell.value === 0 ? '◌' : cell.value === 1 ? '●' : cell.value === 2 ? '◆' : String(cell.value)
@@ -98,7 +101,24 @@ interface Tile {
   rows: { key: string; label: string; marker: string; value: string; zero: boolean }[]
 }
 
-const isZeroCell = (cell: Cell | undefined) => !cell || cell.value === null || cell.value === 0 || cell.value === false || cell.value === ''
+/** No value of its own: empty, 0 or off; an options cell on no option or on the first one. */
+function isZeroCell(cell: Cell | undefined, column: Column | undefined): boolean {
+  if (cell?.type === 'options') return cell.option === undefined || cell.option === column?.options?.[0]?.key
+  return !cell || cell.value === null || cell.value === 0 || cell.value === false || cell.value === ''
+}
+
+/** "{mark} {label}" of every marked option of the first columns, once per column (S9). */
+function legendOf(items: Item<'capacidades'>[]): string {
+  const seen = new Set<string>()
+  const parts: string[] = []
+  for (const item of items) {
+    const column = item.columns[0]
+    if (!column || column.type !== 'options' || seen.has(column.key)) continue
+    seen.add(column.key)
+    for (const option of column.options ?? []) if (option.mark) parts.push(`${option.mark} ${option.label}`)
+  }
+  return parts.join(' · ')
+}
 
 /** Above this many rows a capacidades block gets a search box and "Solo con valor". */
 const FILTER_ROWS = 20
@@ -113,7 +133,7 @@ function capacidadesTiles(items: Item<'capacidades'>[]): Tile[] {
       tiles.set(row.stat, tile)
       const cell = main >= 0 ? row.cells[main] : undefined
       const value = cell ? (cell.error ? '—' : cell.text) : row.linked === null ? '—' : formatNumber(row.linked, 'signed')
-      tile.rows.push({ key: row.key, label: row.label, marker: marker(row.cells[0]), value, zero: isZeroCell(row.cells[0]) })
+      tile.rows.push({ key: row.key, label: row.label, marker: marker(row.cells[0], item.columns[0]), value, zero: isZeroCell(row.cells[0], item.columns[0]) })
     }
   }
   return [...tiles.values()]
@@ -130,6 +150,7 @@ function CapacidadesTiles({ items, label }: { items: Item<'capacidades'>[]; labe
     ? all.map((tile) => ({ ...tile, rows: tile.rows.filter((row) => (!q || row.label.toLowerCase().includes(q)) && (!onlyValue || !row.zero)) })).filter((tile) => tile.rows.length > 0)
     : all
   const shown = tiles.reduce((n, tile) => n + tile.rows.length, 0)
+  const legend = legendOf(items)
   return (
     <div>
       {tools && (
@@ -162,7 +183,7 @@ function CapacidadesTiles({ items, label }: { items: Item<'capacidades'>[]; labe
           <div className="px-3 py-2 space-y-0.5 text-[11px]">
             {tile.rows.map((row) => (
               <div key={row.key} className="flex items-center gap-2">
-                <span className="text-txt-muted w-3" aria-hidden="true">{row.marker}</span>
+                <span className={`text-txt-muted font-exo shrink-0 ${legend ? 'min-w-[18px]' : 'w-3'}`} aria-hidden={legend ? undefined : true}>{row.marker}</span>
                 <span className="flex-1 text-txt-secondary">{row.label}</span>
                 <span className="font-semibold text-txt-primary">{row.value}</span>
               </div>
@@ -171,6 +192,7 @@ function CapacidadesTiles({ items, label }: { items: Item<'capacidades'>[]; labe
         </div>
       ))}
     </div>
+      {legend && <p className="mt-1.5 text-[11px] text-txt-secondary">{legend}</p>}
     </div>
   )
 }
