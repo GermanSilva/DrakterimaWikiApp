@@ -47,6 +47,9 @@ export interface OptionCell {
   error: boolean
 }
 
+/** Most boxes a track draws: a larger value (a typo, a player's 1e6) is drawn as this many. */
+export const TRACK_BOXES = 30
+
 /** A track as drawn: `max` boxes, the aggravated ones first, then the superficial, then the free (damage capped at the boxes). */
 export interface TrackState {
   max: number
@@ -385,7 +388,7 @@ function build(sheet: Sheet, pj: Record<string, unknown>) {
 
   /** The damage of a track: a missing or invalid damage counts 0, and the damage never exceeds the boxes. */
   const trackState = (track: Track, value: Scalar): TrackState => {
-    const max = typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0
+    const max = typeof value === 'number' && Number.isFinite(value) ? Math.min(TRACK_BOXES, Math.max(0, Math.floor(value))) : 0
     const damage = (key: string | undefined) => {
       const field = key === undefined ? undefined : fields.get(key)
       const v = field ? fieldValue(field).value : null

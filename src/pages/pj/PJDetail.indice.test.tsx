@@ -98,6 +98,41 @@ describe('PJDetail: deep link by section key (S2-S4)', () => {
     expect(window.scrollTo).not.toHaveBeenCalled()
   })
 
+  it('a malformed hash does not break the detail: it is a key that does not exist', () => {
+    window.history.replaceState(null, '', '/c/mesa/pjs/7#50%')
+    expect(() => view()).not.toThrow()
+    expect(index()).toBeTruthy()
+    expect(screen.getByRole('status').textContent).toBe('Esa sección («50%») ya no está en la ficha. Te dejamos al principio.')
+  })
+
+  it('replacing the hash keeps the router history state', () => {
+    const state = { usr: null, key: 'k', idx: 4 }
+    window.history.replaceState(state, '', '/c/mesa/pjs/7')
+    view()
+    fireEvent.click(within(index()).getByRole('link', { name: 'Tres' }))
+    expect(window.history.state).toEqual(state)
+  })
+
+  it('arriving on an unread section does not mark it read at once: the 1.5 s visible rule applies (S4)', () => {
+    const markRead = vi.fn()
+    window.history.replaceState(null, '', '/c/mesa/pjs/7#dos')
+    render(
+      <UnreadPortContext.Provider value={{ isUnread: (_t, _i, _u, s) => s === 'dos', markRead }}>
+        <PJDetail pj={{ ...PJ, sections_updated: { dos: 'x' } }} back={<span />} sheet={SHEET_ROLES} />
+      </UnreadPortContext.Provider>,
+    )
+    expect(markRead).not.toHaveBeenCalledWith('pjs', 7, expect.anything(), 'dos')
+  })
+
+  it('leaving the detail removes the section hash it wrote (the legacy app keeps the same URL)', () => {
+    const { unmount } = view()
+    fireEvent.click(within(index()).getByRole('link', { name: 'Dos' }))
+    expect(window.location.hash).toBe('#dos')
+    unmount()
+    expect(window.location.hash).toBe('')
+    expect(window.location.pathname).toBe('/c/mesa/pjs/7')
+  })
+
   it('keeps the collapsed sections of this character between visits (S6)', () => {
     const first = view()
     fireEvent.click(screen.getByRole('button', { name: 'Uno', expanded: true }))

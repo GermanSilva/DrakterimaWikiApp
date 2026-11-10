@@ -87,6 +87,7 @@ describe('validateSheet: dots and track', () => {
     expect(track({ superficial: 'salud' })).toContain(`${at}[2].track: a track counts damage in number fields`)
     expect(track({ superficial: 'leve', aggravated: 'leve' })).toContain(`${at}[2].track: a track counts damage in number fields`)
     expect(track({ superficial: 'leve' }, [{ ...n('leve', 'Leve'), type: 'short' }])).toContain(`${at}[2].track: a track counts damage in number fields`)
+    expect(track({ superficial: 'fue' })).toContain(`${at}[2].track: a track counts damage in number fields`)
     expect(track('x')).toContain(`${at}[2].track: a track counts damage in number fields`)
     expect(errorsOf(raw({ fields: [{ ...n('salud', 'Salud'), type: 'short', track: { superficial: 'leve' } }, n('leve', 'Leve')] }))).toContain(`${at}[2].track: a track counts damage in number fields`)
   })
@@ -107,6 +108,11 @@ describe('SheetView: dots and track', () => {
     const track = screen.getByRole('img', { name: 'Salud: 7 casillas, 2 daño leve, 1 agravado, 4 libres' })
     expect(track.textContent).toBe('✕//    '.replace(/ /g, ''))
     expect(track.querySelectorAll('[data-box]')).toHaveLength(7)
+  })
+
+  it('draws at most 30 boxes, whatever the value', () => {
+    render(<SheetView resolved={resolveSheet(valid(raw()), { ...pj, salud: 1000000, salud_leve: 0, salud_agravada: 0 })} unread={{}} />)
+    expect(screen.getByRole('img', { name: 'Salud: 30 casillas, 0 daño leve, 0 agravado, 30 libres' }).querySelectorAll('[data-box]')).toHaveLength(30)
   })
 
   it('caps the damage at the boxes and treats a missing damage as 0', () => {

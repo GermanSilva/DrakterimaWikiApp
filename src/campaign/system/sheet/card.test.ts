@@ -66,6 +66,9 @@ describe('validateSheet: card', () => {
     expect(errorsOf(base({ pinned: [{ key: 'trauma', max: 'humanidad_max' }] }))).toContain('card.pinned[0].max: a max needs a number field and a number max')
     expect(errorsOf(base({ pinned: [{ key: 'humanidad', max: 'trauma' }] }))).toContain('card.pinned[0].max: a max needs a number field and a number max')
     expect(errorsOf(base({ pinned: [{ key: 'trauma', dmOnly: 'si' }] }))).toContain('card.pinned[0].dmOnly: dmOnly is true or false')
+    expect(errorsOf(base({ pinned: [{ key: 'int' }] }))).toContain('card.pinned[0].key: a pinned key is a field or a coin table')
+    expect(errorsOf(base({ pinned: [{ key: 'dinero', max: 'humanidad_max' }] }))).toContain('card.pinned[0].max: a max needs a number field and a number max')
+    expect(errorsOf(base({ pinned: [], statline: null }))).toContain('card.statline: the stat line is a stat table')
   })
 
   it('rejects a stat line that is not a stat table and an excerpt that is not a text field, and a card that is not an object', () => {

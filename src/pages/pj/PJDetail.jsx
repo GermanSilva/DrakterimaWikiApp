@@ -162,12 +162,27 @@ export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = f
   const indexIds = indexGroups.flatMap(g => g.entries.map(e => e.id))
   const idsKey = indexIds.join(',')
 
-  /** Go to a section: expand it, scroll to it below the sticky bars, mark it current and put its key in the hash. */
-  function scrollTo(id) {
+  const wroteHashRef = useRef(null)
+  const writeHash = id => {
+    replaceHash(id)
+    wroteHashRef.current = id
+  }
+  // Leaving the detail removes the hash it wrote: the legacy app opens another character under the same URL.
+  useEffect(() => () => {
+    if (wroteHashRef.current !== null && window.location.hash === `#${wroteHashRef.current}`) {
+      window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search)
+    }
+  }, [])
+
+  /**
+   * Go to a section: expand it, scroll to it below the sticky bars, mark it current and put its key in the hash. A click in
+   * the index reads the section at once (as the old nav did); arriving by link leaves it to the 1.5 s visible rule (S4).
+   */
+  function scrollTo(id, { markRead = true } = {}) {
     setReveal(prev => ({ key: id, n: (prev?.n ?? 0) + 1 }))
     setActive(id)
     setMissing(null)
-    replaceHash(id)
+    writeHash(id)
     const el = document.getElementById(`${SECTION_ID_PREFIX}${id}`)
     if (!el) return
     spyPausedUntil.current = Date.now() + SPY_PAUSE_MS
@@ -175,7 +190,7 @@ export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = f
     const top = el.getBoundingClientRect().top + window.scrollY - offset
     const smooth = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
     window.scrollTo({ top, behavior: smooth ? 'smooth' : 'auto' })
-    if (unread[id]) markSectionReadRef.current(pj.id, id)
+    if (markRead && unread[id]) markSectionReadRef.current(pj.id, id)
   }
   const scrollToRef = useRef(scrollTo)
   scrollToRef.current = scrollTo
@@ -185,9 +200,15 @@ export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = f
   // Arriving with #key (or the hash changing while here): open that section, or say it no longer exists (S2-S4).
   useEffect(() => {
     const open = () => {
-      const key = decodeURIComponent(window.location.hash.slice(1))
+      const raw = window.location.hash.slice(1)
+      let key = raw
+      try {
+        key = decodeURIComponent(raw)
+      } catch {
+        // a malformed escape (#50%) is just a key that does not exist
+      }
       if (!key) return
-      if (idsRef.current.includes(key)) scrollToRef.current(key)
+      if (idsRef.current.includes(key)) scrollToRef.current(key, { markRead: false })
       else setMissing(key)
     }
     open()
@@ -212,7 +233,7 @@ export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = f
       const first = [...tops.entries()].sort((a, b) => a[1] - b[1])[0]
       if (!first) return
       setActive(first[0])
-      replaceHash(first[0])
+      writeHash(first[0])
     }, { rootMargin: `-${offset}px 0px -65% 0px` })
     for (const el of elements) observer.observe(el)
     return () => observer.disconnect()

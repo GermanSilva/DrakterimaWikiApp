@@ -3,7 +3,7 @@
 -- same cases live in src/campaign/system/sheet/card.test.ts: both validators must agree.
 begin;
 
-select plan(17);
+select plan(20);
 
 create schema tests;
 
@@ -77,6 +77,10 @@ select is(tests.err('{"pinned":[],"statline":"dinero"}'), 'sheet.card.statline',
 select is(tests.err('{"pinned":[],"excerpt":"humanidad"}'), 'sheet.card.excerpt', 'the excerpt is a text field');
 select is(tests.card('{"pinned":[],"excerpt":"trauma"}'), '{"pinned":[],"excerpt":"trauma"}'::jsonb, 'a short field is a valid excerpt');
 select is(tests.card('{"pinned":[{"key":"dinero"}],"extra":1}'), '{"pinned":[{"key":"dinero"}]}'::jsonb, 'unknown card keys are dropped');
+
+select is(tests.err('{"pinned":[{"key":"int"}]}'), 'sheet.card.pinned[0].key', 'a stat row cannot be pinned');
+select is(tests.err('{"pinned":[{"key":"dinero","max":"humanidad_max"}]}'), 'sheet.card.pinned[0].max', 'a max on a coin table');
+select is(tests.err('{"pinned":[],"statline":null}'), 'sheet.card.statline', 'a null stat line');
 
 select * from finish();
 rollback;

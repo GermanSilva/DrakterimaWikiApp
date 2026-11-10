@@ -3,7 +3,7 @@
 -- The same cases live in src/campaign/system/sheet/formatsDotsTrack.test.tsx: both validators must agree.
 begin;
 
-select plan(19);
+select plan(20);
 
 create schema tests;
 
@@ -90,6 +90,8 @@ select is(tests.err('{items,3,track}', '"x"'), tests.at('[3].track'), 'a track t
 select is(tests.err('{items,6,track}', '{"superficial":"leve"}'), tests.at('[6].track'), 'a track on a short field');
 select is(tests.kept('{items,2}', '{"kind":"field","key":"hambre","label":"Hambre","type":"number","editableBy":"player"}'),
   '{"kind":"field","key":"hambre","label":"Hambre","type":"number","editableBy":"player"}'::jsonb, 'a field without dots stays as it was');
+
+select is(tests.err('{items,3,track}', '{"superficial":"fue"}'), tests.at('[3].track'), 'damage in a stat row');
 
 select * from finish();
 rollback;
