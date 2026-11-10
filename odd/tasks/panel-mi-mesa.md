@@ -23,11 +23,13 @@ Tokens: `C:\Dev\TTRPGManager\design\system.md` (Tailwind tokens already in tailw
 
 | ID | Specs | Route | Commit | Done |
 |----|-------|-------|--------|------|
-| T1 | S1-S12 | worker (context backstop): pure data helpers + tests (dashboardData) | | [ ] |
-| T2 | S1-S12 | same worker: components + CampaignDashboard rewrite + integration tests; remove dead PanelHeader/StatsRow/statDefs/PnjTiles/ArticleList | | [ ] |
+| T1 | S1-S12 | worker (context backstop): pure data helpers + tests (dashboardData, economy, lastVisit) | 5dee659 | [x] |
+| T2 | S1-S12 | same worker: components + CampaignDashboard rewrite + integration tests; parent removed dead PanelHeader/StatsRow/statDefs/PanelSections and moved the campaign-switcher assertion to the topbar | 054a1bf | [x] |
 
 ## Log
 
 - L1 (user): "Implement the design artboard design/panel-campana/03-mi-mesa.html" (title "Mi mesa (según rol)").
 - L2 (user decision): "Fase 1: solo con datos existentes (recomendado)" — no migrations; RSVP, last-visit server state, card-field flag and sheet-change author are phase 2.
 - L3 (parent): no deep-link to PJ tabs exists, so S5 links are Ver ficha / Mis notas / Mi disponibilidad.
+- L4 (worker decisions): page h1 kept as sr-only "Panel de campaña" (greeting is h2); economy detail carries the unit; singular/zero forms ("1 novedad", "Sin novedades desde tu última visita", "Nada para preparar"); "nuevo" = updated_at within 60 s of created_at; last visit key `drakterima:last-visit:{campaignId}:{userId}`.
+- L5 (evidence): vitest 218 files / 3367 tests passed; tsc clean; lint 0 errors (54 pre-existing warnings); build ok.
