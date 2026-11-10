@@ -1,19 +1,9 @@
 import { formatNumber } from '../../campaign/system/sheet/resolveSheet'
 import { roleValues } from '../../campaign/system/sheet/roles'
 import type { Sheet } from '../../campaign/system/sheet/sheetModel'
+import type { KeyFact } from '../../campaign/system/sheet/card'
 
-/**
- * One datum of the header and the card (odd/tasks/ficha-indice-lateral.md S12): a bound role, the level, or a field the
- * DM pinned. `max` makes it "current / max" with a bar (`ratio` 0..1); `dmOnly` facts are for the DM's eyes only.
- */
-export interface KeyFact {
-  key: string
-  label: string
-  value: string
-  max?: string
-  ratio?: number
-  dmOnly?: boolean
-}
+export type { KeyFact }
 
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
 const ratioOf = (current: number, max: number) => (max > 0 ? Math.min(1, Math.max(0, current / max)) : 0)

@@ -18,6 +18,7 @@ export default function KeyFacts({ facts, compact = false, className = '' }: { f
           <span className={`block font-exo font-bold tabular-nums whitespace-nowrap ${compact ? 'text-[14px]' : 'text-[17px]'} ${fact.max !== undefined ? 'text-accent-bright' : 'text-txt-primary'}`}>
             {fact.value}
             {fact.max !== undefined && <small className="text-[12px] font-medium text-txt-secondary">/{fact.max}</small>}
+            {fact.unit !== undefined && <small className="text-[12px] font-medium text-txt-secondary"> {fact.unit}</small>}
           </span>
           {fact.ratio !== undefined && (
             <span role="img" aria-label={`${fact.label} ${fact.value} de ${fact.max}`} className="block h-[3px] mt-1 bg-border-light">

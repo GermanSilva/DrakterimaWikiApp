@@ -12,6 +12,7 @@ import { describeSheetError, displayLine, ownerOf, type DisplayError } from './e
 import { newCategory, newSection } from './factories'
 import { describeRemoval, removalConflict, removalMessage, removeNode, type RemovalRequest } from './removal'
 import { RolesPanel } from './RolesPanel'
+import { CardPanel } from './CardPanel'
 
 /** A stored sheet as the draft, or the smallest template (one category, one section) when the campaign has none. */
 function startDraft(initial: unknown): Node {
@@ -175,6 +176,7 @@ export function SheetBuilder({ initial, onChange, onSave, review }: Props) {
       <div className="flex flex-col gap-4">
         <CategoryTabs selected={selected} onSelect={setSelected} />
         <RolesPanel />
+        <CardPanel />
         {removalError && (
           <p role="alert" aria-label="No se pudo quitar" className="text-[13px] text-red-400">
             {removalError}

@@ -28,7 +28,7 @@ Tokens: `C:\Dev\TTRPGManager\design\system.md` (square corners, accent via `acce
 | ID | Specs | Route | Commit | Done |
 |----|-------|-------|--------|------|
 | T1 | S1-S8, S10-S11, S16 | inline: resolver category key + SheetView (categories, value-first stat, copy link, persisted collapse, big capacidades) + PJDetail (index, hash, mobile selector, folding) | 551bc0e | [x] |
-| T2 | S9 | inline: option `mark` (TS + SQL validator, builder OptionsEditor, renderer legend) | | [ ] |
+| T2 | S9 | inline: option `mark` (TS + SQL validator, builder OptionsEditor, renderer legend) | 823c2ea | [x] |
 | T3 | S12-S14 | inline: `sheet.card` (TS + SQL validator, resolver, builder panel, header facts, PJCardContent) | | [ ] |
 | T4 | S15 | inline: number formats dots / track (TS + SQL validator, builder, renderer) | | [ ] |
 
@@ -37,3 +37,4 @@ Tokens: `C:\Dev\TTRPGManager\design\system.md` (square corners, accent via `acce
 - L1 (user): "Implement the design artboard design/ficha-personaje/01-indice-lateral.html" (title "Índice lateral (v2: + WoD, PF2e, CPR)").
 - L2 (user decision): "Todo el artboard" — presentation + `sheet.card` + formats dots / track.
 - L3 (T1 evidence, 551bc0e): new SheetView.indice.test.tsx (RED observed: 7 failing before the change) and PJDetail.indice.test.tsx (written first, not run RED before PJDetail changed); the old S41 scroll-strip nav is replaced by the index, so PJDetail.sections, PJsPage and PJsPage.sheet tests now use the index links, and the dwell test picks the unread observer by its thresholds (the scroll spy watches the same sections). tsc 0; vitest 220 files / 3389 passed; eslint 0 errors (warnings of the existing ref pattern). Decisions: header facts = roles (HP current/max with bar, CA, Vel., Init.) + level when the builtin is enabled; legacy detail gets the same index (group "Ficha"); `pj-section-notas` anchors the player notes; collapse key `drakterima:sheet-collapsed:pjs:{id}`.
+- L4 (T2 evidence, 823c2ea): RED observed (optionMarks.test.tsx 4 of 8 failing first; builder mark test failed until the input existed). Migration 20261110120000 redefines `_sheet_options` (adds `mark`, 1-3 code points via `_sheet_label`), applied to the LOCAL stack only (not deployed); pgTAP 35 files / 1898 PASS incl. new 36 (11). vitest full 3398 passed; tsc 0; eslint 0 errors. Decisions: legend text "{mark} {label}" joined by " · "; the D&D v2 preset is NOT changed (its proficiency options get no marks; a DM adds them in the builder) to keep the preset/data-migration parity untouched. Risk: item 3 (validator contract widened, additive).

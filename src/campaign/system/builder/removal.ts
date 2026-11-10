@@ -110,8 +110,18 @@ const mapBlocks = (draft: Node, change: (block: Node) => Node): Node =>
     })),
   )
 
+/** The card without the removed items: a pin of a removed key goes, a removed max or stat line or excerpt is dropped. */
+function cardWithout(card: Node, gone: Set<string>): Node {
+  const pinned = (Array.isArray(card.pinned) ? card.pinned : [])
+    .filter((pin) => !(isNode(pin) && typeof pin.key === 'string' && gone.has(pin.key)))
+    .map((pin) => (isNode(pin) && typeof pin.max === 'string' && gone.has(pin.max) ? Object.fromEntries(Object.entries(pin).filter(([name]) => name !== 'max')) : pin))
+  return Object.fromEntries(
+    Object.entries({ ...card, pinned }).filter(([name, value]) => !((name === 'statline' || name === 'excerpt') && typeof value === 'string' && gone.has(value))),
+  )
+}
+
 /**
- * The draft without the part. Blocks stop showing the removed items, roles bound to a removed field are cleared, and the
+ * The draft without the part. Blocks stop showing the removed items, roles and card pins bound to a removed item are cleared, and the
  * filter of a modal block forgets a removed action category, so the removal never leaves a dangling reference behind.
  */
 export function removeNode(draft: Node, list: Path, index: number, now: Date = new Date()): Node {
@@ -123,6 +133,7 @@ export function removeNode(draft: Node, list: Path, index: number, now: Date = n
   if (gone.size > 0) {
     next = mapBlocks(next, (block) => (Array.isArray(block.items) ? { ...block, items: block.items.filter((k) => !gone.has(k as string)) } : block))
     if (isNode(next.roles)) next = setAt(next, ['roles'], Object.fromEntries(Object.entries(next.roles).filter(([, key]) => !gone.has(key as string))))
+    if (isNode(next.card)) next = setAt(next, ['card'], cardWithout(next.card, gone))
   }
   const table = getAt(draft, list.slice(0, -1))
   if (kind === 'actionCategory' && isNode(table)) {

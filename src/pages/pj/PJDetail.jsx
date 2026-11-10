@@ -15,6 +15,7 @@ import LazyImg from '../../components/LazyImg'
 import { SectionIndex, SectionPicker } from './SectionIndex'
 import KeyFacts from './KeyFacts'
 import { roleFacts } from './pjKeyFacts'
+import { resolveCard } from '../../campaign/system/sheet/card'
 import { Lock, Shield } from 'lucide-react'
 import { detailTextCls } from '../../constants'
 import PJStatsSection from './detail/PJStatsSection'
@@ -260,7 +261,10 @@ export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = f
               {pj.estado === 'secreto' && <Tag cls="secreto" text="Secreto" />}
             </div>
            </div>
-            <KeyFacts facts={roleFacts(sheet, pj, builtins.nivel)} className="max-w-[440px]" />
+            <KeyFacts
+              facts={[...roleFacts(sheet, pj, builtins.nivel), ...(sheet?.card ? resolveCard(sheet, pj).pinned.filter(p => !p.dmOnly || isDM) : [])]}
+              className="max-w-[440px]"
+            />
           </div>
         </div>
       </div>

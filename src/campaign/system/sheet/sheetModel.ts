@@ -158,6 +158,25 @@ export interface Sheet {
   roles: Partial<Record<RoleName, string>>
   /** Optional, at most SHEET_LIMITS.discarded entries; never drawn, edited, searched or tagged. A live item may reuse a discarded key. */
   discarded?: DiscardedEntry[]
+  /** Optional: what the character card and the detail header show besides identity and roles (resolveCard, card.ts). */
+  card?: SheetCard
+}
+
+/** A pinned field (or coin/economy table, by its total); `max` names the number field of its maximum (drawn as a bar). */
+export interface CardPin {
+  key: string
+  max?: string
+  /** Shown to the DM only (header and card). */
+  dmOnly?: true
+}
+
+export interface SheetCard {
+  /** At most SHEET_LIMITS.pinned, in order: the header shows all of them, the card the first CARD_PINNED. */
+  pinned: CardPin[]
+  /** A Stat table drawn as a line of short values on the card. */
+  statline?: string
+  /** A short or paragraph field shown as the card's excerpt (instead of the background). */
+  excerpt?: string
 }
 
 export interface SheetError {
@@ -180,6 +199,7 @@ export const SHEET_LIMITS = {
   actionCategories: 30,
   options: 20,
   discarded: 100,
+  pinned: 6,
   coinValue: 1_000_000_000,
   text: 4000,
   bytes: 40_000,
@@ -724,8 +744,45 @@ export function validateSheet(raw: unknown): SheetResult {
   }
 
   const discarded = raw.discarded === undefined ? undefined : discardedOf(raw.discarded, fail)
+  const card = raw.card === undefined ? undefined : cardOf(raw.card, categories, fail)
 
-  return errors.length > 0 ? { ok: false, errors } : { ok: true, sheet: { categories, roles, ...(discarded !== undefined ? { discarded } : {}) } }
+  return errors.length > 0
+    ? { ok: false, errors }
+    : { ok: true, sheet: { categories, roles, ...(discarded !== undefined ? { discarded } : {}), ...(card !== undefined ? { card } : {}) } }
+}
+
+/** The card: pinned fields or coin/economy tables (with an optional number max), a Stat table line and a text excerpt. */
+function cardOf(value: unknown, categories: Category[], fail: (path: string, message: string) => void): SheetCard | undefined {
+  if (!isRecord(value)) return void fail('card', 'card must be an object'), undefined
+  const items = new Map<string, Item>()
+  for (const category of categories) for (const section of category.sections) for (const item of section.items) items.set(item.key, item)
+  const isNumberField = (key: unknown) => typeof key === 'string' && items.get(key)?.kind === 'field' && (items.get(key) as Field).type === 'number'
+  const pinned: CardPin[] = []
+  if (!Array.isArray(value.pinned) || value.pinned.length > SHEET_LIMITS.pinned) fail('card.pinned', 'at most 6 pinned fields')
+  else {
+    const seen = new Set<string>()
+    value.pinned.forEach((pin, i) => {
+      const at = `card.pinned[${i}]`
+      if (!isRecord(pin)) return void fail(at, 'invalid pinned field')
+      const item = typeof pin.key === 'string' ? items.get(pin.key) : undefined
+      const pinnable = item !== undefined && (item.kind === 'field' || item.type === 'monedas' || item.type === 'economia')
+      if (!pinnable) return void fail(`${at}.key`, 'a pinned key is a field or a coin table')
+      if (seen.has(item.key)) return void fail(`${at}.key`, 'pinned twice')
+      seen.add(item.key)
+      if (pin.max !== undefined && !(isNumberField(pin.max) && isNumberField(item.key))) fail(`${at}.max`, 'a max needs a number field and a number max')
+      if (pin.dmOnly !== undefined && typeof pin.dmOnly !== 'boolean') fail(`${at}.dmOnly`, 'dmOnly is true or false')
+      pinned.push({ key: item.key, ...(typeof pin.max === 'string' ? { max: pin.max } : {}), ...(pin.dmOnly === true ? { dmOnly: true as const } : {}) })
+    })
+  }
+  const statItem = typeof value.statline === 'string' ? items.get(value.statline) : undefined
+  if (value.statline !== undefined && !(statItem?.kind === 'table' && statItem.type === 'stat')) fail('card.statline', 'the stat line is a stat table')
+  const excerptItem = typeof value.excerpt === 'string' ? items.get(value.excerpt) : undefined
+  if (value.excerpt !== undefined && !(excerptItem?.kind === 'field' && (excerptItem.type === 'short' || excerptItem.type === 'paragraph'))) fail('card.excerpt', 'the excerpt is a text field')
+  return {
+    pinned,
+    ...(typeof value.statline === 'string' ? { statline: value.statline } : {}),
+    ...(typeof value.excerpt === 'string' ? { excerpt: value.excerpt } : {}),
+  }
 }
 
 const isScopedKey = (key: unknown): key is string => typeof key === 'string' && KEY.test(key) && !PROTOTYPE_KEYS.has(key)

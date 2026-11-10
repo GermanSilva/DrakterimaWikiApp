@@ -158,6 +158,16 @@ describe('PJDetail: key facts in the header (S12)', () => {
     expect(within(facts).getByRole('img', { name: 'HP 52 de 58' })).toBeTruthy()
   })
 
+  it('adds the pinned fields of the card after the roles; DM-only pins only for the DM (S12)', () => {
+    const withCard = { ...SHEET_ROLES, card: { pinned: [{ key: 'fuerza' }, { key: 'edad', dmOnly: true }] } } as unknown as Sheet
+    const first = view({ sheet: withCard, isDM: true })
+    const names = () => within(screen.getByRole('list', { name: 'Datos clave' })).getAllByRole('listitem').map((li) => li.textContent)
+    expect(names()).toEqual(['HP52/58', 'CA18', 'fuerza12', 'edad30'])
+    first.unmount()
+    view({ sheet: withCard })
+    expect(names()).toEqual(['HP52/58', 'CA18', 'fuerza12'])
+  })
+
   it('leaves no gap for unbound roles', () => {
     view({ sheet: SHEET })
     expect(screen.queryByRole('list', { name: 'Datos clave' })).toBeNull()

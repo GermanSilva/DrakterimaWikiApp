@@ -6,6 +6,9 @@ import { plainText } from '../../helpers'
 import { DND5E_PROFILE } from '../../campaign/system/systemProfile'
 import { identityTag } from './pjIdentity'
 import { roleKeys, roleValues, sheetKeys } from '../../campaign/system/sheet/roles'
+import { CARD_PINNED, resolveCard } from '../../campaign/system/sheet/card'
+import KeyFacts from './KeyFacts'
+import { roleFacts } from './pjKeyFacts'
 
 function ModStatBox({ label, base }) {
   const mod = abilityMod(base)
@@ -25,9 +28,12 @@ function ModStatBox({ label, base }) {
  * `hasDmNotes` shows the DM lock; `regionTag` is the host's region tag (legacy palette / campaign regions).
  */
 /**
- * @param {{ pj: Record<string, any>, hasDmNotes?: boolean, regionTag?: import('react').ReactNode, system?: import('../../campaign/system/systemProfile').SystemProfile, tags?: { key: string, label: string, text: string }[], sheet?: import('../../campaign/system/sheet/sheetModel').Sheet | null }} props
+ * With `sheet.card` (odd/tasks/ficha-indice-lateral.md S13) the bottom shows the bound roles, the first 4 pinned fields the
+ * viewer may see (`isDM` sees DM-only pins), the configured stat line and the excerpt instead of the fixed D&D strip.
+ * @param {{ pj: Record<string, any>, hasDmNotes?: boolean, regionTag?: import('react').ReactNode, system?: import('../../campaign/system/systemProfile').SystemProfile, tags?: { key: string, label: string, text: string }[], sheet?: import('../../campaign/system/sheet/sheetModel').Sheet | null, isDM?: boolean }} props
  */
-export function PJCardContent({ pj, hasDmNotes = false, regionTag = null, system = DND5E_PROFILE, tags = [], sheet = null }) {
+export function PJCardContent({ pj, hasDmNotes = false, regionTag = null, system = DND5E_PROFILE, tags = [], sheet = null, isDM = false }) {
+  const card = sheet?.card ? resolveCard(sheet, pj) : null
   const { builtins } = system.character
   const identity = identityTag(pj, builtins)
   // Badges come from the sheet roles (an unbound role hides its badge); without a sheet, from the fixed D&D keys.
@@ -61,9 +67,24 @@ export function PJCardContent({ pj, hasDmNotes = false, regionTag = null, system
         {pj.estado === 'secreto' && <Tag cls="secreto" text="Secreto" />}
       </div>
       <div className="text-[13px] text-txt-secondary leading-relaxed italic line-clamp-3">
-        {plainText(pj.trasfondo) || 'Sin trasfondo registrado.'}
+        {card?.excerpt || plainText(pj.trasfondo) || 'Sin trasfondo registrado.'}
       </div>
-      {hasStats && (
+      {card && (
+        <div className="mt-2.5 pt-2.5 border-t border-border-base">
+          <KeyFacts compact facts={[...roleFacts(sheet, pj), ...card.pinned.filter((p) => !p.dmOnly || isDM).slice(0, CARD_PINNED)]} />
+          {card.statline && (
+            <ul role="list" aria-label="Línea de stats" className="flex justify-between gap-1.5 mt-2">
+              {card.statline.map((s) => (
+                <li key={s.key} className="flex flex-col items-center">
+                  <span className="font-exo text-[10px] tracking-[0.1em] uppercase text-txt-secondary">{s.label}</span>
+                  <span className="font-exo text-[15px] font-bold text-txt-primary tabular-nums">{s.text}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+      {!card && hasStats && (
         <div className="mt-2.5 pt-2.5 border-t border-border-base">
           <div className="flex justify-evenly gap-3 mb-2 flex-wrap">
             {roles.hp > 0 && (

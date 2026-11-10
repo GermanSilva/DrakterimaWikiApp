@@ -119,11 +119,12 @@ function PjView({ entity, listPath }: EntityViewProps) {
 
 function PjCard({ pj, slug, hasDmNotes, dmStamp, search, tags, sheet }: { pj: FlatEntity; slug: string; hasDmNotes: boolean; dmStamp: string | null; search: string; tags: SearchableTag[]; sheet: Sheet | null }) {
   const unread = isPjUnreadVia(useUnreadPort(), pj, hasDmNotes, dmStamp)
+  const { isDM } = useCampaign()
   const system = useSystem()
   return (
     <Link to={withSearch(entityPath(slug, 'pjs', pj.id), search)} className={`block ${entityCardCls}`}>
       <UnreadDot unread={unread} className="absolute top-2 right-2" />
-      <PJCardContent pj={pj} hasDmNotes={hasDmNotes} regionTag={<RegionTag region={str(pj.region)} />} system={system} tags={tags} sheet={sheet} />
+      <PJCardContent pj={pj} hasDmNotes={hasDmNotes} regionTag={<RegionTag region={str(pj.region)} />} system={system} tags={tags} sheet={sheet} isDM={isDM} />
     </Link>
   )
 }

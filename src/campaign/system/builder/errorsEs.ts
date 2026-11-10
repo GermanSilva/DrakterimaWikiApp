@@ -21,7 +21,7 @@ export function ownerOf(path: Path): Path {
   let owner = -1
   for (let i = 1; i < path.length; i++) if (typeof path[i] === 'number' && typeof path[i - 1] === 'string' && PANEL_LISTS.has(path[i - 1] as string)) owner = i
   if (owner >= 0) return path.slice(0, owner + 1)
-  return path[0] === 'roles' ? ['roles'] : []
+  return path[0] === 'roles' ? ['roles'] : path[0] === 'card' ? ['card'] : []
 }
 
 const NOUN: Record<string, string> = { sections: 'Sección', items: 'Ítem', blocks: 'Bloque', columns: 'Columna', rows: 'Fila', options: 'Opción' }
@@ -32,7 +32,7 @@ const FIELD: Record<string, string> = {
   filterCategories: 'Categorías que muestra', columns: 'Columnas', rows: 'Filas', stat: 'Stat asociado', use: 'Usa', value: 'Valor', reset: 'Reinicio',
   scope: 'Pertenece a', sortBy: 'Orden', direction: 'Dirección', calc: 'Cálculo', table: 'Tabla', column: 'Columna', op: 'Operación', overridable: 'Reemplazable',
   hidden: 'Oculto', searchable: 'Buscable', rewardDestination: 'Destino de recompensa', categories: 'Categorías de acciones', sections: 'Secciones',
-  blocks: 'Bloques', kind: 'Tipo de ítem', mark: 'Marca',
+  blocks: 'Bloques', kind: 'Tipo de ítem', mark: 'Marca', card: 'Tarjeta', pinned: 'Campos fijados', statline: 'Línea de stats', excerpt: 'Extracto', dmOnly: 'Solo DM',
 }
 
 const nameOf = (node: unknown, index: number): string => {
@@ -60,6 +60,11 @@ export function describeSheetError(draft: unknown, error: SheetError): DisplayEr
   const last = path[path.length - 1]
   const name = typeof last === 'string' ? last : path.length >= 2 ? (path[path.length - 2] as string) : ''
   const lastIsPanel = typeof last === 'number' && PANEL_LISTS.has(path[path.length - 2] as string)
+  if (path[0] === 'card') {
+    const pin = typeof path[2] === 'number' ? `Campo fijado n.º ${path[2] + 1}` : ''
+    const field = typeof last === 'string' && last !== 'card' && !(last === 'pinned' && pin) ? (FIELD[last] ?? last) : ''
+    return { where: ['Tarjeta', pin].filter(Boolean).join(' › '), field: last === 'key' ? 'Campo' : field, text: sheetErrorEs(error.message) }
+  }
   if (path[0] === 'roles' && typeof last === 'string' && last !== 'roles') {
     return { where: 'Roles', field: ROLE_LABEL[last as keyof typeof ROLE_LABEL] ?? last, text: sheetErrorEs(error.message) }
   }
