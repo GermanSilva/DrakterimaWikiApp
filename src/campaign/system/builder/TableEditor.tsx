@@ -7,6 +7,7 @@ import { nodes, text, useNode } from './nodeHooks'
 import { RowsEditor } from './RowsEditor'
 import { setRewardDestination } from './sheetIndex'
 import { CheckInput, Panel, ReorderButtons, SelectInput, smallBtn } from './ui'
+import { DotsInput } from './formatInputs'
 
 const EDITOR_OPTIONS = [
   { value: 'dm', label: 'Solo el DM' },
@@ -30,7 +31,12 @@ export function TableEditor({ path }: { path: Path }) {
       {(type === 'libre' || type === 'habilidad') && (
         <SelectInput label="Editable por" value={text(node.editableBy)} onChange={(editableBy) => patch({ editableBy })} options={EDITOR_OPTIONS} />
       )}
-      {type === 'stat' && <RowsEditor path={path} kind="stat" />}
+      {type === 'stat' && (
+        <>
+          <DotsInput path={path} label="Mostrar los valores como puntos (máximo, 1 a 10)" />
+          <RowsEditor path={path} kind="stat" />
+        </>
+      )}
       {type === 'capacidades' && (
         <>
           <ColumnsEditor path={path} kind="capacidades" />

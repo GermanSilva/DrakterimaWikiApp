@@ -3,7 +3,7 @@
  * S12-S14): the fields the DM pinned in `sheet.card`, the stat line and the excerpt, resolved for one character.
  * A pinned field without a value is left out (no gap); a coin or economy table pins its total in the base unit.
  */
-import { formatNumber, resolveSheetItems } from './resolveSheet'
+import { formatNumber, resolveSheetItems, type TrackState } from './resolveSheet'
 import type { Sheet } from './sheetModel'
 
 /**
@@ -18,6 +18,10 @@ export interface KeyFact {
   ratio?: number
   unit?: string
   dmOnly?: boolean
+  /** Drawn as dots (a field with `dots`). */
+  dots?: { value: number; max: number }
+  /** Drawn as boxes (a field with a track); `value` / `max` are the free boxes over all. */
+  track?: TrackState
 }
 
 export interface ResolvedCard {
@@ -41,6 +45,15 @@ export function resolveCard(sheet: Sheet, pj: Record<string, unknown>): Resolved
     if (item.kind === 'field') {
       if (item.error || item.empty) continue
       const value = item.type === 'boolean' ? (item.value ? 'Sí' : 'No') : item.text
+      if (item.track) {
+        const { max: boxes, superficial, aggravated } = item.track
+        pinned.push({ key: pin.key, label: item.label, value: String(boxes - superficial - aggravated), max: String(boxes), track: item.track, ...dm })
+        continue
+      }
+      if (item.dots && typeof item.value === 'number') {
+        pinned.push({ key: pin.key, label: item.label, value, dots: { value: Math.min(item.dots, Math.max(0, Math.round(item.value))), max: item.dots }, ...dm })
+        continue
+      }
       const max = pin.max === undefined ? undefined : items[pin.max]
       if (max?.kind === 'field' && !max.error && !max.empty && typeof max.value === 'number' && typeof item.value === 'number') {
         const ratio = max.value > 0 ? Math.min(1, Math.max(0, item.value / max.value)) : 0

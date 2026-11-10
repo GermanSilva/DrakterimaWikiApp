@@ -24,7 +24,7 @@
 import type { LinkedAction } from '../../../data'
 import { evaluateFormula, parseFormula, type FormulaNode } from '../formula/formula'
 import { withLinkedRows } from './linkedRows'
-import { calcFormula, type CapacidadRow, type Column, type Field, type FieldType, type NumberFormat, type OptionDef, type Sheet, type SortBy, type StatRow, type Table } from './sheetModel'
+import { calcFormula, type CapacidadRow, type Column, type Field, type FieldType, type NumberFormat, type OptionDef, type Sheet, type SortBy, type StatRow, type Table, type Track } from './sheetModel'
 
 export type Scalar = number | boolean | string | null
 
@@ -47,6 +47,13 @@ export interface OptionCell {
   error: boolean
 }
 
+/** A track as drawn: `max` boxes, the aggravated ones first, then the superficial, then the free (damage capped at the boxes). */
+export interface TrackState {
+  max: number
+  superficial: number
+  aggravated: number
+}
+
 export interface CoinAmount {
   key: string
   label: string
@@ -54,8 +61,8 @@ export interface CoinAmount {
 }
 
 export type ResolvedItem =
-  | { kind: 'field'; key: string; label: string; type: FieldType; format?: NumberFormat; value: Scalar; text: string; error: boolean; empty: boolean; hidden?: true }
-  | { kind: 'stat'; key: string; label: string; rows: { key: string; label: string; value: number | null; valueText: string; modifier: number | null; modifierText: string }[]; empty: false }
+  | { kind: 'field'; key: string; label: string; type: FieldType; format?: NumberFormat; value: Scalar; text: string; error: boolean; empty: boolean; hidden?: true; dots?: number; track?: TrackState }
+  | { kind: 'stat'; key: string; label: string; dots?: number; rows: { key: string; label: string; value: number | null; valueText: string; modifier: number | null; modifierText: string }[]; empty: false }
   | { kind: 'capacidades'; key: string; label: string; columns: Column[]; rows: { key: string; label: string; stat: string; statLabel: string; statModifierText: string; linked: number | null; cells: Cell[] }[]; empty: false }
   | { kind: 'rows'; key: string; label: string; tableType: 'libre' | 'habilidad'; columns: Column[]; rows: Record<string, unknown>[]; storedIndex: number[]; empty: boolean }
   | { kind: 'coins'; key: string; label: string; denominations: { key: string; label: string; value: number }[]; carried: CoinAmount[]; stored: CoinAmount[]; carriedTotal: number; storedTotal: number; empty: boolean; rewardDestination?: true }
@@ -376,6 +383,18 @@ function build(sheet: Sheet, pj: Record<string, unknown>) {
     return coin ? [...coin.rows].sort((a, b) => b.value - a.value).map((r) => ({ key: r.key, label: r.label, value: r.value })) : []
   }
 
+  /** The damage of a track: a missing or invalid damage counts 0, and the damage never exceeds the boxes. */
+  const trackState = (track: Track, value: Scalar): TrackState => {
+    const max = typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.floor(value)) : 0
+    const damage = (key: string | undefined) => {
+      const field = key === undefined ? undefined : fields.get(key)
+      const v = field ? fieldValue(field).value : null
+      return typeof v === 'number' && Number.isFinite(v) ? Math.max(0, Math.floor(v)) : 0
+    }
+    const aggravated = Math.min(max, damage(track.aggravated))
+    return { max, aggravated, superficial: Math.min(max - aggravated, damage(track.superficial)) }
+  }
+
   const resolveItem = (item: Field | Table): ResolvedItem => {
     if (item.kind === 'field') {
       const computed = fieldValue(item)
@@ -391,6 +410,8 @@ function build(sheet: Sheet, pj: Record<string, unknown>) {
         error: computed.error,
         empty,
         ...(item.hidden ? { hidden: true as const } : {}),
+        ...(item.dots ? { dots: item.dots } : {}),
+        ...(item.track ? { track: trackState(item.track, computed.value) } : {}),
       }
     }
     if (item.type === 'stat') {
@@ -398,6 +419,7 @@ function build(sheet: Sheet, pj: Record<string, unknown>) {
         kind: 'stat',
         key: item.key,
         label: item.label,
+        ...(item.dots ? { dots: item.dots } : {}),
         empty: false,
         rows: item.rows.map((row) => {
           const value = statValue(row)

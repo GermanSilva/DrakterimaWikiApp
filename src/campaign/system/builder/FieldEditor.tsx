@@ -8,6 +8,7 @@ import { initialOptions } from './factories'
 import { DefaultEditor, OptionsEditor } from './OptionsEditor'
 import { calcTables } from './sheetIndex'
 import { CheckInput, SelectInput } from './ui'
+import { DotsInput, TrackInputs } from './formatInputs'
 
 const TYPE_OPTIONS = [
   { value: 'short', label: 'Texto corto' },
@@ -121,6 +122,12 @@ export function FieldEditor({ path }: { path: Path }) {
         </div>
       )}
       {(type === 'number' || type === 'options') && <CheckInput label="Mostrar con signo (+)" checked={node.format === 'signed'} onChange={(on) => patch({ format: on ? 'signed' : undefined })} />}
+      {type === 'number' && (
+        <>
+          <DotsInput path={path} />
+          <TrackInputs path={path} />
+        </>
+      )}
       {(type === 'number' || type === 'short') && <CheckInput label="Buscable" checked={node.searchable === true} onChange={(on) => patch({ searchable: on ? true : undefined })} />}
       {!computed && <DefaultEditor path={path} names={{ value: 'Valor por defecto', checked: 'Marcado por defecto' }} />}
       {type === 'options' && <OptionsEditor path={path} />}

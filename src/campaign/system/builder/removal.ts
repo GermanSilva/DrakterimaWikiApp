@@ -110,6 +110,27 @@ const mapBlocks = (draft: Node, change: (block: Node) => Node): Node =>
     })),
   )
 
+/** Tracks counting damage in a removed field: without superficial damage the track goes, without aggravated only that part. */
+function withoutTrackRefs(draft: Node, gone: Set<string>): Node {
+  const list = (v: unknown): Node[] => (Array.isArray(v) ? v.filter(isNode) : [])
+  return {
+    ...draft,
+    categories: list(draft.categories).map((c) => ({
+      ...c,
+      sections: list(c.sections).map((s) => ({
+        ...s,
+        items: (Array.isArray(s.items) ? s.items : []).map((item) => {
+          if (!isNode(item) || !isNode(item.track)) return item
+          const track = item.track
+          if (typeof track.superficial === 'string' && gone.has(track.superficial)) return Object.fromEntries(Object.entries(item).filter(([name]) => name !== 'track'))
+          if (typeof track.aggravated === 'string' && gone.has(track.aggravated)) return { ...item, track: { superficial: track.superficial } }
+          return item
+        }),
+      })),
+    })),
+  }
+}
+
 /** The card without the removed items: a pin of a removed key goes, a removed max or stat line or excerpt is dropped. */
 function cardWithout(card: Node, gone: Set<string>): Node {
   const pinned = (Array.isArray(card.pinned) ? card.pinned : [])
@@ -134,6 +155,7 @@ export function removeNode(draft: Node, list: Path, index: number, now: Date = n
     next = mapBlocks(next, (block) => (Array.isArray(block.items) ? { ...block, items: block.items.filter((k) => !gone.has(k as string)) } : block))
     if (isNode(next.roles)) next = setAt(next, ['roles'], Object.fromEntries(Object.entries(next.roles).filter(([, key]) => !gone.has(key as string))))
     if (isNode(next.card)) next = setAt(next, ['card'], cardWithout(next.card, gone))
+    next = withoutTrackRefs(next, gone)
   }
   const table = getAt(draft, list.slice(0, -1))
   if (kind === 'actionCategory' && isNode(table)) {

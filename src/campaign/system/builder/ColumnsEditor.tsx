@@ -6,6 +6,7 @@ import { nodes, text, useNode } from './nodeHooks'
 import { FormulaInput, NumberInput } from './nodeInputs'
 import { DefaultEditor, OptionsEditor } from './OptionsEditor'
 import { CheckInput, Panel, ReorderButtons, SelectInput, smallBtn } from './ui'
+import { DotsInput } from './formatInputs'
 
 const TYPE_OPTIONS = [
   { value: 'short', label: 'Texto corto' },
@@ -109,6 +110,7 @@ function ColumnPanel({ path, index, count, kind, label, siblings }: ColumnProps)
       )}
       {formula && <FormulaInput label="Fórmula de la columna" value={text(node.formula)} onChange={(v) => patch({ formula: v })} />}
       {(type === 'number' || type === 'options') && <CheckInput label="Mostrar con signo (columna)" checked={node.format === 'signed'} onChange={(on) => patch({ format: on ? 'signed' : undefined })} />}
+      {type === 'number' && <DotsInput path={path} label="Mostrar la columna como puntos (máximo, 1 a 10)" />}
       <DefaultEditor path={path} names={{ value: 'Valor por defecto de la columna', checked: 'Marcado por defecto (columna)' }} />
       {type === 'options' && <OptionsEditor path={path} />}
       {resettable && (

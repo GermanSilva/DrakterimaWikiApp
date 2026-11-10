@@ -12,6 +12,7 @@ import useBackdropClose from '../../../hooks/useBackdropClose'
 import useDialogFocus from '../../../hooks/useDialogFocus'
 import { DESCRIPTION_KEY } from './linkedRows'
 import { formatNumber, type Cell, type OptionCell, type ResolvedBlock, type ResolvedItem, type ResolvedSheet } from './resolveSheet'
+import { Dots, TrackBoxes } from './ValueFormats'
 import type { Column } from './sheetModel'
 
 type Item<K extends ResolvedItem['kind']> = Extract<ResolvedItem, { kind: K }>
@@ -47,7 +48,13 @@ function FieldTile({ item }: { item: Item<'field'> }) {
   return (
     <div className="bg-bg-mid border border-border-base px-3 py-1.5">
       <span className={`${LABEL} mr-2`}>{item.label}</span>
-      <span className="text-[13px] text-txt-primary">{shown}</span>
+      {item.track ? (
+        <TrackBoxes label={item.label} track={item.track} />
+      ) : item.dots ? (
+        <Dots label={item.label} value={item.value} max={item.dots} className="text-[14px]" />
+      ) : (
+        <span className="text-[13px] text-txt-primary">{shown}</span>
+      )}
     </div>
   )
 }
@@ -72,7 +79,11 @@ function StatTiles({ item }: { item: Item<'stat'> }) {
         return (
           <div key={row.key} className={`${TILE} flex-1 gap-2 px-3 py-2 min-w-[52px]`}>
             <span data-stat-label className="font-exo text-[14px] tracking-[0.1em] text-txt-muted uppercase leading-none">{row.label}</span>
-            <span className="font-exo text-[16px] font-bold text-txt-primary leading-none mb-0.5">{(valueOnly ? row.valueText : row.modifierText) || '—'}</span>
+            {item.dots && valueOnly ? (
+              <Dots label={row.label} value={row.value} max={item.dots} className="text-[15px] leading-none mb-0.5" />
+            ) : (
+              <span className="font-exo text-[16px] font-bold text-txt-primary leading-none mb-0.5">{(valueOnly ? row.valueText : row.modifierText) || '—'}</span>
+            )}
             {!valueOnly && <span className="font-exo text-[10px] text-txt-secondary leading-none mb-1">{row.valueText}</span>}
           </div>
         )
@@ -98,7 +109,7 @@ interface Tile {
   label: string
   modifier: string
   /** `zero`: the row has no value of its own (first column empty, 0 or off), what "Solo con valor" hides. */
-  rows: { key: string; label: string; marker: string; value: string; zero: boolean }[]
+  rows: { key: string; label: string; marker: string; value: string; zero: boolean; dots?: { value: unknown; max: number } }[]
 }
 
 /** No value of its own: empty, 0 or off; an options cell on no option or on the first one. */
@@ -133,7 +144,15 @@ function capacidadesTiles(items: Item<'capacidades'>[]): Tile[] {
       tiles.set(row.stat, tile)
       const cell = main >= 0 ? row.cells[main] : undefined
       const value = cell ? (cell.error ? '—' : cell.text) : row.linked === null ? '—' : formatNumber(row.linked, 'signed')
-      tile.rows.push({ key: row.key, label: row.label, marker: marker(row.cells[0], item.columns[0]), value, zero: isZeroCell(row.cells[0], item.columns[0]) })
+      const dots = item.columns[0]?.dots
+      tile.rows.push({
+        key: row.key,
+        label: row.label,
+        marker: dots ? '' : marker(row.cells[0], item.columns[0]),
+        value,
+        zero: isZeroCell(row.cells[0], item.columns[0]),
+        ...(dots ? { dots: { value: row.cells[0]?.value, max: dots } } : {}),
+      })
     }
   }
   return [...tiles.values()]
@@ -185,7 +204,7 @@ function CapacidadesTiles({ items, label }: { items: Item<'capacidades'>[]; labe
               <div key={row.key} className="flex items-center gap-2">
                 <span className={`text-txt-muted font-exo shrink-0 ${legend ? 'min-w-[18px]' : 'w-3'}`} aria-hidden={legend ? undefined : true}>{row.marker}</span>
                 <span className="flex-1 text-txt-secondary">{row.label}</span>
-                <span className="font-semibold text-txt-primary">{row.value}</span>
+                {row.dots ? <Dots label={row.label} value={row.dots.value} max={row.dots.max} /> : <span className="font-semibold text-txt-primary">{row.value}</span>}
               </div>
             ))}
           </div>

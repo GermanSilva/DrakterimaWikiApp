@@ -55,6 +55,8 @@ export interface Column {
   formula?: string
   editableBy: EditableBy
   format?: NumberFormat
+  /** Number columns: drawn as this many dots (1..10), the value filled (S15 of ficha-indice-lateral). */
+  dots?: number
   /** Options columns: the choices (2..20) and how they are drawn; checkbox = two options, the first unchecked. */
   options?: OptionDef[]
   display?: OptionDisplay
@@ -77,6 +79,10 @@ export interface Field {
   /** Instead of a formula: a calculation over a table column, resolved and referenceable like a formula field. */
   calc?: Calc
   format?: NumberFormat
+  /** Number fields: drawn as this many dots (1..10), the value filled. */
+  dots?: number
+  /** Number fields: drawn as boxes, the value being how many; the damage is counted in other number fields. */
+  track?: Track
   options?: OptionDef[]
   display?: OptionDisplay
   /** Short and number fields only: a search option and a card tag (readers come later). */
@@ -86,6 +92,15 @@ export interface Field {
   max?: number
   default?: string | number | boolean
 }
+/** The number fields a track counts its damage in: superficial (/) and, optionally, aggravated (✕). */
+export interface Track {
+  superficial: string
+  aggravated?: string
+}
+
+/** Most dots a value may be drawn with. */
+export const DOTS_MAX = 10
+
 export interface StatRow {
   key: string
   label: string
@@ -110,7 +125,7 @@ export interface ActionCategory {
   label: string
 }
 export type Table =
-  | { kind: 'table'; type: 'stat'; key: string; label: string; rows: StatRow[] }
+  | { kind: 'table'; type: 'stat'; key: string; label: string; rows: StatRow[]; dots?: number }
   | { kind: 'table'; type: 'capacidades'; key: string; label: string; columns: Column[]; rows: CapacidadRow[] }
   | { kind: 'table'; type: 'habilidad'; key: string; label: string; columns: Column[]; editableBy: EditableBy; sortBy?: SortBy; categories?: ActionCategory[] }
   | { kind: 'table'; type: 'libre'; key: string; label: string; columns: Column[]; editableBy: EditableBy; sortBy?: SortBy }
@@ -362,6 +377,7 @@ export function validateSheet(raw: unknown): SheetResult {
       const formula = formulaOf(col.formula, `${at}.formula`)
       if (formula !== undefined && type !== 'number' && type !== 'boolean') fail(`${at}.formula`, 'formula needs a number or boolean column')
       const format = formatOf(col.format, type, `${at}.format`)
+      const dots = dotsOf(col.dots, type === 'number', format === 'signed', `${at}.dots`)
       const fallback = defaultOf(col.default, type, `${at}.default`, spec?.options.map((o) => o.key))
       const key = plainKey(col.key, `${at}.key`, seen)
       const reset = resetOf(col.reset, { key, type, formula }, value, allowReset, `${at}.reset`)
@@ -376,6 +392,7 @@ export function validateSheet(raw: unknown): SheetResult {
         type,
         ...(formula !== undefined ? { formula } : {}),
         ...(format !== undefined ? { format } : {}),
+        ...(dots !== undefined ? { dots } : {}),
         ...(spec ? { options: spec.options, display: spec.display } : {}),
         ...(reset !== undefined ? { reset } : {}),
         ...(fallback !== undefined ? { default: fallback } : {}),
@@ -431,6 +448,15 @@ export function validateSheet(raw: unknown): SheetResult {
   // `table`: the formula is a row column of that free/skill table, so its locals are columns of that table (and graph nodes)
   const formulas: { path: string; key: string; text: string; locals: string[]; table?: string }[] = []
   const calcs: { path: string; key: string; calc: Calc }[] = []
+  const tracks: { path: string; key: string; track: unknown }[] = []
+  /** Dots: a whole number 1..DOTS_MAX on a number (field, column or Stat table), never with the signed format. */
+  const dotsOf = (value: unknown, isNumber: boolean, signed: boolean, path: string): number | undefined => {
+    if (value === undefined) return undefined
+    if (!isNumber) return void fail(path, 'dots needs a number'), undefined
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < 1 || value > DOTS_MAX) return void fail(path, 'dots is a whole number from 1 to 10'), undefined
+    if (signed) return void fail(path, 'dots and the signed format do not mix'), undefined
+    return value
+  }
   const tableColumns = new Map<string, Set<string>>() // tables a formula can read as rows: free, skill and coin tables
   const tableKeys = new Set<string>() // every table, whatever its kind
   const statRows = new Set<string>()
@@ -508,6 +534,12 @@ export function validateSheet(raw: unknown): SheetResult {
             }
             const format = formatOf(item.format, type, `${ipath}.format`)
             if (format !== undefined) field.format = format
+            const dots = dotsOf(item.dots, type === 'number', format === 'signed', `${ipath}.dots`)
+            if (dots !== undefined) field.dots = dots
+            if (item.track !== undefined) {
+              if (type !== 'number') fail(`${ipath}.track`, 'a track counts damage in number fields')
+              else tracks.push({ path: `${ipath}.track`, key, track: item.track })
+            }
             if (item.overridable !== undefined) {
               if (typeof item.overridable !== 'boolean' || formula === undefined) fail(`${ipath}.overridable`, 'overridable is a boolean and needs a formula')
               else field.overridable = item.overridable
@@ -538,12 +570,16 @@ export function validateSheet(raw: unknown): SheetResult {
             if (item.sortBy !== undefined && item.type !== 'libre' && item.type !== 'habilidad') fail(`${ipath}.sortBy`, 'only Libre and Habilidad tables can be sorted')
             if (item.categories !== undefined && item.type !== 'habilidad') fail(`${ipath}.categories`, 'only Habilidad tables declare categories')
             if (item.rewardDestination !== undefined && item.type !== 'monedas' && item.type !== 'economia') fail(`${ipath}.rewardDestination`, 'only the coin table or an economy table can be the reward destination')
+            if (item.dots !== undefined && item.type !== 'stat') fail(`${ipath}.dots`, 'dots needs a number')
+            if (item.track !== undefined) fail(`${ipath}.track`, 'a track counts damage in number fields')
             if (item.type === 'stat') {
+              const dots = dotsOf(item.dots, true, false, `${ipath}.dots`)
               return {
                 kind: 'table',
                 type: 'stat',
                 key,
                 label: name,
+                ...(dots !== undefined ? { dots } : {}),
                 rows: rowsOf.map((r, ri) => {
                   const rpath = `${ipath}.rows[${ri}]`
                   const row = isRecord(r) ? r : {}
@@ -729,6 +765,18 @@ export function validateSheet(raw: unknown): SheetResult {
     edges.set(key, calc.column === undefined ? [] : [`col:${calc.table}.${calc.column}`])
   }
   if (findEdgeCycle(edges) !== null) fail('categories', 'formulas reference each other in a cycle')
+
+  // Tracks: their damage lives in other number fields (distinct, not the track itself)
+  const setTrack = (key: string, track: Track) => {
+    for (const c of categories) for (const s of c.sections) for (const i of s.items) if (i.kind === 'field' && i.key === key) i.track = track
+  }
+  for (const t of tracks) {
+    const track = isRecord(t.track) ? t.track : null
+    const refs = track ? [track.superficial, ...(track.aggravated !== undefined ? [track.aggravated] : [])] : []
+    const ok = track !== null && refs.length > 0 && refs.every((r) => typeof r === 'string' && r !== t.key && fieldTypes.get(r) === 'number') && new Set(refs).size === refs.length
+    if (!ok) fail(t.path, 'a track counts damage in number fields')
+    else setTrack(t.key, { superficial: track.superficial as string, ...(track.aggravated !== undefined ? { aggravated: track.aggravated as string } : {}) })
+  }
 
   // Roles
   const roles: Sheet['roles'] = {}
