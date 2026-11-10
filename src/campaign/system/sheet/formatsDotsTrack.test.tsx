@@ -115,6 +115,16 @@ describe('SheetView: dots and track', () => {
     expect(screen.getByRole('img', { name: 'Salud: 30 casillas, 0 daño leve, 0 agravado, 30 libres' }).querySelectorAll('[data-box]')).toHaveLength(30)
   })
 
+  it.each([[30, 30], [31, 30], [-5, 0], [7.9, 7]])('a track of %s draws %s boxes', (value, boxes) => {
+    render(<SheetView resolved={resolveSheet(valid(raw()), { ...pj, salud: value, salud_leve: 0, salud_agravada: 0 })} unread={{}} />)
+    expect(screen.getByRole('img', { name: `Salud: ${boxes} casillas, 0 daño leve, 0 agravado, ${boxes} libres` })).toBeTruthy()
+  })
+
+  it('caps the damage at the capped boxes', () => {
+    render(<SheetView resolved={resolveSheet(valid(raw()), { ...pj, salud: 100, salud_leve: 40, salud_agravada: 10 })} unread={{}} />)
+    expect(screen.getByRole('img', { name: 'Salud: 30 casillas, 20 daño leve, 10 agravado, 0 libres' })).toBeTruthy()
+  })
+
   it('caps the damage at the boxes and treats a missing damage as 0', () => {
     render(<SheetView resolved={resolveSheet(valid(raw()), { ...pj, salud: 3, salud_leve: 5, salud_agravada: undefined })} unread={{}} />)
     expect(screen.getByRole('img', { name: 'Salud: 3 casillas, 3 daño leve, 0 agravado, 0 libres' })).toBeTruthy()

@@ -133,6 +133,29 @@ describe('PJDetail: deep link by section key (S2-S4)', () => {
     expect(window.location.pathname).toBe('/c/mesa/pjs/7')
   })
 
+  it.each(['%E0%A4%A', '%'])('a malformed #%s is a missing key too', (h) => {
+    window.history.replaceState(null, '', `/c/mesa/pjs/7#${h}`)
+    expect(() => view()).not.toThrow()
+    expect(screen.getByRole('status').textContent).toBe(`Esa sección («${h}») ya no está en la ficha. Te dejamos al principio.`)
+  })
+
+  it('leaving keeps a hash another page wrote after it', () => {
+    const { unmount } = view()
+    fireEvent.click(within(index()).getByRole('link', { name: 'Dos' }))
+    window.history.replaceState(null, '', '/c/mesa/pjs/7#tres')
+    unmount()
+    expect(window.location.hash).toBe('#tres')
+  })
+
+  it('going back to another character with the same section key keeps its hash (S2)', () => {
+    window.history.replaceState(null, '', '/c/mesa/pjs/8')
+    const r = view({ pj: { ...PJ, id: 8 } })
+    fireEvent.click(within(index()).getByRole('link', { name: 'Dos' }))
+    window.history.replaceState(null, '', '/c/mesa/pjs/7#dos')
+    r.unmount()
+    expect(window.location.hash).toBe('#dos')
+  })
+
   it('keeps the collapsed sections of this character between visits (S6)', () => {
     const first = view()
     fireEvent.click(screen.getByRole('button', { name: 'Uno', expanded: true }))

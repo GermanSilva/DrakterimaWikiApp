@@ -165,11 +165,13 @@ export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = f
   const wroteHashRef = useRef(null)
   const writeHash = id => {
     replaceHash(id)
-    wroteHashRef.current = id
+    wroteHashRef.current = { hash: `#${id}`, path: window.location.pathname + window.location.search }
   }
-  // Leaving the detail removes the hash it wrote: the legacy app opens another character under the same URL.
+  // Leaving the detail removes the hash it wrote, only while the URL is still the one it wrote it on: the legacy app opens
+  // another character under the same URL, while Back to another page (another character's #key) must keep that page's hash.
   useEffect(() => () => {
-    if (wroteHashRef.current !== null && window.location.hash === `#${wroteHashRef.current}`) {
+    const wrote = wroteHashRef.current
+    if (wrote !== null && window.location.hash === wrote.hash && window.location.pathname + window.location.search === wrote.path) {
       window.history.replaceState(window.history.state, '', window.location.pathname + window.location.search)
     }
   }, [])
