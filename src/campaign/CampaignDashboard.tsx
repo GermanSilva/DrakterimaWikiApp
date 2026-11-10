@@ -1,49 +1,51 @@
 import { useCampaign } from './CampaignContext'
-import { countVisible, lastSession, localToday, nextSessionSlot, recentArticles, recentPnjs, type ArticleTable } from './dashboard/dashboardData'
-import { ArticleList, PanelSection, PnjTiles, SessionTiles } from './dashboard/PanelSections'
-import { PanelHeader } from './dashboard/PanelHeader'
-import { STAT_DEFS } from './dashboard/statDefs'
-import { StatsRow } from './dashboard/StatsRow'
-import { useDisponibilidad } from './entities/useDisponibilidad'
-import { useEntities } from './entities/useEntities'
+import { BannerBackdrop } from './dashboard/BannerBackdrop'
+import { Greeting } from './dashboard/Greeting'
+import { MyCharacterCard } from './dashboard/MyCharacterCard'
+import { DmNewsCard, PlayerNewsCard } from './dashboard/NewsCard'
+import { NextSessionCard } from './dashboard/NextSessionCard'
+import { NotesCard } from './dashboard/NotesCard'
+import { PartyStrip } from './dashboard/PartyStrip'
+import { PrepCard } from './dashboard/PrepCard'
+import { useDashboardModel } from './dashboard/useDashboardModel'
 
-/** Landing page of a campaign: header, compact stats, sessions, recent PNJs and recent articles. */
+/** Landing page of a campaign, "Mi mesa": what matters to the viewer's role, over the campaign banner. */
 export function CampaignDashboard() {
-  const { campaign, isDM } = useCampaign()
-  const sesiones = useEntities('sesiones')
-  const pjs = useEntities('pjs')
-  const pnjs = useEntities('pnjs')
-  const lugares = useEntities('lugares')
-  const facciones = useEntities('facciones')
-  const lore = useEntities('lore')
-  const items = useEntities('items')
-  const slots = useDisponibilidad()
+  const { campaign } = useCampaign()
+  // the last visit is read once per mount: a new campaign gets a fresh panel
+  return <Panel key={campaign.id} />
+}
 
-  const lists = { sesiones, pjs, pnjs, lugares, facciones, lore } as const
-  const stats = STAT_DEFS.map((def) => {
-    const list = lists[def.key as keyof typeof lists]
-    const ready = !list.loading && !list.error
-    return { ...def, value: ready ? countVisible(list.items, isDM, { withoutAvances: def.key === 'sesiones' }) : null }
-  })
-
-  const last = lastSession(sesiones.items, isDM)
-  const next = nextSessionSlot(slots.items, localToday())
-  const lastNumero = sesiones.items.reduce((max, s) => (s.tipo !== 'avance' && Number(s.numero) > max ? Number(s.numero) : max), 0)
-  const articleTables: Record<ArticleTable, typeof lugares.items> = { lugares: lugares.items, facciones: facciones.items, lore: lore.items, items: items.items }
-
+function Panel() {
+  const { campaign, isDM, myCharacterIds } = useCampaign()
+  const m = useDashboardModel()
+  const greetingStatus = isDM ? m.prepStatus : m.newsStatus
   return (
-    <>
-      <PanelHeader name={campaign.name} branding={campaign.branding} />
-      <StatsRow slug={campaign.slug} stats={stats} />
-      <PanelSection id="panel-sesiones" title="Sesiones">
-        <SessionTiles slug={campaign.slug} last={last} next={next} nextNumber={lastNumero + 1} />
-      </PanelSection>
-      <PanelSection id="panel-pnjs" title="PNJs recientes">
-        <PnjTiles slug={campaign.slug} pnjs={recentPnjs(pnjs.items, isDM)} />
-      </PanelSection>
-      <PanelSection id="panel-articulos" title="Últimos artículos">
-        <ArticleList slug={campaign.slug} articles={recentArticles(articleTables, isDM)} />
-      </PanelSection>
-    </>
+    <div className="relative">
+      <BannerBackdrop branding={campaign.branding} />
+      <div className="relative">
+        <h1 className="sr-only">Panel de campaña</h1>
+        <Greeting name={m.greetingName} isDM={isDM} count={isDM ? m.prep.length : m.news.unreadCount} status={greetingStatus} />
+        <div className="grid max-w-[1120px] grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] gap-3 max-[1100px]:grid-cols-1">
+          <div className="flex flex-col gap-3">
+            <NextSessionCard slug={campaign.slug} isDM={isDM} next={m.next} status={m.nextStatus} />
+            {isDM ? (
+              <PrepCard slug={campaign.slug} items={m.prep} status={m.prepStatus} />
+            ) : (
+              m.mine && <MyCharacterCard slug={campaign.slug} pj={m.mine} system={m.system} regionLabel={m.regionLabel(m.mine.region)} economy={m.economy} />
+            )}
+            <PartyStrip slug={campaign.slug} party={m.party} myCharacterIds={myCharacterIds} system={m.system} status={m.partyStatus} />
+          </div>
+          <div className="flex flex-col gap-3">
+            {isDM ? (
+              <DmNewsCard slug={campaign.slug} notes={m.noteFeed} notesStatus={m.noteFeedStatus} changes={m.sheetChanges} changesStatus={m.sheetChangesStatus} onMarkRead={m.visit.markRead} />
+            ) : (
+              <PlayerNewsCard slug={campaign.slug} entries={m.news.entries} status={m.newsStatus} onMarkRead={m.visit.markRead} />
+            )}
+            <NotesCard slug={campaign.slug} isDM={isDM} myNotes={m.myNotes} hooks={m.hooks} titleOf={m.titleOf} status={m.notesStatus} />
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

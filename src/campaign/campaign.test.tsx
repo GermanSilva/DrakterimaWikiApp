@@ -254,7 +254,7 @@ describe('campaign switcher and header', () => {
     })
     await waitFor(() => expect(router.state.location.pathname).toBe('/c/otra'))
     await screen.findByRole('heading', { level: 1, name: 'Panel de campaña' })
-    expect(within(screen.getByRole('main')).getByText('Otra')).toBeInTheDocument()
+    expect(within(screen.getByRole('banner')).getByText('Otra')).toBeInTheDocument()
     expect(screen.queryByRole('menu', { name: 'Campañas' })).toBeNull()
   })
 
