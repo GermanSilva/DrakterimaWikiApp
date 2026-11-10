@@ -200,7 +200,8 @@ export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = f
     const elements = idsKey.split(',').map(id => document.getElementById(SECTION_ID_PREFIX + id)).filter(Boolean)
     if (elements.length === 0) return
     const tops = new Map()
-    const offset = HEADER_H + (backBarRef.current?.offsetHeight ?? 0)
+    // below the sticky bars, the narrow-screen picker included (0 on wide screens, where it is hidden)
+    const offset = HEADER_H + (backBarRef.current?.offsetHeight ?? 0) + (pickerRef.current?.offsetHeight ?? 0)
     const observer = new IntersectionObserver(entries => {
       for (const entry of entries) {
         const key = entry.target.id.slice(SECTION_ID_PREFIX.length)
