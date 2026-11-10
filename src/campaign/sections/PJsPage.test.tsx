@@ -43,6 +43,9 @@ const main = () => within(screen.getByRole('main'))
 const cards = () => main().queryAllByRole('link').filter((a) => /\/pjs\/\d+(\?.*)?$/.test(a.getAttribute('href') ?? ''))
 const names = () => cards().map((a) => within(a).getByText(/^(Eldric|Maisie|Kaylinx)$/).textContent)
 
+/** A link of the side index of the character detail (odd/tasks/ficha-indice-lateral.md S1). */
+const indexLink = (name: string) => within(screen.getByRole('navigation', { name: 'Índice de la ficha' })).getByRole('link', { name })
+
 describe('PJs list', () => {
   it('DM: renders the cards in id order with jugador, class and level, region and the HP/AC/speed badges', async () => {
     const { layer } = createFakeLayer({ entities: { pjs: PJS } })
@@ -157,21 +160,21 @@ describe('PJs unread dots per section', () => {
     expect(within(cards()[0]).getByText('Eldric').closest('a')?.querySelector('.unread-dot')).not.toBeNull()
   })
 
-  it('opening the sheet clears "general" at once; a section clears when its nav button is used (read_state per section)', async () => {
+  it('opening the sheet clears "general" at once; a section clears when its index link is used (read_state per section)', async () => {
     const { layer } = createFakeLayer({ entities: { pjs: [STAMPED] } })
     const { container } = renderSection('/c/demo/pjs/1', { layer })
     await screen.findByRole('heading', { level: 1, name: 'Eldric' })
     await waitFor(() => expect(layer.readState.markSeen).toHaveBeenCalledWith('c1', 'pjs', 1, 'general', expect.any(Date)))
     // the sections with news keep their dot until viewed
-    const nav = screen.getAllByRole('button', { name: 'Stats' })[0]
+    const nav = indexLink('Stats')
     await waitFor(() => expect(nav.querySelector('.unread-dot')).not.toBeNull())
-    const ataques = screen.getAllByRole('button', { name: 'Ataques' })[0]
+    const ataques = indexLink('Ataques')
     expect(ataques.querySelector('.unread-dot')).not.toBeNull()
     window.scrollTo = vi.fn() as typeof window.scrollTo
     fireEvent.click(nav)
     await waitFor(() => expect(layer.readState.markSeen).toHaveBeenCalledWith('c1', 'pjs', 1, 'stats', expect.any(Date)))
-    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Stats' })[0].querySelector('.unread-dot')).toBeNull())
-    expect(screen.getAllByRole('button', { name: 'Ataques' })[0].querySelector('.unread-dot')).not.toBeNull()
+    await waitFor(() => expect(indexLink('Stats').querySelector('.unread-dot')).toBeNull())
+    expect(indexLink('Ataques').querySelector('.unread-dot')).not.toBeNull()
     expect(container.querySelectorAll('.unread-dot').length).toBeGreaterThan(0)
   })
 
@@ -182,8 +185,10 @@ describe('PJs unread dots per section', () => {
       renderSection('/c/demo/pjs/1', { layer })
       await vi.waitFor(() => expect(document.getElementById('pj-section-ataques')).not.toBeNull())
       const el = document.getElementById('pj-section-ataques') as HTMLElement
-      await vi.waitFor(() => expect(observers.some((o) => o.target === el || o.target?.id?.startsWith('pj-section-'))).toBe(true))
-      const observer = observers.find((o) => o.target?.id?.startsWith('pj-section-'))
+      // the unread observer (thresholds), not the scroll spy of the side index that watches the same sections
+      const isUnreadObserver = (o: (typeof observers)[number]) => Array.isArray(o.options?.threshold) && !!o.target?.id?.startsWith('pj-section-')
+      await vi.waitFor(() => expect(observers.some(isUnreadObserver)).toBe(true))
+      const observer = observers.find(isUnreadObserver)
       act(() => {
         observer?.callback(
           [{ target: el, isIntersecting: true, intersectionRatio: 1, intersectionRect: { height: 500 } } as unknown as IntersectionObserverEntry],
@@ -210,7 +215,7 @@ describe('PJ "dm" unread dot comes from the DM-only notes row, never from sectio
     await screen.findByRole('heading', { level: 1, name: 'Eldric' })
     window.scrollTo = vi.fn() as typeof window.scrollTo
     const nav = await waitFor(() => {
-      const button = screen.getAllByRole('button', { name: /DM/ })[0]
+      const button = indexLink('Notas del DM')
       expect(button.querySelector('.unread-dot')).not.toBeNull()
       return button
     })
@@ -366,14 +371,14 @@ describe('PJ detail', () => {
     expect(within(narrativa).queryByText('Relación con la Magralita')).toBeNull()
   })
 
-  it('DM sees the DM notes block and nav button; a player never gets DM notes nor makes DM reads, and sees no edit', async () => {
+  it('DM sees the DM notes block and index link; a player never gets DM notes nor makes DM reads, and sees no edit', async () => {
     const dmNotes = { 'pjs:1': { notas: 'NOTA PRIVADA', secreto: '', ganchos: '' } }
     const dm = createFakeLayer({ entities: { pjs: [FULL] }, dmNotes })
     const { unmount } = renderSection('/c/demo/pjs/1', { layer: dm.layer })
     expect(await screen.findByText('NOTA PRIVADA')).toBeInTheDocument()
     expect(screen.getByText('Notas DM')).toBeInTheDocument()
     expect(dm.spies.dmNotesGet).toHaveBeenCalledWith('pjs', 1)
-    expect(screen.getAllByRole('button', { name: /DM/ }).length).toBeGreaterThan(0)
+    expect(indexLink('Notas del DM')).toBeInTheDocument()
     unmount()
 
     const pl = createFakeLayer({ entities: { pjs: [FULL] }, dmNotes })

@@ -3,7 +3,7 @@
  * display mode. Section ids are `pj-section-<key>` so the nav, the unread observer and the scroll offsets of PJDetail
  * work unchanged. Copy and classes follow today's detail sections (src/pages/pj/detail) on purpose.
  */
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Link2, Search } from 'lucide-react'
 import { useEffect, useId, useRef, useState } from 'react'
 import UnreadDot from '../../../components/UnreadDot'
 import WikiText from '../../../components/WikiText'
@@ -63,16 +63,20 @@ function FieldBlock({ item }: { item: Item<'field'> }) {
   )
 }
 
+/** A stat with no modifier, or whose modifier is the value itself (CPR, WoD, PF2e attributes), shows the value alone. */
 function StatTiles({ item }: { item: Item<'stat'> }) {
   return (
     <div className="flex flex-wrap gap-2">
-      {item.rows.map((row) => (
-        <div key={row.key} className={`${TILE} flex-1 gap-2 px-3 py-2 min-w-[52px]`}>
-          <span className="font-exo text-[14px] tracking-[0.1em] text-txt-muted uppercase leading-none">{row.label}</span>
-          <span className="font-exo text-[16px] font-bold text-txt-primary leading-none mb-0.5">{row.modifierText || '—'}</span>
-          <span className="font-exo text-[10px] text-txt-secondary leading-none mb-1">{row.valueText}</span>
-        </div>
-      ))}
+      {item.rows.map((row) => {
+        const valueOnly = row.modifier === null || row.modifier === row.value
+        return (
+          <div key={row.key} className={`${TILE} flex-1 gap-2 px-3 py-2 min-w-[52px]`}>
+            <span data-stat-label className="font-exo text-[14px] tracking-[0.1em] text-txt-muted uppercase leading-none">{row.label}</span>
+            <span className="font-exo text-[16px] font-bold text-txt-primary leading-none mb-0.5">{(valueOnly ? row.valueText : row.modifierText) || '—'}</span>
+            {!valueOnly && <span className="font-exo text-[10px] text-txt-secondary leading-none mb-1">{row.valueText}</span>}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -90,8 +94,14 @@ interface Tile {
   stat: string
   label: string
   modifier: string
-  rows: { key: string; label: string; marker: string; value: string }[]
+  /** `zero`: the row has no value of its own (first column empty, 0 or off), what "Solo con valor" hides. */
+  rows: { key: string; label: string; marker: string; value: string; zero: boolean }[]
 }
+
+const isZeroCell = (cell: Cell | undefined) => !cell || cell.value === null || cell.value === 0 || cell.value === false || cell.value === ''
+
+/** Above this many rows a capacidades block gets a search box and "Solo con valor". */
+const FILTER_ROWS = 20
 
 /** One tile per linked stat, in the order the stats first appear; each tile lists the rows of every table linked to it. */
 function capacidadesTiles(items: Item<'capacidades'>[]): Tile[] {
@@ -103,16 +113,47 @@ function capacidadesTiles(items: Item<'capacidades'>[]): Tile[] {
       tiles.set(row.stat, tile)
       const cell = main >= 0 ? row.cells[main] : undefined
       const value = cell ? (cell.error ? '—' : cell.text) : row.linked === null ? '—' : formatNumber(row.linked, 'signed')
-      tile.rows.push({ key: row.key, label: row.label, marker: marker(row.cells[0]), value })
+      tile.rows.push({ key: row.key, label: row.label, marker: marker(row.cells[0]), value, zero: isZeroCell(row.cells[0]) })
     }
   }
   return [...tiles.values()]
 }
 
-function CapacidadesTiles({ items }: { items: Item<'capacidades'>[] }) {
+function CapacidadesTiles({ items, label }: { items: Item<'capacidades'>[]; label: string }) {
+  const [query, setQuery] = useState('')
+  const [onlyValue, setOnlyValue] = useState(false)
+  const all = capacidadesTiles(items)
+  const total = all.reduce((n, tile) => n + tile.rows.length, 0)
+  const tools = total > FILTER_ROWS
+  const q = query.trim().toLowerCase()
+  const tiles = tools
+    ? all.map((tile) => ({ ...tile, rows: tile.rows.filter((row) => (!q || row.label.toLowerCase().includes(q)) && (!onlyValue || !row.zero)) })).filter((tile) => tile.rows.length > 0)
+    : all
+  const shown = tiles.reduce((n, tile) => n + tile.rows.length, 0)
   return (
+    <div>
+      {tools && (
+        <div className="flex flex-wrap items-center gap-3 mb-2">
+          <label className="flex items-center gap-2 h-9 px-2.5 min-w-[240px] bg-bg-card border border-border-light focus-within:border-accent text-txt-muted">
+            <Search size={14} aria-hidden="true" />
+            <input
+              type="search"
+              aria-label={`Buscar en ${label}`}
+              placeholder={`Buscar en ${label.toLowerCase()}…`}
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              className="flex-1 min-w-0 bg-transparent border-none outline-none text-[13px] text-txt-primary placeholder:text-txt-muted"
+            />
+          </label>
+          <label className="inline-flex items-center gap-1.5 min-h-9 text-[13px] text-txt-secondary cursor-pointer">
+            <input type="checkbox" checked={onlyValue} onChange={(e) => setOnlyValue(e.target.checked)} className="w-4 h-4" style={{ accentColor: 'rgb(var(--accent-rgb))' }} />
+            Solo con valor
+          </label>
+          <span className="ml-auto text-[12px] text-txt-muted" aria-live="polite">{shown > 0 ? `${shown} de ${total}` : `Ninguna coincide con «${query.trim()}»`}</span>
+        </div>
+      )}
     <div className="grid grid-cols-3 max-md:grid-cols-2 max-sm:grid-cols-1 gap-2">
-      {capacidadesTiles(items).map((tile) => (
+      {tiles.map((tile) => (
         <div key={tile.stat} data-testid={`capacidades-${tile.stat}`} className="border border-border-base overflow-hidden">
           <div className="bg-bg-mid px-3 py-2 flex justify-between items-center">
             <span className="font-exo text-[12px] tracking-[0.1em] text-txt-muted uppercase">{tile.label}</span>
@@ -129,6 +170,7 @@ function CapacidadesTiles({ items }: { items: Item<'capacidades'>[] }) {
           </div>
         </div>
       ))}
+    </div>
     </div>
   )
 }
@@ -300,7 +342,7 @@ function Block({ block, sectionLabel }: { block: ResolvedBlock; sectionLabel: st
       </>
     )
   } else if (block.mode === 'capacidades') {
-    body = <CapacidadesTiles items={block.items.filter((i): i is Item<'capacidades'> => i.kind === 'capacidades')} />
+    body = <CapacidadesTiles items={block.items.filter((i): i is Item<'capacidades'> => i.kind === 'capacidades')} label={sectionLabel} />
   } else {
     // 'stat' and 'plano': each item in its natural form
     body = (
@@ -308,7 +350,7 @@ function Block({ block, sectionLabel }: { block: ResolvedBlock; sectionLabel: st
         {block.items.map((item) => {
           if (item.empty || (item.kind === 'field' && item.hidden)) return null
           if (item.kind === 'stat') return <StatTiles key={item.key} item={item} />
-          if (item.kind === 'capacidades') return <CapacidadesTiles key={item.key} items={[item]} />
+          if (item.kind === 'capacidades') return <CapacidadesTiles key={item.key} items={[item]} label={sectionLabel} />
           if (item.kind === 'rows') return <RowsTable key={item.key} item={item} hideLabel={sameLabel(item.label, sectionLabel)} />
           if (item.kind === 'coins') return <Coins key={item.key} item={item} />
           if (item.kind === 'economy') return <Economy key={item.key} item={item} />
@@ -325,16 +367,43 @@ function Block({ block, sectionLabel }: { block: ResolvedBlock; sectionLabel: st
   )
 }
 
+/** The page URL pointing at a section: the hash is the section key, never its label (S2). */
+const sectionUrl = (key: string) => `${window.location.origin}${window.location.pathname}${window.location.search}#${key}`
+
+/** "Copiar enlace a {label}": copies the URL of the section and says "Enlace copiado" for a moment. */
+function CopySectionLink({ sectionKey, label }: { sectionKey: string; label: string }) {
+  const [copied, setCopied] = useState(false)
+  useEffect(() => {
+    if (!copied) return
+    const timer = setTimeout(() => setCopied(false), 2000)
+    return () => clearTimeout(timer)
+  }, [copied])
+  const name = copied ? 'Enlace copiado' : `Copiar enlace a ${label}`
+  return (
+    <button
+      type="button"
+      aria-label={name}
+      title={name}
+      onClick={() => void navigator.clipboard?.writeText(sectionUrl(sectionKey)).then(() => setCopied(true), () => undefined)}
+      className="inline-grid place-items-center w-8 h-8 shrink-0 bg-transparent border border-transparent text-txt-muted hover:text-accent-bright hover:border-border-light cursor-pointer"
+    >
+      <Link2 size={14} aria-hidden="true" />
+    </button>
+  )
+}
+
 function Section({ section, unread, open, onToggle }: { section: ResolvedSheet['sections'][number]; unread: boolean | undefined; open: boolean; onToggle: () => void }) {
   const contentId = useId()
   return (
     <div id={`pj-section-${section.key}`} className="pt-4">
-      <h3 className={sectionTitleCls}>
-        <button type="button" aria-expanded={open} aria-controls={contentId} onClick={onToggle} className="flex items-center gap-2 w-full text-left font-[inherit] tracking-[inherit] uppercase text-inherit bg-transparent border-none p-0 cursor-pointer">
-          <ChevronDown size={16} aria-hidden="true" className={`shrink-0 transition-transform ${open ? '' : '-rotate-90'}`} />
+      <h3 className={`${sectionTitleCls} flex items-center gap-2`}>
+        <button type="button" aria-expanded={open} aria-controls={contentId} onClick={onToggle} className="flex items-center gap-2 text-left font-[inherit] tracking-[inherit] uppercase text-inherit bg-transparent border-none p-0 cursor-pointer">
+          <ChevronDown size={16} aria-hidden="true" className={`shrink-0 transition-transform motion-reduce:transition-none ${open ? '' : '-rotate-90'}`} />
           <span>{section.label}</span>
           <UnreadDot unread={unread} className="inline-block align-middle" />
         </button>
+        <span className="flex-1 h-px bg-border-base" aria-hidden="true" />
+        <CopySectionLink sectionKey={section.key} label={section.label} />
       </h3>
       <div id={contentId} hidden={!open}>
         <div className="flex flex-col gap-3">
@@ -349,12 +418,48 @@ function Section({ section, unread, open, onToggle }: { section: ResolvedSheet['
   )
 }
 
+const COLLAPSED_PREFIX = 'drakterima:sheet-collapsed:'
+
+function readCollapsed(storageKey: string | undefined): ReadonlySet<string> {
+  if (!storageKey) return new Set()
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(COLLAPSED_PREFIX + storageKey) ?? '[]')
+    return new Set(Array.isArray(raw) ? raw.filter((k): k is string => typeof k === 'string') : [])
+  } catch {
+    return new Set()
+  }
+}
+
+function writeCollapsed(storageKey: string | undefined, collapsed: ReadonlySet<string>) {
+  if (!storageKey) return
+  try {
+    if (collapsed.size === 0) localStorage.removeItem(COLLAPSED_PREFIX + storageKey)
+    else localStorage.setItem(COLLAPSED_PREFIX + storageKey, JSON.stringify([...collapsed]))
+  } catch {
+    // storage full or blocked: the state just is not kept
+  }
+}
+
+/** The non-empty sections grouped by their category, in sheet order. */
+function byCategory(sections: ResolvedSheet['sections']) {
+  const groups: { key: string; label: string; sections: ResolvedSheet['sections'] }[] = []
+  for (const section of sections) {
+    if (section.empty) continue
+    const last = groups[groups.length - 1]
+    if (last && last.key === section.categoryKey) last.sections.push(section)
+    else groups.push({ key: section.categoryKey, label: section.category, sections: [section] })
+  }
+  return groups
+}
+
 /**
- * Every section starts expanded and the collapsed state is not kept. `reveal` is how the nav asks for a section:
- * each new `n` expands `key` again, even when it was already asked before.
+ * Sections grouped by category (S1). Every section starts expanded; with a `storageKey` (one per character) the collapsed
+ * ones are kept in localStorage (S6). `reveal` is how the index asks for a section: each new `n` expands `key` again,
+ * even when it was already asked before.
  */
-export default function SheetView({ resolved, unread, reveal }: { resolved: ResolvedSheet; unread: Record<string, boolean>; reveal?: { key: string; n: number } | null }) {
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set())
+export default function SheetView({ resolved, unread, reveal, storageKey }: { resolved: ResolvedSheet; unread: Record<string, boolean>; reveal?: { key: string; n: number } | null; storageKey?: string }) {
+  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => readCollapsed(storageKey))
+  useEffect(() => writeCollapsed(storageKey, collapsed), [storageKey, collapsed])
   useEffect(() => {
     if (!reveal) return
     const target = reveal.key
@@ -373,11 +478,18 @@ export default function SheetView({ resolved, unread, reveal }: { resolved: Reso
     })
   return (
     <div data-sheet-view>
-      {resolved.sections
-        .filter((section) => !section.empty)
-        .map((section) => (
-          <Section key={section.key} section={section} unread={unread[section.key]} open={!collapsed.has(section.key)} onToggle={() => toggle(section.key)} />
-        ))}
+      {byCategory(resolved.sections).map((group) => (
+        <div key={group.key} role="group" aria-label={group.label} className="mt-6 first:mt-0">
+          <div aria-hidden="true" className="flex items-center gap-3 font-exo text-[10px] tracking-[0.3em] uppercase text-txt-muted">
+            <span className="w-4 h-px bg-border-base" />
+            {group.label}
+            <span className="flex-1 h-px bg-border-base" />
+          </div>
+          {group.sections.map((section) => (
+            <Section key={section.key} section={section} unread={unread[section.key]} open={!collapsed.has(section.key)} onToggle={() => toggle(section.key)} />
+          ))}
+        </div>
+      ))}
     </div>
   )
 }

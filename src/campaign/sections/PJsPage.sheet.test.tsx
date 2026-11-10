@@ -179,7 +179,7 @@ describe('PJ detail drawn from the sheet (default for a valid stored sheet)', ()
         sections_updated: { [key]: '2099-01-01T00:00:00.000Z' },
       })
       await open([full])
-      const navDots = screen.getAllByRole('button').filter((b) => !b.hasAttribute('aria-expanded') && b.querySelector('.unread-dot'))
+      const navDots = within(screen.getByRole('navigation', { name: 'Índice de la ficha' })).getAllByRole('link').filter((a) => a.querySelector('.unread-dot'))
       expect(navDots).toHaveLength(1)
       expect(document.querySelectorAll('[data-sheet-view] .unread-dot')).toHaveLength(1)
       expect(titleOf(key).querySelector('.unread-dot')).not.toBeNull()

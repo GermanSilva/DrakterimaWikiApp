@@ -78,6 +78,8 @@ export interface ResolvedSection {
   label: string
   /** Label of the category (editor tab) the section belongs to. */
   category: string
+  /** Key of that category: the detail groups its sections by it. */
+  categoryKey: string
   blocks: ResolvedBlock[]
   empty: boolean
 }
@@ -471,7 +473,7 @@ function build(sheet: Sheet, pj: Record<string, unknown>) {
           : named.map((name) => ({ category: name, rows: rows.filter((row) => row.categoria === name) })).filter((group) => group.rows.length > 0)
         return { ...base, groups, empty: groups.length === 0 }
       })
-      sections.push({ key: section.key, label: section.label, category: category.label, blocks, empty: blocks.every((b) => b.empty) })
+      sections.push({ key: section.key, label: section.label, category: category.label, categoryKey: category.key, blocks, empty: blocks.every((b) => b.empty) })
     }
   }
   return { sections, resolveItem, globalRef }

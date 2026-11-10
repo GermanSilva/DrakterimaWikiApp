@@ -1,0 +1,38 @@
+# Character sheet "Índice lateral" (design ficha-personaje/01)
+
+Implement the chosen artboard `C:\Dev\TTRPGManager\design\ficha-personaje\01-indice-lateral.html` (v2: + WoD, PF2e, CPR) on the character detail (`src/pages/pj/PJDetail.jsx`, `src/campaign/system/sheet/SheetView.tsx`) and the character card (`src/pages/pj/PJCardContent.jsx`).
+Branch: feat/campaign-hub. Classification: large. Scope (L2): the whole artboard, including the two model additions (`sheet.card`, number formats dots / track) and option marks.
+Tokens: `C:\Dev\TTRPGManager\design\system.md` (square corners, accent via `accent*` classes, Exo 2 labels, Barlow body).
+
+## Specs
+
+- S1 Index: "Una sola página. El índice de la izquierda agrupa por categoría (hoy solo existe en el editor) y lista las secciones; marca dónde estás al scrollear y muestra el punto de no leído." The detail draws category dividers between section groups; the resolved sheet keeps the category key. The fixed entries "Notas del DM" (DM only, lock) and "Notas del jugador" form a last "Notas" group. Legacy D&D detail (no sheet) gets the same index with its fixed sections in one group.
+- S2 Deep-link: "Deep-link: `/c/:slug/pjs/:id#<section.key>`. Hash nativo, sin rutas nuevas. Al scrollear se reemplaza la URL (replaceState): no se llena el historial."
+- S3 Missing key: "La clave sale de la definición (`section.key`), no del label: renombrar «Combate» no rompe enlaces. Clave que ya no existe: se abre arriba con el aviso «Esa sección ya no está en la ficha»." (artboard text: "Esa sección («{key}») ya no está en la ficha. Te dejamos al principio.")
+- S4 Arrival: "Llegar por enlace expande la sección si estaba colapsada y la marca leída tras 1,5 s visible, como el observer actual."
+- S5 Copy link: "Cada título tiene un botón de enlace que copia la URL de esa sección." (accessible name "Copiar enlace a {label}"; after copy "Enlace copiado").
+- S6 Collapse: "Clic en el título colapsa o expande la sección; un enlace o el índice la expanden siempre antes de llevarte." Collapsed state is kept per character (localStorage).
+- S7 Mobile: "Móvil: el índice pasa a un selector fijo «Sección ▾» arriba del contenido." (button "Sección: {label}" + "{n} de {total} ▾", opens the index list).
+- S8 Stat value first: "si no hay modificador, o es igual al valor, el tile muestra solo el valor (CPR, WoD, atributos de PF2e)."
+- S9 Markers: "el marcador y la leyenda de capacidades salen de la columna de opciones (E / Ex / M / L en PF2e, ◌ ● ◆ en D&D); sin esa columna no hay marcador." Options get an optional short `mark` (≤ 3 characters); the legend lists "{mark} {label}" per option. Numeric 0/1/2 and boolean first columns keep today's ◌ ● ◆ (no legend text invented).
+- S10 Big capacidades: "las capacidades con más de 20 filas traen buscador y «Solo con valor»"; count "{shown} de {total}", no match: "Ninguna coincide con «{q}»". "Solo con valor" hides rows whose value is 0 / empty / first-option.
+- S11 Folding index: "el índice pliega categorías cuando pasa de 15 entradas"; a folded category shows its unread count.
+- S12 Key facts: "hasta 6 fijados en el encabezado y 4 en la tarjeta; un fijado con máximo se dibuja con barra." Header order: bound roles (hp with hp_current as a bar), level when the builtin is enabled, then pinned fields. "Lo que no está asignado no deja hueco."
+- S13 Card: "Orden fijo: identidad → roles asignados → campos fijados (máx. 4; 6 en el encabezado) → línea de stats → extracto." "Un campo fijado solo-DM ... no aparece en la tarjeta que ve un jugador."
+- S14 Model card: "`sheet.card = { pinned: [fieldKey ≤ 6], statline: tableKey | null, excerpt: fieldKey | null }`, opcional; la tarjeta usa los primeros 4. Un fijado puede declarar su máximo (`max: fieldKey`) para la barra." Without `card`: identity + roles, as today. Validated in TS and SQL; editable in the builder.
+- S15 Formats: "`format: 'dots'` en números con máximo ≤ 10 y un elemento «casillas» con máximo + leve + agravado." Dots: "●●○○○" with an accessible label "{v} de {max}". Track: boxes = max, aggravated "✕", superficial "/", accessible label "{max} casillas: {sup} daño leve, {agg} agravado, {free} libres". Validated in TS and SQL; editable in the builder.
+- S16 Visual: tokens of design/system.md only; visible focus; reduced motion respected; no regression of today's unread dots, reveal, modal rows, coins and economy.
+
+## Tasks
+
+| ID | Specs | Route | Commit | Done |
+|----|-------|-------|--------|------|
+| T1 | S1-S8, S10-S11, S16 | inline: resolver category key + SheetView (categories, value-first stat, copy link, persisted collapse, big capacidades) + PJDetail (index, hash, mobile selector, folding) | | [ ] |
+| T2 | S9 | inline: option `mark` (TS + SQL validator, builder OptionsEditor, renderer legend) | | [ ] |
+| T3 | S12-S14 | inline: `sheet.card` (TS + SQL validator, resolver, builder panel, header facts, PJCardContent) | | [ ] |
+| T4 | S15 | inline: number formats dots / track (TS + SQL validator, builder, renderer) | | [ ] |
+
+## Log
+
+- L1 (user): "Implement the design artboard design/ficha-personaje/01-indice-lateral.html" (title "Índice lateral (v2: + WoD, PF2e, CPR)").
+- L2 (user decision): "Todo el artboard" — presentation + `sheet.card` + formats dots / track.

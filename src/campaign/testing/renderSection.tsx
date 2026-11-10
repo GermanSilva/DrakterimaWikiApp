@@ -3,13 +3,13 @@ import { makeCampaign, makeData, renderApp } from '../../app/testing/renderApp'
 import type { CampaignWithRole, DataLayer, FlatEntity } from '../../data'
 
 /** jsdom has no IntersectionObserver: a recording stub so tests can scroll the title out of view. */
-export const observers: { callback: IntersectionObserverCallback; target: Element | null }[] = []
+export const observers: { callback: IntersectionObserverCallback; target: Element | null; options?: IntersectionObserverInit }[] = []
 
 function installIntersectionObserver() {
   class StubObserver {
-    private entry: { callback: IntersectionObserverCallback; target: Element | null }
-    constructor(callback: IntersectionObserverCallback) {
-      this.entry = { callback, target: null }
+    private entry: { callback: IntersectionObserverCallback; target: Element | null; options?: IntersectionObserverInit }
+    constructor(callback: IntersectionObserverCallback, options?: IntersectionObserverInit) {
+      this.entry = { callback, target: null, options }
       observers.push(this.entry)
     }
     observe(target: Element) {

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useEffect } from 'react'
+import { useMemo, useRef, useState, useEffect, useLayoutEffect } from 'react'
 import { DND5E_PROFILE } from '../../campaign/system/systemProfile'
 import { identityTag } from './pjIdentity'
 import { useUnreadPort } from '../../ports'
@@ -11,8 +11,10 @@ import UnreadDot from '../../components/UnreadDot'
 import { isSectionUnreadVia } from '../../helpers/pjSections'
 import { LEGACY_CHARACTER_FIELDS } from '../../helpers/pjCustomFields'
 import { SECTION_SHOW } from './pjConstants'
-import ScrollStrip from '../../components/ScrollStrip'
 import LazyImg from '../../components/LazyImg'
+import { SectionIndex, SectionPicker } from './SectionIndex'
+import KeyFacts from './KeyFacts'
+import { roleFacts } from './pjKeyFacts'
 import { Lock, Shield } from 'lucide-react'
 import { detailTextCls } from '../../constants'
 import PJStatsSection from './detail/PJStatsSection'
@@ -41,9 +43,28 @@ const SECTIONS = [
 
 const DWELL_MS = 1500
 const SECTION_ID_PREFIX = 'pj-section-'
+/** While a jump scrolls smoothly, the scroll spy must not move the current section through the ones in between. */
+const SPY_PAUSE_MS = 900
+
+/** Replaces the hash with a section key, keeping the router's history state and adding no history entry (S2). */
+function replaceHash(id) {
+  if (window.location.hash !== `#${id}`) window.history.replaceState(window.history.state, '', `#${id}`)
+}
+
+/** The visible sheet sections as index groups, one per category, in sheet order. */
+function categoryGroups(sections) {
+  const groups = []
+  for (const s of sections) {
+    const last = groups[groups.length - 1]
+    if (last && last.key === s.categoryKey) last.entries.push({ id: s.key, label: s.label })
+    else groups.push({ key: s.categoryKey, label: s.category, entries: [{ id: s.key, label: s.label }] })
+  }
+  return groups
+}
 
 /**
- * Character sheet (header, section nav with unread dots, the sections, DM notes, player notes).
+ * Character sheet (header with key facts, side index by category with unread dots, the sections, DM notes, player notes).
+ * Every section is reachable as `#<section key>` (odd/tasks/ficha-indice-lateral.md S1-S7).
  * Host-agnostic: the host passes the DM notes text, the viewer's role and the slots that differ
  * (back link, edit/delete buttons, region tag); unread state goes through the UnreadPort.
  *
@@ -66,8 +87,9 @@ export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = f
   const unreadPort = useUnreadPort()
 
   const resolved = useMemo(() => (sheet ? resolveSheet(sheet, pj, linkedActions) : null), [sheet, pj, linkedActions])
-  const visibleSections = resolved
-    ? resolved.sections.filter(s => !s.empty).map(s => ({ id: s.key, label: s.label }))
+  const sheetSections = resolved ? resolved.sections.filter(s => !s.empty) : null
+  const visibleSections = sheetSections
+    ? sheetSections.map(s => ({ id: s.key, label: s.label }))
     : SECTIONS.filter(s => system.character.sections[s.id] && s.show(pj))
   const { builtins } = system.character
   const identity = identityTag(pj, builtins)
@@ -116,59 +138,83 @@ export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = f
     }
   }, [pj.id, unreadKey])
 
-  const sentinelRef = useRef(null)
-  const stickyNavRef = useRef(null)
-  const [showStickyNav, setShowStickyNav] = useState(false)
+  const pickerRef = useRef(null)
   const { backBarRef, nameRef, showNameInHeader } = useStickyTitle()
   const [lightbox, setLightbox] = useState(false)
   const [reveal, setReveal] = useState(null)
-  const hasNav = visibleSections.length > 0 || hasDMNotes
+  const [active, setActive] = useState(null)
+  const [missing, setMissing] = useState(null)
+  const [stickyTop, setStickyTop] = useState(HEADER_H + 64)
+  const spyPausedUntil = useRef(0)
 
+  useLayoutEffect(() => {
+    setStickyTop(HEADER_H + (backBarRef.current?.offsetHeight ?? 0) + 8)
+  }, [backBarRef])
+
+  const withUnread = entries => entries.map(e => ({ ...e, unread: unread[e.id] }))
+  const indexGroups = [
+    ...(sheetSections
+      ? categoryGroups(sheetSections)
+      : visibleSections.length > 0 ? [{ key: 'ficha', label: 'Ficha', entries: visibleSections.map(s => ({ id: s.id, label: s.label })) }] : []),
+    { key: 'notas', label: 'Notas', entries: [...(hasDMNotes ? [{ id: 'dm', label: 'Notas del DM', dm: true }] : []), { id: 'notas', label: 'Notas del jugador' }] },
+  ].map(g => ({ ...g, entries: withUnread(g.entries) }))
+  const indexIds = indexGroups.flatMap(g => g.entries.map(e => e.id))
+  const idsKey = indexIds.join(',')
+
+  /** Go to a section: expand it, scroll to it below the sticky bars, mark it current and put its key in the hash. */
   function scrollTo(id) {
     setReveal(prev => ({ key: id, n: (prev?.n ?? 0) + 1 }))
+    setActive(id)
+    setMissing(null)
+    replaceHash(id)
     const el = document.getElementById(`${SECTION_ID_PREFIX}${id}`)
     if (!el) return
-    const offset = HEADER_H + (backBarRef.current?.offsetHeight ?? 0) + (stickyNavRef.current?.offsetHeight ?? 0)
+    spyPausedUntil.current = Date.now() + SPY_PAUSE_MS
+    const offset = HEADER_H + (backBarRef.current?.offsetHeight ?? 0) + (pickerRef.current?.offsetHeight ?? 0) + 8
     const top = el.getBoundingClientRect().top + window.scrollY - offset
-    window.scrollTo({ top, behavior: 'smooth' })
+    const smooth = !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    window.scrollTo({ top, behavior: smooth ? 'smooth' : 'auto' })
     if (unread[id]) markSectionReadRef.current(pj.id, id)
   }
+  const scrollToRef = useRef(scrollTo)
+  scrollToRef.current = scrollTo
+  const idsRef = useRef(indexIds)
+  idsRef.current = indexIds
 
+  // Arriving with #key (or the hash changing while here): open that section, or say it no longer exists (S2-S4).
   useEffect(() => {
-    if (!sentinelRef.current) return
-    const backBarH = backBarRef.current?.offsetHeight ?? 0
-    const topOffset = HEADER_H + backBarH + 38
-    const observer = new IntersectionObserver(
-      ([entry]) => setShowStickyNav(!entry.isIntersecting),
-      { threshold: 0, rootMargin: `-${topOffset}px 0px 0px 0px` }
-    )
-    observer.observe(sentinelRef.current)
-    return () => observer.disconnect()
-  }, [hasNav])
+    const open = () => {
+      const key = decodeURIComponent(window.location.hash.slice(1))
+      if (!key) return
+      if (idsRef.current.includes(key)) scrollToRef.current(key)
+      else setMissing(key)
+    }
+    open()
+    window.addEventListener('hashchange', open)
+    return () => window.removeEventListener('hashchange', open)
+  }, [pj.id])
 
-  const navButtons = (
-    <>
-      {visibleSections.map(s => (
-        <button
-          key={s.id}
-          className="font-exo text-[10px] font-semibold tracking-[0.15em] uppercase px-4 py-2.5 text-txt-muted hover:text-txt-primary hover:bg-bg-mid border-none bg-transparent cursor-pointer whitespace-nowrap transition-colors"
-          onClick={() => scrollTo(s.id)}
-        >
-          {s.label}
-          <UnreadDot unread={unread[s.id]} className="ml-1.5 inline-block align-middle" />
-        </button>
-      ))}
-      {hasDMNotes && (
-        <button
-          className="font-exo text-[10px] font-semibold tracking-[0.15em] uppercase px-4 py-2.5 text-accent-dim hover:text-accent-bright hover:bg-bg-mid border-none bg-transparent cursor-pointer whitespace-nowrap transition-colors"
-          onClick={() => scrollTo('dm')}
-        >
-          <Lock size={12} className="inline mr-1" />DM
-          <UnreadDot unread={unread.dm} className="ml-1.5 inline-block align-middle" />
-        </button>
-      )}
-    </>
-  )
+  // Scroll spy: the topmost section under the sticky bars is the current one, and its key replaces the hash.
+  useEffect(() => {
+    const elements = idsKey.split(',').map(id => document.getElementById(SECTION_ID_PREFIX + id)).filter(Boolean)
+    if (elements.length === 0) return
+    const tops = new Map()
+    const offset = HEADER_H + (backBarRef.current?.offsetHeight ?? 0)
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        const key = entry.target.id.slice(SECTION_ID_PREFIX.length)
+        if (entry.isIntersecting) tops.set(key, entry.boundingClientRect.top)
+        else tops.delete(key)
+      }
+      if (Date.now() < spyPausedUntil.current) return
+      const first = [...tops.entries()].sort((a, b) => a[1] - b[1])[0]
+      if (!first) return
+      setActive(first[0])
+      replaceHash(first[0])
+    }, { rootMargin: `-${offset}px 0px -65% 0px` })
+    for (const el of elements) observer.observe(el)
+    return () => observer.disconnect()
+  }, [idsKey, backBarRef])
 
   const icon = <Shield size={18} className="inline mr-1 text-accent-bright" />
 
@@ -186,16 +232,6 @@ export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = f
         {actions && <div className="flex items-center gap-2">{actions}</div>}
       </div>
 
-      {showStickyNav && hasNav && (
-        <div
-          ref={stickyNavRef}
-          className="sticky z-10 bg-bg-card border-b border-border-base"
-          style={{ top: HEADER_H + (backBarRef.current?.offsetHeight ?? 0) }}
-        >
-          <ScrollStrip stripClassName="flex">{navButtons}</ScrollStrip>
-        </div>
-      )}
-
       <div className='flex w-full gap-4'>
         {pj.imagen_url && (
           <LazyImg
@@ -208,7 +244,8 @@ export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = f
         )}
         {lightbox && <ImageLightbox src={pj.imagen_url} alt={pj.nombre} onClose={() => setLightbox(false)} />}
         <div className='flex-1 flex flex-col gap-2 h-fit'>
-          <div className="pb-5 border-b border-border-base">
+          <div className="pb-5 border-b border-border-base flex flex-wrap items-end justify-between gap-4">
+           <div>
             <div className="font-exo text-[10px] tracking-[0.3em] uppercase mb-1 font-medium" style={{ color: regionColor || '#6e6e6e' }}>
               Personaje Jugador
             </div>
@@ -222,33 +259,50 @@ export default function PJDetail({ pj, notas = '', dmStamp = undefined, isDM = f
               {pj.estado === 'borrador' && <Tag cls="borrador" text="Borrador" />}
               {pj.estado === 'secreto' && <Tag cls="secreto" text="Secreto" />}
             </div>
+           </div>
+            <KeyFacts facts={roleFacts(sheet, pj, builtins.nivel)} className="max-w-[440px]" />
           </div>
-
-          {hasNav && (
-            <div ref={sentinelRef} className="border-b border-border-base">
-              <ScrollStrip stripClassName="flex">{navButtons}</ScrollStrip>
-            </div>
-          )}
         </div>
       </div>
 
-      {resolved
-        ? <SheetView resolved={resolved} unread={unread} reveal={reveal} />
-        : visibleSections.map(({ id, Component }) => (
-          <Component key={id} pj={pj} unread={unread[id]} customFields={customFields} motivoLabel={motivoLabel} />
-        ))}
-
-      {hasDMNotes && (
-        <div id="pj-section-dm" className="mt-5 pt-4 border-t-2 border-t-accent">
-          <div className="font-exo text-[13px] font-semibold tracking-[0.25em] text-accent-bright uppercase mb-2">
-            <Lock size={12} className="inline mr-1" />Notas DM
-            <UnreadDot unread={unread.dm} className="ml-2 inline-block align-middle" />
+      <div className="grid grid-cols-[200px_minmax(0,1fr)] gap-8 items-start mt-6 max-lg:grid-cols-1 max-lg:gap-0">
+        <aside
+          className="sticky overflow-y-auto pr-3 border-r border-border-base max-lg:hidden"
+          style={{ top: stickyTop, maxHeight: `calc(100vh - ${stickyTop + 16}px)` }}
+        >
+          <SectionIndex groups={indexGroups} active={active} onGo={scrollTo} label="Índice de la ficha" />
+        </aside>
+        <div className="min-w-0">
+          <div ref={pickerRef} className="lg:hidden sticky z-10 mb-2" style={{ top: stickyTop - 8 }}>
+            <SectionPicker groups={indexGroups} active={active} onGo={scrollTo} />
           </div>
-          <div className={detailTextCls}><WikiText text={notas} /></div>
-        </div>
-      )}
+          {missing && (
+            <p role="status" className="mb-4 px-3.5 py-2.5 border border-dashed border-border-light text-[13px] italic text-txt-secondary">
+              Esa sección («{missing}») ya no está en la ficha. Te dejamos al principio.
+            </p>
+          )}
 
-      <PlayerNotes entityType="pjs" entityId={pj.id} />
+          {resolved
+            ? <SheetView key={pj.id} resolved={resolved} unread={unread} reveal={reveal} storageKey={`pjs:${pj.id}`} />
+            : visibleSections.map(({ id, Component }) => (
+              <Component key={id} pj={pj} unread={unread[id]} customFields={customFields} motivoLabel={motivoLabel} />
+            ))}
+
+          {hasDMNotes && (
+            <div id="pj-section-dm" className="mt-5 pt-4 border-t-2 border-t-accent">
+              <div className="font-exo text-[13px] font-semibold tracking-[0.25em] text-accent-bright uppercase mb-2">
+                <Lock size={12} className="inline mr-1" />Notas DM
+                <UnreadDot unread={unread.dm} className="ml-2 inline-block align-middle" />
+              </div>
+              <div className={detailTextCls}><WikiText text={notas} /></div>
+            </div>
+          )}
+
+          <div id="pj-section-notas">
+            <PlayerNotes entityType="pjs" entityId={pj.id} />
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

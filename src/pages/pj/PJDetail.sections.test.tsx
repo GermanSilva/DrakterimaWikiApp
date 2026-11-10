@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { UnreadPortContext, type UnreadPort } from '../../ports'
 import type { Sheet } from '../../campaign/system/sheet/sheetModel'
@@ -19,10 +19,12 @@ const PJ = { id: 1, nombre: 'Ana', jugador: 'Pepe', fuerza: 12, destreza: 14 }
 beforeEach(() => {
   vi.stubGlobal('IntersectionObserver', class { observe() {} unobserve() {} disconnect() {} })
   window.scrollTo = vi.fn() as typeof window.scrollTo
+  window.history.replaceState(null, '', '/')
+  localStorage.clear()
 })
 
 describe('PJDetail: nav to a collapsed sheet section (S41)', () => {
-  it('expands the section the nav button points to', () => {
+  it('expands the section the index link points to', () => {
     render(
       <UnreadPortContext.Provider value={port}>
         <PJDetail pj={PJ} back={<span>volver</span>} sheet={SHEET} />
@@ -30,21 +32,20 @@ describe('PJDetail: nav to a collapsed sheet section (S41)', () => {
     )
     fireEvent.click(screen.getByRole('button', { name: 'Uno', expanded: true }))
     expect(screen.getByRole('button', { name: 'Uno', expanded: false })).toBeInTheDocument()
-    const nav = screen.getAllByRole('button', { name: 'Uno' }).find((b) => !b.hasAttribute('aria-expanded')) as HTMLElement
-    fireEvent.click(nav)
+    fireEvent.click(within(screen.getByRole('navigation', { name: 'Índice de la ficha' })).getByRole('link', { name: 'Uno' }))
     expect(screen.getByRole('button', { name: 'Uno', expanded: true })).toBeInTheDocument()
   })
 })
 
-describe('PJDetail: section nav in a scroll strip (S41)', () => {
-  it('draws the nav buttons inside a ScrollStrip', () => {
+describe('PJDetail: the section nav is the side index (ficha-indice-lateral S1, replaces the S41 scroll strip)', () => {
+  it('lists every section in the index', () => {
     render(
       <UnreadPortContext.Provider value={port}>
         <PJDetail pj={PJ} back={<span>volver</span>} sheet={SHEET} />
       </UnreadPortContext.Provider>,
     )
-    const strip = screen.getByTestId('scroll-strip')
-    expect(strip).toContainElement(screen.getAllByRole('button', { name: 'Uno' }).find((b) => !b.hasAttribute('aria-expanded')) as HTMLElement)
-    expect(strip).toContainElement(screen.getAllByRole('button', { name: 'Dos' }).find((b) => !b.hasAttribute('aria-expanded')) as HTMLElement)
+    const nav = screen.getByRole('navigation', { name: 'Índice de la ficha' })
+    expect(within(nav).getByRole('link', { name: 'Uno' })).toBeInTheDocument()
+    expect(within(nav).getByRole('link', { name: 'Dos' })).toBeInTheDocument()
   })
 })
