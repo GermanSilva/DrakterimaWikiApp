@@ -20,8 +20,8 @@ Límites: 3 por IP (hash SHA-256 con sal `REPORT_IP_SALT`) por hora y 30 en tota
 
 ## Tasks
 
-- T1 [S2, S3] worker — migración `login_failure_reports` + pgTAP + Edge Function (handler puro testeado con vitest) + config. commit: —
-- T2 [S1, S2] worker — UI en LoginPage + data layer (`reportLoginFailure`) + tests. commit: —
+- T1 [S2, S3] worker — migración `login_failure_reports` + pgTAP + Edge Function (handler puro testeado con vitest) + config. commit: 808e9b2
+- T2 [S1, S2] worker — UI en LoginPage + data layer (`reportLoginFailure`) + tests. commit: 84bd26f (honeypot corregido por el parent: envía el valor real)
 - T3 [S2, S3] inline — deploy a staging (db push + functions deploy) y docs del runbook; secretos los carga el owner. commit: —
 
 ## Log
@@ -29,3 +29,4 @@ Límites: 3 por IP (hash SHA-256 con sal `REPORT_IP_SALT`) por hora y 30 en tota
 - L1: "Fijemos la zona horaria a Argentina. Para el caso de que Google quede deshabilitado, me gustaría que cualquier usuario tenga la posibilidad de reportar el fallo. El sistema podría enviarme un mail así yo me entero y me encargo del problema."
 - L2: Decisión del owner: "Edge Function + Resend (Recomendado)".
 - L3: Zona horaria resuelta aparte (9faf9d6, feature login-google-only).
+- L4: Review RDD 9faf9d6..84bd26f (review-0304a8f390f9cc5e, lentes risk/resilience/reliability): aprobado y quemado; hallazgos informativos. Aplicados por el parent: timeout de 8 s al llamar a Resend y la función se niega a correr sin `REPORT_IP_SALT` (16+ caracteres). Quedan como mejoras: la IP sale de `x-forwarded-for` (falsificable, así que el límite por IP es orientativo; el tope diario global sigue firme), conteo y alta no atómicos, sin reintento del mail (el reporte igual queda en la tabla).

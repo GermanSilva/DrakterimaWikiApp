@@ -11,7 +11,7 @@ Set them on the hosted project (never in the repo or in `VITE_*`):
 | --- | --- |
 | `REPORT_TO_EMAIL` | recipient of the report email |
 | `RESEND_API_KEY` | Resend API key |
-| `REPORT_IP_SALT` | salt for the SHA-256 IP hash used by the rate limits |
+| `REPORT_IP_SALT` | salt for the SHA-256 IP hash used by the rate limits (required, 16+ random characters; without it every report gets 500) |
 | `REPORT_ALLOWED_ORIGINS` | comma-separated origins allowed by CORS |
 | `REPORT_FROM_EMAIL` | optional sender; defaults to `RPG Quester <onboarding@resend.dev>` |
 

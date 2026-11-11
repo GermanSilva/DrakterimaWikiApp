@@ -18,7 +18,10 @@ const allowedOrigins = (Deno.env.get('REPORT_ALLOWED_ORIGINS') ?? '')
   .filter(Boolean)
 
 async function hashIp(ip: string): Promise<string> {
-  const data = new TextEncoder().encode((Deno.env.get('REPORT_IP_SALT') ?? '') + ip)
+  // Without a salt the hash of an IPv4 address is trivially reversible: refuse to run unconfigured.
+  const salt = Deno.env.get('REPORT_IP_SALT') ?? ''
+  if (salt.length < 16) throw new Error('REPORT_IP_SALT is not configured')
+  const data = new TextEncoder().encode(salt + ip)
   const digest = await crypto.subtle.digest('SHA-256', data)
   return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('')
 }
@@ -68,6 +71,8 @@ Deno.serve(
           text,
           ...(replyTo ? { reply_to: replyTo } : {}),
         }),
+        // A slow mail provider must not hold the visitor's request open.
+        signal: AbortSignal.timeout(8000),
       })
       if (!res.ok) throw new Error(`resend responded ${res.status}`)
     },
