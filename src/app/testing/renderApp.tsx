@@ -108,6 +108,14 @@ export function makeData(over: Partial<HubData> = {}): HubData {
       is_member: false,
       nothing_to_do: false,
     })),
+    previewInvitePublic: vi.fn(async () => ({
+      campaign_name: 'Demo',
+      logo_url: null,
+      banner_url: null,
+      accent_color: null,
+      tagline: null,
+      expires_at: null,
+    })),
     acceptInvite: vi.fn(async () => ({
       joined: true,
       claimed: false,

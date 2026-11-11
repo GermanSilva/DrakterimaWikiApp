@@ -78,6 +78,24 @@ export interface InvitePreview {
   nothing_to_do: boolean
 }
 
+/**
+ * Return shape of the preview_invite_public RPC: the campaign an invite leads to, for a visitor who is not signed in
+ * yet (the login page). Branding only, nothing about people; every value is already validated server-side.
+ */
+export interface PublicInvitePreview {
+  campaign_name: string
+  /** https URL or null. */
+  logo_url: string | null
+  /** https URL or null (the panel banner, branding.banner_url). */
+  banner_url: string | null
+  /** Lowercase #rrggbb or null. */
+  accent_color: string | null
+  /** Trimmed, non-empty, or null. */
+  tagline: string | null
+  /** ISO timestamp or null. */
+  expires_at: string | null
+}
+
 /** Return shape of the accept_invite RPC. */
 export interface AcceptInviteResult {
   joined: boolean
@@ -308,6 +326,14 @@ export function createCampaignRepository(client: Db) {
      */
     async previewInvite(code: string): Promise<InvitePreview> {
       return unwrap(await client.rpc('preview_invite', { p_code: code })) as unknown as InvitePreview
+    },
+
+    /**
+     * RPC, read-only, callable signed out: the campaign branding behind a code, for the login page. Same errors as
+     * previewInvite for a non-member.
+     */
+    async previewInvitePublic(code: string): Promise<PublicInvitePreview> {
+      return unwrap(await client.rpc('preview_invite_public', { p_code: code })) as unknown as PublicInvitePreview
     },
 
     /** RPC. Errors (kind 'business', message = reason): invite_not_found, invite_expired, invite_exhausted, character_already_claimed. */

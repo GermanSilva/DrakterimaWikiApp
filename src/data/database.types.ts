@@ -424,6 +424,38 @@ export type Database = {
           },
         ]
       }
+      discarded_purge_log: {
+        Row: {
+          campaign_id: string
+          characters_affected: number
+          id: number
+          key: string
+          purged_at: string
+        }
+        Insert: {
+          campaign_id: string
+          characters_affected: number
+          id?: never
+          key: string
+          purged_at?: string
+        }
+        Update: {
+          campaign_id?: string
+          characters_affected?: number
+          id?: never
+          key?: string
+          purged_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "discarded_purge_log_campaign_id_fkey"
+            columns: ["campaign_id"]
+            isOneToOne: false
+            referencedRelation: "campaigns"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       disponibilidad: {
         Row: {
           campaign_id: string
@@ -1058,6 +1090,39 @@ export type Database = {
           },
         ]
       }
+      migration_backup_dnd5e_v2: {
+        Row: {
+          campaign_id: string
+          inserted_action_ids: number[]
+          inserted_links: Json
+          migrated_at: string
+          old_data: Json | null
+          old_jugador: string | null
+          old_sheet: Json | null
+          pj_id: number | null
+        }
+        Insert: {
+          campaign_id: string
+          inserted_action_ids?: number[]
+          inserted_links?: Json
+          migrated_at?: string
+          old_data?: Json | null
+          old_jugador?: string | null
+          old_sheet?: Json | null
+          pj_id?: number | null
+        }
+        Update: {
+          campaign_id?: string
+          inserted_action_ids?: number[]
+          inserted_links?: Json
+          migrated_at?: string
+          old_data?: Json | null
+          old_jugador?: string | null
+          old_sheet?: Json | null
+          pj_id?: number | null
+        }
+        Relationships: []
+      }
       pj_action_links: {
         Row: {
           action_id: number
@@ -1568,11 +1633,70 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _discarded_at_ok: { Args: { p_at: string }; Returns: boolean }
       _discarded_data_keys: { Args: { p_item: Json }; Returns: string[] }
       _discarded_rename_roots: { Args: { p_item: Json }; Returns: string[] }
+      _discarded_retention_days: { Args: never; Returns: number }
+      _dnd5e_v2_custom_section: {
+        Args: { p_fields: Json; p_sheet: Json }
+        Returns: Json
+      }
+      _dnd5e_v2_flag: { Args: { v: Json }; Returns: boolean }
+      _dnd5e_v2_flag_ok: { Args: { v: Json }; Returns: boolean }
+      _dnd5e_v2_migrate_campaign: {
+        Args: { p_campaign: string }
+        Returns: Json
+      }
+      _dnd5e_v2_nontext: { Args: { v: Json }; Returns: boolean }
+      _dnd5e_v2_norm: { Args: { p: string }; Returns: string }
+      _dnd5e_v2_pj_data: {
+        Args: { p_data: Json; p_keymap: Json; p_nivel: number }
+        Returns: Json
+      }
+      _dnd5e_v2_recovery: { Args: { v: Json }; Returns: string }
+      _dnd5e_v2_sheet_kind: { Args: { p: Json }; Returns: string }
+      _dnd5e_v2_sheet_v1: { Args: never; Returns: Json }
+      _dnd5e_v2_sheet_v2: { Args: never; Returns: Json }
+      _dnd5e_v2_spell_entries: {
+        Args: { p_rows: Json }
+        Returns: {
+          category: string
+          description: string
+          extras: Json
+          name: string
+          pj_id: number
+          preparado: boolean
+          private: boolean
+        }[]
+      }
+      _dnd5e_v2_spell_rows: {
+        Args: { p_pj: number; p_rows: Json }
+        Returns: {
+          category: string
+          description: string
+          dropped: boolean
+          extras: Json
+          flag_invalid: boolean
+          name: string
+          nivel_fallback: boolean
+          not_text: boolean
+          ord: number
+          pj_id: number
+          preparado: boolean
+          problem: string
+          truncated: boolean
+        }[]
+      }
+      _dnd5e_v2_strip_custom: { Args: { p: Json }; Returns: Json }
+      _dnd5e_v2_text: { Args: { v: Json }; Returns: string }
+      _dnd5e_v2_whole: { Args: { v: Json }; Returns: number }
       _lottery_stale_keys: {
         Args: { p_cfg: Json; p_target: Json }
         Returns: string[]
+      }
+      _purge_discarded_entry: {
+        Args: { p_campaign_id: string; p_key: string }
+        Returns: number
       }
       _reward_normalize: {
         Args: { p_coins: Json; p_target: Json }
@@ -1606,6 +1730,8 @@ export type Database = {
         }
       }
       _validate_sheet_core: { Args: { p: Json }; Returns: Json }
+      _validate_sheet_nocard: { Args: { p: Json }; Returns: Json }
+      _validate_sheet_noformats: { Args: { p: Json }; Returns: Json }
       accept_invite: { Args: { p_code: string }; Returns: Json }
       approve_campaign_request: {
         Args: { p_name?: string; p_request_id: number; p_slug?: string }
@@ -1760,6 +1886,7 @@ export type Database = {
         Returns: Json
       }
       preview_invite: { Args: { p_code: string }; Returns: Json }
+      preview_invite_public: { Args: { p_code: string }; Returns: Json }
       promote_system: {
         Args: { p_name?: string; p_system_id: string }
         Returns: Database["public"]["CompositeTypes"]["system_summary"]
@@ -1794,6 +1921,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      purge_expired_discarded: { Args: never; Returns: number }
       reject_campaign_request: {
         Args: { p_note?: string; p_request_id: number }
         Returns: undefined

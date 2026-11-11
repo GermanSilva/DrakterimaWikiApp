@@ -18,6 +18,7 @@ describe('invite RPCs are sent as POST with the code in the body', () => {
   it.each([
     ['previewInvite', 'preview_invite'],
     ['acceptInvite', 'accept_invite'],
+    ['previewInvitePublic', 'preview_invite_public'],
   ] as const)('%s', async (method, fn) => {
     const { fetchSpy, repo } = setup()
     await repo[method]('secret-code-123')

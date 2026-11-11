@@ -11,6 +11,7 @@ import {
   type NewCampaignBranding,
   type NewCampaignRequest,
   type Profile,
+  type PublicInvitePreview,
   type SystemAction,
   type SystemSummary,
 } from '../data'
@@ -41,6 +42,8 @@ export interface HubData {
   rejectCampaignRequest(requestId: number, note?: string): Promise<void>
   /** Read-only: what an invite code leads to. Never consumes the invite. */
   previewInvite(code: string): Promise<InvitePreview>
+  /** Signed out (login page): the campaign branding behind an invite code. Never consumes the invite. */
+  previewInvitePublic(code: string): Promise<PublicInvitePreview>
   acceptInvite(code: string): Promise<AcceptInviteResult>
   /** Ids of the characters (pjs) the user owns in the campaign. */
   listMyCharacterIds(campaignId: string, userId: string): Promise<number[]>
@@ -86,6 +89,7 @@ export function createHubData(client?: Db): HubData {
     approveCampaignRequest: (id, overrides) => layer.campaignRequests.approveCampaignRequest(id, overrides),
     rejectCampaignRequest: (id, note) => layer.campaignRequests.rejectCampaignRequest(id, note),
     previewInvite: (code) => layer.campaigns.previewInvite(code),
+    previewInvitePublic: (code) => layer.campaigns.previewInvitePublic(code),
     acceptInvite: (code) => layer.campaigns.acceptInvite(code),
     async listMyCharacterIds(campaignId, userId) {
       const pjs = await layer.entity('pjs').list(campaignId)
