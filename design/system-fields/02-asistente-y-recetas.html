@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Nuevo sistema — Asistente, secciones y recetas (02)</title>
+<style>
+:root{--bg-deep:#060606;--bg-mid:#0b0b0b;--bg-card:#111111;--bg-card-hover:#171717;--border-base:#1e1e1e;--border-light:#282828;--accent:#dc2626;--accent-bright:#ef4444;--accent-dim:#991b1b;--accent-subtle:#450a0a;--txt-primary:#ececec;--txt-secondary:#888888;--txt-muted:#6e6e6e;--brand-3:#4aaed8;--exo:'Exo 2',system-ui,'Segoe UI',sans-serif;--barlow:Barlow,system-ui,'Segoe UI',sans-serif;--mono:ui-monospace,'Cascadia Mono',Consolas,monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;background:var(--bg-deep);color:var(--txt-primary);font:14px/1.45 var(--barlow)}
+button,input,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--txt-primary);outline-offset:2px}
+.lbl{font:500 10px var(--exo);letter-spacing:.2em;text-transform:uppercase;color:var(--txt-muted)}
+.h{font:600 11px var(--exo);letter-spacing:.15em;text-transform:uppercase}
+.btn{font:600 11px var(--exo);letter-spacing:.1em;text-transform:uppercase;padding:8px 16px;border:1px solid var(--border-light);background:transparent;color:var(--txt-secondary);cursor:pointer}
+.btn:hover{border-color:var(--accent-dim);color:var(--txt-primary)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent-bright)}
+.btn.sm{padding:4px 10px;font-size:10px}
+.in{background:var(--bg-mid);border:1px solid var(--border-base);padding:7px 10px;width:100%}
+.in:focus{border-color:var(--accent-dim);outline:none}
+code{font-family:var(--mono)}
+
+.top{display:flex;align-items:center;gap:16px;padding:12px 24px;border-bottom:1px solid var(--border-base);background:var(--bg-card)}
+.crumbs{font:500 11px var(--exo);letter-spacing:.15em;text-transform:uppercase;color:var(--txt-muted)}
+.crumbs b{color:var(--txt-primary);font-weight:600}
+.top .btn:first-of-type{margin-left:auto}
+
+.layout{display:grid;grid-template-columns:220px minmax(0,1fr) 340px;min-height:calc(100vh - 53px)}
+.steps{border-right:1px solid var(--border-base);padding:24px 0}
+.steps ol{list-style:none;counter-reset:s}
+.steps li button{width:100%;text-align:left;display:flex;gap:12px;align-items:flex-start;padding:10px 20px;background:none;border:0;border-left:2px solid transparent;cursor:pointer;color:var(--txt-secondary)}
+.steps li button .n{font:600 11px var(--exo);width:22px;height:22px;display:grid;place-items:center;border:1px solid var(--border-light);flex:none}
+.steps li button .t{font-size:13px}
+.steps li button .d{display:block;font-size:12px;color:var(--txt-muted)}
+.steps li button[aria-current=step]{color:var(--txt-primary);border-left-color:var(--accent);background:var(--bg-card)}
+.steps li button[aria-current=step] .n{border-color:var(--accent);color:var(--accent-bright)}
+.steps li button.done .n{background:var(--border-light);color:var(--txt-primary)}
+
+.main{padding:28px 36px 60px;max-width:960px}
+.main h1{font:600 18px var(--exo);letter-spacing:.15em;text-transform:uppercase;margin-bottom:6px}
+.lead{color:var(--txt-secondary);margin-bottom:22px;max-width:640px}
+.cards{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.card{border:1px solid var(--border-base);background:var(--bg-card);padding:16px;text-align:left;cursor:pointer;display:flex;flex-direction:column;gap:6px}
+.card:hover{background:var(--bg-card-hover)}
+.card[aria-checked=true]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.card .tt{font:600 13px var(--exo);letter-spacing:.1em;text-transform:uppercase}
+.card .meta{font-size:12px;color:var(--txt-secondary)}
+.card .tag{align-self:flex-start;font:500 10px var(--exo);letter-spacing:.15em;text-transform:uppercase;border:1px solid var(--border-light);padding:2px 6px;color:var(--txt-secondary)}
+.card select{margin-top:6px}
+
+.q{border-top:1px solid var(--border-base);padding:16px 0;display:grid;grid-template-columns:1fr auto;gap:6px 24px;align-items:start}
+.q:first-of-type{border-top:0}
+.q p{font-size:15px}
+.q small{grid-column:1;color:var(--txt-secondary);font-size:12px}
+.seg{display:flex;border:1px solid var(--border-light);grid-row:1/3;grid-column:2;align-self:center}
+.seg button{padding:7px 14px;background:transparent;border:0;border-right:1px solid var(--border-light);color:var(--txt-secondary);cursor:pointer;font-size:13px}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed=true]{background:var(--bg-card);color:var(--txt-primary);box-shadow:inset 0 -2px 0 var(--accent)}
+.sub-q{grid-column:1/-1;display:flex;gap:10px;align-items:center;font-size:13px;color:var(--txt-secondary);margin-top:6px}
+.sub-q .in{width:auto}
+
+.libbar{display:flex;gap:10px;margin-bottom:14px}
+.lib{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.kit{border:1px solid var(--border-base);background:var(--bg-card);padding:14px;display:flex;flex-direction:column;gap:8px}
+.kit header{display:flex;align-items:baseline;gap:8px}
+.kit .tt{font:600 12px var(--exo);letter-spacing:.1em;text-transform:uppercase}
+.kit .ct{margin-left:auto;font-size:12px;color:var(--txt-muted)}
+.kit p{font-size:13px;color:var(--txt-secondary)}
+.kit ul{list-style:none;font:12px/1.7 var(--mono);color:var(--txt-secondary);border-left:1px solid var(--border-light);padding-left:10px}
+.kit ul .fx{color:var(--brand-3)}
+.kit .row{display:flex;gap:8px;align-items:center;margin-top:auto}
+.kit.added{border-color:var(--border-light);opacity:.75}
+.kit .ok{font-size:12px;color:var(--brand-3)}
+
+/* recipe */
+.recipe{display:grid;grid-template-columns:240px minmax(0,1fr);border:1px solid var(--border-light);background:var(--bg-card)}
+.rlist{border-right:1px solid var(--border-base);padding:8px 0}
+.rlist button{display:block;width:100%;text-align:left;padding:9px 14px;background:none;border:0;border-left:2px solid transparent;color:var(--txt-secondary);cursor:pointer;font-size:13px}
+.rlist button small{display:block;font-size:11px;color:var(--txt-muted)}
+.rlist button[aria-selected=true]{color:var(--txt-primary);border-left-color:var(--accent);background:var(--bg-card-hover)}
+.rbody{padding:16px 18px}
+.rbody h3{font:600 13px var(--exo);letter-spacing:.1em;text-transform:uppercase;margin-bottom:4px}
+.rbody .exp{font-size:13px;color:var(--txt-secondary);margin-bottom:14px}
+.params{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.params label{display:flex;flex-direction:column;gap:4px}
+.gen{background:var(--bg-mid);border:1px solid var(--border-base);padding:10px 12px;font:14px var(--mono);color:var(--brand-3);margin-bottom:12px;word-break:break-word}
+.table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:14px}
+.table th{font:500 10px var(--exo);letter-spacing:.15em;text-transform:uppercase;color:var(--txt-muted);text-align:center;padding:4px;border-bottom:1px solid var(--border-base)}
+.table td{text-align:center;padding:5px 2px;font-family:var(--mono);border-bottom:1px solid var(--border-base)}
+.table th:first-child,.table td:first-child{text-align:left}
+.table td.ch{color:var(--brand-3);font-weight:600}
+.rnote{font-size:12px;color:var(--txt-muted);margin-bottom:12px}
+
+/* summary aside */
+.aside{border-left:1px solid var(--border-base);background:var(--bg-card);padding:22px 20px}
+.aside h2{margin-bottom:4px}
+.aside .meta{font-size:12px;color:var(--txt-secondary);margin-bottom:14px}
+.tree{list-style:none;font-size:13px}
+.tree .c{font:500 10px var(--exo);letter-spacing:.2em;text-transform:uppercase;color:var(--txt-muted);padding:10px 0 4px}
+.tree .s{padding:3px 0 3px 10px;color:var(--txt-primary)}
+.tree .i{padding:1px 0 1px 22px;color:var(--txt-secondary);font-size:12px;display:flex;gap:6px}
+.tree .i .k{margin-left:auto;font:11px var(--mono);color:var(--txt-muted)}
+.tree .i .k.fx{color:var(--brand-3)}
+.tree .new{animation:in .25s ease-out}
+@keyframes in{from{background:rgba(220,38,38,.15)}to{background:transparent}}
+.counts{display:flex;gap:16px;margin-top:16px;padding-top:12px;border-top:1px solid var(--border-base);font-size:12px;color:var(--txt-secondary)}
+.counts b{display:block;font:600 16px var(--exo);color:var(--txt-primary)}
+.warn{margin-top:14px;padding:10px 12px;border-left:3px solid var(--accent-bright);background:var(--accent-subtle);font-size:12px;line-height:1.5}
+
+.foot{display:flex;gap:10px;margin-top:28px;padding-top:16px;border-top:1px solid var(--border-base)}
+.foot .btn.primary{margin-left:auto}
+[hidden]{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+@media (max-width:1100px){.layout{grid-template-columns:200px minmax(0,1fr)}.aside{grid-column:1/-1;border-left:0;border-top:1px solid var(--border-base)}}
+@media (max-width:720px){.layout{display:block}.steps ol{display:flex;overflow-x:auto}.steps li button .d{display:none}.steps{padding:0;border-right:0;border-bottom:1px solid var(--border-base)}.cards,.lib,.params{grid-template-columns:1fr}.recipe{grid-template-columns:1fr}.main{padding:20px 16px}.q{grid-template-columns:1fr}.seg{grid-row:auto;grid-column:1}}
+@media (prefers-reduced-motion:reduce){.tree .new{animation:none}}
+</style></head><body>
+<header class="top">
+  <p class="crumbs">Nueva campaña · <b>La Marca de Hierro</b> › Sistema</p>
+  <button class="btn" type="button">Guardar borrador</button>
+  <button class="btn" type="button">Salir</button>
+</header>
+
+<div class="layout">
+  <nav class="steps" aria-label="Pasos para armar el sistema">
+    <ol>
+      <li><button type="button" data-step="1"><span class="n">1</span><span><span class="t">Punto de partida</span><span class="d">Copiar un sistema o empezar</span></span></button></li>
+      <li><button type="button" data-step="2"><span class="n">2</span><span><span class="t">Cómo se juega</span><span class="d">6 preguntas</span></span></button></li>
+      <li><button type="button" data-step="3"><span class="n">3</span><span><span class="t">Secciones</span><span class="d">Agregar bloques listos</span></span></button></li>
+      <li><button type="button" data-step="4"><span class="n">4</span><span><span class="t">Fórmulas</span><span class="d">Recetas para los cálculos</span></span></button></li>
+    </ol>
+  </nav>
+
+  <main class="main">
+    <!-- STEP 1 -->
+    <section data-panel="1" aria-labelledby="s1">
+      <h1 id="s1">¿De dónde parte tu sistema?</h1>
+      <p class="lead">La campaña recibe una copia: lo que cambies acá no afecta al sistema de origen, y los cambios futuros del origen no llegan a esta campaña.</p>
+      <div class="cards" role="radiogroup" aria-label="Punto de partida">
+        <button class="card" role="radio" aria-checked="false" data-start="origin" type="button"><span class="tag">Sistema Origen</span><span class="tt">D&amp;D 5e (SRD)</span><span class="meta">6 categorías · 58 ítems · 31 fórmulas · colección de 412 acciones</span><span class="meta">Para jugar el sistema tal cual o hacer pocos cambios.</span></button>
+        <button class="card" role="radio" aria-checked="false" data-start="homebrew" type="button"><span class="tag">Mis sistemas</span><span class="tt">Drakterima 5e</span><span class="meta">Homebrew de la campaña Drakterima · ramificado de D&amp;D 5e (SRD)</span><span class="meta">Incluye las acciones compartidas, no las privadas de cada personaje.</span></button>
+        <button class="card" role="radio" aria-checked="true" data-start="skeleton" type="button"><span class="tag">Recomendado para sistemas nuevos</span><span class="tt">Esqueleto guiado</span><span class="meta">Respondés 6 preguntas y armamos la estructura base. Después la completás con secciones listas.</span></button>
+        <button class="card" role="radio" aria-checked="false" data-start="blank" type="button"><span class="tag">Avanzado</span><span class="tt">En blanco</span><span class="meta">Solo Identidad (nombre, jugador, imagen, visibilidad). Todo lo demás lo armás vos.</span></button>
+      </div>
+    </section>
+
+    <!-- STEP 2 -->
+    <section data-panel="2" aria-labelledby="s2" hidden>
+      <h1 id="s2">¿Cómo se juega?</h1>
+      <p class="lead">Cada respuesta agrega o quita partes del esqueleto. Podés cambiar todo después en Ajustes › Ficha de personaje.</p>
+      <div class="q"><p>¿Los personajes tienen atributos con un valor y un modificador?</p><small>Ej.: Fuerza 16 → +3. Crea una tabla Stat.</small>
+        <div class="seg" role="group" aria-label="Atributos" data-q="attr"><button type="button" aria-pressed="true">Sí</button><button type="button" aria-pressed="false">No</button></div>
+        <div class="sub-q" data-sub="attr">Atributos: <input class="in" value="Fuerza, Destreza, Constitución, Inteligencia, Sabiduría, Carisma" style="flex:1" aria-label="Lista de atributos"></div></div>
+      <div class="q"><p>¿Hay niveles de personaje?</p><small>Crea el campo Nivel y habilita recetas que escalan por nivel.</small>
+        <div class="seg" role="group" aria-label="Niveles" data-q="lvl"><button type="button" aria-pressed="true">Sí</button><button type="button" aria-pressed="false">No</button></div>
+        <div class="sub-q" data-sub="lvl">Rango: <input class="in" value="1" style="width:64px" aria-label="Nivel mínimo"> a <input class="in" value="20" style="width:64px" aria-label="Nivel máximo"></div></div>
+      <div class="q"><p>¿Las habilidades dependen de un atributo y tienen grados de entrenamiento?</p><small>Ej.: Sigilo usa Destreza; No entrenado / Entrenado / Experto. Crea una tabla Capacidades.</small>
+        <div class="seg" role="group" aria-label="Habilidades" data-q="skills"><button type="button" aria-pressed="true">Sí</button><button type="button" aria-pressed="false">No</button></div></div>
+      <div class="q"><p>¿Hay recursos que se gastan y se recuperan?</p><small>Puntos de golpe, maná, cordura, puntos de suerte… Crea columnas con reinicio.</small>
+        <div class="seg" role="group" aria-label="Recursos" data-q="res"><button type="button" aria-pressed="true">Sí</button><button type="button" aria-pressed="false">No</button></div></div>
+      <div class="q"><p>¿Se usan monedas?</p><small>Sin monedas no se pueden definir premios, así que la lotería no aparece.</small>
+        <div class="seg" role="group" aria-label="Monedas" data-q="coins"><button type="button" aria-pressed="false">Sí</button><button type="button" aria-pressed="true">No</button></div></div>
+      <div class="q"><p>¿Hay poderes, conjuros o maniobras que se eligen de una lista?</p><small>Crea una tabla Habilidad que se muestra en un modal por categoría.</small>
+        <div class="seg" role="group" aria-label="Poderes" data-q="powers"><button type="button" aria-pressed="true">Sí</button><button type="button" aria-pressed="false">No</button></div></div>
+    </section>
+
+    <!-- STEP 3 -->
+    <section data-panel="3" aria-labelledby="s3" hidden>
+      <h1 id="s3">Agregá secciones listas</h1>
+      <p class="lead">Cada bloque trae sus campos, tablas y fórmulas. Si una clave ya existe, se renombra (por ejemplo <code>cordura_2</code>) y te lo avisamos.</p>
+      <div class="libbar"><label class="sr" for="lq">Buscar sección</label><input class="in" id="lq" placeholder="Buscar: cordura, inventario, iniciativa…"><select class="in" style="width:200px" aria-label="Filtrar por género"><option>Todos los géneros</option><option>Fantasía</option><option>Horror</option><option>Ciencia ficción</option></select></div>
+      <div class="lib" id="lib"></div>
+    </section>
+
+    <!-- STEP 4 -->
+    <section data-panel="4" aria-labelledby="s4" hidden>
+      <h1 id="s4">Fórmulas con recetas</h1>
+      <p class="lead">Elegí qué querés calcular y completá los números. La receta escribe la fórmula; después podés editarla a mano en el taller de fórmulas.</p>
+      <p class="lbl" style="margin-bottom:8px">Campo: <span style="color:var(--txt-primary)">Bono de entrenamiento</span> · <code style="color:var(--txt-secondary)">bono_entrenamiento</code></p>
+      <div class="recipe">
+        <div class="rlist" role="tablist" aria-label="Recetas" aria-orientation="vertical" id="rlist"></div>
+        <div class="rbody" id="rbody" role="tabpanel" aria-labelledby="r-0"></div>
+      </div>
+    </section>
+
+    <div class="foot">
+      <button class="btn" type="button" id="back">← Anterior</button>
+      <button class="btn primary" type="button" id="next">Siguiente: Cómo se juega</button>
+    </div>
+  </main>
+
+  <aside class="aside" aria-labelledby="sum-t">
+    <h2 class="h" id="sum-t">Tu ficha hasta ahora</h2>
+    <p class="meta">Se actualiza con cada respuesta. Nada se guarda en la campaña hasta crearla.</p>
+    <ul class="tree" id="tree"></ul>
+    <div class="counts"><p><b id="c-items">0</b>ítems</p><p><b id="c-fx">0</b>fórmulas</p><p><b id="c-tab">0</b>tablas</p></div>
+    <div class="warn" id="coinwarn"><strong>Sin monedas.</strong> La lotería y el pozo no van a aparecer en Juegos hasta que agregues una sección de Monedas.</div>
+  </aside>
+</div>
+
+<script>
+const S={step:1,start:'skeleton',q:{attr:true,lvl:true,skills:true,res:true,coins:false,powers:true},kits:new Set()};
+const KITS=[
+  {id:'cordura',t:'Cordura',g:'Horror',d:'Recurso que baja con el horror y se recupera al descansar.',items:[['Cordura','número · reinicio'],['Cordura máx.','ƒ','{stat_sab.valor} * 5'],['Locura','sí/no']]},
+  {id:'inventario',t:'Inventario con carga',g:'Todos',d:'Tabla de objetos con peso y cantidad, y la carga total calculada.',items:[['Equipo','tabla libre'],['Carga total','Σ','suma({equipo}, "peso")'],['Sobrecargado','ƒ','{carga} > {stat_fue.valor} * 7']]},
+  {id:'monedas',t:'Monedas',g:'Todos',d:'Denominaciones con equivalencias. Habilita la lotería y el pozo.',items:[['Monedas','tabla especial'],['Bolsa','economía · destino de recompensa']]},
+  {id:'defensa',t:'Defensa e iniciativa',g:'Fantasía',d:'Clase de armadura, iniciativa y velocidad.',items:[['Defensa','ƒ','10 + {stat_des.modificador}'],['Iniciativa','ƒ','signo({stat_des.modificador})'],['Velocidad','número']]},
+  {id:'estres',t:'Estrés y traumas',g:'Ciencia ficción',d:'Pista de estrés de 0 a 9 que se muestra como puntos, y una lista de traumas.',items:[['Estrés','número · puntos'],['Traumas','tabla libre']]},
+  {id:'vinculos',t:'Vínculos',g:'Todos',d:'Relaciones con otros personajes o facciones, con nivel de confianza.',items:[['Vínculos','tabla libre']]}
+];
+const RECIPES=[
+  {t:'Escala por nivel',s:'Sube cada N niveles',e:'Empieza en un valor y suma un punto cada cierta cantidad de niveles.',p:[['inicio','Valor en nivel 1',2],['cada','Sube cada (niveles)',4],['paso','Cuánto sube',1]],f:v=>v.inicio+' + floor(({nivel} - 1) / '+v.cada+')'+(v.paso!=1?' * '+v.paso:''),calc:(v,n)=>v.inicio+Math.floor((n-1)/v.cada)*v.paso},
+  {t:'Modificador de atributo',s:'Valor → modificador',e:'Convierte el valor del atributo en su modificador. Se usa en la tabla Stat.',p:[['base','Valor neutro',10],['div','Divide por',2]],f:v=>'floor(({valor} - '+v.base+') / '+v.div+')',calc:(v,n)=>Math.floor((n-v.base)/v.div),axis:'Valor',range:[8,9,10,11,12,13,14,15,16,17,18,19,20]},
+  {t:'Bono por grado',s:'Atributo + entrenamiento',e:'Genera una fórmula por opción (No entrenado ×0, Entrenado ×1, Experto ×N). Cada opción queda editable por separado. Abajo: la opción Experto con modificador +3.',p:[['m','Multiplicador experto',2]],f:v=>'{modificador} + {bono_entrenamiento} * '+v.m,calc:(v,n)=>3+(2+Math.floor((n-1)/4))*v.m},
+  {t:'Total de una tabla',s:'Suma, promedio, conteo…',e:'Calcula sobre una columna de una tabla de la ficha.',p:[],f:()=>'suma({equipo}, "peso")',calc:()=>21,noTable:true},
+  {t:'Texto compuesto',s:'Une valores en un texto',e:'Muestra varios valores juntos, por ejemplo «d8 (4/5)».',p:[],f:()=>'"d" & {dado_golpe_caras} & " (" & {dados_disponibles} & "/" & {nivel} & ")"',calc:()=>'d8 (4/5)',noTable:true}
+];
+let rsel=0;const rv=RECIPES.map(r=>Object.fromEntries(r.p.map(x=>[x[0],x[2]])));
+
+function tree(){
+  const q=S.q,blank=S.start==='blank',orig=S.start!=='skeleton'&&!blank;
+  const cats=[['Identidad',[['Datos',[['Nombre','texto'],['Jugador','auto'],['Imagen','url'],['Visibilidad','estado']]]]]];
+  if(orig){cats.push(['Mecánicas',[['Atributos',[['Atributos','tabla stat'],['Habilidades','capacidades']]],['Combate',[['Bono de competencia','ƒ'],['PG máx.','ƒ'],['Clase de armadura','ƒ'],['…','+24']]]]],['Conjuros',[['Conjuros',[['Espacios de conjuro','tabla'],['Conjuros','modal']]]]],['Equipo',[['Equipo',[['Equipo','tabla libre'],['Monedas','tabla especial']]]]])}
+  else if(!blank){const mec=[];
+    if(q.attr)mec.push(['Atributos',[['Atributos','tabla stat'],...(q.lvl?[['Nivel','número']]:[])]]);
+    else if(q.lvl)mec.push(['Progresión',[['Nivel','número']]]);
+    if(q.skills)mec.push(['Habilidades',[['Habilidades','capacidades'],...(q.lvl?[['Bono de entrenamiento','ƒ']]:[])]]);
+    if(q.res)mec.push(['Recursos',[['Puntos de golpe','número · reinicio'],['PG máx.','ƒ']]]);
+    if(mec.length)cats.push(['Mecánicas',mec]);
+    if(q.powers)cats.push(['Poderes',[['Poderes',[['Poderes','tabla habilidad'],['Lista por categoría','modal']]]]]);
+    if(q.coins)cats.push(['Equipo',[['Riqueza',[['Monedas','tabla especial']]]]]);
+  }
+  const extra=KITS.filter(k=>S.kits.has(k.id));
+  if(extra.length)cats.push(['Extras',extra.map(k=>[k.t,k.items.map(i=>[i[0],i[1]])])]);
+  let h='',items=0,fx=0,tab=0;
+  for(const[c,secs]of cats){h+='<li class="c">'+c+'</li>';for(const[s,its]of secs){h+='<li class="s">'+s+'</li>';for(const[i,k]of its){items++;if(/ƒ|Σ/.test(k))fx++;if(/tabla|capacidades/.test(k))tab++;h+='<li class="i'+(extra.some(e=>e.t===s)?' new':'')+'"><span>'+i+'</span><span class="k'+(/ƒ|Σ/.test(k)?' fx':'')+'">'+k+'</span></li>'}}}
+  document.getElementById('tree').innerHTML=h;
+  document.getElementById('c-items').textContent=orig?'58':items;document.getElementById('c-fx').textContent=orig?'31':fx;document.getElementById('c-tab').textContent=orig?'9':tab;
+  const coins=orig||q.coins&&!blank||S.kits.has('monedas');document.getElementById('coinwarn').hidden=coins;
+}
+function lib(){const f=(document.getElementById('lq').value||'').toLowerCase();
+  document.getElementById('lib').innerHTML=KITS.filter(k=>(k.t+k.d+k.g).toLowerCase().includes(f)).map(k=>{const on=S.kits.has(k.id);return'<article class="kit'+(on?' added':'')+'"><header><h2 class="tt">'+k.t+'</h2><span class="ct">'+k.g+' · '+k.items.length+' ítems</span></header><p>'+k.d+'</p><ul>'+k.items.map(i=>'<li'+(i[2]?' class="fx"':'')+'>'+i[0]+(i[2]?' = '+i[2].replace(/</g,'&lt;'):' · '+i[1])+'</li>').join('')+'</ul><div class="row">'+(on?'<span class="ok" role="status">✓ Agregada en Extras</span><button class="btn sm" type="button" data-kit="'+k.id+'">Quitar</button>':'<button class="btn sm" type="button" data-kit="'+k.id+'">+ Agregar</button>')+'</div></article>'}).join('')||'<p class="lead">Ninguna sección coincide. Podés crear una vacía desde Ajustes › Ficha de personaje.</p>';
+  document.querySelectorAll('[data-kit]').forEach(b=>b.onclick=()=>{const id=b.dataset.kit;S.kits.has(id)?S.kits.delete(id):S.kits.add(id);lib();tree()})}
+document.getElementById('lq').oninput=lib;
+
+function recipes(){
+  document.getElementById('rlist').innerHTML=RECIPES.map((r,i)=>'<button role="tab" id="r-'+i+'" aria-selected="'+(i===rsel)+'" tabindex="'+(i===rsel?0:-1)+'" type="button" data-r="'+i+'">'+r.t+'<small>'+r.s+'</small></button>').join('');
+  document.querySelectorAll('[data-r]').forEach(b=>{b.onclick=()=>{rsel=+b.dataset.r;recipes()};b.onkeydown=e=>{if(e.key==='ArrowDown'||e.key==='ArrowUp'){rsel=(rsel+(e.key==='ArrowDown'?1:-1)+RECIPES.length)%RECIPES.length;recipes();document.getElementById('r-'+rsel).focus()}}});
+  const r=RECIPES[rsel],v=rv[rsel];document.getElementById('rbody').setAttribute('aria-labelledby','r-'+rsel);
+  const range=r.range||[1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20];
+  let prev=null;const cells=range.map(n=>{const x=r.calc(v,n);const ch=prev!==null&&x!==prev;prev=x;return'<td'+(ch?' class="ch"':'')+'>'+(typeof x==='number'&&x>0&&rsel===1?'+':'')+x+'</td>'});
+  document.getElementById('rbody').innerHTML='<h3>'+r.t+'</h3><p class="exp">'+r.e+'</p>'+
+    (r.p.length?'<div class="params">'+r.p.map(p=>'<label><span class="lbl">'+p[1]+'</span><input class="in" type="number" min="1" value="'+v[p[0]]+'" data-p="'+p[0]+'"></label>').join('')+'</div>':'')+
+    '<p class="lbl" style="margin-bottom:6px">Fórmula generada</p><p class="gen" id="gen">'+r.f(v).replace(/</g,'&lt;')+'</p>'+
+    (r.noTable?'<p class="rnote">Resultado con el personaje de ejemplo: <b style="color:var(--txt-primary);font-family:var(--mono)">'+r.calc(v,5)+'</b></p>':
+    '<table class="table" aria-label="Resultado por '+(r.axis||'nivel')+'"><thead><tr><th scope="row">'+(r.axis||'Nivel')+'</th>'+range.map(n=>'<th scope="col">'+n+'</th>').join('')+'</tr></thead><tbody><tr><th scope="row" style="text-align:left">Resultado</th>'+cells.join('')+'</tr></tbody></table><p class="rnote">Resaltado: donde el valor cambia. Comparalo con la tabla del manual de tu sistema.</p>')+
+    '<div style="display:flex;gap:8px"><button class="btn primary" type="button">Usar esta fórmula</button><button class="btn" type="button">Editar a mano en el taller</button></div>';
+  document.querySelectorAll('[data-p]').forEach(i=>i.oninput=()=>{const n=+i.value;if(n>0){v[i.dataset.p]=n;const pos=i.selectionStart;recipes();const again=document.querySelector('[data-p="'+i.dataset.p+'"]');again.focus();try{again.setSelectionRange(pos,pos)}catch(e){}}});
+}
+
+const NEXT={1:'Siguiente: Cómo se juega',2:'Siguiente: Secciones',3:'Siguiente: Fórmulas',4:'Crear campaña con este sistema'};
+let booted=false;
+function go(n){
+  if(S.start!=='skeleton'&&(n===2))n=S.step<2?3:1;
+  S.step=n;document.querySelectorAll('[data-panel]').forEach(p=>p.hidden=+p.dataset.panel!==n);
+  document.querySelectorAll('[data-step]').forEach(b=>{const k=+b.dataset.step;if(k===n)b.setAttribute('aria-current','step');else b.removeAttribute('aria-current');b.classList.toggle('done',k<n);b.disabled=S.start!=='skeleton'&&k===2;b.style.opacity=b.disabled?.4:1});
+  document.getElementById('next').textContent=NEXT[n];document.getElementById('back').hidden=n===1;
+  if(n===3)lib();if(n===4)recipes();tree();
+  if(booted)document.querySelector('[data-panel="'+n+'"] h1').focus();booted=true;
+}
+document.querySelectorAll('[data-step]').forEach(b=>b.onclick=()=>go(+b.dataset.step));
+document.getElementById('next').onclick=()=>{if(S.step<4)go(S.step+1)};
+document.getElementById('back').onclick=()=>go(S.step===3&&S.start!=='skeleton'?1:S.step-1);
+document.querySelectorAll('[data-start]').forEach(c=>c.onclick=()=>{S.start=c.dataset.start;document.querySelectorAll('[data-start]').forEach(x=>x.setAttribute('aria-checked',x===c));booted=false;go(1)});
+document.querySelectorAll('[data-q]').forEach(g=>{const bs=g.querySelectorAll('button');bs.forEach((b,i)=>b.onclick=()=>{bs.forEach(x=>x.setAttribute('aria-pressed',x===b));S.q[g.dataset.q]=i===0;const sub=document.querySelector('[data-sub="'+g.dataset.q+'"]');if(sub)sub.hidden=i!==0;tree()})});
+document.querySelectorAll('h1').forEach(h=>h.tabIndex=-1);
+go(1);
+</script>
+</body></html>

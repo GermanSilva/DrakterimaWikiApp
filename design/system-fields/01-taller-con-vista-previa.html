@@ -1,0 +1,539 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ficha de personaje — Taller de fórmulas con vista previa (01)</title>
+<style>
+:root{--bg-deep:#060606;--bg-mid:#0b0b0b;--bg-card:#111111;--bg-card-hover:#171717;--border-base:#1e1e1e;--border-light:#282828;--accent:#dc2626;--accent-bright:#ef4444;--accent-dim:#991b1b;--accent-subtle:#450a0a;--txt-primary:#ececec;--txt-secondary:#888888;--txt-muted:#6e6e6e;--brand-1:#9c2d8c;--brand-2:#4a32ac;--brand-3:#4aaed8;--exo:'Exo 2',system-ui,'Segoe UI',sans-serif;--barlow:Barlow,system-ui,'Segoe UI',sans-serif;--mono:ui-monospace,'Cascadia Mono',Consolas,monospace}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg-deep);color:var(--txt-primary);font:14px/1.45 var(--barlow);display:flex;flex-direction:column}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--txt-primary);outline-offset:2px}
+.lbl{font:500 10px var(--exo);letter-spacing:.2em;text-transform:uppercase;color:var(--txt-muted)}
+.h{font:600 11px var(--exo);letter-spacing:.15em;text-transform:uppercase}
+.btn{font:600 11px var(--exo);letter-spacing:.1em;text-transform:uppercase;padding:8px 16px;border:1px solid var(--border-light);background:transparent;color:var(--txt-secondary);cursor:pointer}
+.btn:hover{border-color:var(--accent-dim);color:var(--txt-primary)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent-bright)}
+.btn.primary[aria-disabled=true]{background:var(--border-light);border-color:var(--border-light);color:var(--txt-secondary);cursor:not-allowed}
+.btn.sm{padding:4px 10px;font-size:10px}
+input.in,select.in{background:var(--bg-mid);border:1px solid var(--border-base);padding:7px 10px;width:100%}
+input.in:focus,select.in:focus{border-color:var(--accent-dim);outline:none}
+
+/* top bar */
+.top{display:flex;align-items:center;gap:16px;padding:12px 20px;border-bottom:1px solid var(--border-base);background:var(--bg-card)}
+.crumbs{font:500 11px var(--exo);letter-spacing:.15em;text-transform:uppercase;color:var(--txt-muted)}
+.crumbs b{color:var(--txt-primary);font-weight:600}
+.dirty{margin-left:auto;font-size:12px;color:var(--txt-secondary)}
+.dirty.err{color:var(--accent-bright)}
+
+/* 3 panes */
+.work{flex:1;display:grid;grid-template-columns:250px minmax(0,1fr) 360px;min-height:0}
+.pane{min-height:0;overflow:auto;border-right:1px solid var(--border-base)}
+.pane:last-child{border-right:0}
+
+/* outline */
+.outline{padding:14px 0;background:var(--bg-deep)}
+.outline .search{margin:0 14px 12px}
+.tree{list-style:none}
+.tree .cat{padding:10px 14px 4px}
+.tree .sec{padding:6px 14px 2px 22px;font-size:12px;color:var(--txt-secondary)}
+.tree a{display:flex;align-items:center;gap:8px;padding:5px 14px 5px 30px;color:var(--txt-secondary);text-decoration:none;font-size:13px;border-left:2px solid transparent}
+.tree a:hover{background:var(--bg-card-hover);color:var(--txt-primary)}
+.tree a[aria-current=true]{background:var(--bg-card);color:var(--txt-primary);border-left-color:var(--accent)}
+.tree .kind{margin-left:auto;font:10px var(--mono);color:var(--txt-muted)}
+.tree .fx{color:var(--brand-3)}
+.tree .bad::after{content:'';width:6px;height:6px;border-radius:50%;background:var(--accent-bright);margin-left:6px}
+.outline .add{margin:14px;width:calc(100% - 28px)}
+
+/* inspector */
+.insp{padding:20px 28px 40px;background:var(--bg-deep)}
+.insp h1{font:600 18px var(--exo);letter-spacing:.15em;text-transform:uppercase;margin-bottom:4px}
+.sub{color:var(--txt-secondary);font-size:13px;margin-bottom:18px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:18px}
+.f{display:flex;flex-direction:column;gap:5px}
+.seg{display:flex;border:1px solid var(--border-light)}
+.seg button{flex:1;padding:7px 8px;background:transparent;border:0;border-right:1px solid var(--border-light);color:var(--txt-secondary);cursor:pointer;font-size:13px}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed=true]{background:var(--bg-card);color:var(--txt-primary);box-shadow:inset 0 -2px 0 var(--accent)}
+
+/* formula workbench */
+.bench{border:1px solid var(--border-light);background:var(--bg-card)}
+.bench-head{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border-base)}
+.bench-head .scope{margin-left:auto;font-size:12px;color:var(--txt-secondary)}
+.scope code{font-family:var(--mono);color:var(--txt-primary)}
+.editor{position:relative;margin:14px 14px 0}
+.editor pre,.editor textarea{font:14px/1.6 var(--mono);padding:10px 12px;white-space:pre-wrap;word-break:break-word;min-height:64px;width:100%;border:1px solid var(--border-base);letter-spacing:0}
+.editor pre{position:absolute;inset:0;pointer-events:none;border-color:transparent;color:var(--txt-primary);overflow:hidden}
+.editor textarea{position:relative;display:block;background:transparent;color:transparent;caret-color:var(--txt-primary);resize:vertical;background:var(--bg-mid)}
+.editor textarea{background:transparent}
+.editor{background:var(--bg-mid)}
+.editor textarea:focus{border-color:var(--accent-dim);outline:none}
+.t-ref{color:var(--brand-3)}
+.t-ref.unknown{color:var(--accent-bright);text-decoration:underline wavy var(--accent-bright)}
+.t-fn{color:#d9a3d0}
+.t-str{color:#b9b0ec}
+.t-num{color:var(--txt-primary)}
+.t-op{color:var(--txt-secondary)}
+.t-err{background:var(--accent-subtle);box-shadow:inset 0 -2px 0 var(--accent-bright)}
+.toolbar{display:flex;flex-wrap:wrap;gap:6px;padding:10px 14px}
+.chip{font:12px var(--mono);padding:3px 8px;border:1px solid var(--border-light);background:var(--bg-mid);color:var(--txt-secondary);cursor:pointer}
+.chip:hover{color:var(--txt-primary);border-color:var(--accent-dim)}
+.toolbar .lbl{align-self:center;margin-right:4px}
+
+/* autocomplete */
+.ac{position:absolute;z-index:10;width:360px;background:var(--bg-card);border:1px solid var(--border-light);box-shadow:0 12px 32px rgba(0,0,0,.6);max-height:300px;overflow:auto}
+.ac .grp{padding:8px 12px 4px}
+.ac [role=option]{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:6px 12px;cursor:pointer}
+.ac [role=option] code{font:13px var(--mono);color:var(--brand-3)}
+.ac [role=option] .v{font:12px var(--mono);color:var(--txt-primary);text-align:right}
+.ac [role=option] .d{grid-column:1/-1;font-size:12px;color:var(--txt-secondary)}
+.ac [role=option][aria-selected=true]{background:var(--bg-card-hover);box-shadow:inset 2px 0 0 var(--accent)}
+.ac .note{padding:8px 12px;font-size:12px;color:var(--txt-muted);border-top:1px solid var(--border-base)}
+
+/* result */
+.result{display:flex;align-items:center;gap:14px;padding:12px 14px;border-top:1px solid var(--border-base)}
+.result .val{font:600 22px var(--mono)}
+.result .type{font-size:12px;color:var(--txt-secondary)}
+.result .tester{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:12px;color:var(--txt-secondary)}
+.result .tester select{width:auto}
+.msg{margin:0 14px 12px;padding:10px 12px;font-size:13px;line-height:1.5;border-left:3px solid}
+.msg.ok{border-color:var(--brand-3);background:rgba(74,174,216,.07)}
+.msg.bad{border-color:var(--accent-bright);background:var(--accent-subtle)}
+.msg strong{font:600 11px var(--exo);letter-spacing:.1em;text-transform:uppercase;display:block;margin-bottom:2px}
+.msg .fix{margin-top:6px;display:flex;gap:6px;flex-wrap:wrap}
+.hint{font-size:12px;color:var(--txt-secondary);display:flex;align-items:center;gap:8px}
+
+/* tabs */
+.tabs{display:flex;border-bottom:1px solid var(--border-base);margin-top:2px}
+.tabs button{padding:10px 16px;background:transparent;border:0;border-bottom:2px solid transparent;color:var(--txt-secondary);cursor:pointer;font:600 11px var(--exo);letter-spacing:.12em;text-transform:uppercase}
+.tabs button[aria-selected=true]{color:var(--txt-primary);border-bottom-color:var(--accent)}
+.tabpanel{padding:14px}
+.explain{list-style:none;font:13px/1.7 var(--mono)}
+.explain ul{list-style:none;padding-left:18px;border-left:1px dashed var(--border-light);margin-left:6px}
+.explain .eq{color:var(--txt-secondary)}
+.explain .v{color:var(--brand-3)}
+.fns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fn{border:1px solid var(--border-base);padding:10px;background:var(--bg-mid)}
+.fn code{font:13px var(--mono);color:#d9a3d0}
+.fn p{font-size:12px;color:var(--txt-secondary);margin:4px 0 6px}
+.fn .ex{font:12px var(--mono);color:var(--txt-primary)}
+.fnsearch{margin-bottom:10px}
+.deps{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.deps ul{list-style:none;margin-top:6px}
+.deps li{padding:5px 0;border-bottom:1px solid var(--border-base);font-size:13px;display:flex;gap:8px}
+.deps code{font:12px var(--mono);color:var(--brand-3)}
+.deps .v{margin-left:auto;font-family:var(--mono);font-size:12px}
+
+.more{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px}
+.check{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--txt-secondary)}
+.check input{accent-color:var(--accent);width:16px;height:16px}
+
+/* preview */
+.prev{background:var(--bg-card);padding:16px 18px 30px}
+.prev-head{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.prev-head .seg{margin-left:auto}
+.prev-head .seg button{padding:4px 8px;font-size:12px}
+.pc{font-size:12px;color:var(--txt-secondary);margin-bottom:14px}
+.sheet{border:1px solid var(--border-base);background:var(--bg-deep);padding:14px}
+.sheet h2{font:600 15px var(--exo);letter-spacing:.12em;text-transform:uppercase}
+.sheet .who{font-size:12px;color:var(--txt-secondary);margin-bottom:12px}
+.stats{display:grid;grid-template-columns:repeat(6,1fr);gap:4px;margin-bottom:12px}
+.stat{border:1px solid var(--border-base);padding:6px 2px;text-align:center}
+.stat .n{font:500 9px var(--exo);letter-spacing:.15em;color:var(--txt-muted)}
+.stat .m{font:600 16px var(--exo)}
+.stat .s{font-size:11px;color:var(--txt-secondary)}
+.tiles{display:grid;grid-template-columns:1fr 1fr;gap:4px}
+.tile{border:1px solid var(--border-base);padding:8px 10px;display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.tile span{font-size:12px;color:var(--txt-secondary)}
+.tile b{font:600 15px var(--mono)}
+.tile.hl{border-color:var(--accent-dim);box-shadow:inset 0 0 0 1px var(--accent-dim);background:rgba(220,38,38,.06)}
+.tile.hl span::after{content:' · editando';color:var(--accent-bright)}
+.tile.err b{color:var(--accent-bright)}
+.tile.hidden{border-style:dashed;opacity:.7}
+.prev-foot{margin-top:12px;font-size:12px;color:var(--txt-muted);line-height:1.5}
+
+.design-states{position:fixed;bottom:12px;left:12px;display:flex;gap:4px;font:11px var(--exo);z-index:20;background:var(--bg-deep);padding:4px;border:1px solid var(--border-light)}
+.design-states span{align-self:center;color:var(--txt-muted);padding:0 6px}
+.design-states button{background:var(--bg-card);color:var(--txt-secondary);border:1px solid var(--border-light);padding:4px 8px;cursor:pointer}
+.design-states button[aria-pressed=true]{color:var(--txt-primary);border-color:var(--accent)}
+[hidden]{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+@media (max-width:1100px){.work{grid-template-columns:220px minmax(0,1fr)}.prev{grid-column:1/-1;border-top:1px solid var(--border-base)}}
+@media (max-width:720px){.work{display:block}.outline{display:none}.grid3,.more,.fns,.deps{grid-template-columns:1fr}.insp{padding:16px}.ac{width:calc(100vw - 48px)}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style></head><body>
+
+<header class="top">
+  <p class="crumbs">Drakterima › Ajustes › <b>Ficha de personaje</b></p>
+  <p class="dirty" id="dirty" role="status">2 cambios sin guardar</p>
+  <button class="btn" type="button">Descartar cambios</button>
+  <button class="btn primary" type="button" id="save">Guardar plantilla</button>
+</header>
+
+<div class="work">
+  <!-- OUTLINE -->
+  <nav class="pane outline" aria-label="Estructura de la ficha">
+    <div class="search"><label class="sr" for="q">Buscar ítem</label><input class="in" id="q" placeholder="Buscar campo o clave…"></div>
+    <ul class="tree">
+      <li class="cat lbl">Identidad</li>
+      <li><a href="#"><span>Nombre</span><span class="kind">texto</span></a></li>
+      <li><a href="#"><span>Jugador</span><span class="kind">auto</span></a></li>
+      <li class="cat lbl">Mecánicas</li>
+      <li class="sec">Atributos</li>
+      <li><a href="#"><span>Atributos</span><span class="kind">tabla stat</span></a></li>
+      <li><a href="#"><span>Habilidades</span><span class="kind">capacidades</span></a></li>
+      <li class="sec">Combate</li>
+      <li><a href="#"><span>Nivel</span><span class="kind">número</span></a></li>
+      <li><a href="#"><span>Bono de competencia</span><span class="kind fx">ƒ</span></a></li>
+      <li><a href="#"><span>Puntos de golpe máx.</span><span class="kind fx">ƒ</span></a></li>
+      <li><a href="#"><span>Clase de armadura</span><span class="kind fx">ƒ</span></a></li>
+      <li><a href="#" id="t-ini"><span>Iniciativa</span><span class="kind fx">ƒ</span></a></li>
+      <li><a href="#" aria-current="true" id="t-pp"><span>Percepción pasiva</span><span class="kind fx">ƒ</span></a></li>
+      <li><a href="#"><span>Dados de golpe</span><span class="kind fx">ƒ</span></a></li>
+      <li class="sec">Equipo</li>
+      <li><a href="#"><span>Equipo</span><span class="kind">tabla libre</span></a></li>
+      <li><a href="#"><span>Carga total</span><span class="kind fx">Σ</span></a></li>
+      <li class="cat lbl">Conjuros</li>
+      <li><a href="#"><span>Espacios de conjuro</span><span class="kind">tabla libre</span></a></li>
+    </ul>
+    <button class="btn add" type="button">+ Agregar ítem</button>
+  </nav>
+
+  <!-- INSPECTOR -->
+  <main class="pane insp" aria-labelledby="ttl">
+    <p class="lbl">Mecánicas › Combate</p>
+    <h1 id="ttl">Percepción pasiva</h1>
+    <p class="sub">Clave <code style="font-family:var(--mono);color:var(--txt-primary)">percepcion_pasiva</code> · las fórmulas se calculan al mostrar la ficha; nunca se guardan en el personaje.</p>
+
+    <div class="grid3">
+      <div class="f"><span class="lbl">Tipo</span><select class="in" disabled><option>Número</option></select></div>
+      <div class="f"><span class="lbl">Origen del valor</span>
+        <div class="seg" role="group" aria-label="Origen del valor"><button aria-pressed="false" type="button">Valor propio</button><button aria-pressed="true" type="button">Fórmula</button><button aria-pressed="false" type="button">Cálculo de tabla</button></div></div>
+      <div class="f"><span class="lbl">Editable por</span><select class="in" disabled><option>Solo el DM (fórmula)</option></select></div>
+    </div>
+
+    <section class="bench" aria-labelledby="bench-t">
+      <div class="bench-head">
+        <h2 class="h" id="bench-t">Fórmula</h2>
+        <p class="scope">Alcance: <code>campos</code>, <code>atributos</code>, <code>habilidades</code>; tablas solo dentro de funciones de tabla</p>
+      </div>
+      <div class="editor" id="editor">
+        <pre id="hl" aria-hidden="true"></pre>
+        <label class="sr" for="fx">Fórmula de Percepción pasiva</label>
+        <textarea id="fx" spellcheck="false" rows="2" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="ac" aria-describedby="msg"></textarea>
+        <div class="ac" id="ac" role="listbox" aria-label="Referencias disponibles" hidden></div>
+      </div>
+      <div class="toolbar" aria-label="Insertar">
+        <span class="lbl">Insertar</span>
+        <button class="chip" type="button" data-ins="{">{ referencia }</button>
+        <button class="chip" type="button" data-ins="floor()">floor()</button>
+        <button class="chip" type="button" data-ins="si(, , )">si(cond, sí, no)</button>
+        <button class="chip" type="button" data-ins="signo()">signo()</button>
+        <button class="chip" type="button" data-ins='suma({equipo}, "peso")'>suma(tabla, col)</button>
+        <button class="chip" type="button" data-ins=' & " " & '>&amp; texto</button>
+      </div>
+      <div class="result">
+        <div><p class="lbl">Resultado</p><p class="val" id="val">14</p></div>
+        <p class="type" id="vtype">Número · se muestra como <b>14</b></p>
+        <label class="tester">Probar con
+          <select class="in" id="who"><option value="liria">Liria Vantor · nivel 5</option><option value="borin">Borin Ferrohondo · nivel 1</option><option value="kael">Kael Sombra · nivel 11</option></select>
+        </label>
+      </div>
+      <div class="msg ok" id="msg" role="status"><strong>Fórmula válida</strong>Usa 1 referencia. Ningún otro campo depende de este.</div>
+
+      <div class="tabs" role="tablist" aria-label="Ayudas de fórmula">
+        <button role="tab" aria-selected="true" aria-controls="p-exp" id="tb-exp" type="button">Explicar el resultado</button>
+        <button role="tab" aria-selected="false" aria-controls="p-fn" id="tb-fn" type="button">Funciones</button>
+        <button role="tab" aria-selected="false" aria-controls="p-dep" id="tb-dep" type="button">Dependencias</button>
+      </div>
+      <div class="tabpanel" role="tabpanel" id="p-exp" aria-labelledby="tb-exp"><ul class="explain" id="explain"></ul></div>
+      <div class="tabpanel" role="tabpanel" id="p-fn" aria-labelledby="tb-fn" hidden>
+        <input class="in fnsearch" id="fnq" placeholder="Buscar función: redondear, tabla, texto…" aria-label="Buscar función">
+        <div class="fns" id="fns"></div>
+      </div>
+      <div class="tabpanel" role="tabpanel" id="p-dep" aria-labelledby="tb-dep" hidden>
+        <div class="deps"><div><p class="lbl">Usa</p><ul id="uses"></ul></div><div><p class="lbl">Lo usan</p><ul id="usedby"></ul></div></div>
+      </div>
+    </section>
+
+    <div class="more">
+      <label class="check"><input type="checkbox"> Mostrar con signo (+)</label>
+      <label class="check"><input type="checkbox"> Oculto (solo para otras fórmulas)</label>
+      <label class="check"><input type="checkbox"> Reemplazable por un valor guardado</label>
+    </div>
+  </main>
+
+  <!-- PREVIEW -->
+  <aside class="pane prev" aria-labelledby="pv-t">
+    <div class="prev-head">
+      <h2 class="h" id="pv-t">Vista previa</h2>
+      <div class="seg" role="group" aria-label="Ver como"><button aria-pressed="true" type="button" id="as-dm">DM</button><button aria-pressed="false" type="button" id="as-pl">Jugador</button></div>
+    </div>
+    <p class="pc">Ficha con los cambios sin guardar, calculada con el personaje de prueba.</p>
+    <div class="sheet">
+      <h2 id="pv-name">Liria Vantor</h2>
+      <p class="who" id="pv-who">Exploradora · nivel 5 · Jugadora: Mica</p>
+      <div class="stats" id="pv-stats"></div>
+      <div class="tiles" id="pv-tiles"></div>
+    </div>
+    <p class="prev-foot">Los campos ocultos aparecen con borde punteado solo en la vista del DM. Hacé clic en un valor para abrir su fórmula.</p>
+  </aside>
+</div>
+
+<div class="design-states" role="group" aria-label="Estados del artboard (solo diseño)">
+  <span>Estado:</span>
+  <button aria-pressed="true" data-st="ok" type="button">Válida</button>
+  <button aria-pressed="false" data-st="typo" type="button">Referencia desconocida</button>
+  <button aria-pressed="false" data-st="syntax" type="button">Error de sintaxis</button>
+  <button aria-pressed="false" data-st="cycle" type="button">Ciclo</button>
+  <button aria-pressed="false" data-st="text" type="button">Texto</button>
+</div>
+
+<script>
+/* ---------- demo data (datos de ejemplo) ---------- */
+const CHARS={
+  liria:{name:'Liria Vantor',who:'Exploradora · nivel 5 · Jugadora: Mica',nivel:5,dado:8,disp:4,stats:{fue:10,des:16,con:14,int:12,sab:13,car:8},prof:{percepcion:1,sigilo:2},equipo:[3,2,15,1]},
+  borin:{name:'Borin Ferrohondo',who:'Guerrero · nivel 1 · Jugador: Tomi',nivel:1,dado:10,disp:1,stats:{fue:17,des:12,con:16,int:9,sab:11,car:10},prof:{percepcion:0,sigilo:0},equipo:[20,6,2]},
+  kael:{name:'Kael Sombra',who:'Pícaro · nivel 11 · Jugador: Juli',nivel:11,dado:8,disp:9,stats:{fue:8,des:20,con:12,int:14,sab:14,car:13},prof:{percepcion:2,sigilo:2},equipo:[1,1,4]}
+};
+const STATN={fue:'FUE',des:'DES',con:'CON',int:'INT',sab:'SAB',car:'CAR'};
+// formula fields of the sheet (the edited one is replaced live)
+const FIELDS={
+  bono_competencia:{label:'Bono de competencia',f:'2 + floor(({nivel} - 1) / 4)'},
+  pg_max:{label:'Puntos de golpe máx.',f:'{dado_golpe_caras} + ({nivel} - 1) * (floor({dado_golpe_caras} / 2) + 1) + {nivel} * {stat_con.modificador}'},
+  ca:{label:'Clase de armadura',f:'10 + {stat_des.modificador}'},
+  iniciativa:{label:'Iniciativa',f:'signo({stat_des.modificador})'},
+  percepcion_pasiva:{label:'Percepción pasiva',f:'10 + {percepcion.bonificador}'},
+  dados_golpe:{label:'Dados de golpe',f:'"d" & {dado_golpe_caras} & " (" & {dados_disponibles} & "/" & {nivel} & ")"'},
+  carga:{label:'Carga total',f:'suma({equipo}, "peso")'}
+};
+const EDITED='percepcion_pasiva';
+let who='liria';
+
+function baseRefs(c){
+  const r={nivel:c.nivel,dado_golpe_caras:c.dado,dados_disponibles:c.disp};
+  for(const k in c.stats){r['stat_'+k+'.valor']=c.stats[k];r['stat_'+k+'.modificador']=Math.floor((c.stats[k]-10)/2)}
+  return r;
+}
+const REF_INFO=()=>{
+  const c=CHARS[who],vals=valuesFor(c);
+  const g=[
+    {g:'Campos',items:[['nivel','Nivel (valor propio)'],['bono_competencia','Bono de competencia · ƒ'],['pg_max','Puntos de golpe máx. · ƒ'],['ca','Clase de armadura · ƒ'],['iniciativa','Iniciativa · ƒ'],['dado_golpe_caras','Caras del dado de golpe'],['dados_disponibles','Dados de golpe disponibles']]},
+    {g:'Atributos (tabla Stat)',items:Object.keys(STATN).flatMap(k=>[['stat_'+k+'.modificador','Modificador de '+STATN[k]],['stat_'+k+'.valor','Valor de '+STATN[k]]])},
+    {g:'Habilidades (Capacidades)',items:[['percepcion.bonificador','Percepción · ligada a SAB'],['sigilo.bonificador','Sigilo · ligada a DES']]},
+    {g:'Tablas (solo en funciones de tabla)',items:[['equipo','Equipo · columnas: nombre, peso, cantidad']]}
+  ];
+  g.forEach(x=>x.items.forEach(i=>i.push(vals[i[0]])));
+  return g;
+};
+
+/* ---------- mini evaluator mirroring the sheet language ---------- */
+class FErr extends Error{constructor(m,pos,len){super(m);this.pos=pos;this.len=len||1}}
+function tokenize(s){
+  const t=[];let i=0;
+  while(i<s.length){const c=s[i];
+    if(c===' '||c==='\t'||c==='\n'){i++;continue}
+    if(/[0-9]/.test(c)){const m=/^\d+(\.\d+)?/.exec(s.slice(i))[0];t.push({type:'num',v:+m,pos:i,len:m.length});i+=m.length;continue}
+    if(c==='{'){const e=s.indexOf('}',i);if(e<0)throw new FErr('Falta cerrar la referencia con «}».',i,s.length-i);const r=s.slice(i+1,e);
+      if(!/^[a-z0-9_]+(\.[a-z0-9_]+)?$/.test(r))throw new FErr('La referencia {'+r+'} no es válida: usá minúsculas, números y _ .',i,e-i+1);t.push({type:'ref',v:r,pos:i,len:e-i+1});i=e+1;continue}
+    if(c==='"'){const e=s.indexOf('"',i+1);if(e<0)throw new FErr('Falta cerrar el texto con comillas.',i,s.length-i);t.push({type:'str',v:s.slice(i+1,e),pos:i,len:e-i+1});i=e+1;continue}
+    if(/[a-z]/.test(c)){const m=/^[a-z]+/.exec(s.slice(i))[0];t.push({type:'name',v:m,pos:i,len:m.length});i+=m.length;continue}
+    const two=s.slice(i,i+2);if(['<=','>=','==','!='].includes(two)){t.push({type:'op',v:two,pos:i,len:2});i+=2;continue}
+    if('+-*/%&<>(),'.includes(c)){t.push({type:'op',v:c,pos:i,len:1});i++;continue}
+    throw new FErr('Carácter inesperado «'+c+'».',i,1)}
+  return t;
+}
+const FNS={si:[3,3],min:[1,16],max:[1,16],floor:[1,1],ceil:[1,1],round:[1,1],abs:[1,1],signo:[1,1],suma:[2,2],conteo:[1,2]};
+function parse(s){
+  const tk=tokenize(s);let p=0;const end=s.length;
+  const peek=(...o)=>tk[p]&&tk[p].type==='op'&&o.includes(tk[p].v)?tk[p].v:null;
+  const exp=o=>{if(!peek(o))throw new FErr('Se esperaba «'+o+'».',tk[p]?tk[p].pos:end,1);p++};
+  const bin=(next,ops)=>()=>{let l=next();for(let o=peek(...ops);o;o=peek(...ops)){const at=tk[p].pos;p++;l={k:'bin',o,l,r:next(),src:at}}return l};
+  const primary=()=>{const t=tk[p];if(!t)throw new FErr('La fórmula termina antes de tiempo.',end,1);
+    if(t.type==='num'){p++;return{k:'num',v:t.v}}
+    if(t.type==='str'){p++;return{k:'str',v:t.v}}
+    if(t.type==='ref'){p++;return{k:'ref',v:t.v,pos:t.pos,len:t.len}}
+    if(t.type==='name'){p++;if(!FNS[t.v])throw new FErr('No existe la función «'+t.v+'()».',t.pos,t.len);exp('(');const a=[];if(!peek(')')){a.push(cmp());while(peek(',')){p++;a.push(cmp())}}exp(')');
+      const[mn,mx]=FNS[t.v];if(a.length<mn||a.length>mx)throw new FErr(t.v+'() recibe '+(mn===mx?mn:mn+' a '+mx)+' argumento'+(mx>1?'s':'')+'.',t.pos,t.len);return{k:'call',n:t.v,a,pos:t.pos,len:t.len}}
+    if(peek('(')){p++;const n=cmp();exp(')');return{k:'par',n}}
+    throw new FErr('No se esperaba «'+t.v+'» acá.',t.pos,t.len)};
+  const unary=()=>{if(peek('-')){p++;return{k:'neg',n:unary()}}return primary()};
+  const mul=bin(unary,['*','/','%']),add=bin(mul,['+','-']),cat=bin(add,['&']),cmp=bin(cat,['<','<=','>','>=','==','!=']);
+  const ast=cmp();if(p<tk.length)throw new FErr('Sobra «'+tk[p].v+'» al final.',tk[p].pos,tk[p].len);return{ast,tk};
+}
+function refsOf(n,acc=[]){if(!n)return acc;if(n.k==='ref')acc.push(n);(n.a||[]).forEach(x=>refsOf(x,acc));['l','r','n'].forEach(k=>n[k]&&refsOf(n[k],acc));return acc}
+function src(n){switch(n.k){case'num':return String(n.v);case'str':return'"'+n.v+'"';case'ref':return'{'+n.v+'}';case'par':return'('+src(n.n)+')';case'neg':return'-'+src(n.n);case'bin':return src(n.l)+' '+n.o+' '+src(n.r);case'call':return n.n+'('+n.a.map(src).join(', ')+')'}}
+function fmt(v){return typeof v==='number'?String(Math.round(v*100)/100).replace('.',','):v}
+
+function valuesFor(c,override){
+  const v=baseRefs(c);
+  v['percepcion.bonificador']=v['stat_sab.modificador']+0;v['sigilo.bonificador']=v['stat_des.modificador']+0;
+  const fs=Object.assign({},FIELDS);if(override!==undefined)fs[EDITED]={...fs[EDITED],f:override};
+  const pb=()=>valueOf('bono_competencia');
+  const memo={},stack=[];
+  function valueOf(k){
+    if(k in memo)return memo[k];
+    if(stack.includes(k)){const cyc=stack.slice(stack.indexOf(k)).concat(k);throw Object.assign(new Error('cycle'),{cycle:cyc})}
+    stack.push(k);try{const r=evaluate(parse(fs[k].f).ast,k);memo[k]=r;return r}finally{stack.pop()}}
+  function look(r){
+    if(r==='percepcion.bonificador')return v['stat_sab.modificador']+pb()*c.prof.percepcion;
+    if(r==='sigilo.bonificador')return v['stat_des.modificador']+pb()*c.prof.sigilo;
+    if(r in v)return v[r];if(r in fs)return valueOf(r);
+    if(r==='equipo')throw new FErr('{equipo} es una tabla: usala dentro de suma(), conteo()…',0,0);
+    throw new FErr('unknown',0,0)}
+  function evaluate(n){switch(n.k){
+    case'num':case'str':return n.v;case'par':return evaluate(n.n);case'neg':return-evaluate(n.n);
+    case'ref':try{return look(n.v)}catch(e){if(e.message==='unknown')throw new FErr('No existe {'+n.v+'}.',n.pos,n.len);throw e}
+    case'bin':{const a=evaluate(n.l),b=evaluate(n.r);switch(n.o){case'+':return a+b;case'-':return a-b;case'*':return a*b;case'/':return a/b;case'%':return a%b;case'&':return fmt(a)+''+fmt(b);case'<':return a<b;case'<=':return a<=b;case'>':return a>b;case'>=':return a>=b;case'==':return a==b;case'!=':return a!=b}}
+    case'call':{if(n.n==='suma')return c.equipo.reduce((s,x)=>s+x,0);if(n.n==='conteo')return c.equipo.length;const a=n.a.map(evaluate);
+      switch(n.n){case'si':return a[0]?a[1]:a[2];case'min':return Math.min(...a);case'max':return Math.max(...a);case'floor':return Math.floor(a[0]);case'ceil':return Math.ceil(a[0]);case'round':return Math.round(a[0]);case'abs':return Math.abs(a[0]);case'signo':return(a[0]>=0?'+':'')+a[0]}}}}
+  const out=Object.assign({},v);out['percepcion.bonificador']=look('percepcion.bonificador');out['sigilo.bonificador']=look('sigilo.bonificador');
+  out.__eval=(ast)=>evaluate(ast);out.__look=look;
+  for(const k in fs){try{out[k]=valueOf(k)}catch(e){out[k]=e}}
+  return out;
+}
+
+/* ---------- UI wiring ---------- */
+const fx=document.getElementById('fx'),hl=document.getElementById('hl'),ac=document.getElementById('ac'),msg=document.getElementById('msg');
+const KNOWN=()=>new Set(REF_INFO().flatMap(g=>g.items.map(i=>i[0])));
+const esc=s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+
+function nearest(r){let best=null,bd=99;for(const k of KNOWN()){const d=lev(r,k);if(d<bd){bd=d;best=k}}return bd<=4?best:null}
+function lev(a,b){const m=[...Array(a.length+1)].map((_,i)=>[i]);for(let j=1;j<=b.length;j++)m[0][j]=j;for(let i=1;i<=a.length;i++)for(let j=1;j<=b.length;j++)m[i][j]=Math.min(m[i-1][j]+1,m[i][j-1]+1,m[i-1][j-1]+(a[i-1]===b[j-1]?0:1));return m[a.length][b.length]}
+
+function paint(errPos,errLen){
+  const s=fx.value;let out='';let toks=[];
+  try{toks=tokenize(s)}catch(e){toks=[]}
+  const known=KNOWN();let i=0;
+  const mark=(a,b,cls)=>{out+='<span class="'+cls+'">'+esc(s.slice(a,b))+'</span>'};
+  if(!toks.length&&s){out=esc(s)}
+  for(const t of toks){if(t.pos>i)out+=esc(s.slice(i,t.pos));
+    let cls=t.type==='ref'?'t-ref'+(known.has(t.v)||t.v in FIELDS?'':' unknown'):t.type==='name'?'t-fn':t.type==='str'?'t-str':t.type==='num'?'t-num':'t-op';
+    if(errPos!=null&&t.pos<=errPos&&errPos<t.pos+t.len)cls+=' t-err';
+    mark(t.pos,t.pos+t.len,cls);i=t.pos+t.len}
+  if(toks.length&&i<s.length)out+=esc(s.slice(i));
+  if(errPos!=null&&errPos>=s.length)out+='<span class="t-err"> </span>';
+  hl.innerHTML=out+'\n';
+}
+
+function run(){
+  const s=fx.value,c=CHARS[who];let res,errPos=null,errLen=0,ok=true,ast=null,info='';
+  const val=document.getElementById('val'),vt=document.getElementById('vtype');
+  try{
+    const p=parse(s);ast=p.ast;
+    const refs=refsOf(ast);
+    for(const r of refs){if(!KNOWN().has(r.v)&&!(r.v in FIELDS)){const sug=nearest(r.v);throw Object.assign(new FErr('No existe {'+r.v+'} en esta ficha.',r.pos,r.len),{sug,bad:r.v})}}
+    const vals=valuesFor(c,s);
+    if(vals[EDITED] instanceof Error){const e=vals[EDITED];if(e.cycle)throw Object.assign(new Error('cycle'),{cycle:e.cycle});throw e}
+    res=vals[EDITED];
+    const users=Object.keys(FIELDS).filter(k=>k!==EDITED&&FIELDS[k].f.includes('{'+EDITED+'}'));
+    info='Usa '+refs.length+' referencia'+(refs.length===1?'':'s')+'. '+(users.length?'La usan: '+users.map(k=>FIELDS[k].label).join(', ')+'.':'Ningún otro campo depende de este.');
+  }catch(e){ok=false;
+    if(e.cycle){msg.className='msg bad';msg.setAttribute('role','alert');
+      msg.innerHTML='<strong>Las fórmulas se llaman en círculo</strong>'+e.cycle.map(k=>'<code style="font-family:var(--mono)">'+(FIELDS[k]?FIELDS[k].label:k)+'</code>').join(' → ')+'<br>Ninguna de las dos puede calcularse. Quitá una de las referencias.<div class="fix"><button class="btn sm" type="button" onclick="setF(\'10 + {percepcion.bonificador}\')">Volver a la fórmula guardada</button><button class="btn sm" type="button">Abrir Iniciativa</button></div>';
+      errPos=s.indexOf('{iniciativa}');errLen=12}
+    else{errPos=e.pos;errLen=e.len;msg.className='msg bad';msg.setAttribute('role','alert');
+      msg.innerHTML='<strong>No se puede calcular</strong>'+esc(e.message)+(e.sug?'<div class="fix"><span class="hint">¿Quisiste decir</span><button class="btn sm" type="button" id="fixbtn">{'+e.sug+'}</button></div>':'');
+      if(e.sug)document.getElementById('fixbtn').onclick=()=>setF(s.replace('{'+e.bad+'}','{'+e.sug+'}'))}
+  }
+  paint(errPos,errLen);
+  if(ok){msg.className='msg ok';msg.setAttribute('role','status');msg.innerHTML='<strong>Fórmula válida</strong>'+info;
+    val.textContent=fmt(res);
+    vt.innerHTML=(typeof res==='number'?'Número':'Texto')+' · se muestra como <b>'+esc(String(fmt(res)))+'</b>'+(typeof res==='number'?'':' (las fórmulas de texto no admiten «con signo»)');
+    explain(ast,c,s)}
+  else{val.textContent='—';vt.textContent='La ficha mostrará «—» hasta corregirla';document.getElementById('explain').innerHTML='<li class="eq">Corregí el error para ver el paso a paso.</li>'}
+  deps(s);preview(ok?res:null);
+  const dirty=document.getElementById('dirty'),save=document.getElementById('save');
+  dirty.className='dirty'+(ok?'':' err');dirty.textContent=ok?'2 cambios sin guardar':'2 cambios sin guardar · 1 error impide guardar';
+  save.setAttribute('aria-disabled',String(!ok));save.title=ok?'':'Corregí la fórmula de Percepción pasiva para guardar';
+}
+
+function explain(ast,c,s){
+  const vals=valuesFor(c,s);const ev=n=>{try{return vals.__eval(n)}catch(e){return'?'}};
+  const node=n=>{const v=fmt(ev(n));
+    if(n.k==='num'||n.k==='str')return'';
+    if(n.k==='ref'){const d=(FIELDS[n.v]?' ← '+esc(FIELDS[n.v].f):'');return'<li><span>{'+esc(n.v)+'}</span> <span class="eq">=</span> <span class="v">'+esc(String(v))+'</span><span class="eq">'+d+'</span></li>'}
+    if(n.k==='par')return node(n.n);
+    const kids=(n.a||[n.l,n.r,n.n]).filter(Boolean).map(node).join('');
+    return'<li><span>'+esc(src(n))+'</span> <span class="eq">=</span> <span class="v">'+esc(String(v))+'</span>'+(kids?'<ul>'+kids+'</ul>':'')+'</li>'};
+  document.getElementById('explain').innerHTML=node(ast)||'<li>'+esc(s)+'</li>';
+}
+function deps(s){
+  const vals=valuesFor(CHARS[who],s);let refs=[];try{refs=refsOf(parse(s).ast).map(r=>r.v)}catch(e){}
+  document.getElementById('uses').innerHTML=[...new Set(refs)].map(r=>'<li><code>{'+esc(r)+'}</code><span class="v">'+(vals[r] instanceof Error||vals[r]===undefined?'—':esc(String(fmt(vals[r]))))+'</span></li>').join('')||'<li>Ninguna referencia</li>';
+  const users=Object.keys(FIELDS).filter(k=>k!==EDITED&&FIELDS[k].f.includes('{'+EDITED+'}'));
+  document.getElementById('usedby').innerHTML=users.length?users.map(k=>'<li>'+FIELDS[k].label+'</li>').join(''):'<li style="color:var(--txt-secondary)">Nadie todavía. Si lo marcás «Oculto», solo sirve si otro campo o acción lo usa.</li>';
+}
+function preview(res){
+  const c=CHARS[who],vals=valuesFor(c,fx.value);
+  document.getElementById('pv-name').textContent=c.name;document.getElementById('pv-who').textContent=c.who;
+  document.getElementById('pv-stats').innerHTML=Object.keys(STATN).map(k=>{const m=vals['stat_'+k+'.modificador'];return'<div class="stat"><div class="n">'+STATN[k]+'</div><div class="m">'+(m>=0?'+':'')+m+'</div><div class="s">'+c.stats[k]+'</div></div>'}).join('');
+  const show=(k)=>{const v=k===EDITED?res:vals[k];return v===null||v instanceof Error||v===undefined?'—':fmt(v)};
+  const tiles=[['bono_competencia'],['pg_max'],['ca'],['iniciativa'],[EDITED],['dados_golpe'],['carga']];
+  document.getElementById('pv-tiles').innerHTML=tiles.map(([k])=>'<button type="button" class="tile'+(k===EDITED?' hl':'')+(show(k)==='—'?' err':'')+'" style="background:none;color:inherit;cursor:pointer;text-align:left"><span>'+FIELDS[k].label+'</span><b>'+esc(String(show(k)))+(k==='carga'?' kg':'')+'</b></button>').join('');
+}
+
+/* autocomplete */
+let acItems=[],acSel=0,acStart=-1;
+function openAC(){
+  const s=fx.value,caret=fx.selectionStart,open=s.lastIndexOf('{',caret-1);
+  if(open<0||s.slice(open,caret).includes('}')){closeAC();return}
+  acStart=open;const q=s.slice(open+1,caret).toLowerCase();
+  const groups=REF_INFO().map(g=>({g:g.g,items:g.items.filter(i=>(i[0]+' '+i[1]).toLowerCase().includes(q))})).filter(g=>g.items.length);
+  acItems=groups.flatMap(g=>g.items);acSel=0;
+  if(!acItems.length){ac.innerHTML='<p class="note">Nada coincide con «'+esc(q)+'». Las claves usan minúsculas y _.</p>';ac.hidden=false;fx.setAttribute('aria-expanded','true');return}
+  let n=0;ac.innerHTML=groups.map(g=>'<p class="grp lbl">'+g.g+'</p>'+g.items.map(i=>{const id='o'+(n++);const v=i[2] instanceof Error||i[2]===undefined?(i[0]==='equipo'?'tabla':'—'):fmt(i[2]);return'<div role="option" id="'+id+'" aria-selected="'+(id==='o0')+'" data-k="'+i[0]+'"><code>{'+i[0]+'}</code><span class="v">'+esc(String(v))+'</span><span class="d">'+esc(i[1])+'</span></div>'}).join('')).join('')+
+    '<p class="note">↑↓ para moverte · Enter inserta · Esc cierra. Valores de '+CHARS[who].name+'.</p>';
+  ac.hidden=false;fx.setAttribute('aria-expanded','true');fx.setAttribute('aria-activedescendant','o0');
+  ac.style.left='0';ac.style.top=(fx.offsetHeight+4)+'px';
+  ac.querySelectorAll('[role=option]').forEach((o,i)=>o.onmousedown=e=>{e.preventDefault();pick(i)});
+}
+function closeAC(){ac.hidden=true;fx.setAttribute('aria-expanded','false');fx.removeAttribute('aria-activedescendant')}
+function pick(i){const k=acItems[i][0],s=fx.value,caret=fx.selectionStart;let after=s.slice(caret);if(after.startsWith('}'))after=after.slice(1);
+  fx.value=s.slice(0,acStart)+'{'+k+'}'+after;const pos=acStart+k.length+2;fx.setSelectionRange(pos,pos);closeAC();run();fx.focus()}
+fx.addEventListener('input',()=>{run();openAC()});
+fx.addEventListener('keydown',e=>{if(ac.hidden)return;const opts=[...ac.querySelectorAll('[role=option]')];if(!opts.length)return;
+  if(e.key==='ArrowDown'||e.key==='ArrowUp'){e.preventDefault();acSel=(acSel+(e.key==='ArrowDown'?1:-1)+opts.length)%opts.length;opts.forEach((o,i)=>o.setAttribute('aria-selected',i===acSel));opts[acSel].scrollIntoView({block:'nearest'});fx.setAttribute('aria-activedescendant',opts[acSel].id)}
+  else if(e.key==='Enter'||e.key==='Tab'){e.preventDefault();pick(acSel)}else if(e.key==='Escape'){closeAC()}});
+fx.addEventListener('blur',()=>setTimeout(closeAC,120));
+fx.addEventListener('scroll',()=>{hl.scrollTop=fx.scrollTop});
+
+document.querySelectorAll('[data-ins]').forEach(b=>b.onclick=()=>{const ins=b.dataset.ins,s=fx.value,a=fx.selectionStart,z=fx.selectionEnd;
+  fx.value=s.slice(0,a)+ins+s.slice(z);let pos=a+ins.length;if(ins.endsWith('()'))pos--;fx.focus();fx.setSelectionRange(pos,pos);run();if(ins==='{')openAC()});
+
+/* tabs */
+const tabs=[...document.querySelectorAll('[role=tab]')];
+tabs.forEach(t=>{t.onclick=()=>sel(t);t.onkeydown=e=>{const i=tabs.indexOf(t);if(e.key==='ArrowRight'||e.key==='ArrowLeft'){const n=tabs[(i+(e.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length];sel(n);n.focus()}}});
+function sel(t){tabs.forEach(x=>{x.setAttribute('aria-selected',x===t);x.tabIndex=x===t?0:-1;document.getElementById(x.getAttribute('aria-controls')).hidden=x!==t})}
+sel(tabs[0]);
+
+/* function catalog */
+const CAT=[
+  ['floor(n)','Redondea hacia abajo.','floor(({valor} - 10) / 2) → 3'],
+  ['ceil(n)','Redondea hacia arriba.','ceil({nivel} / 2) → 3'],
+  ['round(n)','Redondea al entero más cercano.','round(7,5) → 8'],
+  ['min(a, b, …) / max(a, b, …)','El menor / mayor de los valores.','max(1, {stat_con.modificador}) → 2'],
+  ['si(condición, sí, no)','Elige un valor según una comparación.','si({nivel} >= 5, 2, 1) → 2'],
+  ['signo(n)','Texto con signo: +3, +0, -1.','signo({stat_des.modificador}) → +3'],
+  ['a & b','Une valores en un texto.','{pg} & "/" & {pg_max} → 31/38'],
+  ['suma(tabla, "col")','Suma una columna de una tabla.','suma({equipo}, "peso") → 21'],
+  ['conteo(tabla[, "col"])','Cuenta filas (o celdas completas).','conteo({equipo}) → 4'],
+  ['lookup(tabla, "clave", valor, "col"[, respaldo])','Busca un valor en otra tabla.','lookup({armas}, "nombre", "Daga", "dano") → 1d4']
+];
+function fnList(q){document.getElementById('fns').innerHTML=CAT.filter(f=>(f.join(' ')).toLowerCase().includes((q||'').toLowerCase())).map(f=>'<div class="fn"><code>'+esc(f[0])+'</code><p>'+f[1]+'</p><p class="ex">'+esc(f[2])+'</p></div>').join('')||'<p class="hint">Ninguna función coincide.</p>'}
+document.getElementById('fnq').oninput=e=>fnList(e.target.value);fnList('');
+
+document.getElementById('who').onchange=e=>{who=e.target.value;run()};
+document.getElementById('as-pl').onclick=e=>{e.target.setAttribute('aria-pressed','true');document.getElementById('as-dm').setAttribute('aria-pressed','false')};
+document.getElementById('as-dm').onclick=e=>{e.target.setAttribute('aria-pressed','true');document.getElementById('as-pl').setAttribute('aria-pressed','false')};
+
+function setF(f){fx.value=f;run()}
+const STATES={ok:'10 + {percepcion.bonificador}',typo:'10 + {percepcon.bonificador}',syntax:'10 + floor({stat_sab.modificador} + 2',cycle:'10 + {percepcion.bonificador} + {iniciativa}',text:'10 + {percepcion.bonificador} & " (ventaja: " & 15 + {percepcion.bonificador} & ")"'};
+document.querySelectorAll('[data-st]').forEach(b=>b.onclick=()=>{document.querySelectorAll('[data-st]').forEach(x=>x.setAttribute('aria-pressed',x===b));
+  FIELDS.iniciativa.f=b.dataset.st==='cycle'?'signo({stat_des.modificador}) & si({percepcion_pasiva} > 15, " (alerta)", "")':'signo({stat_des.modificador})';
+  // cycle demo: iniciativa uses percepcion_pasiva and the edited formula uses iniciativa
+  setF(STATES[b.dataset.st])});
+setF(STATES.ok);
+</script>
+</body></html>

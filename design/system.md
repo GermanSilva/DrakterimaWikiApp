@@ -27,6 +27,10 @@ Values below are only those found in the sources.
 
 Body background adds two faint red radial glows (`rgba(220,38,38,0.05)` / `0.03`) — src/styles.css.
 
+Login only (src/styles.css, `.login-backdrop` / `.login-backdrop-vignette`): a mesh of radial gradients over the three
+brand stops plus `--brand-gradient`, `saturate(1.15)`, opacity `.61`; vignette `rgba(6,6,6,.48)` and `rgba(30,8,60,.28)`.
+Not used outside the login page.
+
 ## Typography
 
 | Family | Usage | Source |

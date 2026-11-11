@@ -1,0 +1,10 @@
+{
+  "title": "Configuración de campos de sistema",
+  "brief": "UI de Ajustes › Ficha de personaje para configurar campos de sistema: ayuda para redactar fórmulas, armar sistemas nuevos de forma guiada y mantener sistemas derivados de una base",
+  "feature": "odd/tasks/system-agnostic.md",
+  "artboards": [
+    { "file": "01-taller-con-vista-previa.html", "title": "Taller de fórmulas con vista previa", "tradeoff": "Es la mayor ayuda para escribir fórmulas: autocompletado según el contexto, resultado en vivo con un personaje real, explicación paso a paso, ciclos y sugerencias. Necesita pantalla ancha y que el parser devuelva la posición de cada error", "width": 1440, "height": 900 },
+    { "file": "02-asistente-y-recetas.html", "title": "Asistente, secciones listas y recetas", "tradeoff": "Un sistema nuevo arranca en minutos sin escribir fórmulas: preguntas, secciones listas y recetas con tabla por nivel. Hay que curar y mantener la biblioteca de secciones, y las recetas generan fórmulas en un solo sentido", "width": 1440, "height": 900 },
+    { "file": "03-derivado-diferencias.html", "title": "Grilla, diferencias con la base e impacto", "tradeoff": "Es la mejor vista para un homebrew: muestra qué cambió respecto de la base y a qué personajes afecta antes de guardar, y no pierde el borrador ante un conflicto. Exige guardar una instantánea de la base al ramificar y calcular las fichas de toda la campaña", "width": 1440, "height": 900 }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "chosen": "01-taller-con-vista-previa.html",
+  "handoffs": {
+    "01-taller-con-vista-previa.html": {
+      "status": "in_progress",
+      "queued": false,
+      "sentAt": "2026-11-11T20:41:42.009Z",
+      "startedAt": "2026-11-11T20:42:26.240Z",
+      "implementedAt": null,
+      "feature": "odd/tasks/system-agnostic.md",
+      "note": "Tracked as H3a-H3c in odd/tasks/system-agnostic.md"
+    }
+  }
+}
