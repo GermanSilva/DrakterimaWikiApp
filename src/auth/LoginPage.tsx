@@ -27,13 +27,17 @@ const messageOf = (e: unknown) => (e instanceof AuthFlowError ? e.message : 'No 
 
 const DAY_MS = 86_400_000
 
+// "Today" is the calendar day in Argentina, not the visitor's or the test runner's timezone.
+const ARGENTINA_DAY = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' })
+const argentinaDay = (date: Date) => ARGENTINA_DAY.format(date)
+
 /** «Invitación válida N días más» / «1 día más» / «Vence hoy»; null when the invite never expires. */
 export function expiryText(expiresAt: string | null, now: Date): string | null {
   if (!expiresAt) return null
   const end = new Date(expiresAt)
   if (Number.isNaN(end.getTime())) return null
   const diff = end.getTime() - now.getTime()
-  if (diff <= 0 || end.toDateString() === now.toDateString()) return 'Vence hoy'
+  if (diff <= 0 || argentinaDay(end) === argentinaDay(now)) return 'Vence hoy'
   const days = Math.ceil(diff / DAY_MS)
   return days === 1 ? 'Invitación válida 1 día más' : `Invitación válida ${days} días más`
 }

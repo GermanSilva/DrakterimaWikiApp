@@ -48,6 +48,10 @@ describe('LoginPage invite mode', () => {
     ['2026-11-10T15:00:00Z', 'Vence hoy'],
     ['2026-11-09T12:00:00Z', 'Vence hoy'],
     ['2026-11-20T12:00:00Z', 'Invitación válida 10 días más'],
+    // The calendar day is Argentina's (UTC-3), whatever the runner's or the visitor's timezone:
+    // 01:00Z on the 11th is still 22:00 of the 10th in Buenos Aires; 03:30Z is already 00:30 of the 11th.
+    ['2026-11-11T01:00:00Z', 'Vence hoy'],
+    ['2026-11-11T03:30:00Z', 'Invitación válida 1 día más'],
   ])('expiry %s reads «%s»', (expires_at, text) => {
     expect(expiryText(expires_at, NOW)).toBe(text)
   })
