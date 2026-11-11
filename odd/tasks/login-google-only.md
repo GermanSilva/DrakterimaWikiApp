@@ -15,7 +15,7 @@ de la campaña antes de iniciar sesión. Spec visual: `design/login-google-only/
 
 - T1 [S3, S4] inline — migración `preview_invite_public` + pgTAP + tipos + repositorio/hubData. commit: 945149a
 - T2 [S1, S2] worker — quitar Turnstile; magic link solo en desarrollo; tests y docs. commit: 7bef166 (el form de dev todavía queda en el bundle: se extrae en T3)
-- T3 [S2, S4, S5] worker — LoginPage rediseñado con vista previa de invitación; form de dev extraído (no queda en dist). commit: (ver abajo)
+- T3 [S2, S4, S5] worker — LoginPage rediseñado con vista previa de invitación; form de dev extraído (no queda en dist). commit: f81125f
 
 ## Log
 
