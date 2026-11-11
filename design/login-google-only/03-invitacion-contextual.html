@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ingresar — RPG Quester (03 Invitación contextual)</title>
+<style>
+:root{--bg-deep:#060606;--bg-mid:#0b0b0b;--bg-card:#111111;--border-base:#1e1e1e;--border-light:#282828;--accent:#dc2626;--accent-bright:#ef4444;--accent-dim:#991b1b;--accent-subtle:#450a0a;--txt-primary:#ececec;--txt-secondary:#888888;--txt-muted:#6e6e6e;--brand-gradient:linear-gradient(135deg,#9c2d8c 0%,#4a32ac 50%,#4aaed8 100%);--exo:'Exo 2',system-ui,'Segoe UI',sans-serif;--barlow:Barlow,system-ui,'Segoe UI',sans-serif;--cinzel:Cinzel,Georgia,serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{min-height:100vh;background:var(--bg-deep);color:var(--txt-primary);font-family:var(--barlow);display:flex;flex-direction:column}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse 60% 40% at 15% 85%,rgba(220,38,38,.05) 0%,transparent 65%),radial-gradient(ellipse 50% 55% at 85% 15%,rgba(220,38,38,.03) 0%,transparent 65%)}
+header{position:relative;padding:20px 28px;font-family:var(--exo);font-weight:700;font-size:12px;letter-spacing:.3em;text-transform:uppercase;border-bottom:1px solid var(--border-base)}
+header span{background:var(--brand-gradient);-webkit-background-clip:text;background-clip:text;color:transparent}
+main{flex:1;display:grid;place-items:center;padding:40px 16px;position:relative;overflow:hidden;background:var(--bg-mid)}
+main::before{content:'';position:absolute;inset:0;background:var(--brand-gradient);opacity:.22}
+main::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 70% 60% at 30% 100%,rgba(6,6,6,.95) 0%,transparent 70%)}
+main>.card{position:relative;z-index:1}
+.d20{position:absolute;right:-60px;top:40px;width:460px;height:460px;opacity:.18;z-index:0;pointer-events:none}
+.card{width:100%;max-width:440px;background:var(--bg-card);border:1px solid var(--border-base)}
+.camp{position:relative;overflow:hidden;padding:28px 28px 24px;border-bottom:1px solid var(--border-base);border-top:3px solid var(--accent);display:flex;gap:16px;align-items:center}
+.camp>*{position:relative;z-index:1}
+.banner{position:absolute;inset:0;z-index:0;background-size:cover;background-position:center 60%;opacity:.35;filter:saturate(.7)}
+.camp.has-banner::after{content:'';position:absolute;inset:0;z-index:0;background:linear-gradient(90deg,rgba(17,17,17,.92) 0%,rgba(17,17,17,.7) 55%,rgba(17,17,17,.35) 100%)}
+.camp:not(.has-banner) .banner{display:none}
+.camp.has-banner .meta{color:#b0b0b0}
+.logo{width:56px;height:56px;flex:none;background:var(--accent-subtle);border:1px solid var(--accent-dim);display:grid;place-items:center;font-family:var(--cinzel);font-size:26px;color:var(--accent-bright)}
+.kicker{font-family:var(--exo);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--txt-secondary);margin-bottom:4px}
+.cname{font-family:var(--cinzel);font-size:22px;line-height:1.2}
+.meta{font-size:13px;color:var(--txt-secondary);margin-top:4px}
+.body{padding:24px 28px 28px}
+h1{font-family:var(--exo);font-size:16px;font-weight:600;letter-spacing:.15em;text-transform:uppercase;margin-bottom:8px}
+.lead{font-size:14px;color:var(--txt-secondary);line-height:1.5;margin-bottom:22px}
+.google{width:100%;min-height:48px;display:flex;align-items:center;justify-content:center;gap:12px;border:none;cursor:pointer;background:var(--accent);color:#fff;font-family:var(--exo);font-size:12px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:0 16px}
+.google:hover{background:var(--accent-bright)}
+.google .g{width:28px;height:28px;background:#fff;display:grid;place-items:center;flex:none}
+.google:focus-visible{outline:2px solid var(--txt-primary);outline-offset:3px}
+.google[aria-busy=true]{cursor:progress;opacity:.8}
+.spin{width:16px;height:16px;border:2px solid #ddd;border-top-color:var(--accent);border-radius:50%;animation:s .8s linear infinite}
+@keyframes s{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.spin{animation:none}}
+.steps{list-style:none;margin-top:20px;display:grid;gap:8px;counter-reset:n}
+.steps li{counter-increment:n;font-size:13px;color:var(--txt-secondary);display:flex;gap:10px;line-height:1.4}
+.steps li::before{content:counter(n);font-family:var(--exo);font-size:11px;width:20px;height:20px;flex:none;border:1px solid var(--border-light);display:grid;place-items:center;color:var(--txt-primary)}
+.err{margin-top:16px;border:1px solid var(--accent-dim);background:var(--accent-subtle);padding:12px 14px;font-size:13px;line-height:1.5}
+.err strong{display:block;color:var(--accent-bright);margin-bottom:2px}
+.note{margin-top:20px;font-size:12px;color:var(--txt-secondary);line-height:1.6}
+.states{position:fixed;top:12px;right:12px;display:flex;gap:4px;font:11px var(--exo);z-index:5;flex-wrap:wrap;justify-content:end}
+.states button{background:var(--bg-card);color:var(--txt-secondary);border:1px solid var(--border-light);padding:4px 8px;cursor:pointer}
+.states button[aria-pressed=true]{color:var(--txt-primary);border-color:var(--accent)}
+.states button:focus-visible{outline:2px solid var(--txt-primary)}
+/* generic (no invite): brand look */
+body.generic .camp{display:none}
+body.generic .card{border-top:3px solid #4a32ac}
+body.generic .google{background:var(--brand-gradient)}
+[hidden]{display:none!important}
+</style></head><body>
+<div class="states" role="group" aria-label="Estado del artboard (solo diseño)">
+<button aria-pressed="true" data-v="invite">Con invitación</button><button aria-pressed="false" data-v="generic">Sin invitación</button>
+<button aria-pressed="true" data-b="1">Banner</button>
+<button aria-pressed="false" data-s="busy">Redirigiendo</button><button aria-pressed="false" data-s="error">Error</button>
+</div>
+<header><span>RPG Quester</span></header>
+<main>
+<svg class="d20" viewBox="0 0 100 100" aria-hidden="true" fill="none" stroke="#ececec" stroke-width=".8"><polygon points="50,4 92,28 92,72 50,96 8,72 8,28"/><polygon points="50,22 76,66 24,66"/><path d="M50,4 50,22 M92,28 76,66 M92,72 76,66 M50,96 76,66 M50,96 24,66 M8,72 24,66 M8,28 24,66 M8,28 50,22 M92,28 50,22"/></svg>
+<section class="card" aria-labelledby="t">
+<div class="camp has-banner" id="camp">
+<div class="banner" aria-hidden="true" style="background-image:url(&quot;data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 440 120' preserveAspectRatio='xMidYMid slice'%3E%3Cdefs%3E%3ClinearGradient id='s' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23451010'/%3E%3Cstop offset='1' stop-color='%23c2410c'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='440' height='120' fill='url(%23s)'/%3E%3Ccircle cx='330' cy='70' r='22' fill='%23fdba74' opacity='.8'/%3E%3Cpath d='M0 90 L60 50 L110 80 L170 35 L230 85 L290 55 L350 88 L400 60 L440 75 L440 120 L0 120Z' fill='%232a0a0a'/%3E%3Cpath d='M250 120 V78 h8 v-10 h6 v10 h10 v-18 l7 -8 l7 8 v18 h10 v-10 h6 v10 h8 V120Z' fill='%23140505'/%3E%3Cpath d='M0 120 L0 100 L80 82 L160 104 L260 92 L360 108 L440 96 L440 120Z' fill='%23100404'/%3E%3C/svg%3E&quot;)"></div>
+<div class="logo" aria-hidden="true">D</div>
+<div><p class="kicker">Te invitaron a</p><p class="cname">Drakterima</p><p class="meta">DM: Germán · 5 jugadores · Invitación válida 6 días más</p></div>
+</div>
+<div class="body">
+<h1 id="t">Ingresá para unirte</h1>
+<p class="lead" id="lead">Entrá con Google y volvés directo a la invitación para confirmar.</p>
+<button class="google" id="go" type="button"><span class="g" aria-hidden="true"><svg viewBox="0 0 48 48" width="18" height="18"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg></span><span id="lbl">Continuar con Google</span></button>
+<div class="err" id="err" role="alert" hidden><strong>No pudimos iniciar sesión.</strong>No perdiste la invitación: volvé a intentar y te llevamos de nuevo a Drakterima.</div>
+<ol class="steps" id="steps" aria-label="Qué pasa después">
+<li>Elegís tu cuenta de Google.</li>
+<li>Volvés acá y confirmás «Unirme».</li>
+<li>El DM te asigna tu personaje.</li>
+</ol>
+<p class="note">Solo usamos tu nombre, email y foto de Google. Nada se publica en tu cuenta.</p>
+</div>
+</section>
+</main>
+<script>
+const go=document.getElementById('go'),lbl=document.getElementById('lbl'),err=document.getElementById('err'),g=go.querySelector('.g'),svg=g.innerHTML;
+const t=document.getElementById('t'),lead=document.getElementById('lead'),steps=document.getElementById('steps');let v='invite',s='idle';
+function render(){document.body.classList.toggle('generic',v==='generic');
+document.querySelectorAll('[data-v]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===v));
+document.querySelectorAll('[data-s]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.s===s));
+t.textContent=v==='invite'?'Ingresá para unirte':'Ingresar';
+lead.textContent=v==='invite'?'Entrá con Google y volvés directo a la invitación para confirmar.':'Entrá con tu cuenta de Google para ver tus campañas.';
+steps.hidden=v!=='invite';
+const busy=s==='busy';go.setAttribute('aria-busy',busy);go.disabled=busy;g.innerHTML=busy?'<span class="spin"></span>':svg;
+lbl.textContent=busy?'Redirigiendo a Google…':(s==='error'?'Intentar de nuevo':'Continuar con Google');err.hidden=s!=='error';
+err.innerHTML=v==='invite'?'<strong>No pudimos iniciar sesión.</strong>No perdiste la invitación: volvé a intentar y te llevamos de nuevo a Drakterima.':'<strong>No pudimos iniciar sesión.</strong>La conexión con Google falló. Probá de nuevo.';}
+document.querySelector('[data-b]').onclick=e=>{const on=document.getElementById('camp').classList.toggle('has-banner');e.currentTarget.setAttribute('aria-pressed',on)};
+document.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>{v=b.dataset.v;s='idle';render()});
+document.querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{s=s===b.dataset.s?'idle':b.dataset.s;render()});
+go.onclick=()=>{s='busy';render()};
+</script>
+</body></html>

@@ -1,0 +1,9 @@
+{
+  "title": "Login solo con Google",
+  "brief": "Rediseño del login del hub RPG Quester quitando el ingreso por magic link: solo Google OAuth, con estados de redirección y error",
+  "artboards": [
+    { "file": "01-focal-minimo.html", "title": "Focal mínimo", "tradeoff": "Evolución directa del actual, cero ruido y fácil de implementar; no explica qué es la app a quien llega por primera vez", "width": 1440, "height": 900 },
+    { "file": "02-portada-dividida.html", "title": "Portada dividida", "tradeoff": "Presenta el producto y le da identidad de marca al primer contacto; más superficie que mantener y el login queda en segundo plano en mobile", "width": 1440, "height": 900 },
+    { "file": "03-invitacion-contextual.html", "title": "Invitación contextual", "tradeoff": "Cuando se llega desde /invite muestra la campaña y los pasos siguientes, lo que más reduce el abandono; requiere leer preview_invite antes del login (hoy exige sesión)", "width": 1440, "height": 900 }
+  ]
+}

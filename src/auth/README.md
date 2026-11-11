@@ -54,10 +54,15 @@ storage access is try/catch (private mode or blocked storage degrades to `/`); t
   are there) and, on a hosted project, in Authentication > URL Configuration for every deployed origin.
 - `VITE_AUTH_GOOGLE_ENABLED=false` hides the Google button (anything else shows it; set it to `true` explicitly in Vercel).
 - **Login layout (Google only).** Production login is Google (product decision: no own domain, so the magic link is
-  unreliable). `LoginPage` renders only "Continuar con Google"; with Google disabled and no dev form it shows "El ingreso con
-  Google no está disponible en este entorno.". The magic link survives as a development aid: when `onDevEmailSubmit` is passed
-  (`ConnectedLoginPage` does so only if `import.meta.env.DEV`, overridable with the `devEmailLogin` prop for tests) a section
-  "Ingreso de desarrollo (solo local)" with the email field and the secondary "Enviar link mágico" button appears below Google.
+  unreliable). `LoginPage` renders a branded card with only "Continuar con Google"; with Google disabled and no dev form it
+  shows "El ingreso con Google no está disponible en este entorno.". With `?next=/invite/:code` (validated by
+  `safeNextPath`), `ConnectedLoginPage` loads `previewInvitePublic(code)` once and `LoginPage` shows the campaign
+  (name, logo, banner as subtle background, accent, tagline, expiry) plus "Ingresá para unirte" and the next steps; while
+  loading, on any failure or without an invite it is the generic "Ingresar" (invite errors are shown by InvitePage after login).
+- **Dev email login.** The magic link survives only as a development aid in `DevEmailLogin.tsx`, passed to `LoginPage` through
+  the `devLogin` slot. `ConnectedLoginPage` references it only under `import.meta.env.DEV` (overridable with the
+  `devEmailLogin` prop for tests), so Vite drops it from production bundles. `loginBusy.ts` lets it and the Google button
+  disable each other while one is in flight.
 - Cloudflare Turnstile was removed from the client (no widget, no `captchaToken`). `captcha_failed` stays mapped in
   `authErrors.ts` in case the server still answers it; disabling captcha / the Email provider in hosted Supabase is a manual
   owner step (`docs/hosting-and-cutover.md` d.5).

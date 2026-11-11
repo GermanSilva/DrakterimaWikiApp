@@ -1,0 +1,13 @@
+{
+  "version": 1,
+  "chosen": "03-invitacion-contextual.html",
+  "handoffs": {
+    "03-invitacion-contextual.html": {
+      "status": "in_progress",
+      "queued": false,
+      "sentAt": "2026-11-10T21:58:55.689Z",
+      "startedAt": "2026-11-11T00:05:41.284Z",
+      "implementedAt": null
+    }
+  }
+}

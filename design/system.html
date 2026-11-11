@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Design system — RPG Quester / Drakterima</title>
+<style>
+:root{--bg-deep:#060606;--bg-mid:#0b0b0b;--bg-card:#111111;--border-base:#1e1e1e;--border-light:#282828;--accent:#dc2626;--accent-bright:#ef4444;--accent-dim:#991b1b;--accent-subtle:#450a0a;--txt-primary:#ececec;--txt-secondary:#888888;--txt-muted:#6e6e6e;--brand-gradient:linear-gradient(135deg,#9c2d8c 0%,#4a32ac 50%,#4aaed8 100%);--exo:'Exo 2',system-ui,'Segoe UI',sans-serif;--barlow:Barlow,system-ui,'Segoe UI',sans-serif;--cinzel:Cinzel,Georgia,serif}
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1440px;background:var(--bg-deep);color:var(--txt-primary);font-family:var(--barlow);padding:48px}
+h1{font-family:var(--exo);letter-spacing:.15em;text-transform:uppercase;font-size:20px;margin-bottom:32px}
+h2{font-family:var(--exo);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--txt-muted);margin:32px 0 12px}
+.row{display:flex;gap:16px;flex-wrap:wrap}
+.sw{width:150px;font-size:12px;color:var(--txt-secondary)}.sw div{height:64px;border:1px solid var(--border-light);margin-bottom:6px}
+.btn{font-family:var(--exo);font-size:11px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;padding:8px 16px;border:none;cursor:pointer}
+.p{background:var(--accent);color:#fff}.g{background:var(--brand-gradient);color:#fff}.s{background:transparent;color:var(--txt-secondary);border:1px solid var(--border-light)}
+button:focus-visible,input:focus-visible{outline:2px solid var(--txt-primary);outline-offset:2px}
+label{display:block;font-family:var(--exo);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--txt-muted);margin-bottom:6px}
+input{background:var(--bg-mid);border:1px solid var(--border-base);color:var(--txt-primary);font:14px var(--barlow);padding:8px 12px;width:320px}
+</style></head><body><main>
+<h1>Design system</h1>
+<h2>Colores</h2>
+<div class="row">
+<div class="sw"><div style="background:#060606"></div>bg-deep #060606</div><div class="sw"><div style="background:#0b0b0b"></div>bg-mid #0b0b0b</div><div class="sw"><div style="background:#111"></div>bg-card #111111</div><div class="sw"><div style="background:#1e1e1e"></div>border-base #1e1e1e</div><div class="sw"><div style="background:#282828"></div>border-light #282828</div>
+<div class="sw"><div style="background:#dc2626"></div>accent #dc2626</div><div class="sw"><div style="background:#ef4444"></div>accent-bright #ef4444</div><div class="sw"><div style="background:#991b1b"></div>accent-dim #991b1b</div><div class="sw"><div style="background:#450a0a"></div>accent-subtle #450a0a</div>
+<div class="sw"><div style="background:#ececec"></div>txt-primary</div><div class="sw"><div style="background:#888"></div>txt-secondary</div><div class="sw"><div style="background:#6e6e6e"></div>txt-muted</div>
+<div class="sw" style="width:316px"><div style="background:var(--brand-gradient)"></div>brand-gradient #9c2d8c → #4a32ac → #4aaed8</div>
+</div>
+<h2>Tipografía</h2>
+<p style="font-family:var(--exo);font-size:18px;font-weight:600;letter-spacing:.15em;text-transform:uppercase">Exo 2 — Título de página</p>
+<p style="font-family:var(--barlow);font-size:14px;margin-top:8px">Barlow — cuerpo de texto, 14px. La sesión 12 terminó en las ruinas de Vel'Arath.</p>
+<p style="font-family:var(--cinzel);font-size:22px;margin-top:8px">Cinzel — títulos decorativos</p>
+<h2>Componentes</h2>
+<div class="row" style="align-items:center"><button class="btn p">Primario</button><button class="btn g">Primario (hub)</button><button class="btn s">Secundario</button></div>
+<div style="margin-top:20px"><label for="e">Email</label><input id="e" value="ana@ejemplo.com"></div>
+<h2>Radio y sombras</h2><p style="font-size:14px;color:var(--txt-secondary)">Esquinas rectas (radio 0). Sin sombras en componentes.</p>
+</main></body></html>

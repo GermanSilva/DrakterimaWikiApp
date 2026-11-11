@@ -1,7 +1,9 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext, type AuthValue } from './AuthContext'
-import { ConnectedLoginPage } from './ConnectedLoginPage'
+import { DataContext } from '../app/DataContext'
+import type { HubData } from '../app/hubData'
+import { ConnectedLoginPage, inviteCodeFromNext } from './ConnectedLoginPage'
 import { consumeNext, NEXT_STORAGE_KEY, rememberNext } from './postLoginRedirect'
 import { userEvent } from './testing/userEvent'
 
@@ -84,5 +86,56 @@ describe('ConnectedLoginPage dev email login', () => {
   it('defaults to the dev form under vitest (import.meta.env.DEV is true)', () => {
     setup('/invite/abc')
     expect(screen.getByLabelText('Email')).toBeInTheDocument()
+  })
+})
+
+describe('ConnectedLoginPage invitation preview', () => {
+  const PREVIEW = { campaign_name: 'Drakterima', logo_url: null, banner_url: null, accent_color: null, tagline: null, expires_at: null }
+  function setupWithData(next: string | null | undefined, previewInvitePublic: ReturnType<typeof vi.fn>) {
+    const value = { status: 'signed_out', signInWithEmail: vi.fn(), signInWithGoogle: vi.fn() } as unknown as AuthValue
+    render(
+      <AuthContext.Provider value={value}>
+        <DataContext.Provider value={{ previewInvitePublic } as unknown as HubData}>
+          <ConnectedLoginPage next={next} devEmailLogin={false} />
+        </DataContext.Provider>
+      </AuthContext.Provider>,
+    )
+  }
+
+  it('loads the preview for next=/invite/abc123 and shows the campaign', async () => {
+    const fn = vi.fn().mockResolvedValue(PREVIEW)
+    setupWithData('/invite/abc123', fn)
+    expect(await screen.findByText('Drakterima')).toBeInTheDocument()
+    expect(fn).toHaveBeenCalledTimes(1)
+    expect(fn).toHaveBeenCalledWith('abc123')
+  })
+
+  it('stays generic while loading', () => {
+    setupWithData('/invite/abc123', vi.fn(() => new Promise(() => {})))
+    expect(screen.getByRole('heading', { name: 'Ingresar' })).toBeInTheDocument()
+  })
+
+  it('falls back to the generic login when the preview fails', async () => {
+    const fn = vi.fn().mockRejectedValue(new Error('invite_not_found'))
+    setupWithData('/invite/abc123', fn)
+    await waitFor(() => expect(fn).toHaveBeenCalled())
+    expect(screen.getByRole('heading', { name: 'Ingresar' })).toBeInTheDocument()
+    expect(screen.queryByText(/invite_not_found|Te invitaron a/)).not.toBeInTheDocument()
+  })
+
+  it.each([undefined, null, '', '/c/demo', '/', '//evil.com/invite/abc', 'https://evil.com/invite/abc', '/invite/', '/invite/%E0%A4%A'])(
+    'does not request a preview for next=%j',
+    async (next) => {
+      const fn = vi.fn().mockResolvedValue(PREVIEW)
+      setupWithData(next, fn)
+      await Promise.resolve()
+      expect(fn).not.toHaveBeenCalled()
+      expect(screen.getByRole('heading', { name: 'Ingresar' })).toBeInTheDocument()
+    },
+  )
+
+  it('extracts the code before a query string and decodes it', () => {
+    expect(inviteCodeFromNext('/invite/ab%20c?x=1')).toBe('ab c')
+    expect(inviteCodeFromNext('/invite/abc/extra')).toBe('abc')
   })
 })

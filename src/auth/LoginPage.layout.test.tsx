@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
+import { DevEmailLogin } from './DevEmailLogin'
 import { LoginPage } from './LoginPage'
 import { userEvent } from './testing/userEvent'
 
@@ -27,29 +28,29 @@ describe('LoginPage without a dev email form (production)', () => {
   })
 })
 
-describe('LoginPage with onDevEmailSubmit (development)', () => {
+describe('LoginPage with the devLogin slot (development)', () => {
   it('renders the labeled dev section after Google, with the secondary button and no divider or spam note', () => {
-    render(<LoginPage onGoogle={vi.fn()} googleEnabled onDevEmailSubmit={vi.fn()} />)
+    render(<LoginPage onGoogle={vi.fn()} googleEnabled devLogin={<DevEmailLogin onSubmit={vi.fn()} />} />)
     const heading = screen.getByText('Ingreso de desarrollo (solo local)')
     expect(before(google()!, heading)).toBe(true)
     expect(before(heading, screen.getByLabelText('Email'))).toBe(true)
     expect(before(screen.getByLabelText('Email'), send())).toBe(true)
-    expect(google()!.className).toMatch(/bg-accent/)
-    expect(send().className).not.toMatch(/bg-accent/)
+    expect(google()!.className).toMatch(/brand-gradient-bg/)
+    expect(send().className).not.toMatch(/brand-gradient-bg/)
     expect(screen.queryByRole('separator')).not.toBeInTheDocument()
     expect(screen.queryByText(/spam/)).not.toBeInTheDocument()
   })
 
   it('submits the typed email', async () => {
     const onDevEmailSubmit = vi.fn().mockResolvedValue(undefined)
-    render(<LoginPage onGoogle={vi.fn()} googleEnabled onDevEmailSubmit={onDevEmailSubmit} />)
+    render(<LoginPage onGoogle={vi.fn()} googleEnabled devLogin={<DevEmailLogin onSubmit={onDevEmailSubmit} />} />)
     await userEvent.type(screen.getByLabelText('Email'), 'a@b.co')
     await userEvent.click(send())
     expect(onDevEmailSubmit).toHaveBeenCalledWith('a@b.co')
   })
 
   it('with Google disabled shows the dev form and no unavailable message or Google button', () => {
-    render(<LoginPage onGoogle={vi.fn()} googleEnabled={false} onDevEmailSubmit={vi.fn()} />)
+    render(<LoginPage onGoogle={vi.fn()} googleEnabled={false} devLogin={<DevEmailLogin onSubmit={vi.fn()} />} />)
     expect(google()).not.toBeInTheDocument()
     expect(screen.queryByText(/no está disponible/)).not.toBeInTheDocument()
     expect(send()).toBeInTheDocument()

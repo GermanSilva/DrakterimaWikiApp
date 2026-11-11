@@ -80,3 +80,14 @@ describe('returning to a protected link after signing in', () => {
     await waitFor(() => expect(here(router)).toBe('/'))
   })
 })
+
+describe('login with an invitation preview', () => {
+  it('signed out → /invite/abc shows the campaign from previewInvitePublic on the login page', async () => {
+    const { router, data } = renderApp('/invite/abc', { auth: signedOut })
+    await waitFor(() => expect(router.state.location.pathname).toBe('/login'))
+    expect(await screen.findByText('Te invitaron a')).toBeInTheDocument()
+    expect(screen.getByText('Demo')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Ingresá para unirte' })).toBeInTheDocument()
+    expect(data.previewInvitePublic).toHaveBeenCalledWith('abc')
+  })
+})

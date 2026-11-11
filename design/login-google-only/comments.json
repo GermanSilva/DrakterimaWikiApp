@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "comments": [
+    {
+      "id": "oe52ll44",
+      "file": "03-invitacion-contextual.html",
+      "selector": "body > main",
+      "excerpt": "INGRESAR Entrá con tu cuenta de Google para ver tus campañas. CONTINUAR CON GOOGLE Solo usamos tu nombre, email y foto de Google. Nada se publica en tu cuenta.",
+      "comment": "Agrega el fondo de la segunda opción",
+      "createdAt": "2026-11-10T21:44:01.771Z",
+      "status": "resolved",
+      "sentAt": "2026-11-10T21:44:01.803Z",
+      "resolvedAt": "2026-11-10T21:44:12.871Z"
+    },
+    {
+      "id": "lhx889oc",
+      "file": "03-invitacion-contextual.html",
+      "selector": "#camp",
+      "excerpt": "D TE INVITARON A Drakterima DM: Germán · 5 jugadores · Invitación válida 6 días más",
+      "comment": "Si la campaña tiene banner, mostrarlo como fondo sutíl aquí",
+      "createdAt": "2026-11-10T21:44:54.419Z",
+      "status": "resolved",
+      "sentAt": "2026-11-10T21:44:54.441Z",
+      "resolvedAt": "2026-11-10T21:45:14.542Z"
+    },
+    {
+      "id": "ss7yo6yk",
+      "file": "03-invitacion-contextual.html",
+      "selector": "body > main",
+      "excerpt": "D TE INVITARON A Drakterima DM: Germán · 5 jugadores · Invitación válida 6 días más INGRESÁ PARA UNIRTE Entrá con Google y volvés directo a la invitación para confirmar. CONTINUAR CON GOOGLE Elegís tu cuenta de Google. Volvés acá y confirmás «Unirme». El DM te asigna tu personaje. Solo usamos tu nom",
+      "comment": "El gradiente debe ser más vívido",
+      "createdAt": "2026-11-10T23:57:07.351Z",
+      "status": "open",
+      "sentAt": "2026-11-10T23:57:07.399Z",
+      "resolvedAt": null,
+      "screenshot": ".screenshots/ss7yo6yk.png"
+    }
+  ]
+}

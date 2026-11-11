@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { describe, expect, it, vi } from 'vitest'
 import { AuthFlowError } from './authErrors'
 import { AuthProvider } from './AuthProvider'
+import { DevEmailLogin } from './DevEmailLogin'
 import { LoginPage } from './LoginPage'
 import { ProfileForm } from './ProfileForm'
 import { RequireAuth } from './RequireAuth'
@@ -13,7 +14,7 @@ describe('LoginPage', () => {
   it('sends the link, shows the sending and sent states', async () => {
     let finish: () => void = () => {}
     const onEmailSubmit = vi.fn(() => new Promise<void>((r) => (finish = r)))
-    render(<LoginPage onDevEmailSubmit={onEmailSubmit} onGoogle={vi.fn()} />)
+    render(<LoginPage devLogin={<DevEmailLogin onSubmit={onEmailSubmit} />} onGoogle={vi.fn()} />)
     await userEvent.type(screen.getByLabelText('Email'), ' Ana@Example.com ')
     await userEvent.click(screen.getByRole('button', { name: 'Enviar link mágico' }))
     expect(onEmailSubmit).toHaveBeenCalledWith('Ana@Example.com')
@@ -27,7 +28,7 @@ describe('LoginPage', () => {
 
   it('shows the typed error message', async () => {
     const onEmailSubmit = vi.fn().mockRejectedValue(new AuthFlowError('rate_limited'))
-    render(<LoginPage onDevEmailSubmit={onEmailSubmit} onGoogle={vi.fn()} />)
+    render(<LoginPage devLogin={<DevEmailLogin onSubmit={onEmailSubmit} />} onGoogle={vi.fn()} />)
     await userEvent.type(screen.getByLabelText('Email'), 'a@b.co')
     await userEvent.click(screen.getByRole('button', { name: 'Enviar link mágico' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/demasiados links/)
@@ -35,7 +36,7 @@ describe('LoginPage', () => {
 
   it('never renders raw error text from non-AuthFlowError failures', async () => {
     const onEmailSubmit = vi.fn().mockRejectedValue(new Error('duplicate key value violates constraint pg_internal'))
-    render(<LoginPage onDevEmailSubmit={onEmailSubmit} onGoogle={vi.fn()} />)
+    render(<LoginPage devLogin={<DevEmailLogin onSubmit={onEmailSubmit} />} onGoogle={vi.fn()} />)
     await userEvent.type(screen.getByLabelText('Email'), 'a@b.co')
     await userEvent.click(screen.getByRole('button', { name: 'Enviar link mágico' }))
     const alert = await screen.findByRole('alert')
@@ -44,7 +45,7 @@ describe('LoginPage', () => {
   })
 
   it('tells the user to open the link in the same browser', async () => {
-    render(<LoginPage onDevEmailSubmit={vi.fn().mockResolvedValue(undefined)} onGoogle={vi.fn()} />)
+    render(<LoginPage devLogin={<DevEmailLogin onSubmit={vi.fn().mockResolvedValue(undefined)} />} onGoogle={vi.fn()} />)
     await userEvent.type(screen.getByLabelText('Email'), 'a@b.co')
     await userEvent.click(screen.getByRole('button', { name: 'Enviar link mágico' }))
     expect(await screen.findByText(/en este mismo navegador/)).toBeInTheDocument()
@@ -52,15 +53,15 @@ describe('LoginPage', () => {
 
   it('handles a disabled Google provider gracefully and keeps the page usable', async () => {
     const onGoogle = vi.fn().mockRejectedValue(new AuthFlowError('provider_disabled'))
-    render(<LoginPage onDevEmailSubmit={vi.fn()} onGoogle={onGoogle} />)
+    render(<LoginPage devLogin={<DevEmailLogin onSubmit={vi.fn()} />} onGoogle={onGoogle} />)
     await userEvent.click(screen.getByRole('button', { name: 'Continuar con Google' }))
     expect(await screen.findByRole('alert')).toHaveTextContent(/Google no está disponible/)
-    expect(screen.getByRole('button', { name: 'Continuar con Google' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Intentar de nuevo' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Enviar link mágico' })).toBeEnabled()
   })
 
   it('hides the Google button when disabled', () => {
-    render(<LoginPage onDevEmailSubmit={vi.fn()} onGoogle={vi.fn()} googleEnabled={false} />)
+    render(<LoginPage devLogin={<DevEmailLogin onSubmit={vi.fn()} />} onGoogle={vi.fn()} googleEnabled={false} />)
     expect(screen.queryByRole('button', { name: /Google/ })).not.toBeInTheDocument()
   })
 })
