@@ -1,8 +1,9 @@
 /** H3a: the references valid in a formula's place, who uses a key, and the cycle path of validateSheet (S42 b, e, f). */
 import { describe, expect, it } from 'vitest'
 import { DND5E_SHEET } from './dnd5eSheet'
-import { formulaUsers, referenceScope, type FormulaContext, type ScopeEntry } from './formulaScope'
+import { formulaFactsOf, formulaUsers, referenceScope, type FormulaContext, type ScopeEntry } from './formulaScope'
 import { validateSheet, type Item, type Sheet } from './sheetModel'
+import { formulaUses, parseFormula } from '../formula/formula'
 
 const items = (): Item[] => [
   { kind: 'field', key: 'nombre_pj', label: 'Apodo', type: 'short', editableBy: 'player' },
@@ -104,12 +105,40 @@ describe('referenceScope', () => {
       'peso_total',
       'stat_str.valor',
       'stat_str.modificador',
+      'stat_str',
       'stat_dex.valor',
       'stat_dex.modificador',
+      'stat_dex',
       'atletismo.bonus',
+      'atletismo',
       'equipo',
       'dinero',
     ])
+  })
+
+  it('also lists the bare key of a Stat row (its value) and of a Capacidades row (its first column), which the validator accepts', () => {
+    const list = referenceScope(sheet, FIELD('iniciativa'))
+    expect(find(list, 'stat_str')).toEqual({ ref: 'stat_str', label: 'Fuerza', group: 'atributos', kind: 'number' })
+    expect(find(list, 'atletismo')).toEqual({ ref: 'atletismo', label: 'Atletismo', group: 'capacidades', kind: 'number' })
+  })
+
+  it('D&D preset, reverse direction: every reference its own formulas use is listed for the place that formula is written', () => {
+    const facts = formulaFactsOf(DND5E_SHEET)
+    let checked = 0
+    for (const f of facts.formulas) {
+      const parsed = parseFormula(f.text)
+      if (!parsed.ok) continue
+      const column = /^col:([^.]+)\.(.+)$/.exec(f.key)
+      const row = f.key.endsWith('.modificador') ? f.key.slice(0, -'.modificador'.length) : null
+      const context: FormulaContext = column ? { kind: 'column', table: column[1], column: column[2] } : row !== null && facts.statRows.has(row) ? { kind: 'stat', row } : FIELD(f.key)
+      const listed = new Set(refs(referenceScope(DND5E_SHEET, context)))
+      const uses = formulaUses(parsed.ast)
+      for (const ref of [...uses.plain.filter((r) => !f.locals.includes(r)), ...uses.tables.map((t) => t.table)]) {
+        expect(listed.has(ref), `{${ref}} used by ${f.path}`).toBe(true)
+        checked++
+      }
+    }
+    expect(checked).toBeGreaterThan(10)
   })
 
   it('labels them in Spanish from the sheet, with their group and kind', () => {
@@ -126,15 +155,13 @@ describe('referenceScope', () => {
     expect(find(list, 'dinero')).toEqual({ ref: 'dinero', label: 'Dinero', group: 'tablas', kind: 'table', tableOnly: true })
   })
 
-  it('leaves out what a formula cannot read: the field itself, anything that would close a cycle, stat and economy tables, rows as such, computed capacidades columns', () => {
+  it('leaves out what a formula cannot read: the field itself, anything that would close a cycle, stat and economy tables, computed capacidades columns', () => {
     const list = refs(referenceScope(sheet, FIELD('prof')))
     expect(list).not.toContain('prof')
     expect(list).not.toContain('entrenado') // its option reads prof
     expect(list).not.toContain('stats')
     expect(list).not.toContain('caja')
     expect(list).not.toContain('skills')
-    expect(list).not.toContain('stat_str')
-    expect(list).not.toContain('atletismo')
     expect(list).not.toContain('atletismo.total')
     expect(list).toContain('oculto')
     expect(refs(referenceScope(sheet, FIELD('oculto')))).not.toContain('iniciativa') // iniciativa reads oculto

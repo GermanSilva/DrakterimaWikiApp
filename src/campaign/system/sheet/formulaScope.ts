@@ -174,10 +174,15 @@ export function referenceScope(sheet: Sheet, context: FormulaContext): ScopeEntr
           for (const row of item.rows) {
             add(stats, { ref: `${row.key}.valor`, label: `${row.label} (valor)`, group: 'atributos', kind: 'number' })
             add(stats, { ref: `${row.key}.modificador`, label: `${row.label} (modificador)`, group: 'atributos', kind: 'number' })
+            add(stats, { ref: row.key, label: row.label, group: 'atributos', kind: 'number' }) // the bare row key reads its value
           }
         } else if (item.type === 'capacidades') {
           for (const row of item.rows) {
+            // the bare row key reads its first column; it is a cycle when that column's formula would read this place
+            const first = item.columns[0]
+            const firstOk = !first || !readsContext(`col:${item.key}.${first.key}`)
             for (const column of item.columns) add(capacidades, { ref: `${row.key}.${column.key}`, label: `${row.label} · ${column.label}`, group: 'capacidades', kind: kindOf(column) })
+            if (first && firstOk) add(capacidades, { ref: row.key, label: row.label, group: 'capacidades', kind: kindOf(first) })
           }
         } else if (facts.tableColumns.has(item.key)) {
           tables.push({ ref: item.key, label: item.label, group: 'tablas', kind: 'table', tableOnly: true })

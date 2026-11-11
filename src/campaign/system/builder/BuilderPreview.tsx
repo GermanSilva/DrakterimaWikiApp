@@ -51,9 +51,9 @@ export function BuilderPreview() {
           </div>
         )}
       </div>
-      <p className="px-3.5 pt-2.5 text-[12px] text-txt-secondary">Ficha con los cambios sin guardar, calculada con el personaje de prueba.</p>
-      {sheet && sheet !== validSheet && <p className="px-3.5 pt-1 text-[12px] text-amber-400">Mostrando la última versión válida</p>}
-      <div className="min-h-0 overflow-y-auto px-3.5 pb-3.5">
+      <p className="px-3.5 pt-2.5 pb-2 text-[12px] text-txt-secondary">Ficha con los cambios sin guardar, calculada con el personaje de prueba.</p>
+      {sheet && sheet !== validSheet && <p className="px-3.5 pb-2 text-[12px] text-amber-400">Mostrando la última versión válida</p>}
+      <div className="min-h-0 overflow-y-auto px-3.5 pt-3 pb-3.5">
         {resolved ? <SheetView resolved={resolved} unread={NO_UNREAD} showHidden={asDm} /> : <p className="pt-3 text-[13px] text-txt-muted">Todavía no hay una versión válida de la plantilla para mostrar.</p>}
       </div>
       {asDm && <p className="border-t border-border-base px-3.5 py-2 text-[12px] text-txt-muted">Los campos ocultos aparecen con borde punteado solo en la vista del DM.</p>}

@@ -92,7 +92,7 @@ describe('FormulaWorkbench: autocomplete', () => {
   it('filters by what was typed (reference or label) and shows each value for the test character', () => {
     renderSheet()
     type(fx(bench('Percepción')), '{fue')
-    expect(optionRefs()).toEqual(['fuerza', 'fue.valor', 'fue.modificador'])
+    expect(optionRefs()).toEqual(['fuerza', 'fue.valor', 'fue.modificador', 'fue'])
     expect(within(listOptions()[0]).getByText('14')).toBeInTheDocument()
     expect(within(listOptions()[1]).getByText('16')).toBeInTheDocument()
     type(fx(bench('Percepción')), '{modif')
@@ -140,6 +140,42 @@ describe('FormulaWorkbench: autocomplete', () => {
     type(el, '{fue.m')
     fireEvent.click(within(screen.getByRole('listbox')).getByRole('option', { name: /Fuerza \(modificador\)/ }))
     expect(el).toHaveValue('{fue.modificador}')
+  })
+})
+
+describe('FormulaWorkbench: no match, one line, look', () => {
+  it('keeps the popup with a note while the caret is inside an open brace that matches nothing', () => {
+    renderSheet()
+    const el = fx(bench('Percepción'))
+    type(el, '{zzz')
+    expect(el).toHaveAttribute('aria-expanded', 'true')
+    expect(listOptions()).toHaveLength(0)
+    expect(within(screen.getByRole('listbox')).getByText('Nada coincide con «zzz». Las claves usan minúsculas y _.')).toBeInTheDocument()
+    type(el, '{zzz} + 1')
+    expect(screen.queryByRole('listbox')).not.toBeInTheDocument()
+    expect(el).toHaveAttribute('aria-expanded', 'false')
+  })
+
+  it('Enter with no open list does not insert a newline, and pasted newlines become spaces', () => {
+    renderSheet()
+    const el = fx(bench('Percepción'))
+    type(el, '1 + 2')
+    expect(fireEvent.keyDown(el, { key: 'Enter' })).toBe(false) // default prevented
+    type(el, '1 +\n2\r\n+ 3')
+    expect(el).toHaveValue('1 + 2 + 3')
+  })
+
+  it('has no native resize grip', () => {
+    renderSheet()
+    expect(fx(bench('Percepción')).className).toContain('resize-none')
+    expect(fx(bench('Percepción')).className).not.toContain('resize-y')
+  })
+
+  it('keeps the help tablist on one row (scrolls sideways instead of wrapping)', () => {
+    renderSheet()
+    const tabs = within(bench('Percepción')).getByRole('tablist')
+    expect(tabs.className).not.toContain('flex-wrap')
+    expect(tabs.closest('[data-testid="scroll-strip"]')?.className).toContain('overflow-x-auto')
   })
 })
 

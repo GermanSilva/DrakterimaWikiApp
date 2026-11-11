@@ -8,6 +8,8 @@ interface Props {
   valueOf: (ref: string) => string
   optionId: (index: number) => string
   onPick: (entry: ScopeEntry) => void
+  /** Shown instead of options when nothing matches what was typed. */
+  note?: string
 }
 
 /** The entries in runs of the same group, each with its index in the whole list. */
@@ -22,7 +24,7 @@ function runs(entries: readonly ScopeEntry[]): { group: string; items: { entry: 
 }
 
 /** The listbox of the autocomplete: options grouped under their headings, each with its reference, name and value for the test character. */
-export function CompletionList({ id, entries, active, heading, valueOf, optionId, onPick }: Props) {
+export function CompletionList({ id, entries, active, heading, valueOf, optionId, onPick, note }: Props) {
   return (
     <div
       id={id}
@@ -30,6 +32,7 @@ export function CompletionList({ id, entries, active, heading, valueOf, optionId
       aria-label="Referencias disponibles"
       className="absolute left-0 right-0 top-full z-20 max-h-[300px] overflow-auto border border-border-light bg-bg-card shadow-[0_12px_32px_rgba(0,0,0,0.6)] sm:right-auto sm:w-[360px]"
     >
+      {note && <p className="px-3 py-2.5 text-[12px] text-txt-muted">{note}</p>}
       {runs(entries).map(({ group, items }) => (
         <div key={group} role="group" aria-labelledby={`${id}-g-${group}`}>
           <div id={`${id}-g-${group}`} className="px-3 pt-2 pb-1 font-exo text-[10px] font-medium tracking-[0.2em] uppercase text-txt-muted">

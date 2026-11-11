@@ -43,10 +43,20 @@ export const FormulaEditor = forwardRef<EditorHandle, Props>(function FormulaEdi
 
   const completion = useMemo(() => (closed ? null : completionAt(value, caret)), [closed, value, caret])
   const matches = useMemo(() => (completion ? matchEntries(entries, completion) : []), [completion, entries])
-  const open = matches.length > 0
+  // An open brace that matches nothing keeps the popup, with a note, so the writer sees why the list went away.
+  const noMatch = completion !== null && matches.length === 0 && completion.query !== '' && entries.length > 0
+  const open = matches.length > 0 || noMatch
   const current = Math.min(active, matches.length - 1)
   const optionId = (index: number) => `${listId}-o${index}`
   const segments = useMemo(() => highlight(value, unknown, error), [value, unknown, error])
+
+  // No resize grip: the box grows with its text instead (the coloured copy sits over it, so both follow).
+  useLayoutEffect(() => {
+    const el = area.current
+    if (!el) return
+    el.style.height = 'auto'
+    if (el.scrollHeight > 0) el.style.height = `${el.scrollHeight + 2}px`
+  }, [value])
 
   // After the text changes from code (a pick or a chip), the caret goes where the edit says.
   useLayoutEffect(() => {
@@ -81,7 +91,17 @@ export const FormulaEditor = forwardRef<EditorHandle, Props>(function FormulaEdi
   }
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    // A formula is one line: Enter never inserts a newline (with the list open it picks).
+    if (e.key === 'Enter' && matches.length === 0) e.preventDefault()
     if (!open) return
+    if (matches.length === 0) {
+      if (e.key === 'Escape') {
+        e.preventDefault()
+        e.stopPropagation()
+        setClosed(true)
+      }
+      return
+    }
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
       e.preventDefault()
       setActive((current + (e.key === 'ArrowDown' ? 1 : -1) + matches.length) % matches.length)
@@ -128,14 +148,14 @@ export const FormulaEditor = forwardRef<EditorHandle, Props>(function FormulaEdi
         aria-autocomplete="list"
         aria-expanded={open}
         aria-controls={open ? listId : undefined}
-        aria-activedescendant={open ? optionId(current) : undefined}
+        aria-activedescendant={matches.length > 0 ? optionId(current) : undefined}
         aria-invalid={invalid ? true : undefined}
         aria-describedby={describedBy}
         onChange={(e) => {
           setCaret(e.target.selectionStart)
           setClosed(false)
           setActive(0)
-          onChange(e.target.value)
+          onChange(e.target.value.replace(/\r\n|[\r\n]/g, ' '))
         }}
         onSelect={sync}
         onClick={sync}
@@ -145,10 +165,10 @@ export const FormulaEditor = forwardRef<EditorHandle, Props>(function FormulaEdi
         onScroll={(e) => {
           if (layer.current) layer.current.scrollTop = e.currentTarget.scrollTop
         }}
-        className="fx-text relative block resize-y border border-border-base bg-transparent text-transparent caret-[#ececec] outline-none focus:border-accent-dim focus-visible:ring-1 focus-visible:ring-accent-dim"
+        className="fx-text relative block resize-none overflow-hidden border border-border-base bg-transparent text-transparent caret-[#ececec] outline-none focus:border-accent-dim focus-visible:ring-1 focus-visible:ring-accent-dim"
       />
       {open && completion && (
-        <CompletionList id={listId} entries={matches} active={current} heading={(e) => groupLabel(e.group, rowIsStat)} valueOf={valueOf} optionId={optionId} onPick={pick} />
+        <CompletionList id={listId} entries={matches} note={noMatch ? `Nada coincide con «${completion.query}». Las claves usan minúsculas y _.` : undefined} active={current} heading={(e) => groupLabel(e.group, rowIsStat)} valueOf={valueOf} optionId={optionId} onPick={pick} />
       )}
     </div>
   )

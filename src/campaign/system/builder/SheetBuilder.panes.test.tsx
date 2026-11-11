@@ -111,6 +111,13 @@ describe('BuilderPreview', () => {
     expect(view.getByText('15')).toBeInTheDocument()
   })
 
+  it('gives the notes and the sheet room: the notes have bottom padding and the scrolling sheet area top padding', () => {
+    render()
+    const intro = within(preview()).getByText('Ficha con los cambios sin guardar, calculada con el personaje de prueba.')
+    expect(intro.className).toContain('pb-2')
+    expect(intro.nextElementSibling?.className).toContain('pt-3')
+  })
+
   it('follows an unsaved formula change', () => {
     render()
     type(formula('Poder'), '{fuerza} + 100')
