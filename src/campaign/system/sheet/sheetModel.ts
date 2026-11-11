@@ -195,10 +195,111 @@ export interface SheetCard {
 }
 
 export interface SheetError {
+  /** Set on the cycle error: the keys of the formulas in order with their names, the first repeated at the end. */
+  cycle?: { key: string; label: string }[]
   path: string
   message: string
 }
 export type SheetResult = { ok: true; sheet: Sheet } | { ok: false; errors: SheetError[] }
+
+/** One formula to check: where it is, the graph node it belongs to, its text and the local names it may use. `table`: a row column of that free/skill table. */
+export interface FormulaEntry {
+  path: string
+  key: string
+  text: string
+  locals: string[]
+  table?: string
+}
+export interface CalcEntry {
+  path: string
+  key: string
+  calc: Calc
+}
+
+/** Everything the formula pass needs from a sheet's structure. validateSheet collects it while it walks the raw sheet; formulaScope rebuilds it from a valid one. */
+export interface FormulaFacts {
+  formulas: FormulaEntry[]
+  calcs: CalcEntry[]
+  /** Items, tables and rows share one namespace. */
+  globalKeys: Iterable<string>
+  statRows: ReadonlySet<string>
+  /** Capacidades row -> column key -> hasFormula. */
+  capColumns: ReadonlyMap<string, ReadonlyMap<string, boolean>>
+  /** Tables a formula can read as rows: free, skill and coin tables. */
+  tableColumns: ReadonlyMap<string, ReadonlySet<string>>
+  /** Every table, whatever its kind. */
+  tableKeys: ReadonlySet<string>
+}
+
+/** The names a formula may reference anywhere (locals aside): `nivel`, every key, stat values and modifiers, the stored columns of Capacidades rows. */
+export function knownReferences(facts: FormulaFacts): Set<string> {
+  const known = new Set<string>(['nivel', ...facts.globalKeys])
+  for (const row of facts.statRows) {
+    known.add(`${row}.valor`)
+    known.add(`${row}.modificador`)
+  }
+  for (const [row, cols] of facts.capColumns) for (const [col, hasFormula] of cols) if (!hasFormula) known.add(`${row}.${col}`)
+  return known
+}
+
+/** The graph node a local name of a table column formula points at (the column of the same table); any other reference is its own node. */
+export const formulaNode = (entry: Pick<FormulaEntry, 'locals' | 'table'>, ref: string): string =>
+  entry.table !== undefined && entry.locals.includes(ref) ? `col:${entry.table}.${ref}` : ref
+
+/**
+ * Checks every formula against the namespace (unknown references, tables used as values, columns that do not exist) and returns the
+ * dependency graph node -> nodes it reads. Cycle nodes: fields, stat modifiers and the formula columns of free/skill tables.
+ * A table function depends on the columns it names (a stored column is not a node).
+ */
+export function analyzeFormulas(facts: FormulaFacts, fail: (path: string, message: string) => void): Map<string, string[]> {
+  const known = knownReferences(facts)
+  const edges = new Map<string, string[]>()
+  for (const f of facts.formulas) {
+    const parsed = parseFormula(f.text)
+    if (!parsed.ok) continue
+    for (const ref of parsed.refs) {
+      if (!known.has(ref) && !f.locals.includes(ref)) fail(f.path, `unknown reference {${ref}}`)
+    }
+    const uses = formulaUses(parsed.ast)
+    // A table is read through a table function, never as a value; its columns must exist.
+    for (const ref of uses.plain) if (facts.tableKeys.has(ref) && !f.locals.includes(ref)) fail(f.path, `{${ref}} is a table, use it inside a table function`)
+    for (const { table, columns } of uses.tables) {
+      const cols = facts.tableColumns.get(table)
+      if (!cols) {
+        if (known.has(table)) fail(f.path, `{${table}} is not a free, skill or coin table`) // an unknown name was reported above
+      } else for (const column of columns) if (!cols.has(column)) fail(f.path, `${table} has no column "${column}"`)
+    }
+    // Column locals point at the column of the same table.
+    if (!f.key.startsWith('col:') || f.table !== undefined) {
+      const deps = [...uses.plain.map((ref) => formulaNode(f, ref)), ...uses.tables.flatMap(({ table, columns }) => columns.map((c) => `col:${table}.${c}`))]
+      edges.set(f.key, [...(edges.get(f.key) ?? []), ...deps]) // an options field or column has one formula per option
+    }
+  }
+  // A calculation reads the column it names: a formula column is a graph node, a stored one is a leaf.
+  for (const { path, key, calc } of facts.calcs) {
+    const cols = facts.tableColumns.get(calc.table)
+    if (!cols) fail(`${path}.table`, 'a calculation reads a free, skill or coin table')
+    else if (calc.column !== undefined && !cols.has(calc.column)) fail(`${path}.column`, `${calc.table} has no column "${calc.column}"`)
+    edges.set(key, calc.column === undefined ? [] : [`col:${calc.table}.${calc.column}`])
+  }
+  return edges
+}
+
+/** The names of the graph nodes, for a cycle path: fields by label, "Fuerza (modificador)", "Equipo › Total". */
+export function nodeLabels(categories: Category[]): Map<string, string> {
+  const names = new Map<string, string>()
+  for (const category of categories) {
+    for (const section of category.sections) {
+      for (const item of section.items) {
+        if (item.kind === 'field') names.set(item.key, item.label || item.key)
+        else if (item.type === 'stat') for (const row of item.rows) names.set(`${row.key}.modificador`, `${row.label || row.key} (modificador)`)
+        else if ('columns' in item) for (const column of item.columns) names.set(`col:${item.key}.${column.key}`, `${item.label || item.key} › ${column.label || column.key}`)
+      }
+    }
+  }
+  return names
+}
+
 
 export const SHEET_LIMITS = {
   categories: 12,
@@ -727,44 +828,16 @@ export function validateSheet(raw: unknown): SheetResult {
   for (const { path, stat } of capRows) if (!statRows.has(stat)) fail(path, 'must be the key of a stat row')
 
   // Pass 2: formulas
-  const known = new Set<string>(['nivel', ...globalKeys.keys()])
-  for (const row of statRows) {
-    known.add(`${row}.valor`)
-    known.add(`${row}.modificador`)
+  const edges = analyzeFormulas({ formulas, calcs, globalKeys: globalKeys.keys(), statRows, capColumns, tableColumns, tableKeys }, fail)
+  const cycle = findEdgeCycle(edges)
+  if (cycle !== null) {
+    const names = nodeLabels(categories)
+    errors.push({
+      path: 'categories',
+      message: `formulas reference each other in a cycle: ${cycle.join(' -> ')}`,
+      cycle: cycle.map((key) => ({ key, label: names.get(key) ?? key })),
+    })
   }
-  for (const [row, cols] of capColumns) for (const [col, hasFormula] of cols) if (!hasFormula) known.add(`${row}.${col}`)
-  const edges = new Map<string, string[]>()
-  for (const f of formulas) {
-    const parsed = parseFormula(f.text)
-    if (!parsed.ok) continue
-    for (const ref of parsed.refs) {
-      if (!known.has(ref) && !f.locals.includes(ref)) fail(f.path, `unknown reference {${ref}}`)
-    }
-    const uses = formulaUses(parsed.ast)
-    // A table is read through a table function, never as a value; its columns must exist.
-    for (const ref of uses.plain) if (tableKeys.has(ref) && !f.locals.includes(ref)) fail(f.path, `{${ref}} is a table, use it inside a table function`)
-    for (const { table, columns } of uses.tables) {
-      const cols = tableColumns.get(table)
-      if (!cols) {
-        if (known.has(table)) fail(f.path, `{${table}} is not a free, skill or coin table`) // an unknown name was reported above
-      } else for (const column of columns) if (!cols.has(column)) fail(f.path, `${table} has no column "${column}"`)
-    }
-    // Cycle nodes: fields, stat modifiers and the formula columns of free/skill tables. A table function depends on the
-    // columns it names (a stored column is not a node); column locals point at the column of the same table.
-    if (!f.key.startsWith('col:') || f.table !== undefined) {
-      const near = (ref: string) => (f.table !== undefined && f.locals.includes(ref) ? `col:${f.table}.${ref}` : ref)
-      const deps = [...uses.plain.map(near), ...uses.tables.flatMap(({ table, columns }) => columns.map((c) => `col:${table}.${c}`))]
-      edges.set(f.key, [...(edges.get(f.key) ?? []), ...deps]) // an options field or column has one formula per option
-    }
-  }
-  // A calculation reads the column it names: a formula column is a graph node, a stored one is a leaf.
-  for (const { path, key, calc } of calcs) {
-    const cols = tableColumns.get(calc.table)
-    if (!cols) fail(`${path}.table`, 'a calculation reads a free, skill or coin table')
-    else if (calc.column !== undefined && !cols.has(calc.column)) fail(`${path}.column`, `${calc.table} has no column "${calc.column}"`)
-    edges.set(key, calc.column === undefined ? [] : [`col:${calc.table}.${calc.column}`])
-  }
-  if (findEdgeCycle(edges) !== null) fail('categories', 'formulas reference each other in a cycle')
 
   // Tracks: their damage lives in other number fields (distinct, not the track itself)
   const setTrack = (key: string, track: Track) => {

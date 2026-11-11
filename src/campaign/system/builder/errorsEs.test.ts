@@ -38,6 +38,20 @@ describe('describeSheetError', () => {
     expect(describeSheetError(bad, { path: 'categories[0].sections[0].items[0].formula', message: 'invalid formula' }).text).toBe('Fórmula no válida: falta cerrar una referencia con }.')
   })
 
+  it('says the cycle path with the names the DM gave, or the keys when the error has no labels', () => {
+    const message = 'formulas reference each other in a cycle: pasiva -> ini -> pasiva'
+    const cycle = [
+      { key: 'pasiva', label: 'Percepción pasiva' },
+      { key: 'ini', label: 'Iniciativa' },
+      { key: 'pasiva', label: 'Percepción pasiva' },
+    ]
+    expect(describeSheetError(draft, { path: 'categories', message, cycle })).toMatchObject({
+      where: '',
+      text: 'Las fórmulas se llaman en círculo: Percepción pasiva → Iniciativa → Percepción pasiva',
+    })
+    expect(describeSheetError(draft, { path: 'categories', message }).text).toBe('Las fórmulas se llaman en círculo: pasiva → ini → pasiva')
+  })
+
   it('describes the sheet-wide and role errors', () => {
     expect(describeSheetError(draft, { path: 'categories', message: 'formulas reference each other in a cycle' })).toMatchObject({ where: '', text: 'Hay fórmulas que se referencian entre sí en círculo.' })
     expect(describeSheetError(draft, { path: 'roles.hp', message: 'a role is bound to a number field' })).toMatchObject({ where: 'Roles', field: 'Vida máxima', text: 'Un rol se asigna a un campo numérico.' })

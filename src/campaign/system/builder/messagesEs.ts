@@ -32,6 +32,9 @@ export function formulaErrorEs(error: string): string {
 const NAME_ERROR = 'El nombre debe tener entre 1 y 60 caracteres, sin caracteres de control ni invisibles.'
 const KEY_ERROR = 'Clave no válida: empieza con una letra minúscula y usa solo minúsculas sin tildes, números y guion bajo, sin doble guion bajo (hasta 40 caracteres).'
 
+/** "Las fórmulas se llaman en círculo: A → B → A", from the names (or keys) of the cycle in order, the first repeated at the end. */
+export const cycleEs = (names: string[]): string => `Las fórmulas se llaman en círculo: ${names.join(' → ')}`
+
 const SHEET_ERRORS: [RegExp, (m: RegExpMatchArray) => string][] = [
   [/^the sheet is too large$/, () => 'La plantilla es demasiado grande (máximo 40.000 caracteres).'],
   [/^a sheet needs categories$/, () => 'La plantilla necesita categorías.'],
@@ -131,6 +134,7 @@ const SHEET_ERRORS: [RegExp, (m: RegExpMatchArray) => string][] = [
   [/^\{(.*)\} is a table, use it inside a table function$/, (m) => `{${m[1]}} es una tabla: usala dentro de una función de tabla.`],
   [/^\{(.*)\} is not a free, skill or coin table$/, (m) => `{${m[1]}} no es una tabla Libre, de Habilidad ni de monedas.`],
   [/^(.*) has no column "(.*)"$/, (m) => `La tabla ${m[1]} no tiene la columna "${m[2]}".`],
+  [/^formulas reference each other in a cycle: (.*)$/, (m) => cycleEs(m[1].split(' -> '))],
   [/^formulas reference each other in a cycle$/, () => 'Hay fórmulas que se referencian entre sí en círculo.'],
   [/^roles must be an object$/, () => 'Los roles no son válidos.'],
   [/^unknown role$/, () => 'Rol desconocido.'],

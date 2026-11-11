@@ -2,7 +2,7 @@
 import { parseFormula } from '../formula/formula'
 import type { SheetError } from '../sheet/sheetModel'
 import { getAt, isNode, parsePath, type Path } from './draft'
-import { formulaErrorEs, sheetErrorEs } from './messagesEs'
+import { cycleEs, formulaErrorEs, sheetErrorEs } from './messagesEs'
 import { ROLE_LABEL } from './roleLabels'
 
 export interface DisplayError {
@@ -72,7 +72,7 @@ export function describeSheetError(draft: unknown, error: SheetError): DisplayEr
   return {
     where: parts.join(' › '),
     field: lastIsPanel || sheetWide || path.length === 0 ? '' : (FIELD[name] ?? name),
-    text: error.message === 'invalid formula' ? formulaProblem(draft, error.path) : sheetErrorEs(error.message),
+    text: error.cycle ? cycleEs(error.cycle.map((node) => node.label)) : error.message === 'invalid formula' ? formulaProblem(draft, error.path) : sheetErrorEs(error.message),
   }
 }
 

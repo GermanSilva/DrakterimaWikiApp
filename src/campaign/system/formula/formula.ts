@@ -26,7 +26,13 @@ const TABLE_FUNCTIONS = new Set(['suma', 'promedio', 'conteo', 'mayor', 'menor',
 
 export type ParseResult =
   | { ok: true; ast: FormulaNode; refs: string[]; tables: string[] }
-  | { ok: false; error: string }
+  | { ok: false; error: string; at: SourceSpan }
+
+/** 0-based offsets into the formula text, `end` exclusive. A problem at the end of the text is empty (start === end === length). */
+export interface SourceSpan {
+  start: number
+  end: number
+}
 
 export type EvaluateResult = { ok: true; value: number | string } | { ok: false; error: string }
 
@@ -41,19 +47,32 @@ const FUNCTIONS: Record<FunctionName, { min: number; max: number }> = {
   signo: { min: 1, max: 1 },
 }
 
-type Token =
+/** Every function name the parser accepts (the catalogue of the Funciones tab must list them all). */
+export const FORMULA_FUNCTION_NAMES: readonly string[] = [...Object.keys(FUNCTIONS), ...TABLE_FUNCTIONS]
+
+type TokenBody =
   | { type: 'num'; value: number }
   | { type: 'str'; value: string }
   | { type: 'ref'; ref: string }
   | { type: 'name'; name: string }
   | { type: 'op'; op: string }
+type Token = TokenBody & SourceSpan
 
-class FormulaError extends Error {}
+/** A problem of the formula; `at` says where in the text (the parser fills it in when the throw site does not know). */
+class FormulaError extends Error {
+  constructor(
+    message: string,
+    readonly at?: SourceSpan,
+  ) {
+    super(message)
+  }
+}
 
 const REF_PATTERN = /^[a-z0-9_]+(\.[a-z0-9_]+)?$/
 
 function tokenize(src: string): Token[] {
   const tokens: Token[] = []
+  const push = (start: number, end: number, body: TokenBody) => void tokens.push({ ...body, start, end })
   let i = 0
   while (i < src.length) {
     const ch = src[i]
@@ -61,44 +80,47 @@ function tokenize(src: string): Token[] {
       i += 1
     } else if (ch >= '0' && ch <= '9') {
       const match = /^\d+(\.\d+)?/.exec(src.slice(i))!
-      tokens.push({ type: 'num', value: Number(match[0]) })
+      push(i, i + match[0].length, { type: 'num', value: Number(match[0]) })
       i += match[0].length
     } else if (ch === '{') {
       const end = src.indexOf('}', i)
-      if (end === -1) throw new FormulaError('unclosed reference')
+      if (end === -1) throw new FormulaError('unclosed reference', { start: i, end: src.length })
       const ref = src.slice(i + 1, end)
-      if (!REF_PATTERN.test(ref)) throw new FormulaError(`invalid reference {${ref}}`)
+      if (!REF_PATTERN.test(ref)) throw new FormulaError(`invalid reference {${ref}}`, { start: i, end: end + 1 })
       if (ref.split('.').some((segment) => RESERVED_SEGMENTS.has(segment))) {
-        throw new FormulaError(`reserved reference {${ref}}`)
+        throw new FormulaError(`reserved reference {${ref}}`, { start: i, end: end + 1 })
       }
-      tokens.push({ type: 'ref', ref })
+      push(i, end + 1, { type: 'ref', ref })
       i = end + 1
     } else if (ch === '"') {
       const end = src.indexOf('"', i + 1)
-      if (end === -1) throw new FormulaError('unclosed text')
+      if (end === -1) throw new FormulaError('unclosed text', { start: i, end: src.length })
       const value = src.slice(i + 1, end)
-      if (/[\r\n]/.test(value)) throw new FormulaError('a text cannot span lines')
-      tokens.push({ type: 'str', value })
+      if (/[\r\n]/.test(value)) throw new FormulaError('a text cannot span lines', { start: i, end: end + 1 })
+      push(i, end + 1, { type: 'str', value })
       i = end + 1
     } else if (ch >= 'a' && ch <= 'z') {
       const match = /^[a-z]+/.exec(src.slice(i))!
-      tokens.push({ type: 'name', name: match[0] })
+      push(i, i + match[0].length, { type: 'name', name: match[0] })
       i += match[0].length
     } else {
       const two = src.slice(i, i + 2)
       if (two === '<=' || two === '>=' || two === '==' || two === '!=') {
-        tokens.push({ type: 'op', op: two })
+        push(i, i + 2, { type: 'op', op: two })
         i += 2
       } else if ('+-*/%&<>(),'.includes(ch)) {
-        tokens.push({ type: 'op', op: ch })
+        push(i, i + 1, { type: 'op', op: ch })
         i += 1
       } else {
-        throw new FormulaError(`unexpected character "${ch}"`)
+        throw new FormulaError(`unexpected character "${ch}"`, { start: i, end: i + 1 })
       }
     }
   }
   return tokens
 }
+
+/** Where each parsed node sits in its source text, so a trace can quote the sub-expression (not part of the AST, which stays plain data). */
+const SOURCE_OF = new WeakMap<FormulaNode, { source: string; start: number; end: number }>()
 
 class Parser {
   private pos = 0
@@ -106,11 +128,30 @@ class Parser {
   readonly refs: string[] = []
   readonly tables: string[] = []
 
-  constructor(private readonly tokens: Token[]) {}
+  constructor(
+    private readonly tokens: Token[],
+    private readonly source: string,
+  ) {}
+
+  /** The current token, or the end of the text when there is none. */
+  private here(): SourceSpan {
+    const token = this.tokens[this.pos]
+    return token ? { start: token.start, end: token.end } : { start: this.source.length, end: this.source.length }
+  }
+
+  private fail(message: string, at: SourceSpan = this.here()): never {
+    throw new FormulaError(message, at)
+  }
+
+  /** Records that `node` spans from token `from` to the last token read. */
+  private mark<T extends FormulaNode>(node: T, from: number): T {
+    SOURCE_OF.set(node, { source: this.source, start: this.tokens[from].start, end: this.tokens[this.pos - 1].end })
+    return node
+  }
 
   parse(): FormulaNode {
     const node = this.comparison()
-    if (this.pos < this.tokens.length) throw new FormulaError('unexpected token after the expression')
+    if (this.pos < this.tokens.length) this.fail('unexpected token after the expression')
     return node
   }
 
@@ -120,13 +161,13 @@ class Parser {
   }
 
   private expectOp(op: string): void {
-    if (!this.peekOp(op)) throw new FormulaError(`expected "${op}"`)
+    if (!this.peekOp(op)) this.fail(`expected "${op}"`)
     this.pos += 1
   }
 
   private nested<T>(parse: () => T): T {
     this.depth += 1
-    if (this.depth > MAX_DEPTH) throw new FormulaError('formula nested too deeply')
+    if (this.depth > MAX_DEPTH) this.fail('formula nested too deeply')
     try {
       return parse()
     } finally {
@@ -135,69 +176,75 @@ class Parser {
   }
 
   private comparison(): FormulaNode {
+    const from = this.pos
     let left = this.concat()
     for (let op = this.peekOp('<', '<=', '>', '>=', '==', '!='); op; op = this.peekOp('<', '<=', '>', '>=', '==', '!=')) {
       this.pos += 1
-      left = { kind: 'bin', op: op as BinaryOp, left, right: this.concat() }
+      left = this.mark({ kind: 'bin', op: op as BinaryOp, left, right: this.concat() }, from)
     }
     return left
   }
 
   /** `&` binds looser than arithmetic: `{a} & "/" & {a} + 9` joins the sum. */
   private concat(): FormulaNode {
+    const from = this.pos
     let left = this.additive()
     while (this.peekOp('&')) {
       this.pos += 1
-      left = { kind: 'bin', op: '&', left, right: this.additive() }
+      left = this.mark({ kind: 'bin', op: '&', left, right: this.additive() }, from)
     }
     return left
   }
 
   private additive(): FormulaNode {
+    const from = this.pos
     let left = this.multiplicative()
     for (let op = this.peekOp('+', '-'); op; op = this.peekOp('+', '-')) {
       this.pos += 1
-      left = { kind: 'bin', op: op as BinaryOp, left, right: this.multiplicative() }
+      left = this.mark({ kind: 'bin', op: op as BinaryOp, left, right: this.multiplicative() }, from)
     }
     return left
   }
 
   private multiplicative(): FormulaNode {
+    const from = this.pos
     let left = this.unary()
     for (let op = this.peekOp('*', '/', '%'); op; op = this.peekOp('*', '/', '%')) {
       this.pos += 1
-      left = { kind: 'bin', op: op as BinaryOp, left, right: this.unary() }
+      left = this.mark({ kind: 'bin', op: op as BinaryOp, left, right: this.unary() }, from)
     }
     return left
   }
 
   private unary(): FormulaNode {
     if (this.peekOp('-')) {
+      const from = this.pos
       this.pos += 1
-      return this.nested(() => ({ kind: 'neg', operand: this.unary() }) as FormulaNode)
+      return this.mark(this.nested(() => ({ kind: 'neg', operand: this.unary() }) as FormulaNode), from)
     }
     return this.primary()
   }
 
   private primary(): FormulaNode {
     const token = this.tokens[this.pos]
-    if (!token) throw new FormulaError('unexpected end of the formula')
+    if (!token) return this.fail('unexpected end of the formula')
+    const from = this.pos
     if (token.type === 'num') {
       this.pos += 1
-      return { kind: 'num', value: token.value }
+      return this.mark({ kind: 'num', value: token.value }, from)
     }
     if (token.type === 'str') {
       this.pos += 1
-      return { kind: 'str', value: token.value }
+      return this.mark({ kind: 'str', value: token.value }, from)
     }
     if (token.type === 'ref') {
       this.pos += 1
       this.noteRef(token.ref)
-      return { kind: 'ref', ref: token.ref }
+      return this.mark({ kind: 'ref', ref: token.ref }, from)
     }
     if (token.type === 'name') {
       this.pos += 1
-      return this.call(token.name)
+      return this.mark(this.call(token.name, token), from)
     }
     if (token.op === '(') {
       this.pos += 1
@@ -205,7 +252,7 @@ class Parser {
       this.expectOp(')')
       return inner
     }
-    throw new FormulaError(`unexpected "${token.op}"`)
+    return this.fail(`unexpected "${token.op}"`)
   }
 
   private noteRef(ref: string): void {
@@ -214,7 +261,7 @@ class Parser {
 
   private tableRef(fn: string): string {
     const token = this.tokens[this.pos]
-    if (token?.type !== 'ref') throw new FormulaError(`${fn} needs a table reference first`)
+    if (token?.type !== 'ref') this.fail(`${fn} needs a table reference first`)
     this.pos += 1
     this.noteRef(token.ref)
     if (!this.tables.includes(token.ref)) this.tables.push(token.ref)
@@ -225,7 +272,7 @@ class Parser {
   private columnName(fn: string): string {
     this.expectOp(',')
     const token = this.tokens[this.pos]
-    if (token?.type !== 'str' || token.value === '') throw new FormulaError(`${fn} needs a column name in quotes`)
+    if (token?.type !== 'str' || token.value === '') this.fail(`${fn} needs a column name in quotes`)
     this.pos += 1
     return token.value
   }
@@ -253,10 +300,10 @@ class Parser {
     return node
   }
 
-  private call(name: string): FormulaNode {
+  private call(name: string, nameToken: Token): FormulaNode {
     if (TABLE_FUNCTIONS.has(name)) return this.tableCall(name)
     if (!Object.prototype.hasOwnProperty.call(FUNCTIONS, name)) {
-      throw new FormulaError(`unknown function "${name}"`)
+      this.fail(`unknown function "${name}"`, { start: nameToken.start, end: nameToken.end })
     }
     const fn = name as FunctionName
     this.expectOp('(')
@@ -271,21 +318,21 @@ class Parser {
     this.expectOp(')')
     const { min, max } = FUNCTIONS[fn]
     if (args.length < min || args.length > max) {
-      throw new FormulaError(`${fn} takes ${min === max ? min : `${min} to ${max}`} argument(s)`)
+      this.fail(`${fn} takes ${min === max ? min : `${min} to ${max}`} argument(s)`, { start: nameToken.start, end: this.tokens[this.pos - 1].end })
     }
     return { kind: 'call', name: fn, args }
   }
 }
 
 export function parseFormula(src: string): ParseResult {
-  if (src.trim() === '') return { ok: false, error: 'empty formula' }
-  if (src.length > MAX_FORMULA_LENGTH) return { ok: false, error: 'formula too long' }
+  if (src.trim() === '') return { ok: false, error: 'empty formula', at: { start: 0, end: src.length } }
+  if (src.length > MAX_FORMULA_LENGTH) return { ok: false, error: 'formula too long', at: { start: MAX_FORMULA_LENGTH, end: src.length } }
   try {
-    const parser = new Parser(tokenize(src))
+    const parser = new Parser(tokenize(src), src)
     const ast = parser.parse()
     return { ok: true, ast, refs: parser.refs, tables: parser.tables }
   } catch (error) {
-    if (error instanceof FormulaError) return { ok: false, error: error.message }
+    if (error instanceof FormulaError) return { ok: false, error: error.message, at: error.at ?? { start: src.length, end: src.length } }
     throw error
   }
 }
@@ -339,7 +386,44 @@ function repeated(name: 'frecuente' | 'infrecuente', table: string, cells: (Valu
   return best as Value
 }
 
-function evalNode(node: FormulaNode, resolve: (ref: string) => unknown): Value {
+/** Records the steps of an evaluation as a tree (see explainFormula); the evaluator calls it, it never decides anything. */
+class Tracer {
+  readonly roots: Frame[] = []
+  private readonly open_: Frame[] = []
+
+  open(node: FormulaNode): void {
+    const frame: Frame = { node, children: [] }
+    const parent = this.open_[this.open_.length - 1]
+    ;(parent ? parent.children : this.roots).push(frame)
+    this.open_.push(frame)
+  }
+
+  close(result: EvaluateResult): void {
+    const frame = this.open_.pop()
+    if (frame) frame.result = result
+  }
+}
+interface Frame {
+  node: FormulaNode
+  children: Frame[]
+  result?: EvaluateResult
+}
+
+/** The one evaluation path: with a tracer it also records every step, without one it is the plain evaluator. */
+function evalNode(node: FormulaNode, resolve: (ref: string) => unknown, tracer?: Tracer): Value {
+  if (!tracer) return evalCore(node, resolve)
+  tracer.open(node)
+  try {
+    const value = evalCore(node, resolve, tracer)
+    tracer.close({ ok: true, value })
+    return value
+  } catch (error) {
+    if (error instanceof FormulaError) tracer.close({ ok: false, error: error.message })
+    throw error
+  }
+}
+
+function evalCore(node: FormulaNode, resolve: (ref: string) => unknown, tracer?: Tracer): Value {
   switch (node.kind) {
     case 'num':
     case 'str':
@@ -353,7 +437,7 @@ function evalNode(node: FormulaNode, resolve: (ref: string) => unknown): Value {
       throw new FormulaError(`no value for {${node.ref}}`)
     }
     case 'neg':
-      return -num(evalNode(node.operand, resolve))
+      return -num(evalNode(node.operand, resolve, tracer))
     case 'agg': {
       const rows = tableRows(node.table, resolve)
       if (node.column === undefined) return rows.length
@@ -372,16 +456,16 @@ function evalNode(node: FormulaNode, resolve: (ref: string) => unknown): Value {
     }
     case 'lookup': {
       const rows = tableRows(node.table, resolve)
-      const key = evalNode(node.key, resolve)
+      const key = evalNode(node.key, resolve, tracer)
       const row = rows.find((candidate) => cellValue(ownCell(candidate, node.keyColumn)) === key)
       const found = row ? cellValue(ownCell(row, node.resultColumn)) : undefined
       if (found !== undefined) return found
-      if (node.fallback) return evalNode(node.fallback, resolve)
+      if (node.fallback) return evalNode(node.fallback, resolve, tracer)
       throw new FormulaError(row ? `the row of ${text(key)} has no ${node.resultColumn}` : `no row of {${node.table}} has ${text(key)}`)
     }
     case 'bin': {
-      const left = evalNode(node.left, resolve)
-      const right = evalNode(node.right, resolve)
+      const left = evalNode(node.left, resolve, tracer)
+      const right = evalNode(node.right, resolve, tracer)
       if (node.op === '&') return text(left) + text(right)
       if (node.op === '==') return left === right ? 1 : 0
       if (node.op === '!=') return left !== right ? 1 : 0
@@ -389,10 +473,10 @@ function evalNode(node: FormulaNode, resolve: (ref: string) => unknown): Value {
     }
     case 'call': {
       if (node.name === 'si') {
-        const branch = num(evalNode(node.args[0], resolve)) !== 0 ? node.args[1] : node.args[2]
-        return evalNode(branch, resolve)
+        const branch = num(evalNode(node.args[0], resolve, tracer)) !== 0 ? node.args[1] : node.args[2]
+        return evalNode(branch, resolve, tracer)
       }
-      const args = node.args.map((arg) => num(evalNode(arg, resolve)))
+      const args = node.args.map((arg) => num(evalNode(arg, resolve, tracer)))
       switch (node.name) {
         case 'min':
           return Math.min(...args)
@@ -459,12 +543,63 @@ export function usesTextOrTables(node: FormulaNode): boolean {
 
 /** Evaluates a parsed formula; any problem (missing value, division by zero, overflow) is a result, never a throw. */
 export function evaluateFormula(ast: FormulaNode, resolve: (ref: string) => unknown): EvaluateResult {
+  return runFormula(ast, resolve)
+}
+
+function runFormula(ast: FormulaNode, resolve: (ref: string) => unknown, tracer?: Tracer): EvaluateResult {
   try {
-    const value = evalNode(ast, resolve)
+    const value = evalNode(ast, resolve, tracer)
     return { ok: true, value: typeof value === 'number' ? finite(value) : value }
   } catch (error) {
     if (error instanceof FormulaError) return { ok: false, error: error.message }
     throw error
+  }
+}
+
+/** One step of an evaluation: the source text of a sub-expression, what it gave (a value or the reason it could not be computed) and the steps it took. */
+export type FormulaTrace = { text: string; children: FormulaTrace[] } & ({ ok: true; value: number | string } | { ok: false; error: string })
+
+/**
+ * The evaluation of a formula as a tree ("Explicar el resultado"). It runs the same evaluator as evaluateFormula, so it cannot
+ * disagree with it: references and table functions are leaves, `si` only shows the branch it took, and after an error nothing
+ * else is evaluated (the steps above the error repeat it).
+ */
+export function explainFormula(ast: FormulaNode, resolve: (ref: string) => unknown): FormulaTrace {
+  const tracer = new Tracer()
+  const result = runFormula(ast, resolve, tracer)
+  const build = (frame: Frame, final?: EvaluateResult): FormulaTrace => ({
+    text: textOf(frame.node),
+    children: frame.children.map((child) => build(child)),
+    ...(final ?? frame.result ?? { ok: false as const, error: 'not evaluated' }),
+  })
+  return build(tracer.roots[0], result)
+}
+
+function textOf(node: FormulaNode): string {
+  const where = SOURCE_OF.get(node)
+  return where ? where.source.slice(where.start, where.end) : unparse(node)
+}
+
+/** Text for a node that was not parsed from text (built by hand). */
+function unparse(node: FormulaNode): string {
+  const quote = (value: string) => `"${value}"`
+  switch (node.kind) {
+    case 'num':
+      return String(node.value)
+    case 'str':
+      return quote(node.value)
+    case 'ref':
+      return `{${node.ref}}`
+    case 'neg':
+      return `-${unparse(node.operand)}`
+    case 'bin':
+      return `${unparse(node.left)} ${node.op} ${unparse(node.right)}`
+    case 'call':
+      return `${node.name}(${node.args.map(unparse).join(', ')})`
+    case 'agg':
+      return `${node.name}({${node.table}}${node.column !== undefined ? `, ${quote(node.column)}` : ''})`
+    case 'lookup':
+      return `lookup({${node.table}}, ${quote(node.keyColumn)}, ${unparse(node.key)}, ${quote(node.resultColumn)}${node.fallback ? `, ${unparse(node.fallback)}` : ''})`
   }
 }
 
