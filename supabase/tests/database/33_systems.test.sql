@@ -135,8 +135,9 @@ select ok(
   'the freezing helper, the two-argument usability check and the template helper are not callable through the API');
 select is(
   (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'public' and p.prokind = 'f' and has_function_privilege('anon', p.oid, 'EXECUTE')),
-  0::bigint, 'anon can execute no function of the public schema');
+    where n.nspname = 'public' and p.prokind = 'f' and has_function_privilege('anon', p.oid, 'EXECUTE')
+      and p.oid <> 'public.preview_invite_public(text)'::regprocedure),
+  0::bigint, 'anon can execute no function of the public schema but the login invite preview');
 select is(
   public.system_template('{"version":1,"sheet":{"discarded":[{"x":1}],"sections":[]}}'::jsonb),
   '{"version":1,"sheet":{"sections":[]}}'::jsonb,

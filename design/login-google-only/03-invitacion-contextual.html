@@ -9,8 +9,16 @@ body::before{content:'';position:fixed;inset:0;pointer-events:none;background:ra
 header{position:relative;padding:20px 28px;font-family:var(--exo);font-weight:700;font-size:12px;letter-spacing:.3em;text-transform:uppercase;border-bottom:1px solid var(--border-base)}
 header span{background:var(--brand-gradient);-webkit-background-clip:text;background-clip:text;color:transparent}
 main{flex:1;display:grid;place-items:center;padding:40px 16px;position:relative;overflow:hidden;background:var(--bg-mid)}
-main::before{content:'';position:absolute;inset:0;background:var(--brand-gradient);opacity:.22}
-main::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 70% 60% at 30% 100%,rgba(6,6,6,.95) 0%,transparent 70%)}
+/* Vivid brand mesh: the three brand stops as soft blobs (magenta top-left, indigo wave bottom, cyan right) plus a light magenta highlight, like a fluid gradient. */
+main::before{content:'';position:absolute;inset:-10%;background:
+  radial-gradient(ellipse 45% 40% at 55% 32%,color-mix(in srgb,#9c2d8c 45%,#ffffff 35%) 0%,transparent 70%),
+  radial-gradient(ellipse 55% 55% at 12% 18%,#9c2d8c 0%,transparent 70%),
+  radial-gradient(ellipse 60% 45% at 30% 78%,#4a32ac 0%,transparent 72%),
+  radial-gradient(ellipse 55% 70% at 92% 35%,#4aaed8 0%,transparent 72%),
+  radial-gradient(ellipse 60% 50% at 75% 95%,color-mix(in srgb,#4a32ac 55%,#4aaed8) 0%,transparent 70%),
+  var(--brand-gradient);
+  filter:saturate(1.15)}
+main::after{content:'';position:absolute;inset:0;background:radial-gradient(ellipse 50% 45% at 22% 62%,rgba(30,8,60,.55) 0%,transparent 70%)}
 main>.card{position:relative;z-index:1}
 .d20{position:absolute;right:-60px;top:40px;width:460px;height:460px;opacity:.18;z-index:0;pointer-events:none}
 .card{width:100%;max-width:440px;background:var(--bg-card);border:1px solid var(--border-base)}

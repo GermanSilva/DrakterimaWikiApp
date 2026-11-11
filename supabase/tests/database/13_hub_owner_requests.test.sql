@@ -102,8 +102,9 @@ select ok(
   'every new function is SECURITY DEFINER with an empty search_path');
 select is(
   (select count(*) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname = 'public' and p.prokind = 'f' and has_function_privilege('anon', p.oid, 'EXECUTE')),
-  0::bigint, 'anon can execute no function of the public schema (smoke check 5 of the runbook)');
+    where n.nspname = 'public' and p.prokind = 'f' and has_function_privilege('anon', p.oid, 'EXECUTE')
+      and p.oid <> 'public.preview_invite_public(text)'::regprocedure),
+  0::bigint, 'anon can execute no function of the public schema but the login invite preview (smoke check 5 of the runbook)');
 select ok(
   has_function_privilege('authenticated', 'public.is_hub_owner()', 'execute')
   and has_function_privilege('authenticated', 'public.approve_campaign_request(bigint, text, text)', 'execute')

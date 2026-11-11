@@ -249,7 +249,7 @@ select (select count(*) from information_schema.role_table_grants
          where grantee = 'anon' and table_schema = 'public') as anon_column_privs;
 ```
 
-**5. `anon` no ejecuta ninguna función de `public`.** Esperado: 0 filas.
+**5. `anon` no ejecuta ninguna función de `public` salvo la vista previa de invitación del login.** Esperado: una sola fila, `preview_invite_public` (solo marca de la campaña; ver `20261111120000_preview_invite_public.sql`).
 
 ```sql
 select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
