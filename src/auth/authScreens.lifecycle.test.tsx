@@ -15,14 +15,14 @@ describe('LoginPage Google redirect phase', () => {
   const pending = () => new Promise<void>(() => {})
 
   it('shows its own label and disables both buttons while redirecting', async () => {
-    render(<LoginPage onEmailSubmit={vi.fn()} onGoogle={pending} />)
+    render(<LoginPage onDevEmailSubmit={vi.fn()} onGoogle={pending} />)
     await userEvent.click(screen.getByRole('button', { name: 'Continuar con Google' }))
     expect(screen.getByRole('button', { name: 'Redirigiendo a Google…' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Enviar link mágico' })).toBeDisabled()
   })
 
   it('resets when the page is restored from the bfcache (pageshow persisted)', async () => {
-    render(<LoginPage onEmailSubmit={vi.fn()} onGoogle={pending} />)
+    render(<LoginPage onDevEmailSubmit={vi.fn()} onGoogle={pending} />)
     await userEvent.click(screen.getByRole('button', { name: 'Continuar con Google' }))
     act(() => {
       window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: false }))
@@ -36,7 +36,7 @@ describe('LoginPage Google redirect phase', () => {
 
   it('resets after a timeout if navigation never happened', async () => {
     vi.useFakeTimers()
-    render(<LoginPage onEmailSubmit={vi.fn()} onGoogle={async () => {}} />)
+    render(<LoginPage onDevEmailSubmit={vi.fn()} onGoogle={async () => {}} />)
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Continuar con Google' }))
     })

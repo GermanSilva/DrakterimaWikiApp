@@ -39,9 +39,9 @@ Resolverlas **antes** de crear los proyectos. Cada una indica la recomendación.
 | D2 | Plan de Supabase | Free sirve para probar; los proyectos Free se **pausan** tras inactividad y no tienen backups diarios. Para datos reales de campaña, Pro. | (b) |
 | D3 | Un proyecto Supabase o dos (producción + staging) | Dos: staging (Free) sirve para ensayar migraciones, Realtime y el import completo, y para los deploys de preview de Vercel. | (b), (e) |
 | D4 | SMTP / remitente | **Sin dominio propio** (decidido): el correo por defecto de Supabase es solo para pruebas y limita mucho el volumen y los destinatarios, así que hace falta un SMTP propio con **un único remitente verificado** (p. ej. Brevo, *Single sender*: confirmás una casilla tuya por correo). Sin dominio no hay SPF/DKIM propios, por lo que el magic link es *best-effort* y **puede caer en spam**: por eso el login principal es Google (D7). El dominio solo hace falta para firmar con SPF/DKIM propios y mejorar la entrega. Verificar las condiciones vigentes en la doc de Supabase y del proveedor. | (d) |
-| D5 | Captcha | **Cloudflare Turnstile (plan gratis), decidido.** No requiere dominio propio (el Site Key se registra para el host de Vercel). Protege solo el envío del magic link: el botón de Google no usa token. Se activa definiendo `VITE_TURNSTILE_SITE_KEY` en Vercel y la clave secreta en Supabase (pasos en d.5). Sin esa variable la app funciona como antes (sin widget ni token). | (d), (e) |
+| D5 | Captcha | **Ya no se usa en el cliente**: Cloudflare Turnstile se quitó de la app (el login de producción es solo Google, que no pasa por el captcha de Supabase). Si el proyecto alojado tiene el captcha activo, ver d.5 (paso manual del owner). | (d) |
 | D6 | Registro abierto o cerrado | Cualquiera con un email puede crear cuenta, pero **ya no puede crear campañas**: solo puede *solicitarlas* y el Hub Owner las aprueba (H15, ver d.6). Opciones en (d). Recomendado para un grupo cerrado: registro abierto + SMTP propio + límites, y reevaluar si aparece abuso. | (d) |
-| D7 | Google login | **Login principal (decidido)**: la pantalla muestra Google primero y el magic link por email debajo como alternativa. Configurar Google en d.7 y poner `VITE_AUTH_GOOGLE_ENABLED=true` en Vercel. Si no se configura, poner `false` (la pantalla queda solo con email). | (d), (e) |
+| D7 | Google login | **Único login de producción (decidido)**: la pantalla muestra solo «Continuar con Google». El magic link por email queda solo como ayuda de desarrollo (`npm run dev`, `import.meta.env.DEV`). Configurar Google en d.7 y poner `VITE_AUTH_GOOGLE_ENABLED=true` en Vercel; con `false` la pantalla no ofrece ningún ingreso. | (d), (e) |
 | D8 | Dominio | **Sin dominio propio por ahora (decidido): se usa `*.vercel.app`.** Consecuencias: la pantalla de consentimiento de Google muestra `<ref>.supabase.co` (no un dominio tuyo); no hay SPF/DKIM propios (D4). Cambiarlo después obliga a retocar Site URL, redirect URLs, los *Authorized JavaScript origins* de Google y el origen de los links de invitación. | (d), (e) |
 | D9 | ¿Staging separado para previews de Vercel? | Sí (D3). Si no, las previews usan la base de **producción**. | (e) |
 | D10 | Email real del DM para el import | Necesario para `--dm-email`. | (f) |
@@ -327,8 +327,7 @@ falla en otro origen.
 
 ### d.2 Email / magic link
 
-*Authentication > Sign In / Providers > Email*: *Enable Email provider* activo. La app solo usa magic link (`signInWithOtp`);
-no hay formulario de contraseña ni de código OTP.
+*Authentication > Sign In / Providers > Email*: *Enable Email provider*: el login de producción es solo Google; el magic link (`signInWithOtp`) es una ayuda de desarrollo local. En un proyecto alojado el proveedor Email puede deshabilitarse (paso manual del OWNER, opcional; no lo ejecuta ningún comando de este repo). No hay formulario de contraseña ni de código OTP.
 
 *Authentication > Emails > Templates > Magic Link*: dejar `{{ .ConfirmationURL }}` en el cuerpo (el flujo PKCE necesita ese
 enlace). Se puede traducir el texto al español; **no** reemplazar el enlace por `{{ .Token }}` (la app no tiene pantalla para
@@ -364,40 +363,15 @@ Después de configurarlo, probar enviando un magic link a una dirección que **n
 sesión/registros por IP* y *verificaciones por IP*. Con SMTP propio el tope de correos por hora es configurable: ponerlo en un
 valor acorde al grupo (decenas, no miles). Los valores de `supabase/config.toml` (`email_sent = 2`) son **solo locales**.
 
-### d.5 Captcha con Cloudflare Turnstile (D5)
+### d.5 Captcha con Cloudflare Turnstile (D5) — ya no lo usa el cliente
 
-La app soporta Turnstile. Con `VITE_TURNSTILE_SITE_KEY` definida, la página de login carga el script de Cloudflare
-(solo en esa ruta), muestra el widget (visible solo si Cloudflare necesita una interacción), deshabilita "Enviar link mágico"
-hasta tener un token y lo envía como `options.captchaToken` en `signInWithOtp`. Sin la variable no hay widget ni token
-(comportamiento anterior). "Continuar con Google" no usa captcha.
+La app **ya no** carga Turnstile ni envía `captchaToken` (el magic link existe solo en desarrollo local, donde no hay captcha).
+No hace falta definir `VITE_TURNSTILE_SITE_KEY` en Vercel (si estaba, se puede borrar). Los pasos antiguos de Cloudflare/Vercel
+ya no aplican.
 
-**Orden importante: configurar Vercel primero y activar el captcha en Supabase después.** Si se activa en Supabase antes de
-desplegar la app con la site key, todos los inicios de sesión fallan (`captcha_failed`) hasta que se despliegue.
-
-Pasos del OWNER:
-
-1. **Cloudflare** (cuenta gratuita) > *Turnstile* > *Add widget*. Nombre libre; *Hostnames*: el dominio de producción
-   (p. ej. `tu-proyecto.vercel.app` o tu dominio) y, si querés captcha en las previews, el dominio de las previews
-   (los hostnames de las previews cambian por deploy y los dominios compartidos como `vercel.app` pueden no ser admitidos:
-   **verificar en la doc de Cloudflare**; lo simple es dejar Preview sin `VITE_TURNSTILE_SITE_KEY`, y entonces el captcha de
-   Supabase tampoco debe estar activo en el proyecto que usen las previews, D9). *Widget Mode*: **Managed**. Guardar y copiar la **Site Key** (pública) y la **Secret Key** (secreta).
-2. **Vercel** > *Settings > Environment Variables*: `VITE_TURNSTILE_SITE_KEY` = la Site Key, en Production (y en Preview solo si
-   el widget admite esos hostnames). Es pública (queda en el bundle). **Redeploy**: las `VITE_*` se hornean en el build.
-3. **Supabase** > *Authentication > Attack Protection* (según la versión del dashboard: *Bot and Abuse Protection*) > activar
-   *Enable CAPTCHA protection* > proveedor **Turnstile** > pegar la **Secret Key**. La clave secreta va **solo ahí**: nunca en
-   Vercel, en el repo ni en una variable `VITE_*`.
-4. Probar en el sitio desplegado: pedir un magic link (debe llegar el correo). En local el stack no usa captcha salvo que se
-   active a propósito (ver el comentario de `[auth.captcha]` en `supabase/config.toml`, con las claves de PRUEBA de Cloudflare).
-5. **CSP**: si se aplica la CSP de e.3, ver las directivas que Turnstile necesita.
-
-Fallos que verá el usuario: si el script de Cloudflare no carga (bloqueador de contenido, sin red, o no responde en 10 s) el login queda bloqueado con un
-mensaje y un botón "Reintentar" (no se omite el captcha). Si el token vence o falla, mismo mensaje con reintento. Si Supabase
-rechaza el token, "La verificación de seguridad falló o venció".
-
-Alcance verificado: contra GoTrue local con las claves de prueba de Cloudflare, con el captcha activo, `signInWithOtp` (magic
-link) **sin token** responde HTTP 400 `captcha_failed` ("no captcha_token found") y **con token** HTTP 200 y el correo sale. Es decir,
-el magic link **sí** está protegido. El captcha de Supabase **no** cubre `signInWithOAuth` (Google): el navegador va directo al
-proveedor. La mitigación complementaria sigue siendo SMTP propio + límites de frecuencia (d.4) + decisión D6.
+Paso manual del OWNER (opcional, nada de esto lo ejecuta el repo): en *Supabase > Authentication > Attack Protection* desactivar
+*Enable CAPTCHA protection* si estaba activo (el cliente ya no manda token: con el captcha activo cualquier magic link fallaría
+con `captcha_failed`, que la app sigue mostrando con mensaje propio), y opcionalmente deshabilitar el proveedor Email (d.2).
 
 ### d.6 Registro abierto, cerrado o por invitación (D6)
 
@@ -447,7 +421,7 @@ Recomendación: A al inicio con SMTP propio y límites; pasar a B si se observa 
 
 ### d.7 Google (D7, login principal)
 
-La pantalla de login muestra «Continuar con Google» primero y, debajo de «o con tu email», el magic link. Pasos:
+La pantalla de login muestra solo «Continuar con Google» (el email es una ayuda de desarrollo). Pasos:
 
 1. **Google Cloud Console** > crear (o elegir) un proyecto > *APIs & Services* > *OAuth consent screen*: tipo *External*, nombre de
    la app, correo de soporte y de contacto. Los scopes que usa Supabase (`openid`, `email`, `profile`) **no son sensibles**:
@@ -466,11 +440,11 @@ La pantalla de login muestra «Continuar con Google» primero y, debajo de «o c
 5. **Supabase** > *Authentication > Sign In / Providers > Google*: activar; pegar *Client ID* y *Client Secret* (el secreto
    vive solo ahí y en el gestor de contraseñas).
 6. **Vercel**: `VITE_AUTH_GOOGLE_ENABLED=true` (Production y Preview). Redeploy (las variables `VITE_*` se hornean en el build).
-7. Probar con una cuenta Google que **no** sea la del OWNER, y también el magic link (mirando spam).
+7. Probar con una cuenta Google que **no** sea la del OWNER.
 
 Si no se configura Google, definir `VITE_AUTH_GOOGLE_ENABLED=false` en Vercel: la pantalla queda solo con el formulario de email.
 
-**Go/no-go (d):** login con Google completado con una cuenta ajena; magic link recibido (revisar spam) y completado en el mismo navegador.
+**Go/no-go (d):** login con Google completado con una cuenta ajena.
 
 ---
 
@@ -493,7 +467,6 @@ Si no se configura Google, definir `VITE_AUTH_GOOGLE_ENABLED=false` en Vercel: l
 | `VITE_SUPABASE_URL` | sí | sí | `https://<ref>.supabase.co` (Preview: el de staging si D9) |
 | `VITE_SUPABASE_ANON_KEY` | sí | sí | clave anon/publishable (la del mismo proyecto) |
 | `VITE_AUTH_GOOGLE_ENABLED` | sí | sí | `true` (Google es el login principal, D7); `false` oculta el botón |
-| `VITE_TURNSTILE_SITE_KEY` | sí | opcional | Site Key **pública** de Turnstile (d.5). Sin ella no hay captcha en el login. La clave secreta NO va aquí |
 
 **Nunca** definir en Vercel: la service role key, la URL de la base, la contraseña de la base, ninguna `VITE_DM_PASSWORD` /
 `VITE_PLAYER_N_PASSWORD`, ni `VITE_FIREBASE_*`. Todo lo que empieza con `VITE_` queda **visible en el bundle público**.
@@ -550,9 +523,7 @@ Hechos del código que la sustentan (verificados en el repo):
   `logo_url`); Leaflet usa `ImageOverlay` (sin tiles) y los pins son `divIcon`. → `img-src 'self' data: blob: https:`.
 - Red: `supabase-js` habla con `https://<ref>.supabase.co` (REST/Auth) y `wss://<ref>.supabase.co` (Realtime). La app no
   llama a otros hosts (la página SRD de la app legacy usa open5e; el hub no tiene sección SRD).
-- Turnstile (captcha del login, d.5): el script se carga de `https://challenges.cloudflare.com` (`script-src`), el widget es un
-  iframe de ese origen (`frame-src`) y habla con él (`connect-src`). Si no se usa captcha, esas tres entradas sobran. No se
-  verificó contra un navegador con CSP real: por eso se prueba primero en Report-Only.
+- Turnstile ya no se usa en el cliente (d.5): no hacen falta entradas de `challenges.cloudflare.com` en la CSP.
 - Login con Google: navegación completa al dominio de Google/Supabase (no hay iframes ni popups).
 
 ```text
@@ -795,7 +766,6 @@ Conocidos y aceptados al momento de escribir esto; no se ocultan.
 | `VITE_SUPABASE_URL` | Vercel (Production/Preview), `.env.local` local | Público (va en el bundle) |
 | `VITE_SUPABASE_ANON_KEY` | Vercel (Production/Preview), `.env.local` local | Público por diseño (RLS es el límite) |
 | `VITE_AUTH_GOOGLE_ENABLED` | Vercel, opcional local | Público (bandera) |
-| `VITE_TURNSTILE_SITE_KEY` | Vercel, opcional local | Público (la *site key* de Turnstile) |
 | Contraseña de la base de datos | gestor de contraseñas; la pide `supabase link`/`db push` (o `SUPABASE_DB_PASSWORD`) | **Secreto** |
 | `SUPABASE_ACCESS_TOKEN` (login de la CLI) | máquina del OWNER (`supabase login`) | **Secreto** |
 | `SUPABASE_SERVICE_ROLE_KEY` | solo la shell del OWNER durante el import | **Secreto** (nunca Vercel/GitHub/repo) |
@@ -818,9 +788,6 @@ No se pudo leer `.env.example` (protegido). Debe documentar, como mínimo, para 
 VITE_SUPABASE_URL=http://127.0.0.1:54321
 VITE_SUPABASE_ANON_KEY=<salida de `supabase status`>
 VITE_AUTH_GOOGLE_ENABLED=false
-# Opcional: vacío = sin captcha. Clave de PRUEBA de Cloudflare (siempre pasa): 1x00000000000000000000AA
-# (solo tiene efecto si la pila local tiene el captcha activo, ver supabase/config.toml)
-VITE_TURNSTILE_SITE_KEY=
 ```
 
 El resto (Firebase, contraseñas legacy) solo hace falta para correr `/legacy` en local. Los secretos de importación

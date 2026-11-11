@@ -104,7 +104,7 @@ characters, campaign character fields) and props for what differs (back link, bu
   non-object `sections_updated`, and a `custom_fields` that is not a small (8 KB) object of strings. Future stamps (device clock
   ahead) are not rejected: `20261007150000_pj_guard_followups.sql` clamps them to the server time.
 - **Derived defaults.** When `stat_hp` changes in a save, `stat_hp_current` is written explicitly (its seeded default derives from it).
-- **Legacy form change.** The legacy `PJForm` no longer carries the dead player-password UI (access is now Auth / magic link).
+- **Legacy form change.** The legacy `PJForm` no longer carries the dead player-password UI (access is now Auth / Google).
 - **Visibility.** The page shows an owner their own draft character (RLS lets them read it); other drafts are dropped for players.
 - **Campaign character fields** (`campaigns.character_custom_fields`, `[{ key, label }]`) replace the legacy `magralita` field:
   values live in `data.custom_fields[key]`, are edited as text and merged with the keys the form does not know.

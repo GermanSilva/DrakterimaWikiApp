@@ -63,7 +63,7 @@ con un rol por campaña (DM o jugador). Documento de seguimiento de la migració
 
 | Ruta | Pantalla |
 | --- | --- |
-| `/login`, `/auth/callback` | login (magic link / Google) y fin del flujo PKCE |
+| `/login`, `/auth/callback` | login (Google; magic link solo en desarrollo) y fin del flujo PKCE |
 | `/` | `HubHome`: mis campañas; crear campaña (solo Hub Owner) o solicitarla; bandeja de solicitudes del owner; unirse con código |
 | `/invite/:code` | `InvitePage`: vista previa + confirmación explícita ("Unirme") |
 | `/profile` | perfil |
@@ -72,7 +72,7 @@ con un rol por campaña (DM o jugador). Documento de seguimiento de la migració
 | `/legacy/*` | app legacy Firebase, import dinámico |
 
 Todo salvo el login es lazy. `/`, `/invite/*`, `/profile` y `/c/*` exigen sesión (`RequireAuthRoute`). El parámetro `next` se
-valida (`safeNext.ts`) y, antes de iniciar sesión (magic link o Google), el login lo guarda en `localStorage`
+valida (`safeNext.ts`) y, antes de iniciar sesión (Google o el magic link de desarrollo), el login lo guarda en `localStorage`
 (`auth/postLoginRedirect.ts`, 30 min, un solo uso, revalidado al leerlo) para volver a ese link tras `/auth/callback`; el
 callback nunca lee un destino de su URL. La app legacy **nunca** se importa de forma estática desde `routes.tsx` (hay test); no pasar
 `import.meta.env` entero a ningún lado (Vite incrustaría todos los `VITE_*`): leer cada clave por separado.
@@ -152,8 +152,8 @@ Pruebas: `supabase/tests/database/*.test.sql` (pgTAP, `supabase test db`). `seed
 
 ### Autenticación
 
-Supabase Auth: **Google OAuth es el login principal** (decisión del owner, sin dominio propio; `VITE_AUTH_GOOGLE_ENABLED=true`) y el magic link por email es la alternativa (PKCE, debe abrirse en el mismo navegador; sin dominio propio es *best-effort* y puede caer en spam). Con Google activo, `LoginPage` muestra primero el botón de Google, el divisor «o con tu email» y debajo el formulario de email con un aviso de spam; con Google desactivado la página es solo el formulario de email.
-No hay contraseñas en el hub. Captcha opcional con Cloudflare Turnstile: si `VITE_TURNSTILE_SITE_KEY` (pública) está definida, la página de login muestra el widget, bloquea "Enviar link mágico" (solo ese envío; el botón de Google nunca espera token) hasta tener token y lo envía como `options.captchaToken`; sin la variable no hay widget ni token (local y tests). La clave secreta va solo en Supabase (Authentication > Attack Protection), nunca en el repo ni en una `VITE_*`. El magic link queda protegido por el captcha de Supabase; Google OAuth no.
+Supabase Auth: **el login de producción es solo Google OAuth** (decisión del owner; `VITE_AUTH_GOOGLE_ENABLED=true`). `LoginPage` muestra únicamente «Continuar con Google»; con Google desactivado y sin formulario de desarrollo muestra «El ingreso con Google no está disponible en este entorno.». El magic link por email (PKCE, mismo navegador) es **solo una ayuda de desarrollo**: `ConnectedLoginPage` pasa `onDevEmailSubmit` únicamente si `import.meta.env.DEV` es true (Vite lo elimina del build) y se ve como «Ingreso de desarrollo (solo local)».
+No hay contraseñas en el hub. El cliente ya no usa captcha (Cloudflare Turnstile se quitó); el mapeo del error `captcha_failed` se mantiene por si el servidor aún lo responde.
 Detalle y límites en [`src/auth/README.md`](src/auth/README.md).
 
 ### Importador (`scripts/import-firestore.mjs`)
@@ -178,7 +178,6 @@ repo (`data/db.json`, `scripts/out/` y `*.drakterima-export.json` están en `.gi
 | --- | --- | --- |
 | `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` | cliente Supabase (`src/data/supabaseClient.ts`, `src/app/supabaseConfig.ts`) | sí |
 | `VITE_AUTH_GOOGLE_ENABLED` | `true` (login principal); `false` oculta el botón de Google | sí |
-| `VITE_TURNSTILE_SITE_KEY` | site key de Cloudflare Turnstile; vacía/ausente = sin captcha (la clave secreta va solo en Supabase) | sí |
 | `VITE_FIREBASE_*`, `VITE_DM_PASSWORD`, `VITE_PLAYER_1..6_PASSWORD` | solo la app legacy | comprometidas, a retirar |
 | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_DB_URL`, `IMPORT_ALLOW_REMOTE` | solo el importador contra un destino alojado | **secretas**, nunca en archivos |
 

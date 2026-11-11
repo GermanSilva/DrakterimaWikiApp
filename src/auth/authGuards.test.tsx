@@ -27,7 +27,7 @@ describe('LoginPage single OAuth flow', () => {
   it('a second click while the first attempt is pending does not call onGoogle twice', async () => {
     const first = deferred()
     const onGoogle = vi.fn(() => first.promise)
-    render(<LoginPage onEmailSubmit={vi.fn()} onGoogle={onGoogle} />)
+    render(<LoginPage onDevEmailSubmit={vi.fn()} onGoogle={onGoogle} />)
     const button = googleButton()
     await act(async () => {
       fireEvent.click(button)
@@ -39,7 +39,7 @@ describe('LoginPage single OAuth flow', () => {
   it('does not start the reset timer until onGoogle resolved', async () => {
     vi.useFakeTimers()
     const pending = deferred()
-    render(<LoginPage onEmailSubmit={vi.fn()} onGoogle={() => pending.promise} />)
+    render(<LoginPage onDevEmailSubmit={vi.fn()} onGoogle={() => pending.promise} />)
     await act(async () => {
       fireEvent.click(googleButton())
     })
@@ -59,7 +59,7 @@ describe('LoginPage single OAuth flow', () => {
     const first = deferred()
     const second = deferred()
     const onGoogle = vi.fn().mockReturnValueOnce(first.promise).mockReturnValueOnce(second.promise)
-    render(<LoginPage onEmailSubmit={vi.fn()} onGoogle={onGoogle} />)
+    render(<LoginPage onDevEmailSubmit={vi.fn()} onGoogle={onGoogle} />)
     await userEvent.click(googleButton())
     act(() => {
       window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))
@@ -79,7 +79,7 @@ describe('LoginPage single OAuth flow', () => {
 
   it('still shows a late failure of an attempt abandoned by a reset when nothing newer started', async () => {
     const first = deferred()
-    render(<LoginPage onEmailSubmit={vi.fn()} onGoogle={() => first.promise} />)
+    render(<LoginPage onDevEmailSubmit={vi.fn()} onGoogle={() => first.promise} />)
     await userEvent.click(googleButton())
     act(() => {
       window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))
@@ -93,7 +93,7 @@ describe('LoginPage single OAuth flow', () => {
   it('a late failure does not override a magic-link send the user started after the reset', async () => {
     const first = deferred()
     const send = deferred()
-    render(<LoginPage onEmailSubmit={() => send.promise} onGoogle={() => first.promise} />)
+    render(<LoginPage onDevEmailSubmit={() => send.promise} onGoogle={() => first.promise} />)
     await userEvent.click(googleButton())
     act(() => {
       window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))
@@ -212,7 +212,7 @@ describe('AuthCallback single navigation', () => {
 describe('LoginPage stale results after a reset', () => {
   it('ignores a late resolve after the reset (does not re-enter the redirecting phase)', async () => {
     const first = deferred()
-    render(<LoginPage onEmailSubmit={vi.fn()} onGoogle={() => first.promise} />)
+    render(<LoginPage onDevEmailSubmit={vi.fn()} onGoogle={() => first.promise} />)
     await userEvent.click(googleButton())
     act(() => {
       window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true }))

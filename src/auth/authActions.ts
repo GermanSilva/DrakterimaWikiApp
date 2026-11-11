@@ -3,27 +3,25 @@ import { callbackUrl } from './authConfig'
 import { AuthFlowError, normalizeEmail, toAuthFlowError, toOAuthFlowError } from './authErrors'
 
 export interface MagicLinkOptions {
-  captchaToken?: string
   /** Overrides the origin used to build the callback URL (tests). */
   origin?: string
 }
 
 /**
  * Sends a magic link (creating the account on first use). Throws AuthFlowError.
- * `captchaToken` (a single-use Turnstile token) is forwarded as `options.captchaToken` only when
- * given; without it the request is exactly what it was before captcha support.
+ * Development aid only: production login is Google (see LoginPage).
  */
 export async function requestMagicLink(
   client: Db,
   rawEmail: string,
-  { captchaToken, origin }: MagicLinkOptions = {},
+  { origin }: MagicLinkOptions = {},
 ): Promise<void> {
   const email = normalizeEmail(rawEmail)
   let result
   try {
     result = await client.auth.signInWithOtp({
       email,
-      options: { emailRedirectTo: callbackUrl(origin), shouldCreateUser: true, ...(captchaToken ? { captchaToken } : {}) },
+      options: { emailRedirectTo: callbackUrl(origin), shouldCreateUser: true },
     })
   } catch (e) {
     throw toAuthFlowError(e)

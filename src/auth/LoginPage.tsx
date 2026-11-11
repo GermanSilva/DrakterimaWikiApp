@@ -1,16 +1,13 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from 'react'
 import { btnPrimary, btnSecondary, inputCls, labelCls } from '../constants'
 import { AuthFlowError } from './authErrors'
-import { useTurnstile, type TurnstileStatus } from './turnstile/useTurnstile'
 
 export interface LoginPageProps {
-  /** `captchaToken` is passed only when a Turnstile site key is configured. */
-  onEmailSubmit: (email: string, captchaToken?: string) => Promise<void>
   onGoogle: () => Promise<void>
   /** Hides the Google button (see isGoogleEnabled). */
   googleEnabled?: boolean
-  /** Public Turnstile site key. Absent/blank: no widget and no token (captcha not configured). */
-  turnstileSiteKey?: string | null
+  /** Development aid: when given, a magic-link form is rendered below Google. Absent in production. */
+  onDevEmailSubmit?: (email: string) => Promise<void>
 }
 
 type Phase =
@@ -26,26 +23,13 @@ export const REDIRECT_RESET_MS = 10000
 // Only our own typed errors carry user-presentable text; anything else gets a generic message.
 const messageOf = (e: unknown) => (e instanceof AuthFlowError ? e.message : 'No pudimos iniciar sesión. Volvé a intentar.')
 
-const CAPTCHA_MESSAGES: Partial<Record<TurnstileStatus, string>> = {
-  expired: 'La verificación de seguridad venció.',
-  error: 'La verificación de seguridad falló.',
-  load_failed:
-    'No pudimos cargar la verificación de seguridad. Revisá tu conexión o desactivá el bloqueador de contenido y volvé a intentar.',
-}
-
 /** Presentational: all behavior comes in through props. */
-export function LoginPage({ onEmailSubmit, onGoogle, googleEnabled = true, turnstileSiteKey }: LoginPageProps) {
+export function LoginPage({ onGoogle, googleEnabled = true, onDevEmailSubmit }: LoginPageProps) {
   const emailId = useId()
+  const devId = useId()
   const [email, setEmail] = useState('')
   const [phase, setPhase] = useState<Phase>({ name: 'idle' })
   const busy = phase.name === 'sending' || phase.name === 'redirecting'
-  const { attach: attachCaptcha, token: captchaToken, status: captchaStatus, reset: resetCaptcha } = useTurnstile({
-    siteKey: turnstileSiteKey,
-  })
-  const captchaRequired = captchaStatus !== 'disabled'
-  // With a site key configured, the magic link needs a token; never fall back to sending without one.
-  const awaitingCaptcha = captchaRequired && !captchaToken
-  const captchaMessage = CAPTCHA_MESSAGES[captchaStatus]
 
   // While handing off to Google: leave the busy state when the page is restored from the
   // back/forward cache (pageshow, persisted) or if navigation never happened (timeout).
@@ -80,18 +64,13 @@ export function LoginPage({ onEmailSubmit, onGoogle, googleEnabled = true, turns
 
   async function submit(e: FormEvent) {
     e.preventDefault()
-    if (busy || awaitingCaptcha) return
+    if (busy || !onDevEmailSubmit) return
     setPhase({ name: 'sending' })
     try {
-      // Without a site key the call is exactly the pre-captcha one (no second argument).
-      if (captchaToken) await onEmailSubmit(email, captchaToken)
-      else await onEmailSubmit(email)
+      await onDevEmailSubmit(email)
       setPhase({ name: 'sent', email: email.trim().toLowerCase() })
     } catch (err) {
       setPhase({ name: 'error', message: messageOf(err) })
-    } finally {
-      // Tokens are single-use: whatever the outcome, the next attempt needs a fresh one.
-      if (captchaRequired) resetCaptcha()
     }
   }
 
@@ -139,62 +118,42 @@ export function LoginPage({ onEmailSubmit, onGoogle, googleEnabled = true, turns
       <h1 className="font-exo text-lg font-semibold tracking-[0.15em] uppercase text-txt-primary mb-5 text-center">
         Ingresar
       </h1>
-      {googleEnabled && (
-        <>
-          <button type="button" className={`${btnPrimary} w-full justify-center`} onClick={google} disabled={busy}>
-            {phase.name === 'redirecting' ? 'Redirigiendo a Google…' : 'Continuar con Google'}
-          </button>
-          <div className="flex items-center gap-3 my-5 text-xs text-txt-muted" role="separator">
-            <span className="flex-1 border-t border-border-base" />
-            <span>o con tu email</span>
-            <span className="flex-1 border-t border-border-base" />
-          </div>
-        </>
-      )}
-      <form onSubmit={submit} noValidate>
-        <label htmlFor={emailId} className={labelCls}>
-          Email
-        </label>
-        <input
-          id={emailId}
-          type="email"
-          autoComplete="email"
-          inputMode="email"
-          className={inputCls}
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          disabled={busy}
-          aria-invalid={phase.name === 'error'}
-          required
-        />
-        {captchaRequired && (
-          <div className="mt-3">
-            <div ref={attachCaptcha} data-testid="turnstile-container" />
-            {captchaMessage ? (
-              <p role="alert" className="text-sm text-accent-bright">
-                {captchaMessage}{' '}
-                <button type="button" className="underline" onClick={() => resetCaptcha()}>
-                  Reintentar
-                </button>
-              </p>
-            ) : (
-              awaitingCaptcha && (
-                <p role="status" className="text-xs text-txt-secondary">
-                  Verificando que no seas un robot…
-                </p>
-              )
-            )}
-          </div>
-        )}
-        <button type="submit" className={`${googleEnabled ? btnSecondary : btnPrimary} w-full justify-center mt-3`} disabled={busy || awaitingCaptcha}>
-          {phase.name === 'sending' ? 'Enviando…' : 'Enviar link mágico'}
+      {googleEnabled ? (
+        <button type="button" className={`${btnPrimary} w-full justify-center`} onClick={google} disabled={busy}>
+          {phase.name === 'redirecting' ? 'Redirigiendo a Google…' : 'Continuar con Google'}
         </button>
-        {googleEnabled && (
-          <p className="mt-3 text-xs text-txt-muted">
-            El email puede llegar a la carpeta de spam y tardar un minuto. Si no lo ves, revisá ahí.
-          </p>
-        )}
-      </form>
+      ) : (
+        !onDevEmailSubmit && (
+          <p className="text-sm text-txt-secondary text-center">El ingreso con Google no está disponible en este entorno.</p>
+        )
+      )}
+      {onDevEmailSubmit && (
+        <section aria-labelledby={devId} className="mt-8 pt-5 border-t border-border-base">
+          <h2 id={devId} className="text-xs uppercase tracking-wider text-txt-muted mb-3">
+            Ingreso de desarrollo (solo local)
+          </h2>
+          <form onSubmit={submit} noValidate>
+            <label htmlFor={emailId} className={labelCls}>
+              Email
+            </label>
+            <input
+              id={emailId}
+              type="email"
+              autoComplete="email"
+              inputMode="email"
+              className={inputCls}
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={busy}
+              aria-invalid={phase.name === 'error'}
+              required
+            />
+            <button type="submit" className={`${btnSecondary} w-full justify-center mt-3`} disabled={busy}>
+              {phase.name === 'sending' ? 'Enviando…' : 'Enviar link mágico'}
+            </button>
+          </form>
+        </section>
+      )}
       {phase.name === 'error' && (
         <p role="alert" className="mt-4 text-sm text-accent-bright">
           {phase.message}

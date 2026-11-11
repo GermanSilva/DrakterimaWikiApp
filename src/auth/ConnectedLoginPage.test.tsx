@@ -68,3 +68,21 @@ describe('ConnectedLoginPage remembers the destination', () => {
     expect(window.localStorage.getItem(NEXT_STORAGE_KEY)).toBeNull()
   })
 })
+
+describe('ConnectedLoginPage dev email login', () => {
+  it('shows no email form when dev email login is off (production)', () => {
+    render(
+      <AuthContext.Provider value={{ status: 'signed_out', signInWithEmail: vi.fn(), signInWithGoogle: vi.fn() } as unknown as AuthValue}>
+        <ConnectedLoginPage next="/invite/abc" devEmailLogin={false} />
+      </AuthContext.Provider>,
+    )
+    expect(screen.getByRole('button', { name: 'Continuar con Google' })).toBeInTheDocument()
+    expect(screen.queryByLabelText('Email')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Enviar link mágico' })).not.toBeInTheDocument()
+  })
+
+  it('defaults to the dev form under vitest (import.meta.env.DEV is true)', () => {
+    setup('/invite/abc')
+    expect(screen.getByLabelText('Email')).toBeInTheDocument()
+  })
+})
