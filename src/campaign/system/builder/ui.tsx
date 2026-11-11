@@ -96,7 +96,7 @@ export function PanelErrors({ path }: { path: Path }) {
 
 export function Panel({ name, path, children }: { name: string; path: Path; children: ReactNode }) {
   return (
-    <div role="group" aria-label={name} className="border border-border-base px-3 py-3 flex flex-col gap-3">
+    <div role="group" aria-label={name} data-builder-path={path.join('.')} tabIndex={-1} className="border border-border-base px-3 py-3 flex flex-col gap-3 focus:outline-none focus-visible:border-accent">
       <PanelErrors path={path} />
       {children}
     </div>

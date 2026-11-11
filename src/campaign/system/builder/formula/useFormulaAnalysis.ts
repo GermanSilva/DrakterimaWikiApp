@@ -1,5 +1,5 @@
 /** Everything the formula workbench shows about one formula: scope, result for the test character, trace, message and dependencies (S42). */
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { evaluateFormula, explainFormula, parseFormula, type FormulaTrace, type ParseResult } from '../../formula/formula'
 import { nearestReference } from '../../formula/suggest'
 import { formulaUsers, referenceScope, type FormulaContext, type FormulaUser, type ScopeEntry } from '../../sheet/formulaScope'
@@ -8,7 +8,7 @@ import { validateSheet, type Sheet } from '../../sheet/sheetModel'
 import { useBuilder } from '../builderContext'
 import { setAt, parsePath, type Path } from '../draft'
 import { evaluationErrorEs, formulaErrorEs, sheetErrorEs } from '../messagesEs'
-import { exampleCharacter, withDefaults, type TestCharacter } from './testCharacters'
+import { chosenCharacter, testCharacterList, withDefaults, type TestCharacter } from './testCharacters'
 
 export type Outcome = { kind: 'none' } | { kind: 'no-rows' } | { kind: 'ok'; value: number | string } | { kind: 'error'; reason: string }
 
@@ -76,8 +76,7 @@ interface Input {
 }
 
 export function useFormulaAnalysis({ context, path, text, optional }: Input): Analysis {
-  const { draft, validSheet, lastValidSheet, sheetErrors, testCharacters } = useBuilder()
-  const [chosen, setChosen] = useState<string | null>(null)
+  const { draft, validSheet, lastValidSheet, sheetErrors, testCharacters, testCharacterId, selectTestCharacter } = useBuilder()
   const contextKey = JSON.stringify(context)
   const pathKey = path.join('.')
 
@@ -93,8 +92,8 @@ export function useFormulaAnalysis({ context, path, text, optional }: Input): An
   }, [validSheet, draft, pathKey, lastValidSheet])
 
   const scope = useMemo(() => (basis ? referenceScope(basis, context) : []), [basis, contextKey]) // eslint-disable-line react-hooks/exhaustive-deps
-  const characters = useMemo(() => (basis ? [...testCharacters, exampleCharacter(basis)] : [...testCharacters]), [basis, testCharacters])
-  const character = characters.find((c) => c.id === chosen) ?? characters[0]
+  const characters = useMemo(() => (basis ? testCharacterList(basis, testCharacters) : [...testCharacters]), [basis, testCharacters])
+  const character = chosenCharacter(characters, testCharacterId)
 
   const reader = useMemo(
     () => (basis && character ? sheetFormulaContext(basis, withDefaults(basis, character.data), context) : null),
@@ -139,5 +138,5 @@ export function useFormulaAnalysis({ context, path, text, optional }: Input): An
   const valueOf = (ref: string) => (reader ? showValue(reader.resolve(ref)) : '—')
   const scopeNote = !basis || (basis === lastValidSheet && basis !== validSheet && scope.length === 0) ? NO_REFERENCES_NOTE : null
 
-  return { parsed, scope, scopeNote, characters, selectedId: character?.id ?? '', select: setChosen, valueOf, outcome, trace, unknown, message, users }
+  return { parsed, scope, scopeNote, characters, selectedId: character?.id ?? '', select: selectTestCharacter, valueOf, outcome, trace, unknown, message, users }
 }

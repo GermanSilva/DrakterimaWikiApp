@@ -29,6 +29,7 @@ export function CategoryTabs({ selected, onSelect }: Props) {
               key={i}
               type="button"
               role="tab"
+              data-builder-path={`categories.${i}`}
               aria-selected={i === index}
               data-invalid={hasErrorsUnder(['categories', i]) ? true : undefined}
               onClick={() => onSelect(i)}

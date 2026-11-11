@@ -41,3 +41,18 @@ export function defaultValues(sheet: Sheet): Record<string, unknown> {
 export const withDefaults = (sheet: Sheet, data: Record<string, unknown>): Record<string, unknown> => ({ ...defaultValues(sheet), ...data })
 
 export const exampleCharacter = (sheet: Sheet): TestCharacter => ({ id: EXAMPLE_CHARACTER_ID, label: EXAMPLE_CHARACTER_LABEL, data: defaultValues(sheet) })
+
+/** The campaign's characters as test characters: "Nombre · nivel N" when the level is a number, else the name. `data` is the stored row. */
+export function toTestCharacters(rows: readonly Record<string, unknown>[]): TestCharacter[] {
+  return rows.map((row) => {
+    const name = typeof row.nombre === 'string' && row.nombre.trim() !== '' ? row.nombre : `Personaje ${String(row.id)}`
+    const level = typeof row.nivel === 'number' && Number.isFinite(row.nivel) ? row.nivel : null
+    return { id: String(row.id), label: level === null ? name : `${name} · nivel ${level}`, data: row }
+  })
+}
+
+/** What every "Probar con" select lists: the campaign's characters, then the built-in example. */
+export const testCharacterList = (sheet: Sheet, characters: readonly TestCharacter[]): TestCharacter[] => [...characters, exampleCharacter(sheet)]
+
+/** The chosen character, or the first one when nothing was chosen (or the choice no longer exists). */
+export const chosenCharacter = (list: readonly TestCharacter[], id: string | null): TestCharacter | undefined => list.find((c) => c.id === id) ?? list[0]

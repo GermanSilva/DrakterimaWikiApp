@@ -22,6 +22,9 @@ export interface BuilderApi {
   sheetErrors: readonly SheetError[]
   /** Characters to try formulas on (the built-in example is added by the workbench). */
   testCharacters: readonly TestCharacter[]
+  /** The test character every "Probar con" select and the preview use (null: the first one). One choice for the whole builder. */
+  testCharacterId: string | null
+  selectTestCharacter: (id: string) => void
 }
 
 export const BuilderContext = createContext<BuilderApi | null>(null)

@@ -1,18 +1,21 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { btnPrimary } from '../../../constants'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ConfirmDialog } from '../../sections/ajustes/ConfirmDialog'
 import { validateSheet, type DiscardedItem, type Sheet, type SheetError } from '../sheet/sheetModel'
 import { BuilderContext, type BuilderApi } from './builderContext'
+import { BuilderOutline } from './BuilderOutline'
+import { BuilderPreview } from './BuilderPreview'
 import { CategoryTabs } from './CategoryTabs'
+import { changes } from './changeCount'
 import { discardedEntries, planRestore, type RestorePlan } from './discard'
 import { DiscardedPanel, type ReviewCharacter } from './DiscardedPanel'
 import { heldKeys } from './discardedValues'
 import type { TestCharacter } from './formula/testCharacters'
-import { isNode, parsePath, type Node, type Path } from './draft'
+import { isNode, parsePath, setAt, type Node, type Path } from './draft'
 import { describeSheetError, displayLine, ownerOf, type DisplayError } from './errorsEs'
 import { newCategory, newSection } from './factories'
 import { describeRemoval, removalConflict, removalMessage, removeNode, type RemovalRequest } from './removal'
 import { RolesPanel } from './RolesPanel'
+import { SaveBar } from './SaveBar'
 import { CardPanel } from './CardPanel'
 
 /** A stored sheet as the draft, or the smallest template (one category, one section) when the campaign has none. */
@@ -73,6 +76,10 @@ export function SheetBuilder({ initial, onChange, onSave, review, testCharacters
   const [reviewBusy, setReviewBusy] = useState(false)
   const [restoreError, setRestoreError] = useState<string | null>(null)
   const [removalError, setRemovalError] = useState<string | null>(null)
+  const [testCharacterId, selectTestCharacter] = useState<string | null>(null)
+  const [current, setCurrent] = useState<string | null>(null)
+  const [focusRequest, setFocusRequest] = useState<{ id: string; n: number } | null>(null)
+  const panels = useRef<HTMLDivElement>(null)
 
   useEffect(() => onChange?.(draft), [draft, onChange])
 
@@ -95,6 +102,7 @@ export function SheetBuilder({ initial, onChange, onSave, review, testCharacters
     const result = validateSheet(start)
     return { json: result.ok ? JSON.stringify(result.sheet) : null, keys: new Set(discardedEntries(start).map((e) => String(e.item.key))) }
   }, [initial])
+  const unsaved = useMemo(() => changes(startDraft(initial), draft), [initial, draft])
   const dirty = !validation.ok || saved.json === null || JSON.stringify(validation.sheet) !== saved.json
   const entries = discardedEntries(draft)
   const sectionLabels = useMemo(() => {
@@ -169,9 +177,24 @@ export function SheetBuilder({ initial, onChange, onSave, review, testCharacters
   const validSheet = validation.ok ? validation.sheet : null
   const sheetErrors = validation.ok ? NO_ERRORS : validation.errors
   const api = useMemo<BuilderApi>(
-    () => ({ draft, edit, requestRemoval, errorsFor, hasErrorsUnder, validSheet, lastValidSheet, sheetErrors, testCharacters }),
-    [draft, edit, requestRemoval, errorsFor, hasErrorsUnder, validSheet, lastValidSheet, sheetErrors, testCharacters],
+    () => ({ draft, edit, requestRemoval, errorsFor, hasErrorsUnder, validSheet, lastValidSheet, sheetErrors, testCharacters, testCharacterId, selectTestCharacter }),
+    [draft, edit, requestRemoval, errorsFor, hasErrorsUnder, validSheet, lastValidSheet, sheetErrors, testCharacters, testCharacterId],
   )
+
+  // The outline takes the editor to a part: its category tab, the item opened, then focus and scroll once that is drawn.
+  function navigate(path: Path) {
+    const id = key(path)
+    setCurrent(id)
+    setSelected(Number(path[1]))
+    if (path[path.length - 2] === 'items') setDraft((d) => setAt(d, [...path, '_open'], true))
+    setFocusRequest((previous) => ({ id, n: (previous?.n ?? 0) + 1 }))
+  }
+  useEffect(() => {
+    if (!focusRequest) return
+    const target = panels.current?.querySelector<HTMLElement>(`[data-builder-path="${focusRequest.id}"]`)
+    target?.focus()
+    target?.scrollIntoView?.({ block: 'nearest' })
+  }, [focusRequest])
 
   async function save() {
     if (!onSave || !validation.ok || errors.length > 0) return
@@ -186,48 +209,50 @@ export function SheetBuilder({ initial, onChange, onSave, review, testCharacters
   return (
     <BuilderContext.Provider value={api}>
       <div className="flex flex-col gap-4">
-        <CategoryTabs selected={selected} onSelect={setSelected} />
-        <RolesPanel />
-        <CardPanel />
-        {removalError && (
-          <p role="alert" aria-label="No se pudo quitar" className="text-[13px] text-red-400">
-            {removalError}
-          </p>
-        )}
-        {entries.length > 0 && (
-          <DiscardedPanel
-            entries={entries}
-            sectionLabels={sectionLabels}
-            characters={review?.characters ?? null}
-            canDelete={review !== undefined}
-            savedKeys={saved.keys}
-            dirty={dirty}
-            error={restoreError}
-            onRestore={restore}
-            onDelete={setDeleting}
-          />
-        )}
-        {errors.length > 0 ? (
-          <div role="alert" aria-label="Errores de la plantilla" className="text-[13px] text-red-400 flex flex-col gap-1">
-            <p>{errors.length === 1 ? 'La plantilla tiene 1 error. Corregilo para poder guardar.' : `La plantilla tiene ${errors.length} errores. Corregilos para poder guardar.`}</p>
-            <ul className="list-disc pl-5">
-              {errors.map((e, i) => (
-                <li key={i}>{displayLine(e)}</li>
-              ))}
-            </ul>
+        <SaveBar changes={unsaved} errors={errors.length} saving={saving} onSave={onSave ? save : undefined} />
+        <div className="grid gap-4 min-[720px]:grid-cols-[minmax(0,200px)_minmax(0,1fr)] min-[1100px]:grid-cols-[220px_minmax(0,1fr)_minmax(0,420px)]">
+          <BuilderOutline current={current} onNavigate={navigate} />
+          <div ref={panels} className="min-w-0 flex flex-col gap-4">
+            <CategoryTabs selected={selected} onSelect={setSelected} />
+            <RolesPanel />
+            <CardPanel />
+            {removalError && (
+              <p role="alert" aria-label="No se pudo quitar" className="text-[13px] text-red-400">
+                {removalError}
+              </p>
+            )}
+            {entries.length > 0 && (
+              <DiscardedPanel
+                entries={entries}
+                sectionLabels={sectionLabels}
+                characters={review?.characters ?? null}
+                canDelete={review !== undefined}
+                savedKeys={saved.keys}
+                dirty={dirty}
+                error={restoreError}
+                onRestore={restore}
+                onDelete={setDeleting}
+              />
+            )}
+            {errors.length > 0 ? (
+              <div role="alert" aria-label="Errores de la plantilla" className="text-[13px] text-red-400 flex flex-col gap-1">
+                <p>{errors.length === 1 ? 'La plantilla tiene 1 error. Corregilo para poder guardar.' : `La plantilla tiene ${errors.length} errores. Corregilos para poder guardar.`}</p>
+                <ul className="list-disc pl-5">
+                  {errors.map((e, i) => (
+                    <li key={i}>{displayLine(e)}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : (
+              <p role="status" className="text-[13px] text-accent-bright">
+                La plantilla es válida.
+              </p>
+            )}
           </div>
-        ) : (
-          <p role="status" className="text-[13px] text-accent-bright">
-            La plantilla es válida.
-          </p>
-        )}
-        {onSave && (
-          <div>
-            <button type="button" className={`${btnPrimary} disabled:opacity-40 disabled:cursor-not-allowed`} disabled={errors.length > 0 || saving} onClick={save}>
-              {saving ? 'Guardando…' : 'Guardar plantilla'}
-            </button>
+          <div className="min-w-0 min-[720px]:col-span-2 min-[1100px]:col-span-1">
+            <BuilderPreview />
           </div>
-        )}
+        </div>
       </div>
       {pending && (
         <ConfirmDialog

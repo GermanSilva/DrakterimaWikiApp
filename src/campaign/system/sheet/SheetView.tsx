@@ -35,19 +35,28 @@ function cellText(value: unknown, column: Column): string {
   return String(value)
 }
 
+/** A hidden field is only drawn when the viewer is the DM previewing a template (S42 g): dashed, and named as hidden. */
+const DASHED = 'border-dashed'
+
+function HiddenTag({ item }: { item: Item<'field'> }) {
+  return item.hidden ? <span className="ml-2 font-exo text-[10px] tracking-[0.1em] uppercase text-txt-muted">oculto</span> : null
+}
+
 function FieldTile({ item }: { item: Item<'field'> }) {
   if (item.error) {
     return (
-      <div className="bg-bg-mid border border-border-base px-3 py-1.5" title="No se pudo calcular">
+      <div className={`bg-bg-mid border border-border-base px-3 py-1.5 ${item.hidden ? DASHED : ''}`} title="No se pudo calcular">
         <span className={`${LABEL} mr-2`}>{item.label}</span>
+        <HiddenTag item={item} />
         <span className="text-[13px] text-txt-muted">—</span>
       </div>
     )
   }
   const shown = item.type === 'boolean' ? (item.value ? 'Sí' : 'No') : item.text
   return (
-    <div className="bg-bg-mid border border-border-base px-3 py-1.5">
+    <div className={`bg-bg-mid border border-border-base px-3 py-1.5 ${item.hidden ? DASHED : ''}`}>
       <span className={`${LABEL} mr-2`}>{item.label}</span>
+      <HiddenTag item={item} />
       {item.track ? (
         <TrackBoxes label={item.label} track={item.track} />
       ) : item.dots ? (
@@ -61,8 +70,11 @@ function FieldTile({ item }: { item: Item<'field'> }) {
 
 function FieldBlock({ item }: { item: Item<'field'> }) {
   return (
-    <div>
-      <div className={LABEL}>{item.label}</div>
+    <div className={item.hidden ? `border border-dashed border-border-base px-2 py-1` : undefined}>
+      <div className={LABEL}>
+        {item.label}
+        <HiddenTag item={item} />
+      </div>
       <div className={detailTextCls}>
         <WikiText text={item.text} />
       </div>
@@ -370,8 +382,10 @@ function ModalGroups({ block }: { block: ResolvedBlock }) {
 
 const sameLabel = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase()
 
-function Block({ block, sectionLabel }: { block: ResolvedBlock; sectionLabel: string }) {
-  const fields = block.items.filter((i): i is Item<'field'> => i.kind === 'field' && !i.empty && !i.hidden)
+const hasHiddenField = (block: ResolvedBlock) => block.items.some((i) => i.kind === 'field' && i.hidden === true)
+
+function Block({ block, sectionLabel, showHidden }: { block: ResolvedBlock; sectionLabel: string; showHidden: boolean }) {
+  const fields = block.items.filter((i): i is Item<'field'> => i.kind === 'field' && !i.empty && (showHidden || !i.hidden))
   let body
   if (block.mode === 'modal') {
     body = <ModalGroups block={block} />
@@ -389,7 +403,7 @@ function Block({ block, sectionLabel }: { block: ResolvedBlock; sectionLabel: st
     body = (
       <div className="space-y-3">
         {block.items.map((item) => {
-          if (item.empty || (item.kind === 'field' && item.hidden)) return null
+          if (item.empty || (item.kind === 'field' && item.hidden && !showHidden)) return null
           if (item.kind === 'stat') return <StatTiles key={item.key} item={item} />
           if (item.kind === 'capacidades') return <CapacidadesTiles key={item.key} items={[item]} label={sectionLabel} />
           if (item.kind === 'rows') return <RowsTable key={item.key} item={item} hideLabel={sameLabel(item.label, sectionLabel)} />
@@ -433,7 +447,7 @@ function CopySectionLink({ sectionKey, label }: { sectionKey: string; label: str
   )
 }
 
-function Section({ section, unread, open, onToggle }: { section: ResolvedSheet['sections'][number]; unread: boolean | undefined; open: boolean; onToggle: () => void }) {
+function Section({ section, unread, open, onToggle, showHidden }: { section: ResolvedSheet['sections'][number]; unread: boolean | undefined; open: boolean; onToggle: () => void; showHidden: boolean }) {
   const contentId = useId()
   return (
     <div id={`pj-section-${section.key}`} className="pt-4">
@@ -449,9 +463,9 @@ function Section({ section, unread, open, onToggle }: { section: ResolvedSheet['
       <div id={contentId} hidden={!open}>
         <div className="flex flex-col gap-3">
           {section.blocks
-            .filter((block) => !block.empty)
+            .filter((block) => !block.empty || (showHidden && hasHiddenField(block)))
             .map((block) => (
-              <Block key={block.key} block={block} sectionLabel={section.label} />
+              <Block key={block.key} block={block} sectionLabel={section.label} showHidden={showHidden} />
             ))}
         </div>
       </div>
@@ -482,10 +496,10 @@ function writeCollapsed(storageKey: string | undefined, collapsed: ReadonlySet<s
 }
 
 /** The non-empty sections grouped by their category, in sheet order. */
-function byCategory(sections: ResolvedSheet['sections']) {
+function byCategory(sections: ResolvedSheet['sections'], showHidden: boolean) {
   const groups: { key: string; label: string; sections: ResolvedSheet['sections'] }[] = []
   for (const section of sections) {
-    if (section.empty) continue
+    if (section.empty && !(showHidden && section.blocks.some(hasHiddenField))) continue
     const last = groups[groups.length - 1]
     if (last && last.key === section.categoryKey) last.sections.push(section)
     else groups.push({ key: section.categoryKey, label: section.category, sections: [section] })
@@ -498,7 +512,20 @@ function byCategory(sections: ResolvedSheet['sections']) {
  * ones are kept in localStorage (S6). `reveal` is how the index asks for a section: each new `n` expands `key` again,
  * even when it was already asked before.
  */
-export default function SheetView({ resolved, unread, reveal, storageKey }: { resolved: ResolvedSheet; unread: Record<string, boolean>; reveal?: { key: string; n: number } | null; storageKey?: string }) {
+export default function SheetView({
+  resolved,
+  unread,
+  reveal,
+  storageKey,
+  showHidden = false,
+}: {
+  resolved: ResolvedSheet
+  unread: Record<string, boolean>
+  reveal?: { key: string; n: number } | null
+  storageKey?: string
+  /** Also draw the hidden formula fields (dashed, marked "oculto"): only the DM's preview of a template (S42 g) asks for it. */
+  showHidden?: boolean
+}) {
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(() => readCollapsed(storageKey))
   useEffect(() => writeCollapsed(storageKey, collapsed), [storageKey, collapsed])
   useEffect(() => {
@@ -519,7 +546,7 @@ export default function SheetView({ resolved, unread, reveal, storageKey }: { re
     })
   return (
     <div data-sheet-view>
-      {byCategory(resolved.sections).map((group) => (
+      {byCategory(resolved.sections, showHidden).map((group) => (
         <div key={group.key} role="group" aria-label={group.label} className="mt-6 first:mt-0">
           <div aria-hidden="true" className="flex items-center gap-3 font-exo text-[10px] tracking-[0.3em] uppercase text-txt-muted">
             <span className="w-4 h-px bg-border-base" />
@@ -527,7 +554,7 @@ export default function SheetView({ resolved, unread, reveal, storageKey }: { re
             <span className="flex-1 h-px bg-border-base" />
           </div>
           {group.sections.map((section) => (
-            <Section key={section.key} section={section} unread={unread[section.key]} open={!collapsed.has(section.key)} onToggle={() => toggle(section.key)} />
+            <Section key={section.key} section={section} unread={unread[section.key]} open={!collapsed.has(section.key)} onToggle={() => toggle(section.key)} showHidden={showHidden} />
           ))}
         </div>
       ))}

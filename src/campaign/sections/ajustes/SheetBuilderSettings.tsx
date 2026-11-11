@@ -1,4 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useCampaignServices } from '../../entities/campaignServicesContext'
+import { toTestCharacters, type TestCharacter } from '../../system/builder/formula/testCharacters'
 import { expiringSoon, formatDeletionDate, deletionDate, DISCARDED_WARNING_DAYS } from '../../system/builder/discardedLifecycle'
 import { SheetBuilder } from '../../system/builder/SheetBuilder'
 import { parseSystemProfile } from '../../system/systemProfile'
@@ -14,6 +16,27 @@ const discardedDates = (value: unknown): { at: string }[] =>
   Array.isArray(value) ? value.flatMap((e) => (isRecord(e) && typeof e.at === 'string' ? [{ at: e.at }] : [])) : []
 
 /**
+ * The campaign's characters to try formulas on (S42 d), read through the data layer. Never blocks the builder: while they load, or if
+ * the read fails, the list is empty and the builder keeps its built-in example character.
+ */
+function useTestCharacters(): readonly TestCharacter[] {
+  const { layer, campaignId } = useCampaignServices()
+  const [rows, setRows] = useState<readonly Record<string, unknown>[]>([])
+  useEffect(() => {
+    let live = true
+    layer
+      .entity('pjs')
+      .list(campaignId)
+      .then((list) => live && setRows(list as unknown as Record<string, unknown>[]))
+      .catch(() => live && setRows([]))
+    return () => {
+      live = false
+    }
+  }, [layer, campaignId])
+  return useMemo(() => toTestCharacters(rows), [rows])
+}
+
+/**
  * The character sheet template of the campaign (DM only). The builder validates on every change; saving writes the whole
  * system document through the same guarded path as the "Sistema" section, with only `sheet` replaced: every other key of
  * the stored document (distance, currency, modules...) travels exactly as stored.
@@ -23,6 +46,7 @@ export function SheetBuilderSettings() {
   const raw: unknown = campaign.system_profile
   const stored = parseSystemProfile(raw)
   const hasSheet = stored.sheet !== undefined
+  const testCharacters = useTestCharacters()
   const [asking, setAsking] = useState<Sheet | null>(null)
   const [busy, setBusy] = useState(false)
   const discarded = isRecord(stored.sheet) && Array.isArray(stored.sheet.discarded) && stored.sheet.discarded.length > 0
@@ -73,7 +97,7 @@ export function SheetBuilderSettings() {
             : `${expiring.length} campos descartados se eliminarán automáticamente en los próximos ${DISCARDED_WARNING_DAYS} días (el primero, el ${firstDate}).`}
         </p>
       )}
-      <SheetBuilder key={builderKey} initial={stored.sheet ?? null} onSave={onSave} review={review} />
+      <SheetBuilder key={builderKey} initial={stored.sheet ?? null} onSave={onSave} review={review} testCharacters={testCharacters} />
       {notice && (
         <p role={notice.kind === 'error' ? 'alert' : 'status'} className={notice.kind === 'error' ? 'text-[13px] text-red-400' : 'text-[13px] text-accent-bright'}>
           {notice.text}
