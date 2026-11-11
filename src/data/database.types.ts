@@ -846,6 +846,45 @@ export type Database = {
           },
         ]
       }
+      login_failure_reports: {
+        Row: {
+          contact: string | null
+          created_at: string
+          emailed: boolean
+          error_kind: string | null
+          id: number
+          ip_hash: string
+          kind: string
+          message: string | null
+          path: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          contact?: string | null
+          created_at?: string
+          emailed?: boolean
+          error_kind?: string | null
+          id?: never
+          ip_hash: string
+          kind: string
+          message?: string | null
+          path?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          contact?: string | null
+          created_at?: string
+          emailed?: boolean
+          error_kind?: string | null
+          id?: never
+          ip_hash?: string
+          kind?: string
+          message?: string | null
+          path?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       lore: {
         Row: {
           campaign_id: string
