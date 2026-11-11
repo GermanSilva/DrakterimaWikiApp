@@ -117,12 +117,8 @@ export function LoginPage({ onGoogle, googleEnabled = true, invite, now, devLogi
           <span className="brand-gradient-text font-exo font-bold text-xs tracking-[0.3em] uppercase">RPG Quester</span>
         </header>
         <div className="relative flex-1 grid place-items-center px-4 py-10 overflow-hidden bg-bg-mid">
-          <div aria-hidden="true" className="pointer-events-none absolute inset-0 brand-gradient-bg opacity-[0.22]" />
-          <div
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0"
-            style={{ background: 'radial-gradient(ellipse 70% 60% at 30% 100%, rgba(6,6,6,.95) 0%, transparent 70%)' }}
-          />
+          <div aria-hidden="true" data-testid="login-backdrop" className="login-backdrop pointer-events-none absolute -inset-[10%]" />
+          <div aria-hidden="true" className="login-backdrop-vignette pointer-events-none absolute inset-0" />
           <BrandMark size={460} className="pointer-events-none absolute -right-16 top-10 opacity-[0.18] hidden sm:block" />
           <section
             aria-labelledby="login-title"

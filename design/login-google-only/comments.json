@@ -34,6 +34,17 @@
       "sentAt": "2026-11-10T23:57:07.399Z",
       "resolvedAt": "2026-11-11T01:04:17.956Z",
       "screenshot": ".screenshots/ss7yo6yk.png"
+    },
+    {
+      "id": "ed3qfbia",
+      "file": "03-invitacion-contextual.html",
+      "selector": "body > main",
+      "excerpt": "D TE INVITARON A Drakterima DM: Germán · 5 jugadores · Invitación válida 6 días más INGRESÁ PARA UNIRTE Entrá con Google y volvés directo a la invitación para confirmar. CONTINUAR CON GOOGLE Elegís tu cuenta de Google. Volvés acá y confirmás «Unirme». El DM te asigna tu personaje. Solo usamos tu nom",
+      "comment": "Establece la intensidad del fondo en un 50% entre el gradiente actual y el de este diseño",
+      "createdAt": "2026-11-11T11:28:25.896Z",
+      "status": "resolved",
+      "sentAt": "2026-11-11T11:28:25.962Z",
+      "resolvedAt": "2026-11-11T11:28:38.421Z"
     }
   ]
 }

@@ -100,6 +100,24 @@
   .brand-gradient-bg {
     background-image: var(--brand-gradient);
   }
+  /* Login page backdrop: the three brand stops as soft blobs over the brand gradient (a fluid mesh), at .61 opacity:
+     halfway between the earlier soft backdrop (.22) and the full-strength mesh. Colours are the brand tokens only. */
+  .login-backdrop {
+    background:
+      radial-gradient(ellipse 45% 40% at 55% 32%, color-mix(in srgb, var(--brand-1) 45%, #ffffff 35%) 0%, transparent 70%),
+      radial-gradient(ellipse 55% 55% at 12% 18%, var(--brand-1) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 45% at 30% 78%, var(--brand-2) 0%, transparent 72%),
+      radial-gradient(ellipse 55% 70% at 92% 35%, var(--brand-3) 0%, transparent 72%),
+      radial-gradient(ellipse 60% 50% at 75% 95%, color-mix(in srgb, var(--brand-2) 55%, var(--brand-3)) 0%, transparent 70%),
+      var(--brand-gradient);
+    filter: saturate(1.15);
+    opacity: 0.61;
+  }
+  .login-backdrop-vignette {
+    background:
+      radial-gradient(ellipse 70% 60% at 30% 100%, rgba(6, 6, 6, 0.48) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 45% at 22% 62%, rgba(30, 8, 60, 0.28) 0%, transparent 70%);
+  }
   /* Hub screens: filled accent surfaces use the brand gradient. */
   .hub-surface .bg-accent {
     background-image: var(--brand-gradient);

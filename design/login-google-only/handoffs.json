@@ -3,12 +3,12 @@
   "chosen": "03-invitacion-contextual.html",
   "handoffs": {
     "03-invitacion-contextual.html": {
-      "status": "in_progress",
+      "status": "implemented",
       "queued": false,
       "sentAt": "2026-11-10T21:58:55.689Z",
       "startedAt": "2026-11-11T01:03:55.846Z",
-      "implementedAt": null,
-      "note": "Implementado (945149a, 7bef166, f81125f); corriendo verificación completa.",
+      "implementedAt": "2026-11-11T01:08:41.983Z",
+      "note": "945149a RPC anónima, 7bef166 solo Google, f81125f login con invitación, 85e9afa invariante anon. Falta portar el gradiente vívido (comentario ss7yo6yk) a la app.",
       "previewUrl": "http://localhost:5188/login?next=%2Finvite%2F2e10fb30a907431f84dae0ce3727d278"
     }
   }
