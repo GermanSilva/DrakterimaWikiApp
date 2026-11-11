@@ -1,8 +1,6 @@
-/** Helpers every item editor uses: read/patch one node of the draft, a number input and a formula input with live feedback. */
+/** Helpers every item editor uses: read/patch one node of the draft, a number input. */
 import { useId, useState } from 'react'
 import { inputCls } from '../../../constants'
-import { parseFormula } from '../formula/formula'
-import { formulaErrorEs } from './messagesEs'
 
 const labelCls = 'block font-exo text-[10px] font-medium tracking-[0.2em] uppercase text-txt-muted mb-1.5'
 
@@ -30,26 +28,6 @@ export function NumberInput({ label, value, onChange }: { label: string; value: 
         onBlur={() => setTyped(null)}
         className={inputCls}
       />
-    </div>
-  )
-}
-
-/** A formula text with its live parse result (valid, or why not) under it. */
-export function FormulaInput({ label, value, onChange, optional = false }: { label: string; value: string; onChange: (value: string) => void; optional?: boolean }) {
-  const id = useId()
-  const parsed = value.trim() === '' && optional ? null : parseFormula(value)
-  const feedback = parsed === null ? null : parsed.ok ? 'Fórmula válida.' : `Fórmula no válida: ${formulaErrorEs(parsed.error)}`
-  return (
-    <div className="min-w-0">
-      <label htmlFor={id} className={labelCls}>
-        {label}
-      </label>
-      <input id={id} type="text" value={value} onChange={(e) => onChange(e.target.value)} aria-describedby={feedback ? `${id}-feedback` : undefined} aria-invalid={parsed && !parsed.ok ? true : undefined} className={`${inputCls} font-mono`} />
-      {feedback && (
-        <p id={`${id}-feedback`} role={parsed && !parsed.ok ? 'alert' : 'status'} className={`text-[12px] mt-1 ${parsed && !parsed.ok ? 'text-red-400' : 'text-txt-muted'}`}>
-          {feedback}
-        </p>
-      )}
     </div>
   )
 }

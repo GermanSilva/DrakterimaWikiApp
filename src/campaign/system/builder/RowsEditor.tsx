@@ -3,7 +3,8 @@ import { appendAt, moveIn, type Node, type Path } from './draft'
 import { newCapacidadRow, newCoinRow, newStatRow } from './factories'
 import { NameAndKey } from './NameAndKey'
 import { nodes, text, useNode } from './nodeHooks'
-import { FormulaInput, NumberInput } from './nodeInputs'
+import { FormulaWorkbench } from './formula/FormulaWorkbench'
+import { NumberInput } from './nodeInputs'
 import { statRows } from './sheetIndex'
 import { Panel, ReorderButtons, SelectInput, smallBtn } from './ui'
 
@@ -47,7 +48,16 @@ function RowPanel({ path, index, count, kind, label }: { path: Path; index: numb
   return (
     <Panel name={`Fila ${label}`} path={path}>
       <NameAndKey path={path} nameLabel="Nombre de la fila" keyLabel="Clave de la fila" scope="global" />
-      {kind === 'stat' && <FormulaInput label="Fórmula del modificador" value={text(node.modifier)} onChange={(modifier) => patch({ modifier })} />}
+      {kind === 'stat' && (
+        <FormulaWorkbench
+          label="Fórmula del modificador"
+          value={text(node.modifier)}
+          onChange={(modifier) => patch({ modifier })}
+          context={{ kind: 'stat', row: text(node.key) }}
+          path={[...path, 'modifier']}
+          format="signed"
+        />
+      )}
       {kind === 'capacidades' && (
         <div className="grid gap-3 sm:grid-cols-2">
           <SelectInput

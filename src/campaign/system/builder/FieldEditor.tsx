@@ -1,9 +1,11 @@
+import type { FormulaContext } from '../sheet/formulaScope'
 import { CALC_OPS } from '../sheet/sheetModel'
 import { useBuilder } from './builderContext'
 import type { Path } from './draft'
 import { NameAndKey } from './NameAndKey'
 import { text, useNode } from './nodeHooks'
-import { FormulaInput, NumberInput } from './nodeInputs'
+import { FormulaWorkbench } from './formula/FormulaWorkbench'
+import { NumberInput } from './nodeInputs'
 import { initialOptions } from './factories'
 import { DefaultEditor, OptionsEditor } from './OptionsEditor'
 import { calcTables } from './sheetIndex'
@@ -42,6 +44,7 @@ export function FieldEditor({ path }: { path: Path }) {
   const canFormula = type === 'number' || type === 'boolean' || type === 'short'
   const canCalc = type === 'number' || type === 'short'
   const calc = typeof node.calc === 'object' && node.calc !== null ? (node.calc as Record<string, unknown>) : {}
+  const context: FormulaContext = { kind: 'field', key: text(node.key) }
   const tables = calcTables(draft)
   const columns = tables.find((t) => t.key === calc.table)?.columns ?? []
 
@@ -92,7 +95,15 @@ export function FieldEditor({ path }: { path: Path }) {
 
       {source === 'formula' && (
         <div className="flex flex-col gap-2">
-          <FormulaInput label="Fórmula" value={text(node.formula)} onChange={(formula) => patch({ formula })} />
+          <FormulaWorkbench
+            label="Fórmula"
+            value={text(node.formula)}
+            onChange={(formula) => patch({ formula })}
+            context={context}
+            path={[...path, 'formula']}
+            expects={type === 'boolean' ? 'boolean' : type === 'short' ? 'text' : 'number'}
+            format={node.format === 'signed' ? 'signed' : undefined}
+          />
           <CheckInput label="Reemplazable por un valor guardado" checked={node.overridable === true} onChange={(on) => patch({ overridable: on ? true : undefined })} />
         </div>
       )}
@@ -130,7 +141,7 @@ export function FieldEditor({ path }: { path: Path }) {
       )}
       {(type === 'number' || type === 'short') && <CheckInput label="Buscable" checked={node.searchable === true} onChange={(on) => patch({ searchable: on ? true : undefined })} />}
       {!computed && <DefaultEditor path={path} names={{ value: 'Valor por defecto', checked: 'Marcado por defecto' }} />}
-      {type === 'options' && <OptionsEditor path={path} />}
+      {type === 'options' && <OptionsEditor path={path} context={context} />}
     </div>
   )
 }

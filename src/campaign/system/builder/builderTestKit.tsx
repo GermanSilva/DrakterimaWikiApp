@@ -1,4 +1,5 @@
 /** Shared helpers of the builder tests: render with a recorder of the draft and read the sheet it would save. */
+import type { ComponentProps } from 'react'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { expect } from 'vitest'
 import { validateSheet, type Item, type Sheet } from '../sheet/sheetModel'
@@ -8,9 +9,9 @@ export const SMALL = { categories: [{ key: 'c', label: 'C', sections: [{ key: 's
 
 type Scope = Pick<typeof screen, 'getByRole' | 'getByLabelText'>
 
-export function setup(initial: unknown = SMALL) {
+export function setup(initial: unknown = SMALL, props: Partial<ComponentProps<typeof SheetBuilder>> = {}) {
   let last: unknown = initial
-  render(<SheetBuilder initial={initial} onChange={(d) => void (last = d)} />)
+  render(<SheetBuilder initial={initial} onChange={(d) => void (last = d)} {...props} />)
   return {
     draft: () => last,
     /** The sheet the draft validates to; fails the test when it is not valid yet. */

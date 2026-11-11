@@ -150,3 +150,28 @@ export function sheetErrorEs(message: string): string {
   }
   return message
 }
+
+const EVALUATION_ERRORS: [RegExp, (m: RegExpMatchArray) => string][] = [
+  [/^no value for \{(.*)\}$/, (m) => `{${m[1]}} no tiene valor.`],
+  [/^division by zero$/, () => 'no se puede dividir por cero.'],
+  [/^modulo by zero$/, () => 'no se puede calcular el resto de dividir por cero.'],
+  [/^a text cannot be used as a number$/, () => 'un texto no se puede usar como número.'],
+  [/^result is not a finite number$/, () => 'el resultado no es un número finito.'],
+  [/^\{(.*)\} is a table, use it inside a table function$/, (m) => `{${m[1]}} es una tabla: usala dentro de una función de tabla.`],
+  [/^\{(.*)\} is not a table$/, (m) => `{${m[1]}} no es una tabla.`],
+  [/^no values in \{(.*)\}$/, (m) => `la tabla {${m[1]}} no tiene valores.`],
+  [/^no values to average in \{(.*)\}$/, (m) => `la tabla {${m[1]}} no tiene valores para promediar.`],
+  [/^no row of \{(.*)\} has (.*)$/, (m) => `ninguna fila de {${m[1]}} tiene «${m[2]}».`],
+  [/^the row of (.*) has no (.*)$/, (m) => `la fila de «${m[1]}» no tiene «${m[2]}».`],
+  [/^a cell holds something that is not a value$/, () => 'una celda tiene algo que no es un valor.'],
+  [/^not evaluated$/, () => 'no se calculó.'],
+]
+
+/** What went wrong calculating a formula for a character (the evaluator's English message), in Spanish, lower case, ending with a period. */
+export function evaluationErrorEs(error: string): string {
+  for (const [pattern, say] of EVALUATION_ERRORS) {
+    const match = error.match(pattern)
+    if (match) return say(match)
+  }
+  return error
+}

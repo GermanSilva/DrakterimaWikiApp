@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { btnPrimary } from '../../../constants'
 import { ConfirmDialog } from '../../sections/ajustes/ConfirmDialog'
-import { validateSheet, type DiscardedItem, type SheetError } from '../sheet/sheetModel'
+import { validateSheet, type DiscardedItem, type Sheet, type SheetError } from '../sheet/sheetModel'
 import { BuilderContext, type BuilderApi } from './builderContext'
 import { CategoryTabs } from './CategoryTabs'
 import { discardedEntries, planRestore, type RestorePlan } from './discard'
 import { DiscardedPanel, type ReviewCharacter } from './DiscardedPanel'
 import { heldKeys } from './discardedValues'
+import type { TestCharacter } from './formula/testCharacters'
 import { isNode, parsePath, type Node, type Path } from './draft'
 import { describeSheetError, displayLine, ownerOf, type DisplayError } from './errorsEs'
 import { newCategory, newSection } from './factories'
@@ -48,8 +49,12 @@ interface Props {
   onSave?: (sheet: Record<string, unknown>) => Promise<unknown> | void
   /** Without it the discarded list shows the definitions only: no data, no deletion. */
   review?: ReviewHost
+  /** Characters the formula workbench can try formulas on (id, name and the values the sheet reads). Without them it uses its example character. */
+  testCharacters?: readonly TestCharacter[]
 }
 
+const NO_ERRORS: readonly SheetError[] = []
+const NO_CHARACTERS: readonly TestCharacter[] = []
 const key = (path: Path) => path.join('.')
 
 /** An error with the key of the part whose panel shows it. */
@@ -58,7 +63,7 @@ interface Located extends DisplayError {
 }
 
 /** The sheet template editor: categories > sections > items and blocks, plus the roles; validated on every change. */
-export function SheetBuilder({ initial, onChange, onSave, review }: Props) {
+export function SheetBuilder({ initial, onChange, onSave, review, testCharacters = NO_CHARACTERS }: Props) {
   const [draft, setDraft] = useState<Node>(() => startDraft(initial))
   const [selected, setSelected] = useState(0)
   const [pending, setPending] = useState<RemovalRequest | null>(null)
@@ -72,6 +77,8 @@ export function SheetBuilder({ initial, onChange, onSave, review }: Props) {
   useEffect(() => onChange?.(draft), [draft, onChange])
 
   const validation = useMemo(() => validateSheet(draft), [draft])
+  const [lastValidSheet, setLastValidSheet] = useState<Sheet | null>(null)
+  if (validation.ok && validation.sheet !== lastValidSheet) setLastValidSheet(validation.sheet)
   const errors = useMemo<Located[]>(() => {
     const raw: SheetError[] = [...(validation.ok ? [] : validation.errors), ...(Array.isArray(draft.categories) && draft.categories.length === 0 ? [EMPTY_SHEET] : [])]
     return raw.map((e) => ({ ...describeSheetError(draft, e), owner: key(ownerOf(parsePath(e.path))) }))
@@ -159,7 +166,12 @@ export function SheetBuilder({ initial, onChange, onSave, review }: Props) {
     },
     [byOwner],
   )
-  const api = useMemo<BuilderApi>(() => ({ draft, edit, requestRemoval, errorsFor, hasErrorsUnder }), [draft, edit, requestRemoval, errorsFor, hasErrorsUnder])
+  const validSheet = validation.ok ? validation.sheet : null
+  const sheetErrors = validation.ok ? NO_ERRORS : validation.errors
+  const api = useMemo<BuilderApi>(
+    () => ({ draft, edit, requestRemoval, errorsFor, hasErrorsUnder, validSheet, lastValidSheet, sheetErrors, testCharacters }),
+    [draft, edit, requestRemoval, errorsFor, hasErrorsUnder, validSheet, lastValidSheet, sheetErrors, testCharacters],
+  )
 
   async function save() {
     if (!onSave || !validation.ok || errors.length > 0) return

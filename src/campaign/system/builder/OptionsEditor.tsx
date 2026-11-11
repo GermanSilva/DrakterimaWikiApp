@@ -3,7 +3,8 @@ import { appendAt, moveIn, type Path } from './draft'
 import { newOption } from './factories'
 import { NameAndKey } from './NameAndKey'
 import { nodes, text, useNode } from './nodeHooks'
-import { FormulaInput } from './nodeInputs'
+import type { FormulaContext } from '../sheet/formulaScope'
+import { FormulaWorkbench } from './formula/FormulaWorkbench'
 import { CheckInput, Panel, ReorderButtons, SelectInput, smallBtn, TextInput } from './ui'
 
 /** The default of a field or column, by type; an empty value removes it. `names` are the labels of the inputs. */
@@ -39,7 +40,7 @@ export function DefaultEditor({ path, names }: { path: Path; names: { value: str
 }
 
 /** The choices of an options field or column (2 to 20), how they are drawn, and one formula per choice. */
-export function OptionsEditor({ path }: { path: Path }) {
+export function OptionsEditor({ path, context }: { path: Path; context: FormulaContext }) {
   const { edit } = useBuilder()
   const { node, patch } = useNode(path)
   const options = nodes(node.options)
@@ -52,7 +53,7 @@ export function OptionsEditor({ path }: { path: Path }) {
         options={[{ value: 'select', label: 'Lista desplegable' }, { value: 'checkbox', label: 'Casilla (exactamente dos opciones)' }]}
       />
       {options.map((option, i) => (
-        <OptionPanel key={i} path={[...path, 'options', i]} index={i} count={options.length} label={text(option.label)} />
+        <OptionPanel key={i} path={[...path, 'options', i]} index={i} count={options.length} label={text(option.label)} context={context} signed={node.format === 'signed'} />
       ))}
       <div>
         <button type="button" className={smallBtn} disabled={options.length >= 20} onClick={() => edit((d) => appendAt(d, [...path, 'options'], newOption(options)))}>
@@ -63,14 +64,22 @@ export function OptionsEditor({ path }: { path: Path }) {
   )
 }
 
-function OptionPanel({ path, index, count, label }: { path: Path; index: number; count: number; label: string }) {
+function OptionPanel({ path, index, count, label, context, signed }: { path: Path; index: number; count: number; label: string; context: FormulaContext; signed: boolean }) {
   const { edit, requestRemoval } = useBuilder()
   const { node, patch } = useNode(path)
   const list = path.slice(0, -1)
   return (
     <Panel name={`Opción ${label}`} path={path}>
       <NameAndKey path={path} nameLabel="Nombre de la opción" keyLabel="Clave de la opción" scope="siblings" />
-      <FormulaInput label="Fórmula de la opción" value={text(node.formula)} optional onChange={(v) => patch({ formula: v === '' ? undefined : v })} />
+      <FormulaWorkbench
+        label="Fórmula de la opción"
+        value={text(node.formula)}
+        optional
+        onChange={(v) => patch({ formula: v === '' ? undefined : v })}
+        context={context}
+        path={[...path, 'formula']}
+        format={signed ? 'signed' : undefined}
+      />
       {/* S9 (ficha-indice-lateral): the marker a capacidades row on this option shows, and its legend */}
       <TextInput label="Marca (hasta 3 caracteres, opcional)" value={text(node.mark)} onChange={(v) => patch({ mark: v === '' ? undefined : v })} />
       <ReorderButtons noun="opción" index={index} count={count} onMove={(delta) => edit((d) => moveIn(d, list, index, delta))} onRemove={() => requestRemoval(list, index)} />

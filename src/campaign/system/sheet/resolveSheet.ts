@@ -23,6 +23,7 @@
  */
 import type { LinkedAction } from '../../../data'
 import { evaluateFormula, parseFormula, type FormulaNode } from '../formula/formula'
+import type { FormulaContext } from './formulaScope'
 import { withLinkedRows } from './linkedRows'
 import { calcFormula, type CapacidadRow, type Column, type Field, type FieldType, type NumberFormat, type OptionDef, type Sheet, type SortBy, type StatRow, type Table, type Track } from './sheetModel'
 
@@ -255,17 +256,21 @@ function build(sheet: Sheet, pj: Record<string, unknown>) {
       return evaluate(row.modifier, (ref) => (ref === 'valor' ? value : undefined))
     })
 
+  /** The names local to a Capacidades row: its columns plus the valor and modificador of the stat it is linked to. */
+  const capacidadesLocals =
+    (table: CapacidadesTable, row: CapacidadRow) =>
+    (ref: string): unknown => {
+      const stat = statRows.get(row.stat)
+      if (ref === 'valor') return stat ? (statValue(stat) ?? undefined) : undefined
+      if (ref === 'modificador') return stat ? (statModifier(stat).value ?? undefined) : undefined
+      const at = table.columns.findIndex((c) => c.key === ref)
+      return at >= 0 ? (cellValue(table, row, at).value ?? undefined) : undefined
+    }
   const cellKey = (rowKey: string, index: number, column: Column) => (index === 0 ? rowKey : `${rowKey}__${column.key}`)
   const cellValue = (table: CapacidadesTable, row: CapacidadRow, index: number): Computed => {
     const column = table.columns[index]
     return once(`c:${row.key}.${column.key}`, () => {
-      const stat = statRows.get(row.stat)
-      const local = (ref: string): unknown => {
-        if (ref === 'valor') return stat ? statValue(stat) ?? undefined : undefined
-        if (ref === 'modificador') return stat ? (statModifier(stat).value ?? undefined) : undefined
-        const at = table.columns.findIndex((c) => c.key === ref)
-        return at >= 0 ? (cellValue(table, row, at).value ?? undefined) : undefined
-      }
+      const local = capacidadesLocals(table, row)
       if (column.type === 'options') return optionResult({ options: column.options ?? [], default: column.default, format: column.format }, own(pj, cellKey(row.key, index, column)), (formula) => evaluate(formula, local, true))
       if (column.formula === undefined) return { value: typed(own(pj, cellKey(row.key, index, column)), column.type) ?? column.default ?? null, error: false }
       const result = evaluate(column.formula, local)
@@ -280,17 +285,21 @@ function build(sheet: Sheet, pj: Record<string, unknown>) {
     if (!rows) storedRows.set(table.key, (rows = asRecords(own(pj, table.key))))
     return rows
   }
+  /** The names local to one row of a Libre/Habilidad table: the other columns of that row. */
+  const rowLocals =
+    (table: RowTable, index: number) =>
+    (ref: string): unknown => {
+      const sibling = table.columns.find((c) => c.key === ref)
+      if (!sibling) return undefined
+      // A missing cell is a missing value (null), never a fall through to a sheet key of the same name.
+      if (sibling.formula !== undefined || sibling.type === 'options') return rowCell(table, index, sibling).value
+      return typed(own(rowsOf(table)[index], sibling.key), sibling.type) ?? sibling.default ?? null
+    }
   /** A formula or options column of one row of a Libre/Habilidad table; its locals are the other columns of that row. */
   const rowCell = (table: RowTable, index: number, column: Column): Computed =>
     once(`r:${table.key}:${index}:${column.key}`, () => {
       const row = rowsOf(table)[index]
-      const near = (ref: string): unknown => {
-        const sibling = table.columns.find((c) => c.key === ref)
-        if (!sibling) return undefined
-        // A missing cell is a missing value (null), never a fall through to a sheet key of the same name.
-        if (sibling.formula !== undefined || sibling.type === 'options') return rowCell(table, index, sibling).value
-        return typed(own(row, sibling.key), sibling.type) ?? sibling.default ?? null
-      }
+      const near = rowLocals(table, index)
       if (column.type === 'options') return optionResult({ options: column.options ?? [], default: column.default, format: column.format }, own(row, column.key), (formula) => evaluate(formula, near, true))
       const result = evaluate(column.formula as string, near)
       if (result.error || column.type !== 'boolean') return result
@@ -513,7 +522,35 @@ function build(sheet: Sheet, pj: Record<string, unknown>) {
       sections.push({ key: section.key, label: section.label, category: category.label, categoryKey: category.key, blocks, empty: blocks.every((b) => b.empty) })
     }
   }
-  return { sections, resolveItem, globalRef }
+  /** Where a formula written at `context` reads from: its local names first (the first row for a table column; `noRows` when the table has none). */
+  const contextResolver = (context: FormulaContext): { resolve: (ref: string) => unknown; noRows: boolean } => {
+    let local: (ref: string) => unknown = () => undefined
+    let noRows = false
+    if (context.kind === 'stat') {
+      const stat = statRows.get(context.row)
+      local = (ref) => (ref === 'valor' && stat ? (statValue(stat) ?? undefined) : undefined)
+    } else if (context.kind === 'column') {
+      const rowTable = rowTables.get(context.table)
+      const capTable = [...capRows.values()].map((c) => c.table).find((t) => t.key === context.table)
+      if (rowTable) {
+        noRows = rowsOf(rowTable).length === 0
+        if (!noRows) local = rowLocals(rowTable, 0)
+      } else if (capTable) {
+        const first = capTable.rows[0]
+        noRows = first === undefined
+        if (first) local = capacidadesLocals(capTable, first)
+      }
+    }
+    return {
+      noRows,
+      resolve: (ref) => {
+        const near = local(ref)
+        return near !== undefined ? near : globalRef(ref)
+      },
+    }
+  }
+
+  return { sections, resolveItem, globalRef, contextResolver }
 }
 
 /** `linked`: collection entries the character links; they join the rows of their Habilidad table after the stored ones (withLinkedRows). */
@@ -547,4 +584,12 @@ export function sheetEvaluator(sheet: Sheet, pj: Record<string, unknown>): (form
     if (!result.ok) return { ok: false, error: result.error }
     return typeof result.value === 'number' ? { ok: true, value: result.value } : { ok: false, error: 'the result is a text, not a number' }
   }
+}
+
+/**
+ * The reader of values for formulas written at `context` (the builder's test character): local names first, then the sheet exactly as
+ * the detail resolves it. A table column reads the first row of its table; `noRows` is true when there is none to read.
+ */
+export function sheetFormulaContext(sheet: Sheet, pj: Record<string, unknown>, context: FormulaContext): { resolve: (ref: string) => unknown; noRows: boolean } {
+  return build(sheet, pj).contextResolver(context)
 }

@@ -1,9 +1,11 @@
+import type { FormulaContext } from '../sheet/formulaScope'
 import { useBuilder } from './builderContext'
-import { appendAt, moveIn, type Path } from './draft'
+import { appendAt, getAt, isNode, moveIn, type Path } from './draft'
 import { initialOptions, newColumnNode } from './factories'
 import { NameAndKey } from './NameAndKey'
 import { nodes, text, useNode } from './nodeHooks'
-import { FormulaInput, NumberInput } from './nodeInputs'
+import { FormulaWorkbench } from './formula/FormulaWorkbench'
+import { NumberInput } from './nodeInputs'
 import { DefaultEditor, OptionsEditor } from './OptionsEditor'
 import { CheckInput, Panel, ReorderButtons, SelectInput, smallBtn } from './ui'
 import { DotsInput } from './formatInputs'
@@ -62,9 +64,11 @@ interface ColumnProps {
 }
 
 function ColumnPanel({ path, index, count, kind, label, siblings }: ColumnProps) {
-  const { edit, requestRemoval } = useBuilder()
+  const { draft, edit, requestRemoval } = useBuilder()
   const { node, patch } = useNode(path)
   const type = text(node.type)
+  const table = getAt(draft, path.slice(0, -2))
+  const context: FormulaContext = { kind: 'column', table: isNode(table) ? text(table.key) : '', column: text(node.key) }
   const isNew = node._new === true
   const list = path.slice(0, -1)
   const formula = node.formula !== undefined
@@ -108,11 +112,21 @@ function ColumnPanel({ path, index, count, kind, label, siblings }: ColumnProps)
           options={[{ value: 'custom', label: 'Valor propio' }, { value: 'formula', label: 'Fórmula' }]}
         />
       )}
-      {formula && <FormulaInput label="Fórmula de la columna" value={text(node.formula)} onChange={(v) => patch({ formula: v })} />}
+      {formula && (
+        <FormulaWorkbench
+          label="Fórmula de la columna"
+          value={text(node.formula)}
+          onChange={(v) => patch({ formula: v })}
+          context={context}
+          path={[...path, 'formula']}
+          expects={type === 'boolean' ? 'boolean' : 'number'}
+          format={node.format === 'signed' ? 'signed' : undefined}
+        />
+      )}
       {(type === 'number' || type === 'options') && <CheckInput label="Mostrar con signo (columna)" checked={node.format === 'signed'} onChange={(on) => patch({ format: on ? 'signed' : undefined })} />}
       {type === 'number' && <DotsInput path={path} label="Mostrar la columna como puntos (máximo, 1 a 10)" />}
       <DefaultEditor path={path} names={{ value: 'Valor por defecto de la columna', checked: 'Marcado por defecto (columna)' }} />
-      {type === 'options' && <OptionsEditor path={path} />}
+      {type === 'options' && <OptionsEditor path={path} context={context} />}
       {resettable && (
         <div className="grid gap-3 sm:grid-cols-3">
           <SelectInput label="Reinicio de la columna" value={resetKind} onChange={changeReset} options={RESET_OPTIONS} />
