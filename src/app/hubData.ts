@@ -1,5 +1,8 @@
 import {
   createDataLayer,
+  reportLoginFailure,
+  type LoginFailureReportInput,
+  type LoginFailureReportResult,
   type AcceptInviteResult,
   type Campaign,
   type CampaignRequest,
@@ -45,6 +48,8 @@ export interface HubData {
   /** Signed out (login page): the campaign branding behind an invite code. Never consumes the invite. */
   previewInvitePublic(code: string): Promise<PublicInvitePreview>
   acceptInvite(code: string): Promise<AcceptInviteResult>
+  /** Signed out (login page): reports a login failure to the owner. Resolves a typed result, never throws. */
+  reportLoginFailure(input: LoginFailureReportInput): Promise<LoginFailureReportResult>
   /** Ids of the characters (pjs) the user owns in the campaign. */
   listMyCharacterIds(campaignId: string, userId: string): Promise<number[]>
   updateProfile(userId: string, patch: { display_name?: string; avatar_url?: string | null }): Promise<Profile>
@@ -91,6 +96,7 @@ export function createHubData(client?: Db): HubData {
     previewInvite: (code) => layer.campaigns.previewInvite(code),
     previewInvitePublic: (code) => layer.campaigns.previewInvitePublic(code),
     acceptInvite: (code) => layer.campaigns.acceptInvite(code),
+    reportLoginFailure: (input) => reportLoginFailure(layer.client, input),
     async listMyCharacterIds(campaignId, userId) {
       const pjs = await layer.entity('pjs').list(campaignId)
       return pjs.filter((pj) => pj.owner_id === userId).map((pj) => pj.id)

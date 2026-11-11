@@ -116,6 +116,7 @@ export function makeData(over: Partial<HubData> = {}): HubData {
       tagline: null,
       expires_at: null,
     })),
+    reportLoginFailure: vi.fn(async () => 'ok' as const),
     acceptInvite: vi.fn(async () => ({
       joined: true,
       claimed: false,

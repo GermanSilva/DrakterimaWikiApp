@@ -90,3 +90,11 @@ storage access is try/catch (private mode or blocked storage degrades to `/`); t
   completes `completeAuthCallback` with the requesting client, checks the session and the profile row, rejects a crafted
   `#access_token` URL, then deletes the user and the emails.
 - Profile caps are enforced by the database too (migration `20261007120000_profile_caps`, pgTAP `05_profile_caps`).
+
+## Reporting a login problem
+
+When Google is disabled (`VITE_AUTH_GOOGLE_ENABLED=false`) or a Google attempt just failed, the login card offers «Reportar el
+problema»: an inline form (`ReportLoginProblem`) with an optional description and contact email plus a hidden honeypot. It works
+signed out and goes through `hubData.reportLoginFailure` (`src/data/loginFailureReport.ts`), which calls the
+`report-login-failure` Edge Function and returns `ok | rate_limited | invalid_input | unavailable` (never server text). Only the
+pathname is sent, never the query (it may hold an invite code). Without a data layer provider the option is not rendered.

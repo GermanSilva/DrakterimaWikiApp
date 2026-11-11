@@ -1,8 +1,9 @@
 import { render, screen, waitFor } from '@testing-library/react'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { AuthContext, type AuthValue } from './AuthContext'
 import { DataContext } from '../app/DataContext'
 import type { HubData } from '../app/hubData'
+import { makeData } from '../app/testing/renderApp'
 import { ConnectedLoginPage, inviteCodeFromNext } from './ConnectedLoginPage'
 import { consumeNext, NEXT_STORAGE_KEY, rememberNext } from './postLoginRedirect'
 import { userEvent } from './testing/userEvent'
@@ -137,5 +138,33 @@ describe('ConnectedLoginPage invitation preview', () => {
   it('extracts the code before a query string and decodes it', () => {
     expect(inviteCodeFromNext('/invite/ab%20c?x=1')).toBe('ab c')
     expect(inviteCodeFromNext('/invite/abc/extra')).toBe('abc')
+  })
+})
+
+describe('ConnectedLoginPage report option', () => {
+  const renderWith = (data: HubData | null, googleEnabled: boolean) => {
+    vi.stubEnv('VITE_AUTH_GOOGLE_ENABLED', googleEnabled ? 'true' : 'false')
+    const value = { status: 'signed_out', signInWithEmail: vi.fn(), signInWithGoogle: vi.fn() } as unknown as AuthValue
+    const page = (
+      <AuthContext.Provider value={value}>
+        <ConnectedLoginPage devEmailLogin={false} />
+      </AuthContext.Provider>
+    )
+    render(data ? <DataContext.Provider value={data}>{page}</DataContext.Provider> : page)
+  }
+  afterEach(() => vi.unstubAllEnvs())
+
+  it('wires the report form to hubData.reportLoginFailure', async () => {
+    const data = makeData()
+    renderWith(data, false)
+    await userEvent.click(screen.getByRole('button', { name: 'Reportar el problema' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Enviar reporte' }))
+    expect(data.reportLoginFailure).toHaveBeenCalledWith(expect.objectContaining({ kind: 'google_disabled', website: '' }))
+    expect(await screen.findByRole('status')).toBeInTheDocument()
+  })
+
+  it('does not offer the report without a data layer', () => {
+    renderWith(null, false)
+    expect(screen.queryByRole('button', { name: 'Reportar el problema' })).not.toBeInTheDocument()
   })
 })

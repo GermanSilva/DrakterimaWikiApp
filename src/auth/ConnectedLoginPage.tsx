@@ -64,6 +64,7 @@ export function ConnectedLoginPage({
 }) {
   const { signInWithEmail, signInWithGoogle } = useAuth()
   const preview = useInvitePreview(inviteCodeFromNext(next))
+  const data = useContext(DataContext)
   return (
     <LoginPage
       invite={preview ? { status: 'ready', preview } : undefined}
@@ -77,6 +78,7 @@ export function ConnectedLoginPage({
           />
         ) : undefined
       }
+      onReportLoginFailure={data ? (input) => data.reportLoginFailure(input) : undefined}
       onGoogle={() => {
         rememberNext(next)
         return signInWithGoogle()

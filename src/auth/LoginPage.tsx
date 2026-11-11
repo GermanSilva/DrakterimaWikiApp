@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { accentStyle, parseBannerUrl, parseLogoUrl } from '../campaign/branding'
 import { BrandMark } from '../components/BrandMark'
-import type { PublicInvitePreview } from '../data'
+import type { LoginFailureReportInput, LoginFailureReportResult, PublicInvitePreview } from '../data'
 import { AuthFlowError } from './authErrors'
 import { LoginBusyContext } from './loginBusy'
+import { ReportLoginProblem } from './ReportLoginProblem'
 
 export interface LoginPageProps {
   onGoogle: () => Promise<void>
@@ -15,9 +16,11 @@ export interface LoginPageProps {
   now?: Date
   /** Development aid slot (DevEmailLogin), rendered inside the card after the note. Absent in production. */
   devLogin?: ReactNode
+  /** Reports a login failure to the owner. Absent: no «Reportar el problema» option. */
+  onReportLoginFailure?: (input: LoginFailureReportInput) => Promise<LoginFailureReportResult>
 }
 
-type Phase = { name: 'idle' } | { name: 'redirecting'; handedOff: boolean } | { name: 'error'; message: string }
+type Phase = { name: 'idle' } | { name: 'redirecting'; handedOff: boolean } | { name: 'error'; message: string; errorKind?: string }
 
 /** If the page is still here this long after handing off to Google, let the user try again. */
 export const REDIRECT_RESET_MS = 10000
@@ -43,7 +46,7 @@ export function expiryText(expiresAt: string | null, now: Date): string | null {
 }
 
 /** Presentational: all behavior comes in through props. */
-export function LoginPage({ onGoogle, googleEnabled = true, invite, now, devLogin }: LoginPageProps) {
+export function LoginPage({ onGoogle, googleEnabled = true, invite, now, devLogin, onReportLoginFailure }: LoginPageProps) {
   // The dev form (separate module) reports a magic-link send in flight through this ref.
   const devBusy = useRef(false)
   const setDevBusy = useMemo(() => (b: boolean) => void (devBusy.current = b), [])
@@ -95,7 +98,7 @@ export function LoginPage({ onGoogle, googleEnabled = true, invite, now, devLogi
     } catch (err) {
       if (lastStarted.current !== mine) return // stale: a newer attempt owns the state
       inFlight.current = false
-      const error: Phase = { name: 'error', message: messageOf(err) }
+      const error: Phase = { name: 'error', message: messageOf(err), errorKind: err instanceof AuthFlowError ? err.kind : undefined }
       if (attempt.current === mine) {
         setPhase(error)
       } else {
@@ -202,6 +205,13 @@ export function LoginPage({ onGoogle, googleEnabled = true, invite, now, devLogi
                   {phase.message}
                   {preview && ` No perdiste la invitación: volvé a intentar y te llevamos de nuevo a ${preview.campaign_name}.`}
                 </p>
+              )}
+              {onReportLoginFailure && (!googleEnabled || phase.name === 'error') && (
+                <ReportLoginProblem
+                  kind={googleEnabled ? 'google_error' : 'google_disabled'}
+                  errorKind={phase.name === 'error' ? phase.errorKind : undefined}
+                  onReport={onReportLoginFailure}
+                />
               )}
               {preview && (
                 <ol aria-label="Qué pasa después" className="mt-5 grid gap-2 text-[13px] leading-snug text-txt-secondary">
