@@ -166,6 +166,7 @@ export const CAMPAIGN_COLUMNS = [
   'name',
   'system',
   'system_profile',
+  'based_on_system',
   'branding',
   'regions',
   'character_custom_fields',

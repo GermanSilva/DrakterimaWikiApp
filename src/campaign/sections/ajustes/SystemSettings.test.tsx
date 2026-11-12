@@ -4,7 +4,7 @@ import { ConflictError, DataError } from '../../../data'
 import { makeCampaign } from '../../../app/testing/renderApp'
 import { createFakeLayer } from '../../testing/fakeLayer'
 import { renderSection } from '../../testing/renderSection'
-import { pressBar } from './saveBarTestKit'
+import { pressBar, saveBar } from './saveBarTestKit'
 import { DND5E_PROFILE } from '../../system/systemProfile'
 
 configure({ asyncUtilTimeout: 10000 })
@@ -22,7 +22,7 @@ const group = async (name: string) => within(await section()).getByRole('group',
 const type = (el: HTMLElement, value: string) => fireEvent.change(el, { target: { value } })
 const save = () => pressBar('Guardar sistema')
 // the bar only offers a save once something changed: any edit will do for the tests about what the write carries
-const touch = async () => type(within(await group('Clase')).getByLabelText('Nombre en la ficha'), 'Clase 2')
+const touch = async () => type(within(await group('Clase')).getByLabelText('Título'), 'Clase 2')
 
 describe('Ajustes: Sistema section', () => {
   it('is not shown to a player', async () => {
@@ -35,11 +35,11 @@ describe('Ajustes: Sistema section', () => {
   it('shows the stored built-ins, the level range and the nine sheet blocks', async () => {
     setup()
     const nivel = await group('Nivel')
-    expect(within(nivel).getByLabelText('Usar este campo')).toBeChecked()
-    expect(within(nivel).getByLabelText('Nombre en la ficha')).toHaveValue('Nivel')
-    expect(within(nivel).getByLabelText('Mínimo')).toHaveValue(1)
-    expect(within(nivel).getByLabelText('Máximo')).toHaveValue(20)
-    expect(within(await group('Clase')).getByLabelText('Nombre en la ficha')).toHaveValue('Clase')
+    expect(within(nivel).getByLabelText('Usar «Nivel»')).toBeChecked()
+    expect(within(nivel).getByLabelText('Título')).toHaveValue('Nivel')
+    expect(within(nivel).getByLabelText('Nivel mínimo')).toHaveValue(1)
+    expect(within(nivel).getByLabelText('Nivel máximo')).toHaveValue(20)
+    expect(within(await group('Clase')).getByLabelText('Título')).toHaveValue('Clase')
     const blocks = await group('Bloques de la ficha')
     expect(within(blocks).getAllByRole('checkbox')).toHaveLength(9)
     for (const box of within(blocks).getAllByRole('checkbox')) expect(box).toBeChecked()
@@ -47,12 +47,12 @@ describe('Ajustes: Sistema section', () => {
 
   it('saves the edited document against the current version and reports it', async () => {
     const { spies } = setup()
-    fireEvent.click(within(await group('Clase')).getByLabelText('Usar este campo'))
-    type(within(await group('Raza')).getByLabelText('Nombre en la ficha'), '  Ocupación  ')
+    fireEvent.click(within(await group('Clase')).getByLabelText('Usar «Clase/Trabajo/Grupo»'))
+    type(within(await group('Raza')).getByLabelText('Título'), '  Ocupación  ')
     const nivel = await group('Nivel')
-    type(within(nivel).getByLabelText('Nombre en la ficha'), 'Rango')
-    type(within(nivel).getByLabelText('Mínimo'), '0')
-    type(within(nivel).getByLabelText('Máximo'), '5')
+    type(within(nivel).getByLabelText('Título'), 'Rango')
+    type(within(nivel).getByLabelText('Nivel mínimo'), '0')
+    type(within(nivel).getByLabelText('Nivel máximo'), '5')
     fireEvent.click(within(await group('Bloques de la ficha')).getByLabelText('Hechizos'))
     await save()
 
@@ -74,14 +74,14 @@ describe('Ajustes: Sistema section', () => {
 
   it('shows the field errors, wires them with aria and does not write', async () => {
     const { spies } = setup()
-    type(within(await group('Clase')).getByLabelText('Nombre en la ficha'), '   ')
+    type(within(await group('Clase')).getByLabelText('Título'), '   ')
     const nivel = await group('Nivel')
-    type(within(nivel).getByLabelText('Máximo'), 'x')
+    type(within(nivel).getByLabelText('Nivel máximo'), 'x')
     await save()
-    const nombre = within(await group('Clase')).getByLabelText('Nombre en la ficha')
+    const nombre = within(await group('Clase')).getByLabelText('Título')
     await waitFor(() => expect(nombre).toHaveAttribute('aria-invalid', 'true'))
     expect(nombre).toHaveAccessibleDescription(expect.stringContaining('entre 1 y 60'))
-    expect(within(nivel).getByLabelText('Máximo')).toHaveAccessibleDescription(expect.stringContaining('enteros'))
+    expect(within(nivel).getByLabelText('Nivel máximo')).toHaveAccessibleDescription(expect.stringContaining('enteros'))
     expect(spies.setSystemProfile).not.toHaveBeenCalled()
   })
 
@@ -107,6 +107,92 @@ describe('Ajustes: Sistema section', () => {
     const blocks = within(await screen.findByRole('group', { name: 'Bloques de la ficha' }))
     expect(blocks.getByLabelText('Hechizos')).not.toBeChecked()
     expect(blocks.getByLabelText('Estadísticas')).toBeChecked()
+  })
+})
+
+describe('Ajustes: Sistema section, Datos del sistema (one line per built-in)', () => {
+  const SYSTEMS = [
+    { id: 'sys-1', name: 'D&D 5e (SRD)', kind: 'origin' as const, campaign_id: null, owner_id: null, branched_from: null, archived_at: null, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z' },
+  ]
+  function setupBased(based: string | null, systems = SYSTEMS) {
+    const campaign = { name: 'Drakterima', based_on_system: based, system_profile: JSON.parse(JSON.stringify(DND5E_PROFILE)) }
+    const made = createFakeLayer({ campaign: campaign as never, systems })
+    const view = renderSection('/c/demo/ajustes?tab=sistema', { layer: made.layer, isDM: true, campaign: campaign as never })
+    return { ...made, ...view }
+  }
+  const basedOn = async () => within(await section()).findByLabelText('Basado en')
+
+  it('Nivel: checkbox, range and title live in one row; the range is disabled while Nivel is off', async () => {
+    setup()
+    const nivel = await group('Nivel')
+    expect(within(nivel).getByLabelText('Usar «Nivel»')).toBeChecked()
+    expect(within(nivel).getByText('Rango')).toBeInTheDocument()
+    expect(within(nivel).getByLabelText('Nivel mínimo')).toBeEnabled()
+    expect(within(nivel).getByLabelText('Nivel máximo')).toBeEnabled()
+    expect(within(nivel).getByText('Cualquier rango entre 0 y 1000; por ejemplo 1 a 100 para sistemas con progresión larga.')).toBeInTheDocument()
+    fireEvent.click(within(nivel).getByLabelText('Usar «Nivel»'))
+    expect(within(nivel).getByLabelText('Nivel mínimo')).toBeDisabled()
+    expect(within(nivel).getByLabelText('Nivel máximo')).toBeDisabled()
+    expect(within(nivel).getByLabelText('Título')).toBeDisabled()
+  })
+
+  it('accepts a level range up to 1000 and rejects above it with the existing message', async () => {
+    const { spies } = setup()
+    const nivel = await group('Nivel')
+    type(within(nivel).getByLabelText('Nivel mínimo'), '1')
+    type(within(nivel).getByLabelText('Nivel máximo'), '1001')
+    await save()
+    expect(await within(nivel).findByText(/enteros entre 0 y 1000/)).toBeInTheDocument()
+    expect(spies.setSystemProfile).not.toHaveBeenCalled()
+    type(within(nivel).getByLabelText('Nivel máximo'), '1000')
+    await save()
+    await waitFor(() => expect(spies.setSystemProfile).toHaveBeenCalledTimes(1))
+    expect(spies.setSystemProfile.mock.calls[0][1]).toMatchObject({ character: { builtins: { nivel: { min: 1, max: 1000 } } } })
+  })
+
+  it.each([
+    ['Clase', 'Usar «Clase/Trabajo/Grupo»', 'Clase, Trabajo, Oficio, Grupo… Se usa en la ficha, la lista y el buscador.', 'clase'],
+    ['Raza', 'Usar «Raza/Especie»', 'Raza, Especie, Linaje, Ascendencia… Se usa en la ficha, la lista y el buscador.', 'raza'],
+  ])('%s: toggle plus title on one row, title disabled while off, saved through the bar', async (name, toggle, hint, key) => {
+    const { spies } = setup()
+    const row = await group(name)
+    expect(within(row).getByLabelText(toggle)).toBeChecked()
+    expect(within(row).getByLabelText('Título')).toHaveValue(name)
+    expect(within(row).getByText(`Cómo se llama en tu sistema: ${hint}`)).toBeInTheDocument()
+    type(within(row).getByLabelText('Título'), 'Oficio')
+    await save()
+    await waitFor(() => expect(spies.setSystemProfile).toHaveBeenCalledTimes(1))
+    expect(spies.setSystemProfile.mock.calls[0][1]).toMatchObject({ character: { builtins: { [key]: { enabled: true, label: 'Oficio' } } } })
+    const fresh = await group(name) // the form is rebuilt from what was saved
+    fireEvent.click(within(fresh).getByLabelText(toggle))
+    expect(within(fresh).getByLabelText('Título')).toBeDisabled()
+  })
+
+  it('counts the title edit as a change in the bar', async () => {
+    setup()
+    type(within(await group('Raza')).getByLabelText('Título'), 'Especie')
+    expect(await within(await saveBar()).findByText(/1 cambio sin guardar/)).toBeInTheDocument()
+  })
+
+  it('Basado en shows the name of the origin system, read only', async () => {
+    const { spies } = setupBased('sys-1')
+    await waitFor(async () => expect(await basedOn()).toHaveValue('D&D 5e (SRD)'))
+    const field = await basedOn()
+    expect(field).toHaveAttribute('readonly')
+    expect(within(await section()).getByText('Solo informativo: la campaña tiene su propia copia y no recibe cambios del sistema elegido.')).toBeInTheDocument()
+    type(field, 'otro')
+    expect(field).toHaveValue('D&D 5e (SRD)')
+    expect(spies.setSystemProfile).not.toHaveBeenCalled()
+  })
+
+  it('Basado en says it is an original system when there is no lineage', async () => {
+    setupBased(null)
+    await waitFor(async () => expect(await basedOn()).toHaveValue('Sistema original (no se basa en ninguno)'))
+  })
+
+  it('Basado en says the system is not available when the DM cannot read it', async () => {
+    setupBased('sys-gone')
+    await waitFor(async () => expect(await basedOn()).toHaveValue('Sistema no disponible'))
   })
 })
 

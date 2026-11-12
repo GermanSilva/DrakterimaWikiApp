@@ -39,8 +39,8 @@ const openTab = (name: RegExp | string) => fireEvent.click(screen.getByRole('tab
 const campaignName = () => screen.findByLabelText('Nombre', { selector: '#campaign-name' }) as Promise<HTMLInputElement>
 const regionRow = async (name: string) => within(await screen.findByRole('listitem', { name }))
 const renameRegion = async (from: string, to: string) => type((await regionRow(from)).getByLabelText('Nombre'), to)
-const claseLabel = async () => within(await screen.findByRole('group', { name: 'Clase' })).getByLabelText('Nombre en la ficha') as HTMLInputElement
-const razaLabel = async () => within(await screen.findByRole('group', { name: 'Raza' })).getByLabelText('Nombre en la ficha') as HTMLInputElement
+const claseLabel = async () => within(await screen.findByRole('group', { name: 'Clase' })).getByLabelText('Título') as HTMLInputElement
+const razaLabel = async () => within(await screen.findByRole('group', { name: 'Raza' })).getByLabelText('Título') as HTMLInputElement
 const addAltura = async () => {
   fireEvent.click(within(await screen.findByRole('group', { name: 'Sección Extra' })).getByRole('button', { name: 'Agregar campo' }))
   type(within(screen.getByRole('group', { name: 'Ítem Nuevo campo' })).getByLabelText('Nombre del ítem'), 'Altura')

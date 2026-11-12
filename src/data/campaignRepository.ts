@@ -22,6 +22,8 @@ export interface Campaign {
   system: string
   /** The system document (version 1); read it through `useSystem` / `parseSystemProfile`, never directly. */
   system_profile: Record<string, unknown>
+  /** Informational lineage: the system this campaign was created from (null/absent = original, or that system is gone). Read only: no write path. */
+  based_on_system?: string | null
   branding: Record<string, unknown>
   regions: unknown[]
   character_custom_fields: unknown[]

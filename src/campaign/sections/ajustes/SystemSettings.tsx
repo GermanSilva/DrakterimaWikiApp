@@ -1,14 +1,16 @@
 import { useId, useState, type FormEvent, type ReactNode } from 'react'
 import { btnSecondary, inputCls } from '../../../constants'
-import { parseSystemProfile, SECTION_KEYS, type SectionKey } from '../../system/systemProfile'
+import { LABEL_MAX, parseSystemProfile, SECTION_KEYS, type SectionKey } from '../../system/systemProfile'
 import { UNIT_MAX } from '../../system/distance/distance'
-import { newUnit, systemDraft, validateSystem, type BuiltinDraft, type SystemDraft, type SystemErrors, type UnitDraft, type UnitErrors } from './systemForm'
+import { LEVEL_MAX, newUnit, systemDraft, validateSystem, type BuiltinDraft, type SystemDraft, type SystemErrors, type UnitDraft, type UnitErrors } from './systemForm'
 import { AdminSection } from '../../../components/AdminSection'
 import { HomebrewSettings } from './HomebrewSettings'
 import { countChanges } from './tabSave/dirty'
 import { BlockSaveError } from './tabSave/tabSaveContext'
 import { useTabSaveBlock } from './tabSave/useTabSaveBlock'
 import { useCampaignSave } from './useCampaignSave'
+import { useCampaignServices } from '../../entities/campaignServicesContext'
+import { useLoad } from '../../entities/useLoad'
 
 const labelCls = 'block font-exo text-[10px] font-medium tracking-[0.2em] uppercase text-txt-muted mb-1.5'
 
@@ -49,33 +51,76 @@ function Check({ label, checked, onChange }: { label: string; checked: boolean; 
   )
 }
 
-interface BuiltinProps {
-  legend: string
+interface BuiltinRowProps {
+  /** Accessible name of the row (the built-in's own name). */
+  name: string
+  toggleLabel: string
+  hint: string
   draft: BuiltinDraft
   error?: string
   onChange: (draft: BuiltinDraft) => void
+  /** Extra inline controls between the checkbox and the title (the level range). */
   children?: ReactNode
+  /** Extra content below the hint (the level range error). */
+  footer?: ReactNode
 }
 
-function Builtin({ legend, draft, error, onChange, children }: BuiltinProps) {
+/** One built-in on a single line: the checkbox, its inline inputs and the title (disabled while the built-in is off), the hint below. */
+function BuiltinRow({ name, toggleLabel, hint, draft, error, onChange, children, footer }: BuiltinRowProps) {
   const id = useId()
   return (
-    <fieldset className="border border-border-base px-4 py-3 flex flex-col gap-3">
-      <legend className="px-1 font-exo text-[11px] font-semibold tracking-[0.15em] uppercase text-txt-primary">{legend}</legend>
-      <Check label="Usar este campo" checked={draft.enabled} onChange={(enabled) => onChange({ ...draft, enabled })} />
-      <Field id={`${id}-label`} label="Nombre en la ficha" error={error}>
-        <input
-          id={`${id}-label`}
-          type="text"
-          value={draft.label}
-          onChange={(e) => onChange({ ...draft, label: e.target.value })}
-          aria-invalid={error ? true : undefined}
-          aria-describedby={error ? `${id}-label-error` : undefined}
-          className={inputCls}
-        />
-      </Field>
-      {children}
-    </fieldset>
+    <div role="group" aria-label={name} className="min-w-0">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        <Check label={toggleLabel} checked={draft.enabled} onChange={(enabled) => onChange({ ...draft, enabled })} />
+        {children}
+        <span className="flex items-center gap-2 text-[13px] text-txt-secondary">
+          <label htmlFor={`${id}-label`}>Título</label>
+          <input
+            id={`${id}-label`}
+            type="text"
+            value={draft.label}
+            maxLength={LABEL_MAX}
+            disabled={!draft.enabled}
+            onChange={(e) => onChange({ ...draft, label: e.target.value })}
+            aria-invalid={error ? true : undefined}
+            aria-describedby={error ? `${id}-label-error` : undefined}
+            className={`${inputCls} !w-[200px] disabled:opacity-50`}
+          />
+        </span>
+      </div>
+      <p className="text-[12px] text-txt-muted mt-1">{hint}</p>
+      {error && (
+        <p id={`${id}-label-error`} role="alert" className="text-[13px] text-red-400 mt-1">
+          {error}
+        </p>
+      )}
+      {footer}
+    </div>
+  )
+}
+
+/** Read-only lineage (S7): the system this campaign was created from, resolved among the systems the DM can read. */
+function BasedOnField({ basedOn }: { basedOn: string | null | undefined }) {
+  const { layer, campaignId } = useCampaignServices()
+  const id = useId()
+  const systems = useLoad(basedOn ? () => layer.systems.listAvailableBases() : null, `based-on:${campaignId}:${basedOn ?? ''}`)
+  const value = !basedOn
+    ? 'Sistema original (no se basa en ninguno)'
+    : systems.status === 'ready'
+      ? (systems.data?.find((s) => s.id === basedOn)?.name ?? 'Sistema no disponible')
+      : systems.status === 'error'
+        ? 'Sistema no disponible'
+        : 'Cargando…'
+  return (
+    <div className="min-w-0">
+      <label htmlFor={id} className={labelCls}>
+        Basado en
+      </label>
+      <input id={id} type="text" readOnly aria-readonly="true" value={value} aria-describedby={`${id}-hint`} className={`${inputCls} opacity-80`} />
+      <p id={`${id}-hint`} className="text-[12px] text-txt-muted mt-1">
+        Solo informativo: la campaña tiene su propia copia y no recibe cambios del sistema elegido.
+      </p>
+    </div>
   )
 }
 
@@ -229,7 +274,7 @@ function DistanceFieldset({ units, errors, onChange }: { units: UnitDraft[] | nu
 }
 
 /** `onSave` returns the errors of a rejected draft (shown on the fields), or throws a `BlockSaveError` when the write fails. */
-function SystemForm({ initial, onSave }: { initial: SystemDraft; onSave: (draft: SystemDraft) => Promise<SystemErrors | null> }) {
+function SystemForm({ initial, basedOn, onSave }: { initial: SystemDraft; basedOn: string | null | undefined; onSave: (draft: SystemDraft) => Promise<SystemErrors | null> }) {
   const [draft, setDraft] = useState(initial)
   const [errors, setErrors] = useState<SystemErrors>({})
   const rangeId = useId()
@@ -260,36 +305,64 @@ function SystemForm({ initial, onSave }: { initial: SystemDraft; onSave: (draft:
   const submit = (e: FormEvent) => e.preventDefault()
 
   const level = (key: 'min' | 'max', label: string) => (
-    <Field id={`${rangeId}-${key}`} label={label}>
-      <input
-        id={`${rangeId}-${key}`}
-        type="number"
-        inputMode="numeric"
-        value={draft.nivel[key]}
-        onChange={(e) => setDraft((d) => ({ ...d, nivel: { ...d.nivel, [key]: e.target.value } }))}
-        aria-invalid={errors.range ? true : undefined}
-        aria-describedby={errors.range ? `${rangeId}-error` : undefined}
-        className={inputCls}
-      />
-    </Field>
+    <input
+      id={`${rangeId}-${key}`}
+      type="number"
+      inputMode="numeric"
+      min={0}
+      max={LEVEL_MAX}
+      aria-label={label}
+      disabled={!draft.nivel.enabled}
+      value={draft.nivel[key]}
+      onChange={(e) => setDraft((d) => ({ ...d, nivel: { ...d.nivel, [key]: e.target.value } }))}
+      aria-invalid={errors.range ? true : undefined}
+      aria-describedby={errors.range ? `${rangeId}-error` : undefined}
+      className={`${inputCls} !w-[90px] disabled:opacity-50`}
+    />
   )
 
   return (
     <form noValidate onSubmit={submit} aria-label="Sistema de la campaña" className="flex flex-col gap-4">
-      <div className="grid gap-3 md:grid-cols-3">
-        <Builtin legend="Clase" draft={draft.clase} error={errors.clase} onChange={(clase) => setDraft((d) => ({ ...d, clase }))} />
-        <Builtin legend="Raza" draft={draft.raza} error={errors.raza} onChange={(raza) => setDraft((d) => ({ ...d, raza }))} />
-        <Builtin legend="Nivel" draft={draft.nivel} error={errors.nivel} onChange={(nivel) => setDraft((d) => ({ ...d, nivel: { ...d.nivel, ...nivel } }))}>
-          <div className="grid grid-cols-2 gap-3">
-            {level('min', 'Mínimo')}
-            {level('max', 'Máximo')}
-          </div>
-          {errors.range && (
-            <p id={`${rangeId}-error`} role="alert" className="text-[13px] text-red-400">
-              {errors.range}
-            </p>
-          )}
-        </Builtin>
+      <div className="border border-border-base px-4 py-3 flex flex-col gap-4">
+        <BasedOnField basedOn={basedOn} />
+        <BuiltinRow
+          name="Nivel"
+          toggleLabel="Usar «Nivel»"
+          hint="Cualquier rango entre 0 y 1000; por ejemplo 1 a 100 para sistemas con progresión larga."
+          draft={draft.nivel}
+          error={errors.nivel}
+          onChange={(nivel) => setDraft((d) => ({ ...d, nivel: { ...d.nivel, ...nivel } }))}
+          footer={
+            errors.range && (
+              <p id={`${rangeId}-error`} role="alert" className="text-[13px] text-red-400 mt-1">
+                {errors.range}
+              </p>
+            )
+          }
+        >
+          <span className="flex items-center gap-2 text-[13px] text-txt-secondary">
+            <span>Rango</span>
+            {level('min', 'Nivel mínimo')}
+            <span>a</span>
+            {level('max', 'Nivel máximo')}
+          </span>
+        </BuiltinRow>
+        <BuiltinRow
+          name="Clase"
+          toggleLabel="Usar «Clase/Trabajo/Grupo»"
+          hint="Cómo se llama en tu sistema: Clase, Trabajo, Oficio, Grupo… Se usa en la ficha, la lista y el buscador."
+          draft={draft.clase}
+          error={errors.clase}
+          onChange={(clase) => setDraft((d) => ({ ...d, clase }))}
+        />
+        <BuiltinRow
+          name="Raza"
+          toggleLabel="Usar «Raza/Especie»"
+          hint="Cómo se llama en tu sistema: Raza, Especie, Linaje, Ascendencia… Se usa en la ficha, la lista y el buscador."
+          draft={draft.raza}
+          error={errors.raza}
+          onChange={(raza) => setDraft((d) => ({ ...d, raza }))}
+        />
       </div>
 
       <fieldset className="border border-border-base px-4 py-3">
@@ -343,7 +416,7 @@ export function SystemSettings() {
       <p className="text-[12px] text-txt-secondary">
         Definí cómo es la ficha de los personajes en esta campaña: nombres de los campos integrados, rango de nivel, bloques que se usan y unidades de distancia.
       </p>
-      <SystemForm key={formKey} initial={systemDraft(stored)} onSave={onSave} />
+      <SystemForm key={formKey} initial={systemDraft(stored)} basedOn={campaign.based_on_system} onSave={onSave} />
       {notice && (
         <p role={notice.kind === 'error' ? 'alert' : 'status'} className={notice.kind === 'error' ? 'text-[13px] text-red-400' : 'text-[13px] text-accent-bright'}>
           {notice.text}

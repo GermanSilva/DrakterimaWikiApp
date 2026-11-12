@@ -122,7 +122,7 @@ describe('Ajustes: Plantilla de ficha', () => {
     await addEdad()
     fireEvent.click(screen.getByRole('tab', { name: /^Sistema/ })) // the Ficha draft stays mounted, hidden
     const sistema = await screen.findByRole('region', { name: 'Sistema' })
-    type(within(await within(sistema).findByRole('group', { name: 'Clase' })).getByLabelText('Nombre en la ficha'), 'Oficio') // the bar saves what changed
+    type(within(await within(sistema).findByRole('group', { name: 'Clase' })).getByLabelText('Título'), 'Oficio') // the bar saves what changed
     await pressBar('Guardar sistema')
     await waitFor(() => expect(spies.setSystemProfile).toHaveBeenCalledTimes(1))
     expect((spies.setSystemProfile.mock.calls[0][1] as { sheet: unknown }).sheet).toEqual(STORED_SHEET)
