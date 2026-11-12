@@ -7,13 +7,13 @@ import { useLoad } from '../../entities/useLoad'
 import { parseLoteriaConfig, staleLoteriaKeys } from '../../games/coins'
 import { rewardTarget } from '../../system/coins/rewardTarget'
 import { useSystem } from '../../system/useSystem'
-import { SheetLoteriaForm } from '../juegos/SheetLoteriaForm'
 import { Loading } from '../DetailNotice'
 import { coinText, parseCoinText, type CoinText } from './coinInput'
 import { CoinFields } from './CoinFields'
-
-const MIN_ROLL = 1
-const MAX_ROLL = 19
+import { MAX_ROLL, MIN_ROLL, SheetLoteriaForm } from './SheetLoteriaForm'
+import { countChanges } from './tabSave/dirty'
+import { BlockSaveError } from './tabSave/tabSaveContext'
+import { useTabSaveBlock } from './tabSave/useTabSaveBlock'
 
 interface LoteriaValues {
   commonMinRoll: number
@@ -36,33 +36,42 @@ function LoteriaForm({
   onSave: (values: LoteriaValues, base: string | null) => Promise<void>
 }) {
   const initial = parseLoteriaConfig(row?.value)
-  const [minRoll, setMinRoll] = useState(String(initial.commonMinRoll))
-  const [common, setCommon] = useState<CoinText>(() => coinText(initial.commonPrize))
-  const [special, setSpecial] = useState<CoinText>(() => coinText(initial.specialPrize))
-  const [saving, setSaving] = useState(false)
+  const start = { minRoll: String(initial.commonMinRoll), common: coinText(initial.commonPrize), special: coinText(initial.specialPrize) }
+  const [minRoll, setMinRoll] = useState(start.minRoll)
+  const [common, setCommon] = useState<CoinText>(start.common)
+  const [special, setSpecial] = useState<CoinText>(start.special)
   const [invalid, setInvalid] = useState<string | null>(null)
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    const min = Number(minRoll)
-    if (minRoll.trim() === '' || !Number.isInteger(min) || min < MIN_ROLL || min > MAX_ROLL) {
-      setInvalid(`La tirada mínima debe ser un número entero entre ${MIN_ROLL} y ${MAX_ROLL}.`)
-      return
-    }
-    const commonPrize = parseCoinText(common)
-    const specialPrize = parseCoinText(special)
-    if (!commonPrize || !specialPrize) {
-      setInvalid('Los premios deben ser números enteros de 0 o más.')
-      return
-    }
-    setInvalid(null)
-    setSaving(true)
-    try {
+  useTabSaveBlock({
+    key: 'loteria',
+    label: 'Lotería',
+    order: 10,
+    dirtyCount: countChanges(start, { minRoll, common, special }),
+    async save() {
+      const refuse = (text: string): never => {
+        setInvalid(text)
+        throw new BlockSaveError(text)
+      }
+      const min = Number(minRoll)
+      if (minRoll.trim() === '' || !Number.isInteger(min) || min < MIN_ROLL || min > MAX_ROLL) {
+        refuse(`La tirada mínima debe ser un número entero entre ${MIN_ROLL} y ${MAX_ROLL}.`)
+      }
+      const commonPrize = parseCoinText(common)
+      const specialPrize = parseCoinText(special)
+      if (!commonPrize || !specialPrize) return refuse('Los premios deben ser números enteros de 0 o más.')
+      setInvalid(null)
       await onSave({ commonMinRoll: min, commonPrize, specialPrize }, row?.updated_at ?? null)
-    } finally {
-      setSaving(false)
-    }
-  }
+    },
+    discard() {
+      setMinRoll(start.minRoll)
+      setCommon(start.common)
+      setSpecial(start.special)
+      setInvalid(null)
+    },
+  })
+
+  // The tab's save bar saves; Enter in a field must not submit anything by itself.
+  const submit = (e: FormEvent) => e.preventDefault()
 
   return (
     <form noValidate onSubmit={submit} className="bg-bg-card border border-border-base px-5 py-4 flex flex-col gap-4" aria-label="Configuración de la lotería">
@@ -94,11 +103,6 @@ function LoteriaForm({
           {notice.text}
         </p>
       )}
-      <div>
-        <button type="submit" className={btnSecondary} disabled={saving}>
-          {saving ? 'Guardando…' : 'Guardar configuración'}
-        </button>
-      </div>
     </form>
   )
 }
@@ -139,22 +143,23 @@ export function LoteriaSettings() {
 
   const row = saved && saved.over === state.data ? saved.row : state.data
 
+  /** Writes the prizes; a failure shows its notice and is thrown as a `BlockSaveError` for the tab's save bar. */
   async function save(values: LoteriaValues, base: string | null) {
     setNotice(null)
+    const stop = (text: string): never => {
+      setNotice({ kind: 'error', text })
+      throw new BlockSaveError(text)
+    }
     try {
       const next = await layer.config.patch(campaignId, 'loteria', values as unknown as Record<string, unknown>, 'members', base)
       setSaved({ row: next, over: state.data })
       setNotice({ kind: 'ok', text: 'Configuración guardada.' })
     } catch (e) {
       if (e instanceof ConflictError) {
-        setNotice({
-          kind: 'error',
-          text: 'La configuración cambió mientras la editabas. Cargamos los valores actuales: revisalos y guardá de nuevo.',
-        })
         state.refresh()
-      } else {
-        setNotice({ kind: 'error', text: describeDataError(e, 'No se pudo guardar la configuración. Intentá de nuevo.') })
+        stop('La configuración cambió mientras la editabas. Cargamos los valores actuales: revisalos y guardá de nuevo.')
       }
+      stop(describeDataError(e, 'No se pudo guardar la configuración. Intentá de nuevo.'))
     }
   }
 

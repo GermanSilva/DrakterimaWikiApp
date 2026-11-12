@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ConfirmDialog } from '../../sections/ajustes/ConfirmDialog'
+import { BlockSaveCancelled, BlockSaveError } from '../../sections/ajustes/tabSave/tabSaveContext'
+import { useTabSaveBlock } from '../../sections/ajustes/tabSave/useTabSaveBlock'
 import { validateSheet, type DiscardedItem, type Sheet, type SheetError } from '../sheet/sheetModel'
 import { BuilderContext, type BuilderApi } from './builderContext'
 import { BuilderOutline } from './BuilderOutline'
@@ -15,6 +17,7 @@ import { describeSheetError, displayLine, ownerOf, type DisplayError } from './e
 import { newCategory, newSection } from './factories'
 import { describeRemoval, removalConflict, removalMessage, removeNode, type RemovalRequest } from './removal'
 import { RolesPanel } from './RolesPanel'
+import { blockedReason } from './blockedReason'
 import { SaveBar } from './SaveBar'
 import { CardPanel } from './CardPanel'
 
@@ -48,7 +51,10 @@ interface Props {
   initial: unknown
   /** Called with the draft whenever it changes (and once with the starting draft). */
   onChange?: (draft: unknown) => void
-  /** Receives the validated, normalised sheet. Without it the builder has no Save button. */
+  /**
+   * Receives the validated, normalised sheet. Without it the builder cannot be saved. Inside Ajustes the builder registers with the
+   * save bar of its tab (which calls this and shows a failure thrown as `BlockSaveError`); on its own it has a Save button.
+   */
   onSave?: (sheet: Record<string, unknown>) => Promise<unknown> | void
   /** Without it the discarded list shows the definitions only: no data, no deletion. */
   review?: ReviewHost
@@ -105,6 +111,32 @@ export function SheetBuilder({ initial, onChange, onSave, review, testCharacters
   const unsaved = useMemo(() => changes(startDraft(initial), draft), [initial, draft])
   const dirty = !validation.ok || saved.json === null || JSON.stringify(validation.sheet) !== saved.json
   const entries = discardedEntries(draft)
+
+  // Inside Ajustes the bottom bar of the Ficha tab saves and discards this draft; its first template has no changes to count yet.
+  const hosted = useTabSaveBlock(
+    onSave
+      ? {
+          key: 'plantilla',
+          label: 'Plantilla de ficha',
+          order: 10,
+          dirtyCount: unsaved,
+          errorCount: errors.length,
+          errorReason: blockedReason(errors.length),
+          savableWhenClean: !(isNode(initial) && Array.isArray(initial.categories)),
+          async save() {
+            if (!validation.ok || errors.length > 0) throw new BlockSaveError(blockedReason(errors.length))
+            await onSave(validation.sheet as unknown as Record<string, unknown>)
+          },
+          discard() {
+            setDraft(startDraft(initial))
+            setSelected(0)
+            setPending(null)
+            setRestoreError(null)
+            setRemovalError(null)
+          },
+        }
+      : null,
+  )
   const sectionLabels = useMemo(() => {
     const labels = new Map<string, string>()
     for (const category of Array.isArray(draft.categories) ? draft.categories : []) {
@@ -201,6 +233,9 @@ export function SheetBuilder({ initial, onChange, onSave, review, testCharacters
     setSaving(true)
     try {
       await onSave(validation.sheet as unknown as Record<string, unknown>)
+    } catch (e) {
+      // the host already showed why (its notice); anything else is a bug and surfaces
+      if (!(e instanceof BlockSaveError || e instanceof BlockSaveCancelled)) throw e
     } finally {
       setSaving(false)
     }
@@ -209,7 +244,7 @@ export function SheetBuilder({ initial, onChange, onSave, review, testCharacters
   return (
     <BuilderContext.Provider value={api}>
       <div className="flex flex-col gap-4">
-        <SaveBar changes={unsaved} errors={errors.length} saving={saving} onSave={onSave ? save : undefined} />
+        <SaveBar changes={unsaved} errors={errors.length} saving={saving} onSave={onSave && !hosted ? save : undefined} />
         <div className="grid gap-4 min-[720px]:grid-cols-[minmax(0,200px)_minmax(0,1fr)] min-[1100px]:grid-cols-[220px_minmax(0,1fr)_minmax(0,420px)]">
           <BuilderOutline current={current} onNavigate={navigate} />
           <div ref={panels} className="min-w-0 flex flex-col gap-4">

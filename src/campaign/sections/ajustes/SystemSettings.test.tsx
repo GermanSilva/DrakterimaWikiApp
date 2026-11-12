@@ -4,6 +4,7 @@ import { ConflictError, DataError } from '../../../data'
 import { makeCampaign } from '../../../app/testing/renderApp'
 import { createFakeLayer } from '../../testing/fakeLayer'
 import { renderSection } from '../../testing/renderSection'
+import { pressBar } from './saveBarTestKit'
 import { DND5E_PROFILE } from '../../system/systemProfile'
 
 configure({ asyncUtilTimeout: 10000 })
@@ -19,7 +20,9 @@ function setup({ isDM = true }: { isDM?: boolean } = {}) {
 const section = () => screen.findByRole('region', { name: 'Sistema' })
 const group = async (name: string) => within(await section()).getByRole('group', { name })
 const type = (el: HTMLElement, value: string) => fireEvent.change(el, { target: { value } })
-const save = async () => fireEvent.click(within(await section()).getByRole('button', { name: 'Guardar sistema' }))
+const save = () => pressBar('Guardar sistema')
+// the bar only offers a save once something changed: any edit will do for the tests about what the write carries
+const touch = async () => type(within(await group('Clase')).getByLabelText('Nombre en la ficha'), 'Clase 2')
 
 describe('Ajustes: Sistema section', () => {
   it('is not shown to a player', async () => {
@@ -85,6 +88,7 @@ describe('Ajustes: Sistema section', () => {
   it('on a conflict asks to review and never overwrites', async () => {
     const { spies } = setup()
     spies.setSystemProfile.mockRejectedValueOnce(new ConflictError())
+    await touch()
     await save()
     expect(await within(await section()).findByText(/cambió mientras la editabas/)).toBeInTheDocument()
   })
@@ -92,6 +96,7 @@ describe('Ajustes: Sistema section', () => {
   it('tells when the server refuses the document', async () => {
     const { spies } = setup()
     spies.setSystemProfile.mockRejectedValueOnce(new DataError('business', 'invalid_system_profile', { message: 'invalid_system_profile', code: 'P0001', details: 'character.builtins.nivel.range' }, 'invalid_system_profile'))
+    await touch()
     await save()
     expect(await within(await section()).findByText(/El servidor no aceptó el sistema/)).toBeInTheDocument()
   })
@@ -142,6 +147,7 @@ describe('Ajustes: Sistema section, Distancias', () => {
 
   it('does not add a distance to the document when none was defined', async () => {
     const { spies } = setupWith()
+    await touch()
     await save()
     await waitFor(() => expect(spies.setSystemProfile).toHaveBeenCalledTimes(1))
     expect((spies.setSystemProfile.mock.calls[0][1] as Sent)).not.toHaveProperty('distance')

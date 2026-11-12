@@ -7,7 +7,8 @@ export type AjustesTabBadge = 'dirty' | 'error'
 export interface AjustesTabDef<Id extends string = string> {
   id: Id
   label: string
-  badge?: AjustesTabBadge
+  /** One badge, or both (a template with errors is also unsaved). Each also reads aloud: "cambios sin guardar" / "con errores". */
+  badge?: AjustesTabBadge | readonly AjustesTabBadge[]
 }
 
 export const tabButtonId = (id: string) => `ajustes-tab-${id}`
@@ -36,6 +37,7 @@ export function AjustesTabs<Id extends string>({ tabs, selected, onSelect }: { t
         <div role="tablist" aria-label="Secciones de ajustes" className="flex w-max min-w-full">
           {tabs.map((tab, i) => {
             const active = tab.id === selected
+            const badges: readonly AjustesTabBadge[] = tab.badge === undefined ? [] : typeof tab.badge === 'string' ? [tab.badge] : tab.badge
             return (
               <button
                 key={tab.id}
@@ -54,8 +56,9 @@ export function AjustesTabs<Id extends string>({ tabs, selected, onSelect }: { t
                 }`}
               >
                 {tab.label}
-                {tab.badge === 'dirty' && <span aria-hidden="true" className="h-[7px] w-[7px] rounded-full bg-accent-bright" />}
-                {tab.badge === 'error' && <span aria-hidden="true" className="border border-accent-dim px-1 py-px text-[9px] tracking-[0.1em] text-accent-bright">Error</span>}
+                {badges.includes('dirty') && <span aria-hidden="true" className="h-[7px] w-[7px] rounded-full bg-accent-bright shadow-[0_0_6px_rgba(239,68,68,0.65)]" />}
+                {badges.includes('error') && <span aria-hidden="true" className="border border-accent-dim px-1 py-px text-[9px] tracking-[0.1em] text-accent-bright">Error</span>}
+                {badges.length > 0 && <span className="sr-only">{[badges.includes('dirty') ? 'cambios sin guardar' : '', badges.includes('error') ? 'con errores' : ''].filter(Boolean).map((t) => ', ' + t).join('')}</span>}
               </button>
             )
           })}

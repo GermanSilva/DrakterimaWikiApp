@@ -5,6 +5,7 @@ import { createFakeLayer } from '../../testing/fakeLayer'
 import { renderSection } from '../../testing/renderSection'
 import { STORED_SHEET } from '../../system/builder/builderFixture'
 import { DND5E_PROFILE } from '../../system/systemProfile'
+import { pressBar, saveBar } from './saveBarTestKit'
 
 configure({ asyncUtilTimeout: 10000 })
 afterEach(() => vi.restoreAllMocks())
@@ -19,7 +20,8 @@ function setup({ isDM = true, system = profile({ sheet: STORED_SHEET }) }: { isD
 }
 const region = () => screen.findByRole('region', { name: 'Plantilla de ficha' })
 const type = (el: HTMLElement, value: string) => fireEvent.change(el, { target: { value } })
-const saveButton = async () => within(await region()).getByRole('button', { name: 'Guardar plantilla' })
+// the Ficha tab's bar is always there; its primary button saves the template
+const saveButton = async () => within(await saveBar()).getByRole('button', { name: 'Guardar plantilla' })
 const addEdad = async () => {
   const r = within(await region())
   fireEvent.click(within(r.getByRole('group', { name: 'Sección Extra' })).getByRole('button', { name: 'Agregar campo' }))
@@ -93,6 +95,7 @@ describe('Ajustes: Plantilla de ficha', () => {
 
   it('a campaign that already has a sheet saves without asking', async () => {
     const { spies } = setup()
+    await addEdad()
     fireEvent.click(await saveButton())
     await waitFor(() => expect(spies.setSystemProfile).toHaveBeenCalledTimes(1))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
@@ -101,6 +104,7 @@ describe('Ajustes: Plantilla de ficha', () => {
   it('on a conflict asks to review and never overwrites', async () => {
     const { spies } = setup()
     spies.setSystemProfile.mockRejectedValueOnce(new ConflictError())
+    await addEdad()
     fireEvent.click(await saveButton())
     expect(await within(await region()).findByText(/cambió mientras la editabas/)).toBeInTheDocument()
   })
@@ -108,6 +112,7 @@ describe('Ajustes: Plantilla de ficha', () => {
   it('tells when the server refuses the document, naming the part', async () => {
     const { spies } = setup()
     spies.setSystemProfile.mockRejectedValueOnce(new DataError('business', 'invalid_system_profile', { message: 'invalid_system_profile', code: 'P0001', details: 'sheet.categories[0].sections[0]' }, 'invalid_system_profile'))
+    await addEdad()
     fireEvent.click(await saveButton())
     expect(await within(await region()).findByText(/El servidor no aceptó el sistema \(parte: sheet\.categories\[0\]\.sections\[0\]\)/)).toBeInTheDocument()
   })
@@ -115,13 +120,14 @@ describe('Ajustes: Plantilla de ficha', () => {
   it('a save of the Sistema section keeps the sheet, and does not throw away what is being edited here', async () => {
     const { spies } = setup()
     await addEdad()
-    fireEvent.click(screen.getByRole('tab', { name: 'Sistema' })) // the Ficha draft stays mounted, hidden
+    fireEvent.click(screen.getByRole('tab', { name: /^Sistema/ })) // the Ficha draft stays mounted, hidden
     const sistema = await screen.findByRole('region', { name: 'Sistema' })
-    fireEvent.click(within(sistema).getByRole('button', { name: 'Guardar sistema' }))
+    type(within(await within(sistema).findByRole('group', { name: 'Clase' })).getByLabelText('Nombre en la ficha'), 'Oficio') // the bar saves what changed
+    await pressBar('Guardar sistema')
     await waitFor(() => expect(spies.setSystemProfile).toHaveBeenCalledTimes(1))
     expect((spies.setSystemProfile.mock.calls[0][1] as { sheet: unknown }).sheet).toEqual(STORED_SHEET)
     expect(await within(sistema).findByText('Sistema guardado.')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('tab', { name: 'Ficha' }))
+    fireEvent.click(screen.getByRole('tab', { name: /^Ficha/ }))
     expect(within(await region()).getByRole('group', { name: 'Ítem Altura' })).toBeInTheDocument()
   })
 })

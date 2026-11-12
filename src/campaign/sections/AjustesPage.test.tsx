@@ -5,6 +5,7 @@ import { here } from '../../app/testing/renderApp'
 import { createFakeLayer } from '../testing/fakeLayer'
 import { entity, renderSection } from '../testing/renderSection'
 import { downloadJson } from './ajustes/exportCampaign'
+import { pressBar } from './ajustes/saveBarTestKit'
 
 configure({ asyncUtilTimeout: 10000 })
 
@@ -168,7 +169,8 @@ describe('Ajustes: tabs', () => {
 describe('Ajustes: lottery configuration', () => {
   const setup = (options: Options = {}) => setupAjustes({ tab: 'juegos', ...options })
   const form = async () => within(await screen.findByRole('form', { name: 'Configuración de la lotería' }))
-  const save = (f: Awaited<ReturnType<typeof form>>) => fireEvent.click(f.getByRole('button', { name: 'Guardar configuración' }))
+  // the Juegos bar saves the lottery (it appears once the form has changes)
+  const save = () => pressBar('Guardar juegos')
 
   it('shows the stored values', async () => {
     setup()
@@ -185,7 +187,7 @@ describe('Ajustes: lottery configuration', () => {
     const f = await form()
     type(f.getByLabelText(/Tirada mínima/), '12')
     type(within(f.getByRole('group', { name: 'Premio común' })).getByLabelText('plata'), '4')
-    save(f)
+    save()
     expect(await screen.findByText('Configuración guardada.')).toBeInTheDocument()
     expect(spies.configPatch).toHaveBeenCalledWith(
       'c1',
@@ -198,7 +200,8 @@ describe('Ajustes: lottery configuration', () => {
       'members',
       'v1',
     )
-    save(await form())
+    type((await form()).getByLabelText(/Tirada mínima/), '13') // the bar offers a save once the form changed again
+    save()
     await waitFor(() => expect(spies.configPatch).toHaveBeenCalledTimes(2))
     expect(spies.configPatch.mock.calls[1][4]).toBe('v2')
   })
@@ -207,7 +210,8 @@ describe('Ajustes: lottery configuration', () => {
     const { spies } = setup({ config: {} as never })
     const f = await form()
     expect(f.getByLabelText(/Tirada mínima/)).toHaveValue(17)
-    save(f)
+    type(f.getByLabelText(/Tirada mínima/), '16')
+    save()
     await screen.findByText('Configuración guardada.')
     expect(spies.configPatch.mock.calls[0][4]).toBeNull()
   })
@@ -216,7 +220,7 @@ describe('Ajustes: lottery configuration', () => {
     const { spies } = setup()
     const f = await form()
     type(f.getByLabelText(/Tirada mínima/), value)
-    save(f)
+    save()
     expect(await screen.findByRole('alert')).toHaveTextContent('entre 1 y 19')
     expect(spies.configPatch).not.toHaveBeenCalled()
   })
@@ -225,7 +229,7 @@ describe('Ajustes: lottery configuration', () => {
     const { spies } = setup()
     const f = await form()
     type(within(f.getByRole('group', { name: 'Premio común' })).getByLabelText('oro'), value)
-    save(f)
+    save()
     expect(await screen.findByRole('alert')).toHaveTextContent('números enteros de 0 o más')
     expect(spies.configPatch).not.toHaveBeenCalled()
   })
@@ -235,7 +239,7 @@ describe('Ajustes: lottery configuration', () => {
     const f = await form()
     spies.configRows.set('loteria', { value: { commonMinRoll: 9, commonPrize: { gp: 1 }, specialPrize: { gp: 1 } }, updated_at: 'v7', visibility: 'members' })
     type(f.getByLabelText(/Tirada mínima/), '12')
-    save(f)
+    save()
     expect(await screen.findByRole('alert')).toHaveTextContent('cambió mientras la editabas')
     await waitFor(() => expect(screen.getByLabelText(/Tirada mínima/)).toHaveValue(9))
     expect(spies.configRows.get('loteria')?.value.commonMinRoll).toBe(9) // the other writer's value is untouched
@@ -246,7 +250,8 @@ describe('Ajustes: lottery configuration', () => {
     const { spies } = setup()
     spies.configPatch.mockRejectedValueOnce(reason('dm_only'))
     const f = await form()
-    save(f)
+    type(f.getByLabelText(/Tirada mínima/), '16')
+    save()
     expect(await screen.findByRole('alert')).toHaveTextContent('Solo el DM puede hacer esto.')
   })
 

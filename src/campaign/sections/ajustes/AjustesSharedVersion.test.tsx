@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ConflictError } from '../../../data'
 import { createFakeLayer } from '../../testing/fakeLayer'
 import { renderSection } from '../../testing/renderSection'
+import { pressBar } from './saveBarTestKit'
 
 configure({ asyncUtilTimeout: 10000 })
 afterEach(() => vi.restoreAllMocks())
@@ -20,7 +21,6 @@ const type = (el: HTMLElement, value: string) => fireEvent.change(el, { target: 
 const rename = async (section: string, item: string, field: string, value: string) =>
   type(within(await within(await region(section)).findByRole('listitem', { name: item })).getByLabelText(field), value)
 const openTab = (name: string) => fireEvent.click(screen.getByRole('tab', { name }))
-const press = async (section: string, name: string) => fireEvent.click(within(await region(section)).getByRole('button', { name }))
 
 describe('Ajustes: shared campaign version across sections', () => {
   it('a quick save in a second section uses the version the first one returned, before the reload lands', async () => {
@@ -30,12 +30,12 @@ describe('Ajustes: shared campaign version across sections', () => {
     vi.mocked(data.listMyCampaigns).mockImplementation(() => new Promise(() => undefined))
 
     await rename('Regiones', 'Norte', 'Nombre', 'Norte 2')
-    await press('Regiones', 'Guardar regiones')
+    await pressBar('Guardar campaña')
     expect(await within(await region('Regiones')).findByText('Regiones guardadas.')).toBeInTheDocument()
 
     openTab('Ficha')
     await rename('Campos de personaje', 'Lema', 'Nombre del campo', 'Lema 2')
-    await press('Campos de personaje', 'Guardar campos')
+    await pressBar('Guardar plantilla')
     expect(await within(await region('Campos de personaje')).findByText('Campos guardados.')).toBeInTheDocument()
 
     expect(spies.updateCampaign.mock.calls.map((c) => c[2])).toEqual(['2026-01-01T00:00:00Z', 'u1'])
@@ -51,7 +51,7 @@ describe('Ajustes: shared campaign version across sections', () => {
 
     openTab('Ficha')
     await rename('Campos de personaje', 'Lema', 'Nombre del campo', 'Lema 2')
-    await press('Campos de personaje', 'Guardar campos')
+    await pressBar('Guardar plantilla')
     expect(await within(await region('Campos de personaje')).findByText(/cambió mientras la editabas/)).toBeInTheDocument()
     await waitFor(() => expect(spies.updateCampaign).toHaveBeenCalledTimes(1))
     await expect(spies.updateCampaign.mock.results[0].value).rejects.toBeInstanceOf(ConflictError)

@@ -1,10 +1,13 @@
 import { useState, type FormEvent } from 'react'
-import { btnSecondary, inputCls } from '../../../constants'
+import { inputCls } from '../../../constants'
 import type { CampaignConfig } from '../../../data'
 import { parseSheetLoteriaConfig, type Denomination } from '../../games/coins'
+import { countChanges } from './tabSave/dirty'
+import { BlockSaveError } from './tabSave/tabSaveContext'
+import { useTabSaveBlock } from './tabSave/useTabSaveBlock'
 
-const MIN_ROLL = 1
-const MAX_ROLL = 19
+export const MIN_ROLL = 1
+export const MAX_ROLL = 19
 const WHOLE = /^\d{1,9}$/
 
 export interface SheetLoteriaValues {
@@ -62,7 +65,8 @@ function DenominationFields({
 
 /**
  * The lottery prize editor of a campaign whose sheet defines the coin denominations (S12, S28): one input per denomination,
- * in the order of the coin table rows, labelled as the sheet labels them. Same contract as the legacy form of Ajustes.
+ * in the order of the coin table rows, labelled as the sheet labels them. It registers with the save bar of the Juegos tab;
+ * `onSave` writes the values (a failure is thrown as a `BlockSaveError` after its notice is shown).
  */
 export function SheetLoteriaForm({
   row, denominations, notice, onSave,
@@ -73,33 +77,42 @@ export function SheetLoteriaForm({
   onSave: (values: SheetLoteriaValues, base: string | null) => Promise<void>
 }) {
   const initial = parseSheetLoteriaConfig(row?.value, denominations)
-  const [minRoll, setMinRoll] = useState(String(initial.commonMinRoll))
-  const [common, setCommon] = useState<PrizeText>(() => prizeText(initial.commonPrize, denominations))
-  const [special, setSpecial] = useState<PrizeText>(() => prizeText(initial.specialPrize, denominations))
-  const [saving, setSaving] = useState(false)
+  const start = { minRoll: String(initial.commonMinRoll), common: prizeText(initial.commonPrize, denominations), special: prizeText(initial.specialPrize, denominations) }
+  const [minRoll, setMinRoll] = useState(start.minRoll)
+  const [common, setCommon] = useState<PrizeText>(start.common)
+  const [special, setSpecial] = useState<PrizeText>(start.special)
   const [invalid, setInvalid] = useState<string | null>(null)
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    const min = Number(minRoll)
-    if (minRoll.trim() === '' || !Number.isInteger(min) || min < MIN_ROLL || min > MAX_ROLL) {
-      setInvalid(`La tirada mínima debe ser un número entero entre ${MIN_ROLL} y ${MAX_ROLL}.`)
-      return
-    }
-    const commonPrize = parsePrize(common, denominations)
-    const specialPrize = parsePrize(special, denominations)
-    if (!commonPrize || !specialPrize) {
-      setInvalid('Los premios deben ser números enteros de 0 o más.')
-      return
-    }
-    setInvalid(null)
-    setSaving(true)
-    try {
+  useTabSaveBlock({
+    key: 'loteria',
+    label: 'Lotería',
+    order: 10,
+    dirtyCount: countChanges(start, { minRoll, common, special }),
+    async save() {
+      const refuse = (text: string): never => {
+        setInvalid(text)
+        throw new BlockSaveError(text)
+      }
+      const min = Number(minRoll)
+      if (minRoll.trim() === '' || !Number.isInteger(min) || min < MIN_ROLL || min > MAX_ROLL) {
+        refuse(`La tirada mínima debe ser un número entero entre ${MIN_ROLL} y ${MAX_ROLL}.`)
+      }
+      const commonPrize = parsePrize(common, denominations)
+      const specialPrize = parsePrize(special, denominations)
+      if (!commonPrize || !specialPrize) return refuse('Los premios deben ser números enteros de 0 o más.')
+      setInvalid(null)
       await onSave({ commonMinRoll: min, commonPrize, specialPrize }, row?.updated_at ?? null)
-    } finally {
-      setSaving(false)
-    }
-  }
+    },
+    discard() {
+      setMinRoll(start.minRoll)
+      setCommon(start.common)
+      setSpecial(start.special)
+      setInvalid(null)
+    },
+  })
+
+  // The tab's save bar saves; Enter in a field must not submit anything by itself.
+  const submit = (e: FormEvent) => e.preventDefault()
 
   return (
     <form noValidate onSubmit={submit} className="bg-bg-card border border-border-base px-5 py-4 flex flex-col gap-4" aria-label="Configuración de la lotería">
@@ -131,11 +144,6 @@ export function SheetLoteriaForm({
           {notice.text}
         </p>
       )}
-      <div>
-        <button type="submit" className={btnSecondary} disabled={saving}>
-          {saving ? 'Guardando…' : 'Guardar configuración'}
-        </button>
-      </div>
     </form>
   )
 }

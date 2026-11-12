@@ -1,5 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { btnSecondary, inputCls } from '../../../constants'
+import { inputCls } from '../../../constants'
 import type { DataLayer } from '../../../data'
 import { parseRegions, readRegions } from '../../adapters/hubFormPort'
 import { useCampaignServices } from '../../entities/campaignServicesContext'
@@ -10,6 +10,9 @@ import { countRegionUsage, describeUsage, REGION_TABLES, type RegionUsage } from
 import { MAX_REGIONS, newRegionDraft, regionDrafts, REGION_LABEL_MAX, validateRegions, type RegionDraft, type RegionRowErrors } from './regionsForm'
 import { KEY_MAX } from './fieldKey'
 import { mergeRegions, unreadableRegions } from './storedMerge'
+import { countRowChanges } from './tabSave/dirty'
+import { BlockSaveError, useTabSaving } from './tabSave/tabSaveContext'
+import { useTabSaveBlock } from './tabSave/useTabSaveBlock'
 import { useCampaignSave } from './useCampaignSave'
 
 const labelCls = 'block font-exo text-[10px] font-medium tracking-[0.2em] uppercase text-txt-muted mb-1.5'
@@ -106,6 +109,7 @@ function RegionRow({ row, errors, update }: { row: RegionDraft; errors: RegionRo
 
 const rowName = (r: RegionDraft) => r.label.trim() || r.key.trim() || 'región nueva'
 
+/** `onSave` returns the errors of a rejected draft (shown on the rows), or throws a `BlockSaveError` when the write cannot happen. */
 function RegionsForm({ initial, usageText, usageState, onSave }: {
   initial: RegionDraft[]
   usageText: (key: string) => string
@@ -115,7 +119,32 @@ function RegionsForm({ initial, usageText, usageState, onSave }: {
   const [rows, setRows] = useState(initial)
   const [errors, setErrors] = useState<Record<number, RegionRowErrors>>({})
   const [listError, setListError] = useState<string | undefined>()
-  const [saving, setSaving] = useState(false)
+  const saving = useTabSaving()
+
+  useTabSaveBlock({
+    key: 'regiones',
+    label: 'Regiones',
+    order: 20,
+    dirtyCount: countRowChanges(initial, rows),
+    async save() {
+      let result: Awaited<ReturnType<typeof onSave>>
+      try {
+        result = await onSave(rows)
+      } catch (e) {
+        setErrors({})
+        setListError(undefined)
+        throw e
+      }
+      setErrors(result?.errors ?? {})
+      setListError(result?.list)
+      if (result) throw new BlockSaveError('Revisá los campos marcados.')
+    },
+    discard() {
+      setRows(initial)
+      setErrors({})
+      setListError(undefined)
+    },
+  })
 
   const removal = (row: RegionDraft): RemovalPolicy => {
     if (rows.length <= 1) return { blocked: 'Tiene que quedar al menos una región.' }
@@ -126,17 +155,8 @@ function RegionsForm({ initial, usageText, usageState, onSave }: {
     return used ? { blocked: `En uso por ${used}. Cambiá la región de esos elementos antes de quitarla.` } : {}
   }
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    try {
-      const result = await onSave(rows)
-      setErrors(result?.errors ?? {})
-      setListError(result?.list)
-    } finally {
-      setSaving(false)
-    }
-  }
+  // The tab's save bar saves; Enter in a field must not submit anything by itself.
+  const submit = (e: FormEvent) => e.preventDefault()
 
   return (
     <form noValidate onSubmit={submit} aria-label="Regiones de la campaña" id="regions-form" className="flex flex-col gap-4">
@@ -154,18 +174,7 @@ function RegionsForm({ initial, usageText, usageState, onSave }: {
         listError={listError}
         disabled={saving}
       />
-      <SaveBar saving={saving} />
     </form>
-  )
-}
-
-function SaveBar({ saving }: { saving: boolean }) {
-  return (
-    <div>
-      <button type="submit" className={btnSecondary} disabled={saving}>
-        {saving ? 'Guardando…' : 'Guardar regiones'}
-      </button>
-    </div>
   )
 }
 
@@ -177,7 +186,7 @@ function SaveBar({ saving }: { saving: boolean }) {
  */
 export function RegionsSettings() {
   const { layer, campaignId } = useCampaignServices()
-  const { campaign, notice, setNotice, saves, save } = useCampaignSave()
+  const { campaign, latest, notice, setNotice, saves, save } = useCampaignSave()
   const usage = useLoad(() => fetchRegionUsage(layer, campaignId), `region-usage:${campaignId}:${saves}`)
 
   const stored = parseRegions(campaign.regions)
@@ -192,23 +201,25 @@ export function RegionsSettings() {
       setNotice({ kind: 'error', text: 'Revisá los campos marcados.' })
       return { errors: result.errors, list: result.list }
     }
+    const stop = (text: string): never => {
+      setNotice({ kind: 'error', text })
+      throw new BlockSaveError(text)
+    }
     // Re-check the use of every key about to disappear against fresh data, not the possibly stale list on screen.
-    const removed = stored.filter((s) => !result.regions.some((r) => r.key === s.key))
+    const removed = parseRegions(latest().regions).filter((s) => !result.regions.some((r) => r.key === s.key))
     if (removed.length > 0) {
       let fresh: RegionUsage
       try {
         fresh = await fetchRegionUsage(layer, campaignId)
       } catch {
-        setNotice({ kind: 'error', text: 'No pudimos verificar si las regiones quitadas están en uso. No se guardó nada.' })
-        return null
+        return stop('No pudimos verificar si las regiones quitadas están en uso. No se guardó nada.')
       }
       const inUse = removed.filter((s) => describeUsage(fresh.get(s.key)))
       if (inUse.length > 0) {
-        setNotice({ kind: 'error', text: `No se puede quitar ${inUse.map((s) => `"${s.label}" (${describeUsage(fresh.get(s.key))})`).join(', ')}: la región sigue en uso. No se guardó nada.` })
-        return null
+        return stop(`No se puede quitar ${inUse.map((s) => `"${s.label}" (${describeUsage(fresh.get(s.key))})`).join(', ')}: la región sigue en uso. No se guardó nada.`)
       }
     }
-    await save({ regions: mergeRegions(campaign.regions, result.regions) }, 'Regiones guardadas.', 'No se pudieron guardar las regiones. Intentá de nuevo.')
+    await save({ regions: mergeRegions(latest().regions, result.regions) }, 'Regiones guardadas.', 'No se pudieron guardar las regiones. Intentá de nuevo.')
     return null
   }
 

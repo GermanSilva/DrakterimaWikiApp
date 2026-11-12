@@ -10,6 +10,8 @@ export interface SavedCampaign {
 export interface SavedCampaignValue {
   saved: SavedCampaign | null
   setSaved: (saved: SavedCampaign | null) => void
+  /** The row of the latest save right now (not the last render), for writes chained inside one click. */
+  getSaved: () => SavedCampaign | null
 }
 
 /** Shared by every Ajustes editor so a save in one section is the base version of the next save in another. */

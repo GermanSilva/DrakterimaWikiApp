@@ -1,9 +1,10 @@
-import { useSearchParams } from 'react-router'
+import { useEffect } from 'react'
+import { useBlocker, useSearchParams } from 'react-router'
 import { AdminSection } from '../../components/AdminSection'
 import { PageHeader } from '../../components/Shared'
 import { useCampaign } from '../CampaignContext'
 import { SectionNotFound } from '../SectionRoute'
-import { AjustesTabPanel, AjustesTabs, type AjustesTabDef } from './ajustes/AjustesTabs'
+import { AjustesTabPanel, AjustesTabs, type AjustesTabBadge, type AjustesTabDef } from './ajustes/AjustesTabs'
 import { CampaignSettings } from './ajustes/CampaignSettings'
 import { DangerZone } from './ajustes/DangerZone'
 import { CustomFieldsSettings } from './ajustes/CustomFieldsSettings'
@@ -17,17 +18,21 @@ import { RegionsSettings } from './ajustes/RegionsSettings'
 import { SavedCampaignProvider } from './ajustes/SavedCampaignProvider'
 import { SheetBuilderSettings } from './ajustes/SheetBuilderSettings'
 import { SystemSettings } from './ajustes/SystemSettings'
+import { TabSaveBar, type BarTab } from './ajustes/tabSave/TabSaveBar'
+import { TabSaveProvider } from './ajustes/tabSave/TabSaveProvider'
+import { summarizeTab, TabScopeContext, useTabSaveApi } from './ajustes/tabSave/tabSaveContext'
 
 const TAB_IDS = ['campana', 'sistema', 'ficha', 'juegos', 'jugadores', 'datos'] as const
 type TabId = (typeof TAB_IDS)[number]
 
-const TABS: AjustesTabDef<TabId>[] = [
-  { id: 'campana', label: 'Campaña' },
-  { id: 'sistema', label: 'Sistema' },
-  { id: 'ficha', label: 'Ficha' },
-  { id: 'juegos', label: 'Juegos' },
-  { id: 'jugadores', label: 'Jugadores' },
-  { id: 'datos', label: 'Datos' },
+/** The tabs, with the label of the save of those whose blocks keep a draft (the others act immediately and have no bar). */
+const TABS: (AjustesTabDef<TabId> & Omit<BarTab, 'id' | 'label'>)[] = [
+  { id: 'campana', label: 'Campaña', saveLabel: 'Guardar campaña' },
+  { id: 'sistema', label: 'Sistema', saveLabel: 'Guardar sistema' },
+  { id: 'ficha', label: 'Ficha', saveLabel: 'Guardar plantilla', alwaysVisible: true },
+  { id: 'juegos', label: 'Juegos', saveLabel: 'Guardar juegos' },
+  { id: 'jugadores', label: 'Jugadores', saveLabel: null },
+  { id: 'datos', label: 'Datos', saveLabel: null },
 ]
 
 /** Unknown or missing `?tab=` falls back to the first tab. */
@@ -64,11 +69,29 @@ const PANELS: Record<TabId, { title: string; Block: () => JSX.Element }[]> = {
 
 /**
  * The tabbed settings: the selected tab lives in `?tab=`. Every panel stays mounted (the inactive ones are hidden) so an
- * unsaved draft survives a tab switch. Mounted only for a DM: nothing in here is requested for a player.
+ * unsaved draft survives a tab switch. Blocks with a draft register with the save bar of their tab; the tabs show a dot when
+ * theirs has unsaved changes and "Error" when it has errors that block saving. Mounted only for a DM: nothing in here is
+ * requested for a player.
  */
 function AjustesSections() {
   const [params, setParams] = useSearchParams()
   const selected = asTabId(params.get('tab'))
+  const api = useTabSaveApi()
+  const tabs = TABS.map((tab) => {
+    const { dirty, errors } = summarizeTab(api.summaries, tab.id)
+    const badge: AjustesTabBadge[] = [...(dirty > 0 ? ['dirty' as const] : []), ...(errors > 0 ? ['error' as const] : [])]
+    return badge.length > 0 ? { ...tab, badge } : tab
+  })
+
+  // Leaving Ajustes (another section, another campaign) with unsaved changes asks first; switching tabs is not leaving.
+  const unsaved = api.summaries.some((b) => b.dirtyCount > 0)
+  const blocker = useBlocker(({ currentLocation, nextLocation }) => unsaved && currentLocation.pathname !== nextLocation.pathname)
+  useEffect(() => {
+    if (blocker.state !== 'blocked') return
+    if (window.confirm('Hay cambios de Ajustes sin guardar. Si salís ahora se pierden. ¿Salir igual?')) blocker.proceed()
+    else blocker.reset()
+  }, [blocker])
+
   const select = (id: TabId) =>
     setParams(
       (prev) => {
@@ -80,16 +103,21 @@ function AjustesSections() {
     )
   return (
     <>
-      <AjustesTabs tabs={TABS} selected={selected} onSelect={select} />
-      {TAB_IDS.map((id) => (
-        <AjustesTabPanel key={id} id={id} selected={id === selected}>
-          {PANELS[id].map(({ title, Block }) => (
-            <AdminSection key={title} title={title}>
-              <Block />
-            </AdminSection>
-          ))}
-        </AjustesTabPanel>
-      ))}
+      <AjustesTabs tabs={tabs} selected={selected} onSelect={select} />
+      <div className="pb-[120px]">
+        {TAB_IDS.map((id) => (
+          <AjustesTabPanel key={id} id={id} selected={id === selected}>
+            <TabScopeContext.Provider value={id}>
+              {PANELS[id].map(({ title, Block }) => (
+                <AdminSection key={title} title={title}>
+                  <Block />
+                </AdminSection>
+              ))}
+            </TabScopeContext.Provider>
+          </AjustesTabPanel>
+        ))}
+      </div>
+      <TabSaveBar tabs={TABS} active={selected} onSelect={(id) => select(id as TabId)} />
     </>
   )
 }
@@ -104,7 +132,9 @@ export function AjustesPage() {
         {null}
       </PageHeader>
       <SavedCampaignProvider key={campaign.id}>
-        <AjustesSections />
+        <TabSaveProvider>
+          <AjustesSections />
+        </TabSaveProvider>
       </SavedCampaignProvider>
     </div>
   )

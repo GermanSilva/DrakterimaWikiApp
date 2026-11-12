@@ -1,20 +1,15 @@
-import { useState, type FormEvent, type ReactNode } from 'react'
-import { btnSecondary, inputCls } from '../../../constants'
-import { ConflictError, type Campaign } from '../../../data'
+import { useMemo, useState, type FormEvent, type ReactNode } from 'react'
+import { inputCls } from '../../../constants'
+import type { Campaign } from '../../../data'
 import { accentStyle, parseAccentColor, parseLogoUrl } from '../../branding'
-import { useCampaign } from '../../CampaignContext'
-import { useCampaignServices } from '../../entities/campaignServicesContext'
-import { describeDataError } from '../../entities/errorMessages'
-import { freshestCampaign, useSavedCampaign } from './savedCampaignContext'
 import { campaignFormInput, validateCampaignForm, LOGO_MAX, TAGLINE_MAX, type CampaignFormErrors, type CampaignFormInput } from './campaignForm'
+import { countChanges } from './tabSave/dirty'
+import { BlockSaveError } from './tabSave/tabSaveContext'
+import { useTabSaveBlock } from './tabSave/useTabSaveBlock'
+import { useCampaignSave, type Notice } from './useCampaignSave'
 
 const labelCls = 'block font-exo text-[10px] font-medium tracking-[0.2em] uppercase text-txt-muted mb-1.5'
 const FALLBACK_ACCENT = '#dc2626'
-
-interface Notice {
-  kind: 'ok' | 'error'
-  text: string
-}
 
 function Field({ id, label, hint, error, wide, children }: { id: string; label: string; hint?: string; error?: string; wide?: boolean; children: ReactNode }) {
   return (
@@ -59,21 +54,31 @@ function Preview({ values }: { values: CampaignFormInput }) {
   )
 }
 
+/** `onSave` returns the field errors of a rejected draft, or throws a `BlockSaveError` (after showing its notice) when the write fails. */
 function CampaignForm({ campaign, notice, onSave }: { campaign: Campaign; notice: Notice | null; onSave: (input: CampaignFormInput) => Promise<CampaignFormErrors | null> }) {
-  const [values, setValues] = useState<CampaignFormInput>(() => campaignFormInput(campaign))
+  const initial = useMemo(() => campaignFormInput(campaign), [campaign])
+  const [values, setValues] = useState<CampaignFormInput>(initial)
   const [errors, setErrors] = useState<CampaignFormErrors>({})
-  const [saving, setSaving] = useState(false)
   const set = (key: keyof CampaignFormInput) => (value: string) => setValues((v) => ({ ...v, [key]: value }))
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    try {
-      setErrors((await onSave(values)) ?? {})
-    } finally {
-      setSaving(false)
-    }
-  }
+  useTabSaveBlock({
+    key: 'identidad',
+    label: 'Identidad y marca',
+    order: 10,
+    dirtyCount: countChanges(initial, values),
+    async save() {
+      const found = await onSave(values)
+      setErrors(found ?? {})
+      if (found) throw new BlockSaveError('Revisá los campos marcados.')
+    },
+    discard() {
+      setValues(initial)
+      setErrors({})
+    },
+  })
+
+  // The tab's save bar saves; Enter in a field must not submit anything by itself.
+  const submit = (e: FormEvent) => e.preventDefault()
 
   const described = (id: string, hasHint: boolean, error?: string) => [hasHint ? `${id}-hint` : null, error ? `${id}-error` : null].filter(Boolean).join(' ') || undefined
   const colorPickerValue = parseAccentColor(values.accentColor.trim()) ?? parseAccentColor(campaign.branding?.accent_color) ?? FALLBACK_ACCENT
@@ -163,51 +168,29 @@ function CampaignForm({ campaign, notice, onSave }: { campaign: Campaign; notice
           {notice.text}
         </p>
       )}
-      <div className="md:col-span-2">
-        <button type="submit" className={btnSecondary} disabled={saving}>
-          {saving ? 'Guardando…' : 'Guardar campaña'}
-        </button>
-      </div>
     </form>
   )
 }
 
 /**
- * Name, logo, accent colour and tagline of the campaign (DM only). The slug is shown but locked. A save writes
+ * Name, logo, accent colour and tagline of the campaign (DM only). The slug is shown but locked. The tab's save bar writes
  * through `campaigns.updateCampaign` against the version the form was built from, then reloads the campaign context
- * so the header, logo and accent refresh without a page reload.
+ * so the header, logo and accent refresh without a page reload. The draft survives a save of another block of the
+ * campaign row (the regions): the form is rebuilt only when the values it edits change in the stored campaign.
  */
 export function CampaignSettings() {
-  const { layer, campaignId } = useCampaignServices()
-  const { campaign: loaded, reload } = useCampaign()
-  // The freshest row any Ajustes section saved (shared), so a save elsewhere is this form's base version.
-  const { saved, setSaved } = useSavedCampaign()
-  const [notice, setNotice] = useState<Notice | null>(null)
-  const campaign = freshestCampaign(loaded, saved)
+  const { campaign, notice, setNotice, saves, save } = useCampaignSave()
 
-  async function save(input: CampaignFormInput): Promise<CampaignFormErrors | null> {
+  async function onSave(input: CampaignFormInput): Promise<CampaignFormErrors | null> {
     setNotice(null)
     const result = validateCampaignForm(input)
     if (!result.ok) {
       setNotice({ kind: 'error', text: 'Revisá los campos marcados.' })
       return result.errors
     }
-    try {
-      const row = await layer.campaigns.updateCampaign(campaignId, { name: result.values.name, branding: result.values.branding }, campaign.updated_at)
-      setSaved({ row, over: loaded })
-      setNotice({ kind: 'ok', text: 'Campaña guardada.' })
-      reload()
-    } catch (e) {
-      if (e instanceof ConflictError) {
-        setSaved(null)
-        setNotice({ kind: 'error', text: 'La campaña cambió mientras la editabas. Cargamos los valores actuales: revisalos y guardá de nuevo.' })
-        reload()
-      } else {
-        setNotice({ kind: 'error', text: describeDataError(e, 'No se pudo guardar la campaña. Intentá de nuevo.') })
-      }
-    }
+    await save({ name: result.values.name, branding: result.values.branding }, 'Campaña guardada.', 'No se pudo guardar la campaña. Intentá de nuevo.')
     return null
   }
 
-  return <CampaignForm key={campaign.updated_at} campaign={campaign} notice={notice} onSave={save} />
+  return <CampaignForm key={`${saves}:${JSON.stringify(campaignFormInput(campaign))}`} campaign={campaign} notice={notice} onSave={onSave} />
 }

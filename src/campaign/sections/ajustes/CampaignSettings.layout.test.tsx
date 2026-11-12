@@ -29,12 +29,12 @@ describe('Ajustes: campaign box layout (S41)', () => {
     }
   })
 
-  it('lets the colour row, the preview and the save button span both columns', async () => {
+  it('lets the colour row and the preview span both columns; the save lives in the bar of the tab, not in the form', async () => {
     const made = createFakeLayer({ campaign: STORED as never })
     renderSection('/c/demo/ajustes', { layer: made.layer, isDM: true, campaign: STORED as never })
     const form = await screen.findByRole('form', { name: 'Datos de la campaña' })
     expect(document.getElementById('campaign-accent-hint')?.parentElement).toHaveClass('md:col-span-2')
     expect(within(form).getByRole('group', { name: 'Vista previa' })).toHaveClass('md:col-span-2')
-    expect(within(form).getByRole('button', { name: 'Guardar campaña' }).parentElement).toHaveClass('md:col-span-2')
+    expect(within(form).queryByRole('button')).toBeNull()
   })
 })

@@ -4,6 +4,7 @@ import { ConflictError, DataError } from '../../../data'
 import { makeCampaign } from '../../../app/testing/renderApp'
 import { createFakeLayer } from '../../testing/fakeLayer'
 import { renderSection } from '../../testing/renderSection'
+import { pressBar } from './saveBarTestKit'
 
 configure({ asyncUtilTimeout: 10000 })
 afterEach(() => vi.restoreAllMocks())
@@ -63,7 +64,7 @@ describe('Ajustes: campaign section', () => {
     // the loader returns the saved campaign on reload
     const saved = makeCampaign({ name: 'Leyendas', branding: { ...STORED.branding, accent_color: '#0ea5e9' }, updated_at: 'u1' })
     vi.mocked(data.listMyCampaigns).mockResolvedValue([saved])
-    fireEvent.click(within(await section()).getByRole('button', { name: 'Guardar campaña' }))
+    await pressBar('Guardar campaña')
 
     expect(await within(await section()).findByText('Campaña guardada.')).toBeInTheDocument()
     expect(spies.updateCampaign).toHaveBeenCalledWith(
@@ -83,7 +84,7 @@ describe('Ajustes: campaign section', () => {
     type(await field('Banner (URL https, opcional)'), 'http://x.test/b.jpg')
     type(await field('Color de acento (opcional)'), 'red')
     type(await field('Pre-título (opcional)'), 'x'.repeat(36))
-    fireEvent.click(within(await section()).getByRole('button', { name: 'Guardar campaña' }))
+    await pressBar('Guardar campaña')
 
     const name = await field('Nombre')
     await waitFor(() => expect(name).toHaveAttribute('aria-invalid', 'true'))
@@ -103,7 +104,7 @@ describe('Ajustes: campaign section', () => {
     spies.updateCampaign.mockRejectedValueOnce(new ConflictError())
     vi.mocked(data.listMyCampaigns).mockResolvedValue([theirs])
     type(await field('Nombre'), 'Mine')
-    fireEvent.click(within(await section()).getByRole('button', { name: 'Guardar campaña' }))
+    await pressBar('Guardar campaña')
 
     expect(await within(await section()).findByText(/cambió mientras la editabas/)).toBeInTheDocument()
     await waitFor(async () => expect(await field('Nombre')).toHaveValue('Renamed by another DM'))
@@ -114,7 +115,7 @@ describe('Ajustes: campaign section', () => {
     const { spies } = setup()
     spies.updateCampaign.mockRejectedValueOnce(new DataError('permission', 'nope'))
     type(await field('Nombre'), 'Mine')
-    fireEvent.click(within(await section()).getByRole('button', { name: 'Guardar campaña' }))
+    await pressBar('Guardar campaña')
     expect(await within(await section()).findByText('No tenés permiso para hacer esto.')).toBeInTheDocument()
     expect(await field('Nombre')).toHaveValue('Mine')
   })
@@ -124,10 +125,10 @@ describe('Ajustes: campaign section', () => {
     await section()
     vi.mocked(data.listMyCampaigns).mockResolvedValue([makeCampaign({ name: 'One', branding: STORED.branding, updated_at: 'u1' })])
     type(await field('Nombre'), 'One')
-    fireEvent.click(within(await section()).getByRole('button', { name: 'Guardar campaña' }))
+    await pressBar('Guardar campaña')
     await within(await section()).findByText('Campaña guardada.')
     type(await field('Nombre'), 'Two')
-    fireEvent.click(within(await section()).getByRole('button', { name: 'Guardar campaña' }))
+    await pressBar('Guardar campaña')
     await waitFor(() => expect(spies.updateCampaign).toHaveBeenCalledTimes(2))
     expect(spies.updateCampaign.mock.calls[1][2]).toBe('u1')
   })

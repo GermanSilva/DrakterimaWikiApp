@@ -1,10 +1,13 @@
 import { useState, type FormEvent, type ReactNode } from 'react'
-import { btnSecondary, inputCls } from '../../../constants'
+import { inputCls } from '../../../constants'
 import { parseCharacterFields } from '../../adapters/hubFormPort'
 import { FIELD_LABEL_MAX, fieldDrafts, MAX_CUSTOM_FIELDS, newFieldDraft, validateCustomFields, type FieldDraft, type FieldRowErrors } from './customFieldsForm'
 import { KEY_MAX } from './fieldKey'
 import { ListEditor } from './ListEditor'
 import { mergeCharacterFields, unreadableCharacterFields } from './storedMerge'
+import { countRowChanges } from './tabSave/dirty'
+import { BlockSaveError, useTabSaving } from './tabSave/tabSaveContext'
+import { useTabSaveBlock } from './tabSave/useTabSaveBlock'
 import { UnreadableNotice } from './UnreadableNotice'
 import { useCampaignSave } from './useCampaignSave'
 
@@ -73,23 +76,40 @@ function FieldRow({ row, errors, update }: { row: FieldDraft; errors: FieldRowEr
 
 const rowName = (r: FieldDraft) => r.label.trim() || r.key.trim() || 'campo nuevo'
 
+/** `onSave` returns the errors of a rejected draft (shown on the rows), or throws a `BlockSaveError` when the write fails. */
 function CustomFieldsForm({ initial, onSave }: { initial: FieldDraft[]; onSave: (rows: FieldDraft[]) => Promise<{ errors: Record<number, FieldRowErrors>; list?: string } | null> }) {
   const [rows, setRows] = useState(initial)
   const [errors, setErrors] = useState<Record<number, FieldRowErrors>>({})
   const [listError, setListError] = useState<string | undefined>()
-  const [saving, setSaving] = useState(false)
+  const saving = useTabSaving()
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    try {
-      const result = await onSave(rows)
+  useTabSaveBlock({
+    key: 'campos',
+    label: 'Campos de personaje',
+    order: 20,
+    dirtyCount: countRowChanges(initial, rows),
+    async save() {
+      let result: Awaited<ReturnType<typeof onSave>>
+      try {
+        result = await onSave(rows)
+      } catch (e) {
+        setErrors({})
+        setListError(undefined)
+        throw e
+      }
       setErrors(result?.errors ?? {})
       setListError(result?.list)
-    } finally {
-      setSaving(false)
-    }
-  }
+      if (result) throw new BlockSaveError('Revisá los campos marcados.')
+    },
+    discard() {
+      setRows(initial)
+      setErrors({})
+      setListError(undefined)
+    },
+  })
+
+  // The tab's save bar saves; Enter in a field must not submit anything by itself.
+  const submit = (e: FormEvent) => e.preventDefault()
 
   return (
     <form noValidate onSubmit={submit} aria-label="Campos de personaje de la campaña" className="flex flex-col gap-4">
@@ -107,11 +127,6 @@ function CustomFieldsForm({ initial, onSave }: { initial: FieldDraft[]; onSave: 
         listError={listError}
         disabled={saving}
       />
-      <div>
-        <button type="submit" className={btnSecondary} disabled={saving}>
-          {saving ? 'Guardando…' : 'Guardar campos'}
-        </button>
-      </div>
     </form>
   )
 }
@@ -122,7 +137,7 @@ function CustomFieldsForm({ initial, onSave }: { initial: FieldDraft[]; onSave: 
  * stored in each character and come back if a field with the same key is added again.
  */
 export function CustomFieldsSettings() {
-  const { campaign, notice, setNotice, saves, save } = useCampaignSave()
+  const { campaign, latest, notice, setNotice, saves, save } = useCampaignSave()
   const stored = parseCharacterFields(campaign.character_custom_fields)
   const unreadable = unreadableCharacterFields(campaign.character_custom_fields)
 
@@ -133,7 +148,7 @@ export function CustomFieldsSettings() {
       setNotice({ kind: 'error', text: 'Revisá los campos marcados.' })
       return { errors: result.errors, list: result.list }
     }
-    await save({ character_custom_fields: mergeCharacterFields(campaign.character_custom_fields, result.fields) }, 'Campos guardados.', 'No se pudieron guardar los campos. Intentá de nuevo.')
+    await save({ character_custom_fields: mergeCharacterFields(latest().character_custom_fields, result.fields) }, 'Campos guardados.', 'No se pudieron guardar los campos. Intentá de nuevo.')
     return null
   }
 

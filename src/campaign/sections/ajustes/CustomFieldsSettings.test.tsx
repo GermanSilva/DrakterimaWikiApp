@@ -4,6 +4,7 @@ import { ConflictError } from '../../../data'
 import { makeCampaign } from '../../../app/testing/renderApp'
 import { createFakeLayer } from '../../testing/fakeLayer'
 import { renderSection } from '../../testing/renderSection'
+import { pressBar } from './saveBarTestKit'
 
 configure({ asyncUtilTimeout: 10000 })
 afterEach(() => vi.restoreAllMocks())
@@ -22,7 +23,7 @@ const section = () => screen.findByRole('region', { name: 'Campos de personaje' 
 const row = async (name: string) => within(await section()).findByRole('listitem', { name })
 const type = (el: HTMLElement, value: string) => fireEvent.change(el, { target: { value } })
 const click = async (name: string | RegExp) => fireEvent.click(within(await section()).getByRole('button', { name }))
-const save = () => click('Guardar campos')
+const save = () => pressBar('Guardar plantilla')
 
 describe('Ajustes: custom character fields section', () => {
   it('is not offered to a player', async () => {

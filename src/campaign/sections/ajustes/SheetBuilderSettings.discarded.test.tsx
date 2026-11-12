@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { ConflictError, DataError } from '../../../data'
 import { createFakeLayer } from '../../testing/fakeLayer'
 import { renderSection } from '../../testing/renderSection'
+import { pressBar } from './saveBarTestKit'
 import { STORED_SHEET } from '../../system/builder/builderFixture'
 import { DND5E_PROFILE } from '../../system/systemProfile'
 
@@ -107,7 +108,7 @@ describe('Ajustes: Campos descartados', () => {
     const card = await discardedItem('Magralita')
     fireEvent.click(within(card).getByRole('button', { name: 'Restaurar' }))
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
-    fireEvent.click(within(await region()).getByRole('button', { name: 'Guardar plantilla' }))
+    await pressBar('Guardar plantilla')
     await waitFor(() => expect(spies.setSystemProfile).toHaveBeenCalledTimes(1))
     const sent = spies.setSystemProfile.mock.calls[0][1] as { sheet: { categories: { sections: { items: { key: string }[] }[] }[]; discarded?: unknown } }
     expect(sent.sheet.categories[0].sections[0].items.map((i) => i.key)).toEqual(['edad', 'vida', 'notas_pj', 'magralita'])

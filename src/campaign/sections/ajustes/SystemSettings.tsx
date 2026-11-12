@@ -5,6 +5,9 @@ import { UNIT_MAX } from '../../system/distance/distance'
 import { newUnit, systemDraft, validateSystem, type BuiltinDraft, type SystemDraft, type SystemErrors, type UnitDraft, type UnitErrors } from './systemForm'
 import { AdminSection } from '../../../components/AdminSection'
 import { HomebrewSettings } from './HomebrewSettings'
+import { countChanges } from './tabSave/dirty'
+import { BlockSaveError } from './tabSave/tabSaveContext'
+import { useTabSaveBlock } from './tabSave/useTabSaveBlock'
 import { useCampaignSave } from './useCampaignSave'
 
 const labelCls = 'block font-exo text-[10px] font-medium tracking-[0.2em] uppercase text-txt-muted mb-1.5'
@@ -225,21 +228,36 @@ function DistanceFieldset({ units, errors, onChange }: { units: UnitDraft[] | nu
   )
 }
 
+/** `onSave` returns the errors of a rejected draft (shown on the fields), or throws a `BlockSaveError` when the write fails. */
 function SystemForm({ initial, onSave }: { initial: SystemDraft; onSave: (draft: SystemDraft) => Promise<SystemErrors | null> }) {
   const [draft, setDraft] = useState(initial)
   const [errors, setErrors] = useState<SystemErrors>({})
-  const [saving, setSaving] = useState(false)
   const rangeId = useId()
 
-  async function submit(e: FormEvent) {
-    e.preventDefault()
-    setSaving(true)
-    try {
-      setErrors((await onSave(draft)) ?? {})
-    } finally {
-      setSaving(false)
-    }
-  }
+  useTabSaveBlock({
+    key: 'sistema',
+    label: 'Datos del sistema',
+    order: 10,
+    dirtyCount: countChanges(initial, draft),
+    async save() {
+      let found: SystemErrors | null
+      try {
+        found = await onSave(draft)
+      } catch (e) {
+        setErrors({})
+        throw e
+      }
+      setErrors(found ?? {})
+      if (found) throw new BlockSaveError('Revisá los campos marcados.')
+    },
+    discard() {
+      setDraft(initial)
+      setErrors({})
+    },
+  })
+
+  // The tab's save bar saves; Enter in a field must not submit anything by itself.
+  const submit = (e: FormEvent) => e.preventDefault()
 
   const level = (key: 'min' | 'max', label: string) => (
     <Field id={`${rangeId}-${key}`} label={label}>
@@ -291,11 +309,6 @@ function SystemForm({ initial, onSave }: { initial: SystemDraft; onSave: (draft:
 
       <DistanceFieldset units={draft.distance} errors={errors.distance} onChange={(distance) => setDraft((d) => ({ ...d, distance }))} />
 
-      <div>
-        <button type="submit" className={btnSecondary} disabled={saving}>
-          {saving ? 'Guardando…' : 'Guardar sistema'}
-        </button>
-      </div>
     </form>
   )
 }
@@ -306,12 +319,13 @@ function SystemForm({ initial, onSave }: { initial: SystemDraft; onSave: (draft:
  * elsewhere (currency, modules) travel unchanged.
  */
 export function SystemSettings() {
-  const { campaign, notice, setNotice, saves, saveSystem } = useCampaignSave()
+  const { campaign, latest, notice, setNotice, saves, saveSystem } = useCampaignSave()
   const stored = parseSystemProfile(campaign.system_profile)
 
   async function onSave(draft: SystemDraft): Promise<SystemErrors | null> {
     setNotice(null)
-    const result = validateSystem(draft, stored)
+    // over the document as it is now (the sheet template may have been saved since this render)
+    const result = validateSystem(draft, parseSystemProfile(latest().system_profile))
     if (!result.ok) {
       setNotice({ kind: 'error', text: 'Revisá los campos marcados.' })
       return result.errors
@@ -320,8 +334,10 @@ export function SystemSettings() {
     return null
   }
 
-  // Remount the draft when a save succeeded or the stored document changed (another DM, conflict re-read).
-  const formKey = `${saves}:${JSON.stringify(campaign.system_profile)}`
+  // Rebuild the draft when a save of this form succeeded or the part of the document it edits changed (another DM, conflict
+  // re-read). A save of another block of the same document (the sheet template) changes the rest of the document, not this
+  // draft: the form keeps what is typed and its next save is written over the document as saved by then.
+  const formKey = `${saves}:${JSON.stringify(systemDraft(stored))}`
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[12px] text-txt-secondary">

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { dnd5eProfile } from '../../system/systemProfile'
 import { createFakeLayer } from '../../testing/fakeLayer'
 import { renderSection } from '../../testing/renderSection'
+import { pressBar } from './saveBarTestKit'
 
 configure({ asyncUtilTimeout: 10000 })
 
@@ -49,7 +50,7 @@ describe('Ajustes: lottery prizes on a campaign with a sheet (S12, S28)', () => 
     const f = await form()
     type(f.getByLabelText(/Tirada mínima/), '12')
     type(within(f.getByRole('group', { name: 'Premio común' })).getByLabelText('Sickle'), '3')
-    fireEvent.click(f.getByRole('button', { name: 'Guardar configuración' }))
+    await pressBar('Guardar juegos')
     expect(await screen.findByText('Configuración guardada.')).toBeInTheDocument()
     expect(spies.configPatch).toHaveBeenCalledExactlyOnceWith(
       'c1', 'loteria',
@@ -62,7 +63,7 @@ describe('Ajustes: lottery prizes on a campaign with a sheet (S12, S28)', () => 
     const { spies } = setup(withSheet(sheetOf([coins(ROWS, { rewardDestination: true })])))
     const f = await form()
     type(within(f.getByRole('group', { name: 'Premio común' })).getByLabelText('Knut'), '-1')
-    fireEvent.click(f.getByRole('button', { name: 'Guardar configuración' }))
+    await pressBar('Guardar juegos')
     expect(await screen.findByText('Los premios deben ser números enteros de 0 o más.')).toBeInTheDocument()
     expect(spies.configPatch).not.toHaveBeenCalled()
   })
@@ -88,7 +89,7 @@ describe('Ajustes: lottery prizes on a campaign without a sheet are as before', 
     const common = within(f.getByRole('group', { name: 'Premio común' }))
     expect(common.getAllByRole('spinbutton')).toHaveLength(5)
     type(common.getByLabelText('plata'), '4')
-    fireEvent.click(f.getByRole('button', { name: 'Guardar configuración' }))
+    await pressBar('Guardar juegos')
     await waitFor(() => expect(spies.configPatch).toHaveBeenCalledTimes(1))
     expect(spies.configPatch.mock.calls[0][2]).toEqual({
       commonMinRoll: 15, commonPrize: { cp: 0, sp: 4, ep: 0, gp: 2, pp: 0 }, specialPrize: { cp: 0, sp: 0, ep: 0, gp: 5, pp: 1 },

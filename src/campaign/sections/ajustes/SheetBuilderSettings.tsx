@@ -6,9 +6,16 @@ import { SheetBuilder } from '../../system/builder/SheetBuilder'
 import { parseSystemProfile } from '../../system/systemProfile'
 import { ConfirmDialog } from './ConfirmDialog'
 import { useDiscardedReview } from './SheetBuilderReview'
+import { BlockSaveCancelled } from './tabSave/tabSaveContext'
 import { useCampaignSave } from './useCampaignSave'
 
 type Sheet = Record<string, unknown>
+
+/** The first template waiting for the DM's confirmation: the tab's save waits on `settle` until it is confirmed or cancelled. */
+interface FirstSave {
+  sheet: Sheet
+  settle: { resolve: () => void; reject: (reason: unknown) => void }
+}
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 
@@ -37,17 +44,18 @@ function useTestCharacters(): readonly TestCharacter[] {
 }
 
 /**
- * The character sheet template of the campaign (DM only). The builder validates on every change; saving writes the whole
- * system document through the same guarded path as the "Sistema" section, with only `sheet` replaced: every other key of
- * the stored document (distance, currency, modules...) travels exactly as stored.
+ * The character sheet template of the campaign (DM only). The builder validates on every change; the Ficha tab's bar saves it,
+ * writing the whole system document through the same guarded path as the "Sistema" section, with only `sheet` replaced: every other
+ * key of the stored document (distance, currency, modules...) travels exactly as stored, as the document is when the save runs
+ * (so a Sistema save made meanwhile is kept, and this draft is not rebuilt by it).
  */
 export function SheetBuilderSettings() {
-  const { campaign, notice, setNotice, saves, saveSystem } = useCampaignSave()
+  const { campaign, latest, notice, setNotice, saves, saveSystem } = useCampaignSave()
   const raw: unknown = campaign.system_profile
   const stored = parseSystemProfile(raw)
   const hasSheet = stored.sheet !== undefined
   const testCharacters = useTestCharacters()
-  const [asking, setAsking] = useState<Sheet | null>(null)
+  const [asking, setAsking] = useState<FirstSave | null>(null)
   const [busy, setBusy] = useState(false)
   const discarded = isRecord(stored.sheet) && Array.isArray(stored.sheet.discarded) && stored.sheet.discarded.length > 0
   const review = useDiscardedReview({ enabled: discarded, campaign, setNotice })
@@ -56,24 +64,35 @@ export function SheetBuilderSettings() {
 
   async function write(sheet: Sheet): Promise<void> {
     setNotice(null)
-    const base = isRecord(raw) && raw.version === 1 ? raw : stored
+    // over the document as it is now (the Sistema section may have been saved since this render)
+    const current: unknown = latest().system_profile
+    const base = isRecord(current) && current.version === 1 ? current : parseSystemProfile(current)
     await saveSystem({ ...base, sheet }, 'Plantilla guardada.', 'No se pudo guardar la plantilla. Intentá de nuevo.')
   }
 
+  /** Throws when the write fails; the first template resolves once the DM confirmed and the write finished (or rejects as cancelled). */
   async function onSave(sheet: Sheet): Promise<void> {
-    if (!hasSheet) setAsking(sheet)
-    else await write(sheet)
+    if (hasSheet) return write(sheet)
+    await new Promise<void>((resolve, reject) => setAsking({ sheet, settle: { resolve, reject } }))
   }
 
   async function confirmFirst() {
     if (!asking) return
     setBusy(true)
     try {
-      await write(asking)
+      await write(asking.sheet)
+      asking.settle.resolve()
+    } catch (e) {
+      asking.settle.reject(e)
     } finally {
       setBusy(false)
       setAsking(null)
     }
+  }
+
+  function cancelFirst() {
+    asking?.settle.reject(new BlockSaveCancelled())
+    setAsking(null)
   }
 
   // Remount the draft when a save succeeded or the stored sheet changed (another DM, conflict re-read); a save of another
@@ -104,7 +123,7 @@ export function SheetBuilderSettings() {
         </p>
       )}
       {asking && (
-        <ConfirmDialog title="Guardar la primera plantilla" confirmLabel="Guardar plantilla" busyLabel="Guardando…" busy={busy} error={null} onConfirm={confirmFirst} onClose={() => setAsking(null)}>
+        <ConfirmDialog title="Guardar la primera plantilla" confirmLabel="Guardar plantilla" busyLabel="Guardando…" busy={busy} error={null} onConfirm={confirmFirst} onClose={cancelFirst}>
           <p>
             Al guardar la primera plantilla, la ficha clásica deja de usarse en esta campaña: el formulario, el detalle, las tarjetas de personajes y la sesión en vivo leen la
             plantilla. Asigná los roles (vida, clase de armadura, velocidad, iniciativa) o esos datos dejan de mostrarse. Los datos de los personajes no se borran.

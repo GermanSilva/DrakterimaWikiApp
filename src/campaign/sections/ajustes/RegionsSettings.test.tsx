@@ -4,6 +4,7 @@ import { ConflictError, type FlatEntity } from '../../../data'
 import { makeCampaign } from '../../../app/testing/renderApp'
 import { createFakeLayer } from '../../testing/fakeLayer'
 import { entity, renderSection } from '../../testing/renderSection'
+import { pressBar } from './saveBarTestKit'
 
 configure({ asyncUtilTimeout: 10000 })
 afterEach(() => vi.restoreAllMocks())
@@ -24,7 +25,7 @@ const section = () => screen.findByRole('region', { name: 'Regiones' })
 const row = async (name: string) => within(await section()).findByRole('listitem', { name })
 const type = (el: HTMLElement, value: string) => fireEvent.change(el, { target: { value } })
 const click = async (name: string | RegExp) => fireEvent.click(within(await section()).getByRole('button', { name }))
-const save = () => click('Guardar regiones')
+const save = () => pressBar('Guardar campaña')
 const savedRegions = (spies: ReturnType<typeof setup>['spies'], call = 0) => (spies.updateCampaign.mock.calls[call][1] as { regions: { key: string }[] }).regions
 
 describe('Ajustes: regions section', () => {
