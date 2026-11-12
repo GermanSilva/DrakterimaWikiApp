@@ -3,13 +3,14 @@
   "chosen": "01-taller-con-vista-previa.html",
   "handoffs": {
     "01-taller-con-vista-previa.html": {
-      "status": "in_progress",
+      "status": "implemented",
       "queued": false,
       "sentAt": "2026-11-11T20:41:42.009Z",
       "startedAt": "2026-11-11T20:42:26.240Z",
-      "implementedAt": null,
+      "implementedAt": "2026-11-11T22:28:31.248Z",
       "feature": "odd/tasks/system-agnostic.md",
-      "note": "Tracked as H3a-H3c in odd/tasks/system-agnostic.md"
+      "note": "H3a-H3c + fix (3c96262, 235e460, d635b9c, 9e97b61). Dev server on local Supabase; log in as dm@example.test. Not built: click preview value to open formula, who line.",
+      "previewUrl": "http://localhost:5174/c/drakterima-demo/ajustes"
     }
   }
 }

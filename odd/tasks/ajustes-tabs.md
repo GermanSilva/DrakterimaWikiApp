@@ -2,7 +2,7 @@
 
 Turn the campaign Ajustes page (13 stacked blocks, ~7000 px of scroll) into horizontal tabs with one sticky save bar per tab.
 Visual spec: design/ajustes-tabs/01-barra-de-guardado-fija.html (chosen artboard; 02 and 03 are alternatives). Tokens: design/system.md.
-Branch: feat/campaign-hub. Status: in progress.
+Branch: feat/campaign-hub. Status: implemented (T1-T5 done).
 
 ## Specs
 
@@ -22,11 +22,11 @@ Branch: feat/campaign-hub. Status: in progress.
 
 | ID | Specs | Scope | Route | Commit | Done |
 |----|-------|-------|-------|--------|------|
-| T1 | S1, S2 | Tab shell in AjustesPage: six tabs, `?tab=`, ARIA keys, ScrollStrip, all panels mounted (hidden) so drafts survive, "Pantalla de sesión" block removed; tests updated to open the right tab. | worker | | [ ] |
-| T2 | S3 | Per-tab save model: blocks with drafts register {dirty count, errors, save, discard} with the tab; sticky bottom SaveBar; dots/"Error" on tabs; "También sin guardar"; one system_profile write per tab (merge SystemSettings + economy drafts, builder + destination); per-block save buttons of draft blocks removed; partial failure messages; immediate-action blocks unchanged. | worker | | [ ] |
-| T3 | S4-S7 | Sistema tab content: Nivel row inline with range 0-1000; Clase/Trabajo/Grupo and Raza/Especie with title inputs; read-only "Basado en". | worker | | [ ] |
-| T4 | S8 | Economy out of the builder: Sistema › Economía editor (denominations + instances CRUD) and Juegos › Destino de recompensa, writing the sheet document; builder keeps only placement/display. Risk item 1 (deleting instances/denominations touches stored character amounts): own commit, independent verify. | worker + verify | | [ ] |
-| T5 | S9 | Collapsible builder preview (aria-expanded, rail, state remembered in localStorage). | worker | | [ ] |
+| T1 | S1, S2 | Tab shell in AjustesPage: six tabs, `?tab=`, ARIA keys, ScrollStrip, all panels mounted (hidden) so drafts survive, "Pantalla de sesión" block removed; tests updated to open the right tab. | worker | 560b01e | [x] |
+| T2 | S3 | Per-tab save model: blocks with drafts register {dirty count, errors, save, discard} with the tab; sticky bottom SaveBar; dots/"Error" on tabs; "También sin guardar"; one system_profile write per tab (merge SystemSettings + economy drafts, builder + destination); per-block save buttons of draft blocks removed; partial failure messages; immediate-action blocks unchanged. | worker | 16e9a7d | [x] |
+| T3 | S4-S7 | Sistema tab content: Nivel row inline with range 0-1000; Clase/Trabajo/Grupo and Raza/Especie with title inputs; read-only "Basado en". | worker | 2446128 | [x] |
+| T4 | S8 | Economy out of the builder: Sistema › Economía editor (denominations + instances CRUD) and Juegos › Destino de recompensa, writing the sheet document; builder keeps only placement/display. Risk item 1 (deleting instances/denominations touches stored character amounts): own commit, independent verify. | worker + verify | 90909af 47a7880 d43f6fb | [x] |
+| T5 | S9 | Collapsible builder preview (aria-expanded, rail, state remembered in localStorage). | worker | 9c0d899 | [x] |
 
 ## Log
 
@@ -41,3 +41,4 @@ Branch: feat/campaign-hub. Status: in progress.
 - L9 (user, comment 9vahp0rg): "Permitir colapsar esta sección para mayor control del espacio."
 - L10 (user, 2026-11-11): handoff "Implement the design artboard design/ajustes-tabs/01-barra-de-guardado-fija.html" (chosen; 02-encabezado-de-acciones and 03-indice-lateral are alternatives).
 - L11 (parent, exploration): every Ajustes block saves on its own today; Campaña uses layer.campaigns.updateCampaign, Regiones/Campos use useCampaignSave, Sistema and the builder both write system_profile through saveSystem (shared version base; SystemSettings remounts and drops its draft when system_profile changes, so per-tab saves must write system_profile once). Lotería writes campaign_config 'loteria'. campaigns.based_on_system holds the lineage (readable by members; the client Campaign type does not select it yet). Economy = sheet table 'monedas' (rows = denominations {key,label,value}) and 'economia' tables; one rewardDestination; rewardTarget.ts mirrors the DB `_reward_target`.
+- L12 (parent, 2026-11-12, evidence): T1-T5 committed (see Tasks). T4 (risk item 1) got an independent verification: F1 (a Ficha reorder dropped the unsaved Sistema draft) and F2 (the builder could resurrect a discarded economy instance) fixed in 47a7880 (discarded economy entries are now reviewed in Sistema › Economía: restore in the Sistema draft, rekey/purge only while Sistema is clean); re-verification found a false "1 cambio sin guardar" in Sistema after a Ficha reorder, fixed with a RED-first test. T5 RED observed by stashing the implementation (6/6 failed). Final checks: vitest 243 files / 3728 PASS, tsc clean, eslint 0 errors (58 warnings), build OK. Integration: 107/108; the realtime probe test also fails on the base commit (environmental). Browser check against LOCAL Supabase (dev server with VITE_SUPABASE_URL/ANON_KEY of supabase status): tabs, save bar after an edit, Sistema rows/Basado en/Economía, Ficha with bottom bar and collapsible preview, Juegos destination; 0 console errors; fixed the denominations table header layout found there. Follow-ups: the denomination removal dialog says the data goes to «Campos descartados» but rows create no discarded entry (pre-existing builder text); the classic "Bloques de la ficha" toggles still show in Sistema when a template exists (pre-existing).
