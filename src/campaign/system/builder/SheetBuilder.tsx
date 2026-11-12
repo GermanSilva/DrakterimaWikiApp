@@ -20,6 +20,7 @@ import { describeRemoval, kindOf, removalConflict, removalMessage, removeNode, t
 import { RolesPanel } from './RolesPanel'
 import { blockedReason } from './blockedReason'
 import { SaveBar } from './SaveBar'
+import { readPreviewCollapsed, writePreviewCollapsed } from './previewCollapsed'
 import { CardPanel } from './CardPanel'
 
 /** A stored sheet as the draft, or the smallest template (one category, one section) when the campaign has none. */
@@ -93,11 +94,18 @@ export function SheetBuilder({ initial, onChange, onSave, review, economy, testC
   const [restoreError, setRestoreError] = useState<string | null>(null)
   const [removalError, setRemovalError] = useState<string | null>(null)
   const [testCharacterId, selectTestCharacter] = useState<string | null>(null)
+  const [previewCollapsed, setPreviewCollapsed] = useState(readPreviewCollapsed)
   const [current, setCurrent] = useState<string | null>(null)
   const [focusRequest, setFocusRequest] = useState<{ id: string; n: number } | null>(null)
   const panels = useRef<HTMLDivElement>(null)
 
   useEffect(() => onChange?.(draft), [draft, onChange])
+  const togglePreview = useCallback(() => {
+    setPreviewCollapsed((was) => {
+      writePreviewCollapsed(!was)
+      return !was
+    })
+  }, [])
 
   const validation = useMemo(() => validateSheet(draft), [draft])
   const [lastValidSheet, setLastValidSheet] = useState<Sheet | null>(null)
@@ -291,7 +299,11 @@ export function SheetBuilder({ initial, onChange, onSave, review, economy, testC
     <BuilderContext.Provider value={api}>
       <div className="flex flex-col gap-4">
         <SaveBar changes={unsaved} errors={errors.length} saving={saving} onSave={onSave && !hosted ? save : undefined} />
-        <div className="grid gap-4 min-[720px]:grid-cols-[minmax(0,200px)_minmax(0,1fr)] min-[1100px]:grid-cols-[220px_minmax(0,1fr)_minmax(0,420px)]">
+        <div
+          className={`grid gap-4 min-[720px]:grid-cols-[minmax(0,200px)_minmax(0,1fr)] motion-safe:transition-[grid-template-columns] ${
+            previewCollapsed ? 'min-[1100px]:grid-cols-[220px_minmax(0,1fr)_44px]' : 'min-[1100px]:grid-cols-[220px_minmax(0,1fr)_minmax(0,420px)]'
+          }`}
+        >
           <BuilderOutline current={current} onNavigate={navigate} />
           <div ref={panels} className="min-w-0 flex flex-col gap-4">
             <CategoryTabs selected={selected} onSelect={setSelected} />
@@ -332,7 +344,7 @@ export function SheetBuilder({ initial, onChange, onSave, review, economy, testC
             )}
           </div>
           <div className="min-w-0 min-[720px]:col-span-2 min-[1100px]:col-span-1">
-            <BuilderPreview />
+            <BuilderPreview collapsed={previewCollapsed} onToggle={togglePreview} />
           </div>
         </div>
       </div>
