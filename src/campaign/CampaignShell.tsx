@@ -65,7 +65,20 @@ export function CampaignShell({ campaign, isDM, campaigns, userMenu }: CampaignS
         {collapsed ? <PanelLeftOpen size={16} aria-hidden="true" /> : <PanelLeftClose size={16} aria-hidden="true" />}
       </button>
       {menuOpen && <div className="fixed inset-0 z-[150] bg-black/50 md:hidden" onClick={() => setMenuOpen(false)} aria-hidden="true" />}
-      <main id="main-content" tabIndex={-1} className={['pt-[60px] min-w-0 outline-none transition-[margin] duration-[250ms]', collapsed ? 'md:ml-0' : 'md:ml-[240px]'].join(' ')}>
+      {/*
+        With the sidebar hidden the page content is centred on wide screens; shown again, it goes back to the left. Only the
+        margin of <main> moves (240px <-> half the room left by the 1100px column, from 1100px wide screens; auto and max()
+        cannot be animated, and a second moving
+        margin inside would make the content dip on its way), so the change slides with the sidebar.
+      */}
+      <main
+        id="main-content"
+        tabIndex={-1}
+        className={[
+          'pt-[60px] min-w-0 outline-none transition-[margin] duration-[250ms] ease-in-out motion-reduce:transition-none',
+          !collapsed ? 'md:ml-[240px]' : fullBleed ? 'md:ml-0' : 'md:ml-0 min-[1100px]:ml-[calc((100%-1100px)/2)]',
+        ].join(' ')}
+      >
         <div className={fullBleed ? 'py-8' : 'py-8 px-10 max-md:p-5 max-w-[1100px]'}>
           <Outlet />
         </div>

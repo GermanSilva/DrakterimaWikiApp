@@ -91,6 +91,20 @@ describe('sidebar toggle', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Mostrar menú lateral' }))
     expect(nav).toHaveAttribute('data-collapsed', 'false')
   })
+
+  it('centres the page content while the sidebar is hidden and aligns it left again when shown', async () => {
+    renderApp('/c/demo', { data: dataFor(dm) })
+    await screen.findByRole('navigation', { name: 'Secciones de la campaña' })
+    // the margin of <main> is computed instead of auto, so the move between both positions can be animated
+    const CENTRED = 'min-[1100px]:ml-[calc((100%-1100px)/2)]'
+    const content = () => document.getElementById('main-content') as HTMLElement
+    expect(content()).toHaveClass('transition-[margin]')
+    expect(content()).not.toHaveClass(CENTRED)
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar menú lateral' }))
+    expect(content()).toHaveClass(CENTRED)
+    fireEvent.click(screen.getByRole('button', { name: 'Mostrar menú lateral' }))
+    expect(content()).not.toHaveClass(CENTRED)
+  })
 })
 
 describe('role-based navigation', () => {
