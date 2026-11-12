@@ -6,14 +6,16 @@ import { useCampaignServices } from '../../entities/campaignServicesContext'
 import { useLoad } from '../../entities/useLoad'
 import { parseLoteriaConfig, staleLoteriaKeys } from '../../games/coins'
 import { rewardTarget } from '../../system/coins/rewardTarget'
-import { useSystem } from '../../system/useSystem'
+import { parseSystemProfile } from '../../system/systemProfile'
 import { Loading } from '../DetailNotice'
 import { coinText, parseCoinText, type CoinText } from './coinInput'
 import { CoinFields } from './CoinFields'
+import { RewardDestinationSettings } from './RewardDestinationSettings'
 import { MAX_ROLL, MIN_ROLL, SheetLoteriaForm } from './SheetLoteriaForm'
 import { countChanges } from './tabSave/dirty'
 import { BlockSaveError } from './tabSave/tabSaveContext'
 import { useTabSaveBlock } from './tabSave/useTabSaveBlock'
+import { useCampaignSave } from './useCampaignSave'
 
 interface LoteriaValues {
   commonMinRoll: number
@@ -107,12 +109,23 @@ function LoteriaForm({
   )
 }
 
-/** Lottery configuration (`campaign_config.loteria`, readable by members, written by the DM). */
+/** Lottery configuration (`campaign_config.loteria`, readable by members, written by the DM), under the reward destination it depends on (S8). */
 export function LoteriaSettings() {
+  return (
+    <div className="flex flex-col gap-3">
+      <RewardDestinationSettings />
+      <LoteriaPrizes />
+    </div>
+  )
+}
+
+function LoteriaPrizes() {
   const { layer, campaignId } = useCampaignServices()
   // S12/S28: with a sheet the prizes are defined per denomination of its coin table, and only once it has a reward destination
-  const system = useSystem()
-  const target = useMemo(() => rewardTarget(system.sheet), [system.sheet])
+  // the freshest campaign the page knows: the destination saved just above applies at once, before the campaign context reloads
+  const { campaign } = useCampaignSave()
+  const sheet = useMemo(() => parseSystemProfile(campaign.system_profile).sheet, [campaign.system_profile])
+  const target = useMemo(() => rewardTarget(sheet), [sheet])
   const state = useLoad(() => layer.config.get(campaignId, 'loteria'), `loteria-config:${campaignId}`)
   // The row we wrote last, valid only for the loaded version it was based on: a re-read supersedes it.
   const [saved, setSaved] = useState<{ row: CampaignConfig; over: CampaignConfig | null } | null>(null)

@@ -5,8 +5,8 @@ import { ColumnsEditor } from './ColumnsEditor'
 import { NameAndKey } from './NameAndKey'
 import { nodes, text, useNode } from './nodeHooks'
 import { RowsEditor } from './RowsEditor'
-import { setRewardDestination } from './sheetIndex'
-import { CheckInput, Panel, ReorderButtons, SelectInput, smallBtn } from './ui'
+import { EconomyNote } from './EconomyNote'
+import { Panel, ReorderButtons, SelectInput, smallBtn } from './ui'
 import { DotsInput } from './formatInputs'
 
 const EDITOR_OPTIONS = [
@@ -16,14 +16,12 @@ const EDITOR_OPTIONS = [
 
 /** Editor of a table; what it shows depends on the table type. */
 export function TableEditor({ path }: { path: Path }) {
-  const { edit } = useBuilder()
   const { node, patch } = useNode(path)
   const type = text(node.type)
   const columns = nodes(node.columns)
   const sort = typeof node.sortBy === 'object' && node.sortBy !== null ? (node.sortBy as Record<string, unknown>) : null
-  const reward = (
-    <CheckInput label="Destino de recompensa" checked={node.rewardDestination === true} onChange={(on) => edit((d) => setRewardDestination(d, path, on))} />
-  )
+  // S8: coins and economy instances are configured in Sistema (and the destination in Juegos); here they are only placed and displayed
+  if (type === 'monedas' || type === 'economia') return <EconomyNote />
 
   return (
     <div className="flex flex-col gap-3">
@@ -65,18 +63,6 @@ export function TableEditor({ path }: { path: Path }) {
         </>
       )}
       {type === 'habilidad' && <ActionCategories path={path} />}
-      {type === 'monedas' && (
-        <>
-          <RowsEditor path={path} kind="monedas" />
-          {reward}
-        </>
-      )}
-      {type === 'economia' && (
-        <>
-          <p className="text-[12px] text-txt-muted">Guarda cantidades por denominación de la tabla de monedas. Solo la edita el DM.</p>
-          {reward}
-        </>
-      )}
     </div>
   )
 }

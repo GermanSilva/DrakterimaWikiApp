@@ -1,6 +1,6 @@
 import { fireEvent, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { addField, addTable, click, expectSaved, group, itemsOf, setup, type } from './builderTestKit'
+import { addField, addTable, click, expectSaved, group, item, itemsOf, section, setup, type } from './builderTestKit'
 
 const col = (g: HTMLElement, name: string) => group(within(g), `Columna ${name}`)
 const row = (g: HTMLElement, name: string) => group(within(g), `Fila ${name}`)
@@ -152,28 +152,68 @@ describe('Habilidad tables', () => {
   })
 })
 
-describe('coin and economy tables', () => {
-  it('denominations carry a value in the base unit; only one table is the reward destination', () => {
-    const t = setup()
-    const coins = addTable('monedas', 'Monedero')
-    click('Agregar fila', within(coins))
-    type(within(row(coins, 'Nueva moneda')).getByLabelText('Nombre de la fila'), 'Bronce')
-    click('Agregar fila', within(coins))
-    type(within(row(coins, 'Nueva moneda')).getByLabelText('Nombre de la fila'), 'Oro')
-    expect(within(row(coins, 'Oro')).getByLabelText('Valor en unidad base')).toHaveValue('10')
-    type(within(row(coins, 'Oro')).getByLabelText('Valor en unidad base'), '100')
-    fireEvent.click(within(coins).getByLabelText('Destino de recompensa'))
-    const bank = addTable('economia', 'Banco')
-    expect(within(coins).getByLabelText('Destino de recompensa')).toBeChecked()
-    fireEvent.click(within(bank).getByLabelText('Destino de recompensa'))
-    expect(within(coins).getByLabelText('Destino de recompensa')).not.toBeChecked()
-    expect(within(bank).getByLabelText('Destino de recompensa')).toBeChecked()
+describe('coin and economy tables (S8: configured in Sistema and Juegos, the builder only places them)', () => {
+  const ECONOMY_SHEET = {
+    categories: [
+      {
+        key: 'c',
+        label: 'C',
+        sections: [
+          {
+            key: 's',
+            label: 'S',
+            items: [
+              { kind: 'table', type: 'monedas', key: 'bolsa', label: 'Bolsa', rows: [{ key: 'oro', label: 'Oro', value: 100 }, { key: 'bronce', label: 'Bronce', value: 1 }], rewardDestination: true },
+              { kind: 'table', type: 'economia', key: 'banco', label: 'Banco', editableBy: 'dm' },
+            ],
+            blocks: [{ key: 'dinero', title: 'Dinero', mode: 'plano', items: ['bolsa', 'banco'] }],
+          },
+          { key: 'otra', label: 'Otra', items: [], blocks: [] },
+        ],
+      },
+    ],
+    roles: {},
+  }
+
+  it('does not offer coin or economy tables when adding a table', () => {
+    setup()
+    const options = within(within(section('S')).getByLabelText('Tipo de tabla')).getAllByRole('option').map((o) => o.textContent)
+    expect(options).toEqual(['Stat', 'Capacidades', 'Habilidad', 'Libre'])
+  })
+
+  it('shows no denominations editor and no reward-destination check, only a note that points to Sistema', () => {
+    setup(ECONOMY_SHEET)
+    for (const name of ['Bolsa', 'Banco']) {
+      click('Editar ítem', within(item(name)))
+      const g = item(name)
+      expect(within(g).queryByRole('button', { name: 'Agregar fila' })).toBeNull()
+      expect(within(g).queryByLabelText('Destino de recompensa')).toBeNull()
+      expect(within(g).queryByLabelText('Nombre del ítem')).toBeNull()
+      expect(within(g).getByText('Las monedas y las instancias se configuran en Sistema › Economía.')).toBeInTheDocument()
+      expect(within(g).queryByRole('button', { name: 'Quitar ítem' })).toBeNull()
+    }
+  })
+
+  it('still moves a coin table inside its section and keeps its denominations, destination and block untouched', () => {
+    const t = setup(ECONOMY_SHEET)
+    click('Subir ítem', within(item('Banco')))
     const sheet = t.sheet()
-    expectSaved(sheet, 'monedero', {
-      kind: 'table', type: 'monedas', key: 'monedero', label: 'Monedero',
-      rows: [{ key: 'bronce', label: 'Bronce', value: 1 }, { key: 'oro', label: 'Oro', value: 100 }],
-    })
-    expectSaved(sheet, 'banco', { kind: 'table', type: 'economia', key: 'banco', label: 'Banco', editableBy: 'dm', rewardDestination: true })
+    expect(itemsOf(sheet).map((i) => i.key)).toEqual(['banco', 'bolsa'])
+    expect(itemsOf(sheet).find((i) => i.key === 'bolsa')).toEqual(ECONOMY_SHEET.categories[0].sections[0].items[0])
+  })
+
+  it('refuses to remove a section that holds an economy table, and says where to delete the instance', () => {
+    const t = setup(ECONOMY_SHEET)
+    click('Quitar sección', within(section('S')))
+    expect(screen.getByRole('alert', { name: 'No se pudo quitar' })).toHaveTextContent('Eliminá antes las instancias de economía en Sistema › Economía')
+    expect(itemsOf(t.sheet()).map((i) => i.key)).toEqual(['bolsa', 'banco'])
+    click('Quitar sección', within(section('Otra'))) // a section without economy still goes
+    expect(screen.queryByRole('group', { name: 'Sección Otra' })).toBeNull()
+  })
+
+  it('keeps the card pin of a coin table (display is still the builder\'s)', () => {
+    const t = setup({ ...ECONOMY_SHEET, card: { pinned: [{ key: 'bolsa' }] } })
+    expect((t.sheet().card as { pinned: { key: string }[] }).pinned.map((p) => p.key)).toEqual(['bolsa'])
   })
 })
 

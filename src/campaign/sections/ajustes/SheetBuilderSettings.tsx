@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useCampaignServices } from '../../entities/campaignServicesContext'
 import { toTestCharacters, type TestCharacter } from '../../system/builder/formula/testCharacters'
 import { expiringSoon, formatDeletionDate, deletionDate, DISCARDED_WARNING_DAYS } from '../../system/builder/discardedLifecycle'
+import { mergeEconomy, placementProjection } from '../../system/builder/economy'
 import { SheetBuilder } from '../../system/builder/SheetBuilder'
 import { parseSystemProfile } from '../../system/systemProfile'
 import { ConfirmDialog } from './ConfirmDialog'
@@ -14,6 +15,7 @@ type Sheet = Record<string, unknown>
 /** The first template waiting for the DM's confirmation: the tab's save waits on `settle` until it is confirmed or cancelled. */
 interface FirstSave {
   sheet: Sheet
+  economyBase: Sheet | null
   settle: { resolve: () => void; reject: (reason: unknown) => void }
 }
 
@@ -47,7 +49,8 @@ function useTestCharacters(): readonly TestCharacter[] {
  * The character sheet template of the campaign (DM only). The builder validates on every change; the Ficha tab's bar saves it,
  * writing the whole system document through the same guarded path as the "Sistema" section, with only `sheet` replaced: every other
  * key of the stored document (distance, currency, modules...) travels exactly as stored, as the document is when the save runs
- * (so a Sistema save made meanwhile is kept, and this draft is not rebuilt by it).
+ * (so a Sistema save made meanwhile is kept, and this draft is not rebuilt by it). The economy (denominations, instances, reward
+ * destination) is configured in Sistema and Juegos (S8): the builder writes its placement and takes those parts from the stored sheet.
  */
 export function SheetBuilderSettings() {
   const { campaign, latest, notice, setNotice, saves, saveSystem } = useCampaignSave()
@@ -62,25 +65,28 @@ export function SheetBuilderSettings() {
   const expiring = discarded && isRecord(stored.sheet) ? expiringSoon(discardedDates(stored.sheet.discarded), new Date()) : []
   const firstDate = expiring.length > 0 ? formatDeletionDate(expiring.reduce((a, b) => (deletionDate(b.at) < deletionDate(a.at) ? b : a)).at) : null
 
-  async function write(sheet: Sheet): Promise<void> {
+  async function write(sheet: Sheet, economyBase: Sheet | null): Promise<void> {
     setNotice(null)
     // over the document as it is now (the Sistema section may have been saved since this render)
     const current: unknown = latest().system_profile
     const base = isRecord(current) && current.version === 1 ? current : parseSystemProfile(current)
-    await saveSystem({ ...base, sheet }, 'Plantilla guardada.', 'No se pudo guardar la plantilla. Intentá de nuevo.')
+    // placement from this draft, economy from the stored sheet (an instance created or deleted in Sistema meanwhile is not undone)
+    const now = isRecord(base.sheet) ? base.sheet : null
+    const merged = now ? mergeEconomy({ placement: sheet, economy: now, base: economyBase, latest: now }) : null
+    await saveSystem({ ...base, sheet: merged ? merged.sheet : sheet }, 'Plantilla guardada.', 'No se pudo guardar la plantilla. Intentá de nuevo.')
   }
 
   /** Throws when the write fails; the first template resolves once the DM confirmed and the write finished (or rejects as cancelled). */
-  async function onSave(sheet: Sheet): Promise<void> {
-    if (hasSheet) return write(sheet)
-    await new Promise<void>((resolve, reject) => setAsking({ sheet, settle: { resolve, reject } }))
+  async function onSave(sheet: Sheet, economyBase: Sheet | null = null): Promise<void> {
+    if (hasSheet) return write(sheet, economyBase)
+    await new Promise<void>((resolve, reject) => setAsking({ sheet, economyBase, settle: { resolve, reject } }))
   }
 
   async function confirmFirst() {
     if (!asking) return
     setBusy(true)
     try {
-      await write(asking.sheet)
+      await write(asking.sheet, asking.economyBase)
       asking.settle.resolve()
     } catch (e) {
       asking.settle.reject(e)
@@ -96,8 +102,12 @@ export function SheetBuilderSettings() {
   }
 
   // Remount the draft when a save succeeded or the stored sheet changed (another DM, conflict re-read); a save of another
-  // section changes the document but not the sheet, so it keeps what is being edited here.
-  const builderKey = `${saves}:${JSON.stringify(stored.sheet ?? null)}`
+  // section changes the document but not the sheet, so it keeps what is being edited here. Economy changes made in Sistema or Juegos
+  // (S8) are not a reason either: the builder follows them without losing its draft (see `economy`), so only the rest of the sheet counts.
+  const builderKey = `${saves}:${JSON.stringify(placementProjection(stored.sheet ?? null))}`
+  const [mounted, setMounted] = useState({ key: builderKey, sheet: stored.sheet ?? null })
+  if (mounted.key !== builderKey) setMounted({ key: builderKey, sheet: stored.sheet ?? null })
+  const initial = mounted.key === builderKey ? mounted.sheet : (stored.sheet ?? null)
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[12px] text-txt-secondary">
@@ -116,7 +126,7 @@ export function SheetBuilderSettings() {
             : `${expiring.length} campos descartados se eliminarán automáticamente en los próximos ${DISCARDED_WARNING_DAYS} días (el primero, el ${firstDate}).`}
         </p>
       )}
-      <SheetBuilder key={builderKey} initial={stored.sheet ?? null} onSave={onSave} review={review} testCharacters={testCharacters} />
+      <SheetBuilder key={builderKey} initial={initial} economy={stored.sheet ?? null} onSave={onSave} review={review} testCharacters={testCharacters} />
       {notice && (
         <p role={notice.kind === 'error' ? 'alert' : 'status'} className={notice.kind === 'error' ? 'text-[13px] text-red-400' : 'text-[13px] text-accent-bright'}>
           {notice.text}

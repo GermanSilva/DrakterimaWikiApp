@@ -60,7 +60,8 @@ interface ReorderProps {
   index: number
   count: number
   onMove: (delta: -1 | 1) => void
-  onRemove: () => void
+  /** Without it there is no remove button (a part that is deleted elsewhere, like an economy instance). */
+  onRemove?: () => void
 }
 
 /** Accessible reordering: up/down buttons (disabled at the ends) and remove. */
@@ -73,9 +74,11 @@ export function ReorderButtons({ noun, index, count, onMove, onRemove }: Reorder
       <button type="button" className={smallBtn} disabled={index === count - 1} onClick={() => onMove(1)}>
         {`Bajar ${noun}`}
       </button>
-      <button type="button" className={smallBtn} onClick={onRemove}>
-        {`Quitar ${noun}`}
-      </button>
+      {onRemove && (
+        <button type="button" className={smallBtn} onClick={onRemove}>
+          {`Quitar ${noun}`}
+        </button>
+      )}
     </div>
   )
 }

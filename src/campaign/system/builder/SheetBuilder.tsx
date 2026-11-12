@@ -12,10 +12,11 @@ import { discardedEntries, planRestore, type RestorePlan } from './discard'
 import { DiscardedPanel, type ReviewCharacter } from './DiscardedPanel'
 import { heldKeys } from './discardedValues'
 import type { TestCharacter } from './formula/testCharacters'
-import { isNode, parsePath, setAt, type Node, type Path } from './draft'
+import { getAt, isNode, parsePath, setAt, type Node, type Path } from './draft'
+import { holdsEconomy, isEconomyItem, economyProjection, mergeEconomy, rewardKey } from './economy'
 import { describeSheetError, displayLine, ownerOf, type DisplayError } from './errorsEs'
 import { newCategory, newSection } from './factories'
-import { describeRemoval, removalConflict, removalMessage, removeNode, type RemovalRequest } from './removal'
+import { describeRemoval, kindOf, removalConflict, removalMessage, removeNode, type RemovalRequest } from './removal'
 import { RolesPanel } from './RolesPanel'
 import { blockedReason } from './blockedReason'
 import { SaveBar } from './SaveBar'
@@ -55,7 +56,13 @@ interface Props {
    * Receives the validated, normalised sheet. Without it the builder cannot be saved. Inside Ajustes the builder registers with the
    * save bar of its tab (which calls this and shows a failure thrown as `BlockSaveError`); on its own it has a Save button.
    */
-  onSave?: (sheet: Record<string, unknown>) => Promise<unknown> | void
+  onSave?: (sheet: Record<string, unknown>, economyBase?: Record<string, unknown> | null) => Promise<unknown> | void
+  /**
+   * The freshest stored sheet. Its economy parts (denominations, instances, reward destination: configured in Sistema and Juegos, S8) are
+   * kept in the draft as they change there, without touching what is being edited here; the save carries `economyBase`, the sheet the
+   * draft was last synced with, so the host can tell an instance deleted elsewhere from one that never existed.
+   */
+  economy?: unknown
   /** Without it the discarded list shows the definitions only: no data, no deletion. */
   review?: ReviewHost
   /** Characters the formula workbench can try formulas on (id, name and the values the sheet reads). Without them it uses its example character. */
@@ -72,7 +79,7 @@ interface Located extends DisplayError {
 }
 
 /** The sheet template editor: categories > sections > items and blocks, plus the roles; validated on every change. */
-export function SheetBuilder({ initial, onChange, onSave, review, testCharacters = NO_CHARACTERS }: Props) {
+export function SheetBuilder({ initial, onChange, onSave, review, economy, testCharacters = NO_CHARACTERS }: Props) {
   const [draft, setDraft] = useState<Node>(() => startDraft(initial))
   const [selected, setSelected] = useState(0)
   const [pending, setPending] = useState<RemovalRequest | null>(null)
@@ -102,13 +109,35 @@ export function SheetBuilder({ initial, onChange, onSave, review, testCharacters
     return map
   }, [errors])
 
+  // The sheet the draft started from, with the economy as it is stored now: the draft follows the economy edited elsewhere (S8), so only
+  // what is edited here counts as a change.
+  const latestEconomy = isNode(economy) ? economy : null
+  const economyKey = latestEconomy ? JSON.stringify([economyProjection(latestEconomy), rewardKey(latestEconomy)]) : ''
+  const start = useMemo(
+    () => {
+      const first = startDraft(initial)
+      return latestEconomy && isNode(initial) ? mergeEconomy({ placement: first, economy: latestEconomy, base: initial, latest: latestEconomy }).sheet : first
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [initial, economyKey],
+  )
+  const synced = useRef<Node | null>(isNode(initial) ? initial : null)
+  useEffect(() => {
+    if (!latestEconomy) return
+    const was = synced.current
+    const wasKey = was ? JSON.stringify([economyProjection(was), rewardKey(was)]) : ''
+    if (wasKey === economyKey) return
+    synced.current = latestEconomy
+    setDraft((d) => mergeEconomy({ placement: d, economy: latestEconomy, base: was, latest: latestEconomy }).sheet)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [economyKey])
+
   // The database acts on the SAVED template: what can be deleted is what is saved, and only while the draft equals it.
   const saved = useMemo(() => {
-    const start = startDraft(initial)
     const result = validateSheet(start)
     return { json: result.ok ? JSON.stringify(result.sheet) : null, keys: new Set(discardedEntries(start).map((e) => String(e.item.key))) }
-  }, [initial])
-  const unsaved = useMemo(() => changes(startDraft(initial), draft), [initial, draft])
+  }, [start])
+  const unsaved = useMemo(() => changes(start, draft), [start, draft])
   const dirty = !validation.ok || saved.json === null || JSON.stringify(validation.sheet) !== saved.json
   const entries = discardedEntries(draft)
 
@@ -125,10 +154,10 @@ export function SheetBuilder({ initial, onChange, onSave, review, testCharacters
           savableWhenClean: !(isNode(initial) && Array.isArray(initial.categories)),
           async save() {
             if (!validation.ok || errors.length > 0) throw new BlockSaveError(blockedReason(errors.length))
-            await onSave(validation.sheet as unknown as Record<string, unknown>)
+            await onSave(validation.sheet as unknown as Record<string, unknown>, synced.current)
           },
           discard() {
-            setDraft(startDraft(initial))
+            setDraft(start)
             setSelected(0)
             setPending(null)
             setRestoreError(null)
@@ -190,6 +219,15 @@ export function SheetBuilder({ initial, onChange, onSave, review, testCharacters
     (list: Path, index: number) => {
       const request = describeRemoval(draft, list, index)
       if (!request) return
+      // S8: the builder places the economy tables, it does not delete them: that is done in Sistema › Economía
+      const part = getAt(draft, [...list, index])
+      if (isNode(part) && (kindOf(list) === 'item' || kindOf(list) === 'section' || kindOf(list) === 'category') && (isEconomyItem(part) || holdsEconomy(part))) {
+        return setRemovalError(
+          isEconomyItem(part)
+            ? 'Las instancias de economía se eliminan en Sistema › Economía.'
+            : `«${request.name}» tiene instancias de economía. Eliminá antes las instancias de economía en Sistema › Economía para poder quitarla.`,
+        )
+      }
       const conflict = removalConflict(draft, list, index)
       setRemovalError(conflict)
       if (conflict) return
@@ -232,7 +270,7 @@ export function SheetBuilder({ initial, onChange, onSave, review, testCharacters
     if (!onSave || !validation.ok || errors.length > 0) return
     setSaving(true)
     try {
-      await onSave(validation.sheet as unknown as Record<string, unknown>)
+      await onSave(validation.sheet as unknown as Record<string, unknown>, synced.current)
     } catch (e) {
       // the host already showed why (its notice); anything else is a bug and surfaces
       if (!(e instanceof BlockSaveError || e instanceof BlockSaveCancelled)) throw e

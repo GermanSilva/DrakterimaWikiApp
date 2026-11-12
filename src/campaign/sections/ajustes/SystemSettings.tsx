@@ -1,9 +1,15 @@
-import { useId, useState, type FormEvent, type ReactNode } from 'react'
+import { useId, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { btnSecondary, inputCls } from '../../../constants'
 import { LABEL_MAX, parseSystemProfile, SECTION_KEYS, type SectionKey } from '../../system/systemProfile'
 import { UNIT_MAX } from '../../system/distance/distance'
 import { LEVEL_MAX, newUnit, systemDraft, validateSystem, type BuiltinDraft, type SystemDraft, type SystemErrors, type UnitDraft, type UnitErrors } from './systemForm'
 import { AdminSection } from '../../../components/AdminSection'
+import type { Node } from '../../system/builder/draft'
+import { changes } from '../../system/builder/changeCount'
+import { economyErrors, economyProjection, mergeEconomy } from '../../system/builder/economy'
+import { describeSheetError, displayLine } from '../../system/builder/errorsEs'
+import { validateSheet } from '../../system/sheet/sheetModel'
+import { EconomySettings } from './EconomySettings'
 import { HomebrewSettings } from './HomebrewSettings'
 import { countChanges } from './tabSave/dirty'
 import { BlockSaveError } from './tabSave/tabSaveContext'
@@ -11,6 +17,14 @@ import { useTabSaveBlock } from './tabSave/useTabSaveBlock'
 import { useCampaignSave } from './useCampaignSave'
 import { useCampaignServices } from '../../entities/campaignServicesContext'
 import { useLoad } from '../../entities/useLoad'
+
+/** The economy draft a Sistema save writes: the sheet being edited and the sheet it started from (to tell what was deleted here). */
+interface EconomyDraft {
+  sheet: Node
+  base: Node | null
+}
+
+const ECONOMY_REASON = 'Corregí los errores de Economía para poder guardar.'
 
 const labelCls = 'block font-exo text-[10px] font-medium tracking-[0.2em] uppercase text-txt-muted mb-1.5'
 
@@ -274,20 +288,48 @@ function DistanceFieldset({ units, errors, onChange }: { units: UnitDraft[] | nu
 }
 
 /** `onSave` returns the errors of a rejected draft (shown on the fields), or throws a `BlockSaveError` when the write fails. */
-function SystemForm({ initial, basedOn, onSave }: { initial: SystemDraft; basedOn: string | null | undefined; onSave: (draft: SystemDraft) => Promise<SystemErrors | null> }) {
+function SystemForm({
+  initial,
+  initialSheet,
+  latestSheet,
+  readLottery,
+  basedOn,
+  onSave,
+}: {
+  initial: SystemDraft
+  /** The stored sheet this form started from (null: the campaign has no template yet). */
+  initialSheet: Node | null
+  /** The freshest stored sheet. */
+  latestSheet: Node | null
+  readLottery: () => Promise<unknown>
+  basedOn: string | null | undefined
+  onSave: (draft: SystemDraft, economy: EconomyDraft | null) => Promise<SystemErrors | null>
+}) {
   const [draft, setDraft] = useState(initial)
+  const [sheet, setSheet] = useState<Node | null>(initialSheet)
   const [errors, setErrors] = useState<SystemErrors>({})
   const rangeId = useId()
+
+  // Economía shares this block (and so the single system_profile write of the tab): its draft is the sheet, validated as it would be written
+  const economyChanges = initialSheet && sheet ? changes(economyProjection(initialSheet), economyProjection(sheet)) : 0
+  const economyLines = useMemo(() => {
+    if (economyChanges === 0 || !sheet || !latestSheet) return []
+    const merged = mergeEconomy({ placement: latestSheet, economy: sheet, base: initialSheet, latest: latestSheet })
+    const checked = validateSheet(merged.sheet)
+    return [...(merged.blocked ? [merged.blocked] : []), ...(checked.ok ? [] : economyErrors(merged.sheet, checked.errors).map((e) => displayLine(describeSheetError(merged.sheet, e))))]
+  }, [economyChanges, sheet, latestSheet, initialSheet])
 
   useTabSaveBlock({
     key: 'sistema',
     label: 'Datos del sistema',
     order: 10,
-    dirtyCount: countChanges(initial, draft),
+    dirtyCount: countChanges(initial, draft) + economyChanges,
+    errorCount: economyLines.length,
+    errorReason: economyLines.length > 0 ? ECONOMY_REASON : undefined,
     async save() {
       let found: SystemErrors | null
       try {
-        found = await onSave(draft)
+        found = await onSave(draft, economyChanges > 0 && sheet ? { sheet, base: initialSheet } : null)
       } catch (e) {
         setErrors({})
         throw e
@@ -297,6 +339,7 @@ function SystemForm({ initial, basedOn, onSave }: { initial: SystemDraft; basedO
     },
     discard() {
       setDraft(initial)
+      setSheet(initialSheet)
       setErrors({})
     },
   })
@@ -382,6 +425,12 @@ function SystemForm({ initial, basedOn, onSave }: { initial: SystemDraft; basedO
 
       <DistanceFieldset units={draft.distance} errors={errors.distance} onChange={(distance) => setDraft((d) => ({ ...d, distance }))} />
 
+      <div id="ajustes-economia">
+        <AdminSection title="Economía">
+          <EconomySettings sheet={sheet} stored={latestSheet} onChange={setSheet} errors={economyLines} readLottery={readLottery} />
+        </AdminSection>
+      </div>
+
     </form>
   )
 }
@@ -392,31 +441,53 @@ function SystemForm({ initial, basedOn, onSave }: { initial: SystemDraft; basedO
  * elsewhere (currency, modules) travel unchanged.
  */
 export function SystemSettings() {
-  const { campaign, latest, notice, setNotice, saves, saveSystem } = useCampaignSave()
+  const { campaign, latest, notice, setNotice, saves, saveSystem, fail } = useCampaignSave()
+  const { layer, campaignId } = useCampaignServices()
   const stored = parseSystemProfile(campaign.system_profile)
+  const readLottery = async () => (await layer.config.get(campaignId, 'loteria'))?.value
 
-  async function onSave(draft: SystemDraft): Promise<SystemErrors | null> {
+  async function onSave(draft: SystemDraft, economy: EconomyDraft | null): Promise<SystemErrors | null> {
     setNotice(null)
     // over the document as it is now (the sheet template may have been saved since this render)
-    const result = validateSystem(draft, parseSystemProfile(latest().system_profile))
+    const current = parseSystemProfile(latest().system_profile)
+    const result = validateSystem(draft, current)
     if (!result.ok) {
       setNotice({ kind: 'error', text: 'Revisá los campos marcados.' })
       return result.errors
     }
-    await saveSystem(result.profile, 'Sistema guardado.', 'No se pudo guardar el sistema. Intentá de nuevo.')
+    let profile = result.profile
+    if (economy) {
+      // ONE write: the economy parts go into the same document as the rest of Sistema, over the placement as stored now (the builder may have saved)
+      const now: Node | null = current.sheet ?? null
+      if (!now) return fail('La campaña no tiene plantilla de ficha: guardala en la pestaña Ficha antes de configurar la economía.')
+      const merged = mergeEconomy({ placement: now, economy: economy.sheet, base: economy.base, latest: now })
+      if (merged.blocked) return fail(merged.blocked)
+      const checked = validateSheet(merged.sheet)
+      if (!checked.ok && economyErrors(merged.sheet, checked.errors).length > 0) return fail(ECONOMY_REASON)
+      profile = { ...profile, sheet: merged.sheet }
+    }
+    await saveSystem(profile, 'Sistema guardado.', 'No se pudo guardar el sistema. Intentá de nuevo.')
     return null
   }
 
   // Rebuild the draft when a save of this form succeeded or the part of the document it edits changed (another DM, conflict
   // re-read). A save of another block of the same document (the sheet template) changes the rest of the document, not this
   // draft: the form keeps what is typed and its next save is written over the document as saved by then.
-  const formKey = `${saves}:${JSON.stringify(systemDraft(stored))}`
+  const formKey = `${saves}:${JSON.stringify(systemDraft(stored))}:${JSON.stringify(economyProjection(stored.sheet ?? null))}`
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[12px] text-txt-secondary">
         Definí cómo es la ficha de los personajes en esta campaña: nombres de los campos integrados, rango de nivel, bloques que se usan y unidades de distancia.
       </p>
-      <SystemForm key={formKey} initial={systemDraft(stored)} basedOn={campaign.based_on_system} onSave={onSave} />
+      <SystemForm
+        key={formKey}
+        initial={systemDraft(stored)}
+        initialSheet={stored.sheet ?? null}
+        latestSheet={stored.sheet ?? null}
+        readLottery={readLottery}
+        basedOn={campaign.based_on_system}
+        onSave={onSave}
+      />
       {notice && (
         <p role={notice.kind === 'error' ? 'alert' : 'status'} className={notice.kind === 'error' ? 'text-[13px] text-red-400' : 'text-[13px] text-accent-bright'}>
           {notice.text}

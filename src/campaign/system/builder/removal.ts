@@ -111,7 +111,7 @@ const mapBlocks = (draft: Node, change: (block: Node) => Node): Node =>
   )
 
 /** Tracks counting damage in a removed field: without superficial damage the track goes, without aggravated only that part. */
-function withoutTrackRefs(draft: Node, gone: Set<string>): Node {
+function withoutTrackRefs(draft: Node, gone: ReadonlySet<string>): Node {
   const list = (v: unknown): Node[] => (Array.isArray(v) ? v.filter(isNode) : [])
   return {
     ...draft,
@@ -132,13 +132,21 @@ function withoutTrackRefs(draft: Node, gone: Set<string>): Node {
 }
 
 /** The card without the removed items: a pin of a removed key goes, a removed max or stat line or excerpt is dropped. */
-function cardWithout(card: Node, gone: Set<string>): Node {
+function cardWithout(card: Node, gone: ReadonlySet<string>): Node {
   const pinned = (Array.isArray(card.pinned) ? card.pinned : [])
     .filter((pin) => !(isNode(pin) && typeof pin.key === 'string' && gone.has(pin.key)))
     .map((pin) => (isNode(pin) && typeof pin.max === 'string' && gone.has(pin.max) ? Object.fromEntries(Object.entries(pin).filter(([name]) => name !== 'max')) : pin))
   return Object.fromEntries(
     Object.entries({ ...card, pinned }).filter(([name, value]) => !((name === 'statline' || name === 'excerpt') && typeof value === 'string' && gone.has(value))),
   )
+}
+
+/** The draft without any reference to the items `gone`: blocks stop showing them; roles, card pins and tracks bound to them are cleared. */
+export function dropReferences(draft: Node, gone: ReadonlySet<string>): Node {
+  let next = mapBlocks(draft, (block) => (Array.isArray(block.items) ? { ...block, items: block.items.filter((k) => !gone.has(k as string)) } : block))
+  if (isNode(next.roles)) next = setAt(next, ['roles'], Object.fromEntries(Object.entries(next.roles).filter(([, key]) => !gone.has(key as string))))
+  if (isNode(next.card)) next = setAt(next, ['card'], cardWithout(next.card, gone))
+  return withoutTrackRefs(next, gone)
 }
 
 /**
@@ -151,12 +159,7 @@ export function removeNode(draft: Node, list: Path, index: number, now: Date = n
   let next = addDiscarded(removeFrom(draft, list, index), discardedBy(draft, list, index, kind, now))
   if (!isNode(node)) return next
   const gone = new Set(itemKeysIn(node, kind))
-  if (gone.size > 0) {
-    next = mapBlocks(next, (block) => (Array.isArray(block.items) ? { ...block, items: block.items.filter((k) => !gone.has(k as string)) } : block))
-    if (isNode(next.roles)) next = setAt(next, ['roles'], Object.fromEntries(Object.entries(next.roles).filter(([, key]) => !gone.has(key as string))))
-    if (isNode(next.card)) next = setAt(next, ['card'], cardWithout(next.card, gone))
-    next = withoutTrackRefs(next, gone)
-  }
+  if (gone.size > 0) next = dropReferences(next, gone)
   const table = getAt(draft, list.slice(0, -1))
   if (kind === 'actionCategory' && isNode(table)) {
     next = mapBlocks(next, (block) =>

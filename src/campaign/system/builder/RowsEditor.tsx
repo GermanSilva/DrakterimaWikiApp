@@ -1,10 +1,9 @@
 import { useBuilder } from './builderContext'
 import { appendAt, moveIn, type Node, type Path } from './draft'
-import { newCapacidadRow, newCoinRow, newStatRow } from './factories'
+import { newCapacidadRow, newStatRow } from './factories'
 import { NameAndKey } from './NameAndKey'
 import { nodes, text, useNode } from './nodeHooks'
 import { FormulaWorkbench } from './formula/FormulaWorkbench'
-import { NumberInput } from './nodeInputs'
 import { statRows } from './sheetIndex'
 import { Panel, ReorderButtons, SelectInput, smallBtn } from './ui'
 
@@ -13,27 +12,25 @@ const EDITOR_OPTIONS = [
   { value: 'player', label: 'El jugador del personaje' },
 ]
 
-export type RowsKind = 'stat' | 'capacidades' | 'monedas'
+export type RowsKind = 'stat' | 'capacidades'
 
-const ADD_LABEL: Record<RowsKind, string> = { stat: 'Agregar fila', capacidades: 'Agregar fila', monedas: 'Agregar fila' }
-
-/** The rows the DM defines in the template: stats, capabilities linked to a stat, or coin denominations (S11, S12, S14). */
+/** The rows the DM defines in the template: stats, or capabilities linked to a stat (S11). Coin denominations are edited in Sistema › Economía. */
 export function RowsEditor({ path, kind }: { path: Path; kind: RowsKind }) {
   const { draft, edit } = useBuilder()
   const { node } = useNode(path)
   const rows = nodes(node.rows)
   const stats = statRows(draft)
-  const add = (d: Node) => (kind === 'stat' ? newStatRow(d) : kind === 'capacidades' ? newCapacidadRow(d, stats[0]?.key ?? '') : newCoinRow(d, rows))
+  const add = (d: Node) => (kind === 'stat' ? newStatRow(d) : newCapacidadRow(d, stats[0]?.key ?? ''))
   return (
     <div className="flex flex-col gap-2">
-      <h4 className="font-exo text-[10px] tracking-[0.2em] uppercase text-txt-muted">{kind === 'monedas' ? 'Denominaciones' : 'Filas'}</h4>
+      <h4 className="font-exo text-[10px] tracking-[0.2em] uppercase text-txt-muted">Filas</h4>
       {kind === 'capacidades' && stats.length === 0 && <p className="text-[12px] text-txt-muted">Primero definí una tabla de stats: cada capacidad se vincula a uno.</p>}
       {rows.map((row, i) => (
         <RowPanel key={i} path={[...path, 'rows', i]} index={i} count={rows.length} kind={kind} label={text(row.label)} />
       ))}
       <div>
-        <button type="button" className={smallBtn} disabled={rows.length >= (kind === 'monedas' ? 8 : 100)} onClick={() => edit((d) => appendAt(d, [...path, 'rows'], add(d)))}>
-          {ADD_LABEL[kind]}
+        <button type="button" className={smallBtn} disabled={rows.length >= 100} onClick={() => edit((d) => appendAt(d, [...path, 'rows'], add(d)))}>
+          Agregar fila
         </button>
       </div>
     </div>
@@ -74,8 +71,7 @@ function RowPanel({ path, index, count, kind, label }: { path: Path; index: numb
           />
         </div>
       )}
-      {kind !== 'monedas' && <SelectInput label="Valor editable por" value={text(node.editableBy)} onChange={(editableBy) => patch({ editableBy })} options={EDITOR_OPTIONS} />}
-      {kind === 'monedas' && <NumberInput label="Valor en unidad base" value={node.value} onChange={(value) => patch({ value })} />}
+      <SelectInput label="Valor editable por" value={text(node.editableBy)} onChange={(editableBy) => patch({ editableBy })} options={EDITOR_OPTIONS} />
       <ReorderButtons noun="fila" index={index} count={count} onMove={(delta) => edit((d) => moveIn(d, list, index, delta))} onRemove={() => requestRemoval(list, index)} />
     </Panel>
   )

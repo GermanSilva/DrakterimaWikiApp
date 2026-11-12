@@ -16,6 +16,9 @@ const TABLE_LABEL: Record<TableType, string> = {
   economia: 'Economía',
 }
 
+/** Coin and economy tables are created in Sistema › Economía (S8); the builder only places them. */
+const BUILDER_TABLE_TYPES = TABLE_TYPES.filter((t) => t !== 'monedas' && t !== 'economia')
+
 const nodes = (v: unknown): Node[] => (Array.isArray(v) ? v.filter(isNode) : [])
 
 interface Props {
@@ -47,7 +50,7 @@ export function SectionPanel({ path, index, count }: Props) {
           <button type="button" className={smallBtn} onClick={() => edit((d) => appendAt(d, [...path, 'items'], newField(d)))}>
             Agregar campo
           </button>
-          <SelectInput label="Tipo de tabla" value={tableType} onChange={(v) => setTableType(v as TableType)} options={TABLE_TYPES.map((t) => ({ value: t, label: TABLE_LABEL[t] }))} />
+          <SelectInput label="Tipo de tabla" value={tableType} onChange={(v) => setTableType(v as TableType)} options={BUILDER_TABLE_TYPES.map((t) => ({ value: t, label: TABLE_LABEL[t] }))} />
           <button type="button" className={smallBtn} onClick={() => edit((d) => appendAt(d, [...path, 'items'], newTable(d, tableType)))}>
             Agregar tabla
           </button>

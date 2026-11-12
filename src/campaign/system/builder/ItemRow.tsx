@@ -1,5 +1,6 @@
 import { useBuilder } from './builderContext'
 import { moveIn, type Path } from './draft'
+import { isEconomyItem } from './economy'
 import { FieldEditor } from './FieldEditor'
 import { itemKindLabel } from './itemLabels'
 import { useNode } from './nodeHooks'
@@ -32,7 +33,7 @@ export function ItemRow({ path, index, count }: Props) {
         </button>
       </div>
       {open && (item.kind === 'table' ? <TableEditor path={path} /> : <FieldEditor path={path} />)}
-      <ReorderButtons noun="ítem" index={index} count={count} onMove={(delta) => edit((d) => moveIn(d, list, index, delta))} onRemove={() => requestRemoval(list, index)} />
+      <ReorderButtons noun="ítem" index={index} count={count} onMove={(delta) => edit((d) => moveIn(d, list, index, delta))} onRemove={isEconomyItem(item) ? undefined : () => requestRemoval(list, index)} />
     </Panel>
   )
 }
