@@ -135,9 +135,9 @@ export function EconomySettings({ sheet, stored, onChange, errors, readLottery }
         <table className="w-full text-[13px] text-left">
           <thead>
             <tr className="text-txt-muted">
-              <th className={`${labelCls} font-normal`}>Clave</th>
-              <th className={`${labelCls} font-normal`}>Moneda</th>
-              <th className={`${labelCls} font-normal`}>Equivale a</th>
+              <th className="pb-2 pr-3 font-exo text-[10px] tracking-[0.2em] uppercase font-normal text-txt-muted">Clave</th>
+              <th className="pb-2 pr-3 font-exo text-[10px] tracking-[0.2em] uppercase font-normal text-txt-muted">Moneda</th>
+              <th className="pb-2 pr-3 font-exo text-[10px] tracking-[0.2em] uppercase font-normal text-txt-muted">Equivale a</th>
               <th />
             </tr>
           </thead>
