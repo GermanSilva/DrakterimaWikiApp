@@ -1,0 +1,104 @@
+{
+  "version": 1,
+  "comments": [
+    {
+      "id": "zf73yxoi",
+      "file": "01-barra-de-guardado-fija.html",
+      "selector": "#a-sesion",
+      "excerpt": "SESIÓN EN VIVO PANTALLA DE SESIÓN Tarjetas que ves durante la partida. El diseño se guarda en la campaña. ABRIR SESIÓN EN VIVO →",
+      "comment": "Habría que quitar ya este apartado en ajustes ya que la sesión en vivo ya tiene su acceso directo en el sidebar, una alternativa mucho más directa y accesible",
+      "createdAt": "2026-11-12T00:39:06.094Z",
+      "status": "resolved",
+      "sentAt": "2026-11-12T00:39:06.119Z",
+      "resolvedAt": "2026-11-12T00:39:17.532Z"
+    },
+    {
+      "id": "t45djsz9",
+      "file": "01-barra-de-guardado-fija.html",
+      "selector": "#a-datos > div > div > label:nth-of-type(3)",
+      "excerpt": "Usar «Nivel» (1 a 20)",
+      "comment": "Los niveles no deberían estar limitados sólo hasta el 20. Puede haber otros sistemas con muchos más niveles numéricos.",
+      "createdAt": "2026-11-12T00:41:55.098Z",
+      "status": "resolved",
+      "sentAt": "2026-11-12T00:41:55.125Z",
+      "resolvedAt": "2026-11-12T00:42:06.534Z"
+    },
+    {
+      "id": "9wddl7ru",
+      "file": "01-barra-de-guardado-fija.html",
+      "selector": "#a-datos > div > div > div",
+      "excerpt": "Usar «Nivel» Rango a Cualquier rango entre 0 y 1000; por ejemplo 1 a 100 para sistemas con progresión larga.",
+      "comment": "Colocar el checkbox (+label) y los inputs de rango en la misma linea.",
+      "createdAt": "2026-11-12T00:43:27.230Z",
+      "status": "resolved",
+      "sentAt": "2026-11-12T00:43:27.249Z",
+      "resolvedAt": "2026-11-12T00:43:37.152Z"
+    },
+    {
+      "id": "1g249cr6",
+      "file": "01-barra-de-guardado-fija.html",
+      "selector": "#a-datos > div > div > label:nth-of-type(3)",
+      "excerpt": "Usar «Clase»",
+      "comment": "Cambiar texto a \"Usar «Clase/Trabajo/Grupo»\", y Agregar un campo que permita ingresar el título a utilizar (en caso de que se habilite la opción)",
+      "createdAt": "2026-11-12T00:47:05.181Z",
+      "status": "resolved",
+      "sentAt": "2026-11-12T00:47:05.201Z",
+      "resolvedAt": "2026-11-12T00:47:17.329Z"
+    },
+    {
+      "id": "2u87xahk",
+      "file": "01-barra-de-guardado-fija.html",
+      "selector": "#a-datos > div > div > label:nth-of-type(3)",
+      "excerpt": "Usar «Raza» como «Especie»",
+      "comment": "Cambiar texto a \"Usar «Raza/Especie»\", y agregar campo de texto para título.",
+      "createdAt": "2026-11-12T00:48:39.141Z",
+      "status": "resolved",
+      "sentAt": "2026-11-12T00:48:39.159Z",
+      "resolvedAt": "2026-11-12T00:48:48.224Z"
+    },
+    {
+      "id": "ro24oz08",
+      "file": "01-barra-de-guardado-fija.html",
+      "selector": "#a-datos > div > div > label:nth-of-type(2)",
+      "excerpt": "BASADO EN Solo informativo: la campaña tiene su propia copia.",
+      "comment": "Esto debería ser un dropdown de opciones, con los sistemas raíz y una opción de \"Sistema Original\" Para indicar que no se basa en ninguno de los sistemas raíz que alberga la página",
+      "createdAt": "2026-11-12T00:50:58.943Z",
+      "status": "resolved",
+      "sentAt": "2026-11-12T00:50:58.964Z",
+      "resolvedAt": "2026-11-12T00:51:09.329Z"
+    },
+    {
+      "id": "ro2camiz",
+      "file": "01-barra-de-guardado-fija.html",
+      "selector": "#main > div:nth-of-type(3)",
+      "excerpt": "DATOS DEL SISTEMA NOMBRE DEL SISTEMA BASADO EN D&D 5e (SRD) Genérico Sistema original (no se basa en ninguno) Solo informativo: la campaña tiene su propia copia y no recibe cambios del sistema elegido. Usar «Nivel» Rango a Cualquier rango entre 0 y 1000; por ejemplo 1 a 100 para sistemas con progres",
+      "comment": "En esta pestaña debería estar la configuración de Economía",
+      "createdAt": "2026-11-12T00:52:04.017Z",
+      "status": "resolved",
+      "sentAt": "2026-11-12T00:52:04.041Z",
+      "resolvedAt": "2026-11-12T00:52:19.287Z"
+    },
+    {
+      "id": "h9icudmb",
+      "file": "01-barra-de-guardado-fija.html",
+      "selector": "#a-economia > div",
+      "excerpt": "DESTINO DE RECOMPENSA Bolsa (tabla de economía de la ficha) Banco del gremio Ninguno Donde se acreditan la lotería, el pozo y las recompensas. Sin destino, la lotería no aparece en Juegos.",
+      "comment": "Aquí se deberían configurar las instancias de economía, pudiendo crear, editar, y eliminar. Como el destino de recompensa afecta directamente la configuración de los juegos, debería estar en la pestaña Juegos",
+      "createdAt": "2026-11-12T00:56:24.906Z",
+      "status": "resolved",
+      "sentAt": "2026-11-12T00:56:24.929Z",
+      "resolvedAt": "2026-11-12T00:56:43.627Z"
+    },
+    {
+      "id": "9vahp0rg",
+      "file": "01-barra-de-guardado-fija.html",
+      "selector": "#a-plantilla > div > div:nth-of-type(3)",
+      "excerpt": "VISTA PREVIA HP máx. 8 Bono de competencia +2 Percepción pasiva 10 Iniciativa +0",
+      "comment": "Permitir colapsar esta sección para mayor control del espacio.",
+      "createdAt": "2026-11-12T00:58:47.986Z",
+      "status": "resolved",
+      "sentAt": "2026-11-12T00:58:48.014Z",
+      "resolvedAt": "2026-11-12T00:59:15.789Z"
+    }
+  ]
+}

@@ -31,6 +31,9 @@ Login only (src/styles.css, `.login-backdrop` / `.login-backdrop-vignette`): a m
 brand stops plus `--brand-gradient`, `saturate(1.15)`, opacity `.61`; vignette `rgba(6,6,6,.48)` and `rgba(30,8,60,.28)`.
 Not used outside the login page.
 
+Formula workbench (src/styles.css, `.fx-*`): `.fx-text` monospace 14px/1.6 overlay; reference `--brand-3`, function `#d9a3d0`,
+string `#b9b0ec`, operator `#888888`, unknown reference `accent-bright` wavy underline. Only inside the sheet builder.
+
 ## Typography
 
 | Family | Usage | Source |

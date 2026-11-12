@@ -1,0 +1,27 @@
+{
+  "title": "Ajustes en pestañas",
+  "brief": "Reorganizar Ajustes de campaña (13 bloques, unos 7000 px de scroll) en pestañas horizontales, con guardar siempre a mano (por ejemplo «Guardar plantilla»)",
+  "artboards": [
+    {
+      "file": "01-barra-de-guardado-fija.html",
+      "title": "Pestañas y barra de guardado fija",
+      "tradeoff": "Las pestañas quedan fijas arriba y una barra abajo aparece solo cuando hay cambios, y avisa de otras pestañas sin guardar. Es el patrón más familiar, pero tapa algo del final del contenido y dentro de una pestaña larga no ayuda a saltar entre bloques",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "02-encabezado-de-acciones.html",
+      "title": "Pestañas con encabezado de acciones",
+      "tradeoff": "Un solo bloque fijo arriba con pestañas, accesos a cada bloque de la pestaña y el botón de guardar siempre visible. Es lo más rápido para moverse y guardar, pero el encabezado fijo ocupa unos 150 px de alto",
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "file": "03-indice-lateral.html",
+      "title": "Pestañas con índice lateral",
+      "tradeoff": "Pestañas con la acción de guardar en la misma barra, más un índice lateral con estado por bloque (por ejemplo «Lotería: incompleta»). Muestra mejor qué falta configurar, pero resta ancho al contenido, y en Ficha el índice se oculta para dejar todo el ancho al builder",
+      "width": 1440,
+      "height": 900
+    }
+  ]
+}

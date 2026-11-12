@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "chosen": "01-barra-de-guardado-fija.html",
+  "handoffs": {
+    "01-barra-de-guardado-fija.html": {
+      "status": "in_progress",
+      "queued": false,
+      "sentAt": "2026-11-12T01:01:32.038Z",
+      "startedAt": "2026-11-12T01:05:17.303Z",
+      "implementedAt": null,
+      "note": "Decisions: one save per tab; Basado en read-only lineage; economy edited only in Sistema/Juegos, builder only places it."
+    }
+  }
+}

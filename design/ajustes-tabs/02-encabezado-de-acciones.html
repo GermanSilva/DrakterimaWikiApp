@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ajustes — Pestañas con encabezado de acciones (02)</title>
+<style>
+:root{--bg-deep:#060606;--bg-mid:#0b0b0b;--bg-card:#111111;--bg-card-hover:#171717;--border-base:#1e1e1e;--border-light:#282828;--accent:#dc2626;--accent-bright:#ef4444;--accent-dim:#991b1b;--accent-subtle:#450a0a;--txt-primary:#ececec;--txt-secondary:#888888;--txt-muted:#6e6e6e;--brand-3:#4aaed8;--exo:'Exo 2',system-ui,'Segoe UI',sans-serif;--barlow:Barlow,system-ui,'Segoe UI',sans-serif;--mono:ui-monospace,'Cascadia Mono',Consolas,monospace;--hdr:60px}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{background:var(--bg-deep);color:var(--txt-primary);font:14px/1.45 var(--barlow);overflow:hidden}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;background:radial-gradient(ellipse 60% 40% at 15% 85%,rgba(220,38,38,.05) 0%,transparent 65%),radial-gradient(ellipse 50% 55% at 85% 15%,rgba(220,38,38,.03) 0%,transparent 65%)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--txt-primary);outline-offset:2px}
+[hidden]{display:none!important}
+::-webkit-scrollbar{width:8px;height:8px}::-webkit-scrollbar-track{background:var(--bg-deep)}::-webkit-scrollbar-thumb{background:var(--border-light)}::-webkit-scrollbar-button{display:none}*{scrollbar-color:var(--border-light) var(--bg-deep)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.lbl{font:500 10px var(--exo);letter-spacing:.2em;text-transform:uppercase;color:var(--txt-muted)}
+.btn{font:600 11px var(--exo);letter-spacing:.1em;text-transform:uppercase;padding:8px 16px;border:1px solid var(--border-light);background:transparent;color:var(--txt-secondary);cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:var(--accent-dim);color:var(--txt-primary)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.primary:hover{background:var(--accent-bright)}
+.btn.primary:disabled{background:var(--border-light);border-color:var(--border-light);color:var(--txt-secondary);cursor:not-allowed}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.danger{border-color:var(--accent-dim);color:var(--accent-bright)}
+.btn.sm{padding:4px 10px;font-size:10px}
+.in{background:var(--bg-mid);border:1px solid var(--border-base);padding:8px 12px;width:100%}
+.in:focus{border-color:var(--accent-dim);outline:none}
+/* app chrome */
+.app-h{height:var(--hdr);display:flex;align-items:center;gap:12px;padding:0 24px;border-bottom:1px solid var(--border-base);background:var(--bg-deep);position:relative;z-index:5}
+.app-h .logo{width:26px;height:26px;border:2px solid var(--accent);transform:rotate(45deg)}
+.app-h .eb{font:500 9px var(--exo);letter-spacing:.3em;text-transform:uppercase;color:var(--txt-muted)}
+.app-h .nm{font:700 17px var(--exo);letter-spacing:.06em;text-transform:uppercase;color:var(--accent-bright)}
+.app-h .me{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:14px}
+.app-h .av{width:32px;height:32px;border-radius:50%;background:var(--accent);display:grid;place-items:center;font:700 13px var(--exo)}
+.shell{display:grid;grid-template-columns:236px minmax(0,1fr);height:calc(100vh - var(--hdr))}
+.side{border-right:1px solid var(--border-base);overflow:auto;padding:14px 0}
+.side p{font:500 9px var(--exo);letter-spacing:.3em;text-transform:uppercase;color:var(--txt-muted);padding:14px 18px 6px}
+.side a{display:block;padding:8px 18px;color:var(--txt-secondary);text-decoration:none;font:500 12px var(--exo);letter-spacing:.1em;text-transform:uppercase;border-left:2px solid transparent}
+.side a:hover{color:var(--txt-primary)}
+.side a[aria-current=page]{color:var(--accent-bright);background:rgba(220,38,38,.08);border-left-color:var(--accent)}
+.main{overflow:auto;position:relative;scroll-behavior:smooth}
+@media (prefers-reduced-motion:reduce){.main{scroll-behavior:auto}*{transition:none!important;animation:none!important}}
+.wrap{max-width:1080px;margin:0 auto;padding:0 32px}
+.ph{padding:26px 0 0}
+.ph .eb{font:500 10px var(--exo);letter-spacing:.3em;text-transform:uppercase;color:var(--brand-3)}
+.ph h1{font:700 26px var(--exo);letter-spacing:.08em;text-transform:uppercase;margin-top:4px}
+/* tabs */
+.tabs-shell{position:relative}
+.tabs{display:flex;overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{position:relative;display:flex;align-items:center;gap:8px;padding:12px 18px;border:0;border-bottom:2px solid transparent;background:none;color:var(--txt-muted);cursor:pointer;font:600 11px var(--exo);letter-spacing:.12em;text-transform:uppercase;white-space:nowrap}
+.tab:hover{color:var(--txt-secondary)}
+.tab[aria-selected=true]{color:var(--txt-primary);border-bottom-color:var(--accent)}
+.tab .dot{width:7px;height:7px;border-radius:50%;background:var(--accent-bright);box-shadow:0 0 6px rgba(239,68,68,.65)}
+.tab .warn{font:600 9px var(--exo);letter-spacing:.1em;color:var(--accent-bright);border:1px solid var(--accent-dim);padding:1px 4px}
+.chev{position:absolute;top:0;bottom:0;display:flex;align-items:center;padding:0 6px;background:var(--bg-deep);border:0;color:var(--txt-muted);cursor:pointer;z-index:2}
+.chev:hover{color:var(--txt-primary)}
+.chev.l{left:0;box-shadow:8px 0 12px var(--bg-deep)}.chev.r{right:0;box-shadow:-8px 0 12px var(--bg-deep)}
+/* content blocks */
+.block{margin-bottom:28px;scroll-margin-top:var(--stick,120px)}
+.block>h2{font:600 9px var(--exo);letter-spacing:.3em;text-transform:uppercase;color:var(--txt-muted);padding-bottom:8px;border-bottom:1px solid var(--border-base);margin-bottom:12px}
+.card{background:var(--bg-card);border:1px solid var(--border-base);padding:20px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px}
+.f{display:flex;flex-direction:column;gap:6px}
+.hint{font-size:12px;color:var(--txt-muted)}
+.desc{font-size:13px;color:var(--txt-secondary);margin-bottom:12px;max-width:720px}
+.row{display:flex;align-items:center;gap:12px;padding:12px 16px;border:1px solid var(--border-base);background:var(--bg-card)}
+.row+.row{border-top:0}
+.row .t{font:600 12px var(--exo);letter-spacing:.04em;text-transform:uppercase}
+.row .s{font-size:12px;color:var(--txt-secondary)}
+.row .r{margin-left:auto;display:flex;gap:8px;align-items:center}
+.sw{width:14px;height:14px;flex:none}
+.chk{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--txt-secondary)}
+.chk input{accent-color:var(--accent);width:16px;height:16px}
+table.t{width:100%;border-collapse:collapse;font-size:13px}
+.t th{font:500 10px var(--exo);letter-spacing:.15em;text-transform:uppercase;color:var(--txt-muted);text-align:left;padding:8px 10px;border-bottom:1px solid var(--border-light)}
+.t td{padding:8px 10px;border-bottom:1px solid var(--border-base)}
+.t td.n{font-family:var(--mono);text-align:right}
+.tag{font:500 10px var(--exo);letter-spacing:.12em;text-transform:uppercase;border:1px solid var(--border-light);padding:2px 6px;color:var(--txt-secondary)}
+.tag.dm{border-color:var(--accent-dim);color:var(--accent-bright)}
+.brandprev{margin-top:16px;border:1px solid var(--border-base);background:var(--bg-deep);padding:16px}
+.brandprev b{font:700 18px var(--exo);letter-spacing:.06em;text-transform:uppercase;color:var(--accent-bright);display:block}
+/* mini builder (Ficha) */
+.mb{display:grid;grid-template-columns:200px minmax(0,1fr) 260px;border:1px solid var(--border-base);background:var(--bg-card);min-height:520px}
+.mb>div{padding:14px;border-right:1px solid var(--border-base)}.mb>div:last-child{border-right:0}
+.mb ul{list-style:none;font-size:13px;color:var(--txt-secondary)}
+.mb li{padding:4px 0 4px 10px}.mb li.c{font:500 10px var(--exo);letter-spacing:.2em;text-transform:uppercase;color:var(--txt-muted);padding:10px 0 4px}
+.mb li.on{color:var(--txt-primary);border-left:2px solid var(--accent)}
+.mb li .k{float:right;font:11px var(--mono);color:var(--txt-muted)}
+.mb .fxbox{font:14px var(--mono);background:var(--bg-mid);border:1px solid var(--border-base);padding:10px 12px;color:var(--txt-primary);margin:6px 0 10px;width:100%}
+.mb .fxbox:focus{border-color:var(--accent-dim);outline:none}
+.ok{border-left:3px solid var(--brand-3);background:rgba(74,174,216,.07);padding:10px 12px;font-size:13px}
+.bad{border-left:3px solid var(--accent-bright);background:var(--accent-subtle);padding:10px 12px;font-size:13px}
+.ok b,.bad b{display:block;font:600 11px var(--exo);letter-spacing:.1em;text-transform:uppercase}
+.pv .tile{border:1px solid var(--border-base);padding:8px 10px;display:flex;justify-content:space-between;font-size:12px;color:var(--txt-secondary);margin-bottom:4px}
+.pv .tile b{font:600 14px var(--mono);color:var(--txt-primary)}
+.danger{border:1px solid var(--accent-dim);background:rgba(69,10,10,.35);padding:16px;display:flex;gap:16px;align-items:center}
+.danger p{font-size:13px;color:var(--txt-secondary)}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--bg-card);border:1px solid var(--brand-3);padding:10px 16px;font-size:13px;z-index:50}
+.design-states{position:fixed;bottom:12px;left:12px;display:flex;gap:4px;font:11px var(--exo);z-index:60;background:var(--bg-deep);padding:4px;border:1px solid var(--border-light)}
+.design-states span{align-self:center;color:var(--txt-muted);padding:0 6px}
+.design-states button{background:var(--bg-card);color:var(--txt-secondary);border:1px solid var(--border-light);padding:4px 8px;cursor:pointer}
+.design-states button[aria-pressed=true]{color:var(--txt-primary);border-color:var(--accent)}
+@media (max-width:900px){.shell{grid-template-columns:1fr}.side{display:none}.wrap{padding:0 16px}.g2{grid-template-columns:1fr}.mb{grid-template-columns:1fr}.mb>div{border-right:0;border-bottom:1px solid var(--border-base)}}
+@media (max-width:600px){.row{flex-wrap:wrap}.row .r{margin-left:0;width:100%;flex-wrap:wrap}.savebar .in-bar,.sub{flex-wrap:wrap}.savebar .msg,.sub .state{width:100%;margin-left:0;text-align:left}.savebar .acts{margin-left:0;width:100%}.savebar .acts .primary{flex:1}.danger{flex-wrap:wrap}.danger .btn{margin-left:0!important}}
+
+.sticky{position:sticky;top:0;z-index:4;background:rgba(6,6,6,.96);backdrop-filter:blur(6px);border-bottom:1px solid var(--border-base)}
+.ph{padding:20px 0 0;display:flex;align-items:flex-end;gap:24px}
+.ph .eb{margin-bottom:0}
+.tabbar{display:flex;align-items:flex-end;gap:16px}
+.tabbar .tabs-shell{flex:1;min-width:0}
+.sub{display:flex;align-items:center;gap:8px;padding:10px 0;border-top:1px solid var(--border-base)}
+.sub .lbl{margin-right:4px}
+.jump{background:none;border:1px solid var(--border-light);color:var(--txt-secondary);padding:4px 10px;font-size:12px;cursor:pointer}
+.jump:hover{color:var(--txt-primary);border-color:var(--accent-dim)}
+.jump[aria-current=true]{color:var(--txt-primary);border-color:var(--accent)}
+.sub .state{margin-left:auto;font-size:12px;color:var(--txt-secondary);text-align:right}
+.sub .state .err{color:var(--accent-bright)}
+.sub .acts{display:flex;gap:8px}
+.content{padding-top:24px;padding-bottom:80px;--stick:150px}
+</style></head><body>
+<header class="app-h"><span class="logo" aria-hidden="true"></span><div><p class="eb">Local demo campaign</p><p class="nm">Drakterima Demo</p></div><div class="me">Demo DM <span class="av" aria-hidden="true">D</span></div></header>
+<div class="shell">
+<nav class="side" aria-label="Secciones de la campaña">
+<a href="#">Panel</a><p>Administración</p><a href="#">Sesión en vivo</a><a href="#" aria-current="page">Ajustes</a>
+<p>Principal</p><a href="#">Notas</a><a href="#">Sesiones</a><a href="#">Calendario</a>
+<p>Personajes</p><a href="#">Jugadores (PJ)</a><a href="#">PNJs</a><a href="#">Acciones</a>
+<p>Mundo</p><a href="#">Mapas</a><a href="#">Lugares</a><a href="#">Facciones</a><a href="#">Lore</a>
+<p>Homebrew</p><a href="#">Homerules</a><a href="#">Ítems</a><a href="#">Juegos</a>
+</nav>
+<main class="main" id="main">
+<div class="sticky"><div class="wrap">
+<div class="ph"><div><p class="eb">Dungeon Master</p><h1 style="font-size:20px">Ajustes</h1></div></div>
+<div class="tabs-shell"><button class="chev l" type="button" aria-label="Desplazar pestañas a la izquierda" hidden>‹</button>
+<div class="tabs" role="tablist" aria-label="Secciones de ajustes"><button class="tab" role="tab" type="button" id="tab-campana" data-tab="campana" aria-controls="panel-campana" aria-selected="false" tabindex="-1">Campaña<span class="dot" hidden aria-hidden="true"></span><span class="warn" hidden aria-hidden="true">Error</span><span class="sr sr-state"></span></button><button class="tab" role="tab" type="button" id="tab-sistema" data-tab="sistema" aria-controls="panel-sistema" aria-selected="false" tabindex="-1">Sistema<span class="dot" hidden aria-hidden="true"></span><span class="warn" hidden aria-hidden="true">Error</span><span class="sr sr-state"></span></button><button class="tab" role="tab" type="button" id="tab-ficha" data-tab="ficha" aria-controls="panel-ficha" aria-selected="false" tabindex="-1">Ficha<span class="dot" hidden aria-hidden="true"></span><span class="warn" hidden aria-hidden="true">Error</span><span class="sr sr-state"></span></button><button class="tab" role="tab" type="button" id="tab-juegos" data-tab="juegos" aria-controls="panel-juegos" aria-selected="false" tabindex="-1">Juegos<span class="dot" hidden aria-hidden="true"></span><span class="warn" hidden aria-hidden="true">Error</span><span class="sr sr-state"></span></button><button class="tab" role="tab" type="button" id="tab-jugadores" data-tab="jugadores" aria-controls="panel-jugadores" aria-selected="false" tabindex="-1">Jugadores<span class="dot" hidden aria-hidden="true"></span><span class="warn" hidden aria-hidden="true">Error</span><span class="sr sr-state"></span></button><button class="tab" role="tab" type="button" id="tab-datos" data-tab="datos" aria-controls="panel-datos" aria-selected="false" tabindex="-1">Datos<span class="dot" hidden aria-hidden="true"></span><span class="warn" hidden aria-hidden="true">Error</span><span class="sr sr-state"></span></button></div>
+<button class="chev r" type="button" aria-label="Desplazar pestañas a la derecha" hidden>›</button></div>
+<div class="sub" id="sub"><span class="lbl">Ir a</span><span id="jumps" style="display:flex;gap:6px;flex-wrap:wrap"></span><p class="state" id="state" role="status"></p><div class="acts"><button class="btn" type="button" id="discard">Descartar</button><button class="btn primary" type="button" id="save"></button></div></div>
+</div></div>
+<div class="wrap content"><div role="tabpanel" id="panel-campana" data-tab="campana" aria-labelledby="tab-campana" hidden><section class="block" id="b-identidad" aria-labelledby="b-identidad-h"><h2 id="b-identidad-h">Identidad y marca</h2><div class="card"><div class="g2">
+<label class="f"><span class="lbl">Identificador (slug)</span><input class="in" value="drakterima-demo" disabled><span class="hint">Es parte de la dirección y no se puede cambiar.</span></label>
+<label class="f"><span class="lbl">Nombre</span><input class="in" value="Drakterima Demo"></label>
+<label class="f"><span class="lbl">Pre-título (opcional)</span><input class="in" value="Local demo campaign"><span class="hint">Hasta 35 caracteres. Se muestra sobre el nombre.</span></label>
+<label class="f"><span class="lbl">Logo (URL https, opcional)</span><input class="in" placeholder="https://…"><span class="hint">Vacío usa el icono de RPG Quester.</span></label>
+<label class="f"><span class="lbl">Banner (URL https, opcional)</span><input class="in" placeholder="https://…"></label>
+<label class="f"><span class="lbl">Color de acento</span><span style="display:flex;gap:8px"><span class="sw" style="width:40px;height:36px;background:#dc2626"></span><input class="in" value="#dc2626" style="width:140px"></span></label>
+</div><div class="brandprev"><b>Drakterima Demo</b><span class="hint">Local demo campaign</span></div></div></section><section class="block" id="b-regiones" aria-labelledby="b-regiones-h"><h2 id="b-regiones-h">Regiones</h2><p class="desc">Las regiones clasifican lugares, PNJs, personajes y facciones. La clave es interna; el nombre y el color se pueden cambiar.</p>
+<div class="row"><span class="sw" style="background:#dc2626"></span><span class="t">Magral</span><span class="s">magral · 14 artículos</span><span class="r"><button class="btn sm" type="button">Editar</button></span></div>
+<div class="row"><span class="sw" style="background:#f59e0b"></span><span class="t">Nezor</span><span class="s">nezor · 9 artículos</span><span class="r"><button class="btn sm" type="button">Editar</button></span></div>
+<div class="row"><span class="sw" style="background:#9ca3af"></span><span class="t">Otro</span><span class="s">otro · 3 artículos</span><span class="r"><button class="btn sm" type="button">Editar</button></span></div>
+<button class="btn" type="button" style="margin-top:10px">+ Agregar región</button></section><section class="block" id="b-sesion" aria-labelledby="b-sesion-h"><h2 id="b-sesion-h">Sesión en vivo</h2><div class="row"><div><p class="t">Pantalla de sesión</p><p class="s">Tarjetas que ves durante la partida. El diseño se guarda en la campaña.</p></div><span class="r"><button class="btn" type="button">Abrir sesión en vivo →</button></span></div></section></div><div role="tabpanel" id="panel-sistema" data-tab="sistema" aria-labelledby="tab-sistema" hidden><section class="block" id="b-datos" aria-labelledby="b-datos-h"><h2 id="b-datos-h">Datos del sistema</h2><div class="card"><div class="g2">
+<label class="f"><span class="lbl">Nombre del sistema</span><input class="in" value="Drakterima 5e"></label>
+<label class="f"><span class="lbl">Basado en</span><input class="in" value="D&amp;D 5e (SRD)" disabled><span class="hint">Solo informativo: la campaña tiene su propia copia.</span></label>
+<label class="chk"><input type="checkbox" checked> Usar «Nivel» (1 a 20)</label>
+<label class="chk"><input type="checkbox" checked> Usar «Clase»</label>
+<label class="chk"><input type="checkbox"> Usar «Raza» como «Especie»</label>
+</div></div></section><section class="block" id="b-distancias" aria-labelledby="b-distancias-h"><h2 id="b-distancias-h">Unidades de distancia</h2><table class="t"><thead><tr><th>Clave</th><th>Unidad</th><th>Equivale a</th><th>Precisión</th><th></th></tr></thead><tbody>
+<tr><td>ft</td><td>pies (principal)</td><td class="n">1</td><td>entero</td><td><button class="btn sm" type="button">Editar</button></td></tr>
+<tr><td>m</td><td>metros</td><td class="n">0,3</td><td>1 decimal</td><td><button class="btn sm" type="button">Editar</button></td></tr>
+<tr><td>c</td><td>casilleros</td><td class="n">0,2</td><td>entero</td><td><button class="btn sm" type="button">Editar</button></td></tr></tbody></table></section><section class="block" id="b-homebrew" aria-labelledby="b-homebrew-h"><h2 id="b-homebrew-h">Homebrew</h2><div class="row"><div><p class="t">Guardar como homebrew</p><p class="s">Crea un sistema propio a partir de esta campaña para reutilizarlo en campañas nuevas.</p></div><span class="r"><button class="btn" type="button">Guardar como homebrew</button></span></div></section></div><div role="tabpanel" id="panel-ficha" data-tab="ficha" aria-labelledby="tab-ficha" hidden><section class="block" id="b-plantilla" aria-labelledby="b-plantilla-h"><h2 id="b-plantilla-h">Plantilla de ficha</h2><p class="desc">Categorías, secciones, campos y tablas de la ficha. Las claves se fijan al guardar.</p>
+<div class="mb"><div><input class="in" placeholder="Buscar por nombre o clave" aria-label="Buscar en la estructura" style="margin-bottom:8px"><ul>
+<li class="c">Identidad</li><li>Trasfondo <span class="k">texto</span></li><li>Alineamiento <span class="k">texto</span></li>
+<li class="c">Mecánicas</li><li>Atributos <span class="k">tabla</span></li><li>HP máx. <span class="k">número</span></li><li>Bono de competencia <span class="k">ƒ</span></li><li class="on">Percepción pasiva <span class="k">ƒ</span></li>
+<li class="c">Hechizos</li><li>Espacios de conjuro <span class="k">tabla</span></li></ul></div>
+<div><p class="lbl">Mecánicas › Combate</p><p style="font:600 15px var(--exo);letter-spacing:.12em;text-transform:uppercase;margin:4px 0 12px">Percepción pasiva</p>
+<label class="lbl" for="fx-b">Fórmula</label><input id="fx-b" class="fxbox" data-fx value="10 + {skill_perception}">
+<div class="ok" data-fxok><b>Fórmula válida</b>Usa 1 referencia. Resultado con Maisie Moonwhisper: 10.</div>
+<div class="bad" data-fxbad hidden><b>No se puede calcular</b>Falta cerrar una referencia con }.</div></div>
+<div class="pv"><p class="lbl" style="margin-bottom:8px">Vista previa</p><div class="tile">HP máx.<b>8</b></div><div class="tile">Bono de competencia<b>+2</b></div><div class="tile" style="border-color:var(--accent-dim)">Percepción pasiva<b data-pv>10</b></div><div class="tile">Iniciativa<b>+0</b></div></div></div></section><section class="block" id="b-campos" aria-labelledby="b-campos-h"><h2 id="b-campos-h">Campos de personaje</h2><p class="desc">Campos simples que se agregan al final de la ficha (sistema clásico). Con plantilla de ficha conviene definirlos ahí.</p>
+<div class="row"><span class="t">Deidad</span><span class="s">texto corto</span><span class="r"><button class="btn sm" type="button">Editar</button></span></div>
+<div class="row"><span class="t">Juramento</span><span class="s">párrafo</span><span class="r"><button class="btn sm" type="button">Editar</button></span></div></section></div><div role="tabpanel" id="panel-juegos" data-tab="juegos" aria-labelledby="tab-juegos" hidden><section class="block" id="b-loteria" aria-labelledby="b-loteria-h"><h2 id="b-loteria-h">Lotería</h2><div class="card"><div class="g2">
+<label class="f"><span class="lbl">Costo de la tirada</span><input class="in" value="5 oro"></label>
+<label class="f"><span class="lbl">Destino del premio</span><select class="in"><option>Bolsa (destino de recompensa)</option></select></label></div>
+<table class="t" style="margin-top:14px"><thead><tr><th>Tirada</th><th>Premio</th><th>Código</th></tr></thead><tbody>
+<tr><td>20</td><td>Pozo completo</td><td class="n">pozo</td></tr><tr><td>15–19</td><td>20 oro, 14 plata</td><td class="n">20_14_0</td></tr><tr><td>1–14</td><td>Nada</td><td class="n">0_0_0</td></tr></tbody></table></div></section><section class="block" id="b-pozo" aria-labelledby="b-pozo-h"><h2 id="b-pozo-h">Pozo acumulado</h2><div class="row"><div><p class="t">Pozo acumulado: 135 oro</p><p class="s">Se reparte cuando alguien saca 20.</p></div><span class="r"><button class="btn" type="button">Asignar a un personaje</button><button class="btn" type="button">Ajustar</button></span></div></section><section class="block" id="b-registro" aria-labelledby="b-registro-h"><h2 id="b-registro-h">Registro de tiradas</h2><table class="t"><thead><tr><th>Fecha</th><th>Personaje</th><th>Tirada</th><th>Resultado</th></tr></thead><tbody>
+<tr><td>09/11</td><td>Maisie Moonwhisper</td><td class="n">17</td><td>20 oro, 14 plata</td></tr><tr><td>02/11</td><td>Borin Ferrohondo</td><td class="n">4</td><td>Nada</td></tr></tbody></table></section></div><div role="tabpanel" id="panel-jugadores" data-tab="jugadores" aria-labelledby="tab-jugadores" hidden><section class="block" id="b-miembros" aria-labelledby="b-miembros-h"><h2 id="b-miembros-h">Miembros</h2><div class="row"><span class="t">Demo DM</span><span class="tag dm">DM</span><span class="s">dm@example.test · activo hoy</span><span class="r"><button class="btn sm" type="button">Traspasar DM</button></span></div>
+<div class="row"><span class="t">Mica</span><span class="tag">Jugadora</span><span class="s">player1@example.test · hace 2 días</span><span class="r"><button class="btn sm" type="button">Cambiar rol</button><button class="btn sm" type="button">Quitar</button></span></div>
+<div class="row"><span class="t">Tomi</span><span class="tag">Jugador</span><span class="s">player2@example.test · hace 5 días</span><span class="r"><button class="btn sm" type="button">Cambiar rol</button><button class="btn sm" type="button">Quitar</button></span></div></section><section class="block" id="b-duenos" aria-labelledby="b-duenos-h"><h2 id="b-duenos-h">Dueños de personajes</h2><table class="t"><thead><tr><th>Personaje</th><th>Jugador asignado</th></tr></thead><tbody>
+<tr><td>Maisie Moonwhisper</td><td><select class="in" aria-label="Dueño de Maisie"><option>Mica</option><option>Tomi</option><option>Sin asignar</option></select></td></tr>
+<tr><td>Borin Ferrohondo</td><td><select class="in" aria-label="Dueño de Borin"><option>Tomi</option><option>Mica</option><option>Sin asignar</option></select></td></tr></tbody></table></section><section class="block" id="b-invitaciones" aria-labelledby="b-invitaciones-h"><h2 id="b-invitaciones-h">Invitaciones</h2><div class="row"><div><p class="t">Código 7F3K-Q2</p><p class="s">Jugador · vence el 18/11 · 1 de 3 usos</p></div><span class="r"><button class="btn sm" type="button">Copiar link</button><button class="btn sm" type="button">Revocar</button></span></div>
+<button class="btn" type="button" style="margin-top:10px">+ Nueva invitación</button></section></div><div role="tabpanel" id="panel-datos" data-tab="datos" aria-labelledby="tab-datos" hidden><section class="block" id="b-exportar" aria-labelledby="b-exportar-h"><h2 id="b-exportar-h">Exportar</h2><div class="row"><div><p class="t">Exportar campaña</p><p class="s">Descarga un JSON con artículos, personajes, sistema y acciones.</p></div><span class="r"><button class="btn" type="button">Descargar</button></span></div></section><section class="block" id="b-peligro" aria-labelledby="b-peligro-h"><h2 id="b-peligro-h">Zona de peligro</h2><div class="danger"><div><p class="t" style="color:var(--accent-bright)">Borrar campaña</p><p>Borra todo de forma definitiva. Para confirmar vas a tener que escribir <b style="font-family:var(--mono)">drakterima-demo</b>.</p></div><button class="btn danger" type="button" style="margin-left:auto">Borrar campaña</button></div></section></div></div>
+</main>
+</div>
+<div class="design-states" role="group" aria-label="Estados del artboard (solo diseño)"><span>Estado:</span><button type="button" data-ds="clean" aria-pressed="true">Sin cambios</button><button type="button" data-ds="dirty" aria-pressed="false">Con cambios</button><button type="button" data-ds="error" aria-pressed="false">Error en la ficha</button></div><div class="toast" id="toast" role="status" hidden></div>
+<script>
+const TABS=[{"id":"campana","label":"Campaña","save":"Guardar campaña","blocks":[["identidad","Identidad y marca"],["regiones","Regiones"],["sesion","Sesión en vivo"]]},{"id":"sistema","label":"Sistema","save":"Guardar sistema","blocks":[["datos","Datos del sistema"],["distancias","Unidades de distancia"],["homebrew","Homebrew"]]},{"id":"ficha","label":"Ficha","save":"Guardar plantilla","blocks":[["plantilla","Plantilla de ficha"],["campos","Campos de personaje"]]},{"id":"juegos","label":"Juegos","save":"Guardar juegos","blocks":[["loteria","Lotería"],["pozo","Pozo acumulado"],["registro","Registro de tiradas"]]},{"id":"jugadores","label":"Jugadores","save":null,"blocks":[["miembros","Miembros"],["duenos","Dueños de personajes"],["invitaciones","Invitaciones"]]},{"id":"datos","label":"Datos","save":null,"blocks":[["exportar","Exportar"],["peligro","Zona de peligro"]]}];
+const S={tab:'campana',dirty:{},err:false};
+const q=s=>document.querySelector(s),qa=s=>[...document.querySelectorAll(s)];
+function tabBtn(id){return q('[role=tab][data-tab="'+id+'"]')}
+function select(id,focus){S.tab=id;qa('[role=tab]').forEach(b=>{const on=b.dataset.tab===id;b.setAttribute('aria-selected',on);b.tabIndex=on?0:-1});
+  qa('[role=tabpanel]').forEach(p=>p.hidden=p.dataset.tab!==id);if(focus)tabBtn(id).focus();
+  try{history.replaceState(null,'','?tab='+id)}catch(e){}
+  const b=tabBtn(id);b.scrollIntoView({block:'nearest',inline:'nearest'});q('.main').scrollTop=0;onTab&&onTab(id);refresh()}
+function setDirty(id,n){S.dirty[id]=n;refresh()}
+function dirtyCount(id){return S.dirty[id]||0}
+function refresh(){qa('[role=tab]').forEach(b=>{const id=b.dataset.tab,n=dirtyCount(id),e=id==='ficha'&&S.err;
+  b.querySelector('.dot').hidden=!n;b.querySelector('.warn').hidden=!e;b.querySelector('.sr-state').textContent=(n?', cambios sin guardar':'')+(e?', con errores':'')});
+  qa('[data-fxok]').forEach(x=>x.hidden=S.err);qa('[data-fxbad]').forEach(x=>x.hidden=!S.err);qa('[data-pv]').forEach(x=>x.textContent=S.err?'—':'10');
+  render&&render()}
+function toast(msg){const t=q('#toast');t.textContent=msg;t.hidden=false;clearTimeout(toast.h);toast.h=setTimeout(()=>t.hidden=true,2400)}
+function save(id){const tab=TABS.find(t=>t.id===id);if(id==='ficha'&&S.err)return;setDirty(id,0);toast('Cambios de '+tab.label+' guardados.')}
+function discard(id){setDirty(id,0);if(id==='ficha'){S.err=false;qa('[data-fx]').forEach(i=>i.value='10 + {skill_perception}')}toast('Cambios descartados.');refresh()}
+document.addEventListener('input',e=>{const p=e.target.closest('[role=tabpanel]');if(!p||e.target.closest('[aria-label="Buscar en la estructura"]'))return;
+  const id=p.dataset.tab;if(!TABS.find(t=>t.id===id).save)return;setDirty(id,dirtyCount(id)+1);
+  if(e.target.matches('[data-fx]')){S.err=(e.target.value.split('{').length!==e.target.value.split('}').length);refresh()}});
+document.addEventListener('change',e=>{const p=e.target.closest('[role=tabpanel]');if(p&&e.target.matches('select,input[type=checkbox]')&&TABS.find(t=>t.id===p.dataset.tab).save){setDirty(p.dataset.tab,dirtyCount(p.dataset.tab)+1)}});
+qa('[role=tab]').forEach((b,i,all)=>{b.onclick=()=>select(b.dataset.tab);b.onkeydown=e=>{const k=e.key;let j=-1;if(k==='ArrowRight')j=(i+1)%all.length;if(k==='ArrowLeft')j=(i-1+all.length)%all.length;if(k==='Home')j=0;if(k==='End')j=all.length-1;if(j>=0){e.preventDefault();select(all[j].dataset.tab,true)}}});
+const strip=q('.tabs');function chev(){const l=strip.scrollLeft>1,r=strip.scrollLeft+strip.clientWidth<strip.scrollWidth-1;q('.chev.l').hidden=!l;q('.chev.r').hidden=!r}
+strip.addEventListener('scroll',chev);window.addEventListener('resize',chev);q('.chev.l').onclick=()=>strip.scrollBy({left:-200});q('.chev.r').onclick=()=>strip.scrollBy({left:200});
+qa('[data-ds]').forEach(b=>b.onclick=()=>{qa('[data-ds]').forEach(x=>x.setAttribute('aria-pressed',x===b));const v=b.dataset.ds;
+  if(v==='clean'){S.dirty={};S.err=false}if(v==='dirty'){S.dirty={campana:2,ficha:3};S.err=false}if(v==='error'){S.dirty={ficha:4};S.err=true;select('ficha')}
+  qa('[data-fx]').forEach(i=>i.value=S.err?'10 + {skill_perception':'10 + {skill_perception}');refresh()});
+const init=(new URLSearchParams(location.search).get('tab'));
+
+function onTab(id){const tab=TABS.find(t=>t.id===id);q('#jumps').innerHTML=tab.blocks.map(([b,l])=>'<button class="jump" type="button" data-jump="b-'+b+'">'+l+'</button>').join('');
+  qa('[data-jump]').forEach(j=>j.onclick=()=>{const el=document.getElementById(j.dataset.jump);el.scrollIntoView({block:'start'});el.querySelector('h2').setAttribute('tabindex','-1');el.querySelector('h2').focus({preventScroll:true})})}
+function render(){const id=S.tab,tab=TABS.find(t=>t.id===id),n=dirtyCount(id);
+  q('#save').hidden=!tab.save;q('#discard').hidden=!tab.save||!n;q('#save').textContent=tab.save||'';q('#save').disabled=!n||(id==='ficha'&&S.err);
+  q('#save').title=id==='ficha'&&S.err?'Corregí la fórmula de Percepción pasiva para guardar':'';
+  q('#state').innerHTML=tab.save?(n?n+' cambio'+(n>1?'s':'')+' sin guardar':'Sin cambios')+(id==='ficha'&&S.err?'<br><span class="err">1 error impide guardar</span>':''):'Cada acción se aplica al momento';
+  const main=q('.main'),secs=tab.blocks.map(([b])=>document.getElementById('b-'+b));let cur=secs[0];secs.forEach(s=>{if(s.getBoundingClientRect().top<200)cur=s});
+  qa('[data-jump]').forEach(j=>j.setAttribute('aria-current',j.dataset.jump===cur.id))}
+q('.main').addEventListener('scroll',()=>render());
+q('#save').onclick=()=>save(S.tab);q('#discard').onclick=()=>discard(S.tab);
+select(TABS.some(t=>t.id===init)?init:'campana');chev();
+</script>
+</body></html>
