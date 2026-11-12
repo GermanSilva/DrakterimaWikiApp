@@ -103,6 +103,19 @@ describe('no lost update across Sistema, Juegos and Ficha saves', () => {
     expect(keys(sectionItems(h.sheet(), 'equipo'))).toEqual(['bolsa', 'banco', 'caja'])
   })
 
+  it('S8/F1: reordering economy tables in Ficha keeps an unsaved Sistema draft', async () => {
+    const h = renderEconomy(SHEET())
+    await renameCoin('Corona')
+    await tab(/Ficha/)
+    fireEvent.click(within(await screen.findByRole('group', { name: 'Ítem Banco' })).getByRole('button', { name: 'Subir ítem' }))
+    await save(/Ficha/, 'Guardar plantilla')
+    await waitFor(() => expect(h.spies.setSystemProfile).toHaveBeenCalledTimes(1))
+    expect(keys(sectionItems(h.sheet(), 'equipo'))).toEqual(['banco', 'bolsa'])
+    await tab(/Sistema/)
+    const region = within(await screen.findByRole('region', { name: 'Economía' }))
+    expect(region.getByRole('row', { name: 'Moneda Corona' })).toBeInTheDocument()
+  })
+
   it('an instance deleted in Sistema is not brought back by a builder draft that still had it, and its discarded entry stays', async () => {
     const h = renderEconomy(SHEET())
     await addBuilderField('Altura')

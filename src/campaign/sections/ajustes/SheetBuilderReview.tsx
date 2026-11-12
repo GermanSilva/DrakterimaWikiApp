@@ -3,6 +3,7 @@ import { ConflictError, DataError, type Campaign } from '../../../data'
 import { useCampaign } from '../../CampaignContext'
 import { useCampaignServices } from '../../entities/campaignServicesContext'
 import { describeDataError } from '../../entities/errorMessages'
+import { mergeEconomy } from '../../system/builder/economy'
 import type { ReviewCharacter, ReviewHost } from '../../system/builder/SheetBuilder'
 import { useSavedCampaign } from './savedCampaignContext'
 import type { Notice } from './useCampaignSave'
@@ -65,11 +66,15 @@ export function useDiscardedReview({ enabled, campaign, setNotice }: Options): R
   return {
     characters,
     onPurge: (key) => commit((base) => layer.campaigns.purgeDiscardedItem(campaignId, key, base), 'Campo descartado eliminado.', 'No se pudo eliminar el campo descartado. Intentá de nuevo.'),
-    onRestoreRenamed: (key, renames, sheet, warning) => {
+    onRestoreRenamed: (key, renames, sheet, warning, economyOwner = false) => {
       const stored = campaign.system_profile as unknown
       const document = typeof stored === 'object' && stored !== null && !Array.isArray(stored) ? (stored as Record<string, unknown>) : {}
+      // The economy of what is written always comes from its owner (S8): from the stored sheet when `sheet` is a builder draft (which cannot
+      // bring an economy instance back), from `sheet` itself when Sistema restores one.
+      const now = typeof document.sheet === 'object' && document.sheet !== null && !Array.isArray(document.sheet) ? (document.sheet as Record<string, unknown>) : null
+      const written = !now ? sheet : economyOwner ? mergeEconomy({ placement: now, economy: sheet, base: now, latest: now }).sheet : mergeEconomy({ placement: sheet, economy: now, base: now, latest: now, strict: true }).sheet
       return commit(
-        (base) => layer.campaigns.rekeyDiscardedItem(campaignId, key, renames, { ...document, sheet }, base),
+        (base) => layer.campaigns.rekeyDiscardedItem(campaignId, key, renames, { ...document, sheet: written }, base),
         `Plantilla guardada. ${warning}`.trim(),
         'No se pudo restaurar el campo. Intentá de nuevo.',
       )

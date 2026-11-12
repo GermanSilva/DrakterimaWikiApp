@@ -72,7 +72,7 @@ export function SheetBuilderSettings() {
     const base = isRecord(current) && current.version === 1 ? current : parseSystemProfile(current)
     // placement from this draft, economy from the stored sheet (an instance created or deleted in Sistema meanwhile is not undone)
     const now = isRecord(base.sheet) ? base.sheet : null
-    const merged = now ? mergeEconomy({ placement: sheet, economy: now, base: economyBase, latest: now }) : null
+    const merged = now ? mergeEconomy({ placement: sheet, economy: now, base: economyBase, latest: now, strict: true }) : null
     await saveSystem({ ...base, sheet: merged ? merged.sheet : sheet }, 'Plantilla guardada.', 'No se pudo guardar la plantilla. Intentá de nuevo.')
   }
 

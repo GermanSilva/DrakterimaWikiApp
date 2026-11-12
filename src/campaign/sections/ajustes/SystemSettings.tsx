@@ -6,14 +6,18 @@ import { LEVEL_MAX, newUnit, systemDraft, validateSystem, type BuiltinDraft, typ
 import { AdminSection } from '../../../components/AdminSection'
 import type { Node } from '../../system/builder/draft'
 import { changes } from '../../system/builder/changeCount'
-import { economyErrors, economyProjection, mergeEconomy } from '../../system/builder/economy'
+import { discardedEntries } from '../../system/builder/discard'
+import { economyErrors, economyIdentity, economyProjection, isEconomyItem, mergeEconomy } from '../../system/builder/economy'
+import type { ReviewHost } from '../../system/builder/SheetBuilder'
 import { describeSheetError, displayLine } from '../../system/builder/errorsEs'
 import { validateSheet } from '../../system/sheet/sheetModel'
+import { EconomyDiscarded } from './EconomyDiscarded'
 import { EconomySettings } from './EconomySettings'
 import { HomebrewSettings } from './HomebrewSettings'
 import { countChanges } from './tabSave/dirty'
 import { BlockSaveError } from './tabSave/tabSaveContext'
 import { useTabSaveBlock } from './tabSave/useTabSaveBlock'
+import { useDiscardedReview } from './SheetBuilderReview'
 import { useCampaignSave } from './useCampaignSave'
 import { useCampaignServices } from '../../entities/campaignServicesContext'
 import { useLoad } from '../../entities/useLoad'
@@ -293,6 +297,7 @@ function SystemForm({
   initialSheet,
   latestSheet,
   readLottery,
+  review,
   basedOn,
   onSave,
 }: {
@@ -302,6 +307,8 @@ function SystemForm({
   /** The freshest stored sheet. */
   latestSheet: Node | null
   readLottery: () => Promise<unknown>
+  /** Characters and the DM-only RPCs of the discarded economy instances (absent until the characters were read). */
+  review: ReviewHost | undefined
   basedOn: string | null | undefined
   onSave: (draft: SystemDraft, economy: EconomyDraft | null) => Promise<SystemErrors | null>
 }) {
@@ -428,6 +435,7 @@ function SystemForm({
       <div id="ajustes-economia">
         <AdminSection title="Economía">
           <EconomySettings sheet={sheet} stored={latestSheet} onChange={setSheet} errors={economyLines} readLottery={readLottery} />
+          {sheet && <EconomyDiscarded sheet={sheet} stored={initialSheet} review={review} dirty={countChanges(initial, draft) + economyChanges > 0} onChange={setSheet} />}
         </AdminSection>
       </div>
 
@@ -444,6 +452,8 @@ export function SystemSettings() {
   const { campaign, latest, notice, setNotice, saves, saveSystem, fail } = useCampaignSave()
   const { layer, campaignId } = useCampaignServices()
   const stored = parseSystemProfile(campaign.system_profile)
+  const hasDiscardedEconomy = discardedEntries(stored.sheet ?? {}).some((e) => isEconomyItem(e.item))
+  const review = useDiscardedReview({ enabled: hasDiscardedEconomy, campaign, setNotice })
   const readLottery = async () => (await layer.config.get(campaignId, 'loteria'))?.value
 
   async function onSave(draft: SystemDraft, economy: EconomyDraft | null): Promise<SystemErrors | null> {
@@ -473,7 +483,7 @@ export function SystemSettings() {
   // Rebuild the draft when a save of this form succeeded or the part of the document it edits changed (another DM, conflict
   // re-read). A save of another block of the same document (the sheet template) changes the rest of the document, not this
   // draft: the form keeps what is typed and its next save is written over the document as saved by then.
-  const formKey = `${saves}:${JSON.stringify(systemDraft(stored))}:${JSON.stringify(economyProjection(stored.sheet ?? null))}`
+  const formKey = `${saves}:${JSON.stringify(systemDraft(stored))}:${JSON.stringify(economyIdentity(stored.sheet ?? null))}`
   return (
     <div className="flex flex-col gap-3">
       <p className="text-[12px] text-txt-secondary">
@@ -485,6 +495,7 @@ export function SystemSettings() {
         initialSheet={stored.sheet ?? null}
         latestSheet={stored.sheet ?? null}
         readLottery={readLottery}
+        review={review}
         basedOn={campaign.based_on_system}
         onSave={onSave}
       />

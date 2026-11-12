@@ -30,12 +30,12 @@ export interface EconomyHarness extends ReturnType<typeof createFakeLayer> {
   sheet: () => Json
 }
 
-export function renderEconomy(sheet: Json | null, { tab = 'sistema', config = {}, extra = {} }: { tab?: string; config?: Json; extra?: Json } = {}): EconomyHarness {
+export function renderEconomy(sheet: Json | null, { tab = 'sistema', config = {}, extra = {}, pjs = [] }: { tab?: string; config?: Json; extra?: Json; pjs?: Json[] } = {}): EconomyHarness {
   window.scrollTo = vi.fn() as typeof window.scrollTo
   vi.stubGlobal('IntersectionObserver', NoObserver)
   const system = { ...dnd5eProfile(), ...extra, ...(sheet ? { sheet } : {}) } as unknown as Record<string, unknown>
   const first = { name: 'Drakterima', system_profile: system }
-  const made = createFakeLayer({ campaign: first as never, entities: { pjs: [] }, pot: null, config: config as never })
+  const made = createFakeLayer({ campaign: first as never, entities: { pjs: pjs as never[] }, pot: null, config: config as never })
   let row: Campaign | null = null
   const write = made.spies.setSystemProfile.getMockImplementation()!
   made.spies.setSystemProfile.mockImplementation(async (...args: Parameters<typeof write>) => {

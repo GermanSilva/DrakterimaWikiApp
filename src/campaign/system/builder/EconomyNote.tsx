@@ -17,3 +17,20 @@ export function EconomyNote() {
     </p>
   )
 }
+
+/** Discarded economy instances are not reviewed in the builder: they are in Sistema › Economía. */
+export function EconomyDiscardedNote({ count }: { count: number }) {
+  const inRouter = useInRouterContext()
+  const text = count === 1 ? '1 instancia de economía descartada: se revisa, restaura o elimina en Sistema › Economía.' : `${count} instancias de economía descartadas: se revisan, restauran o eliminan en Sistema › Economía.`
+  return (
+    <p role="status" aria-label="Instancias de economía descartadas" className="text-[12px] text-txt-muted">
+      {inRouter ? (
+        <Link to={{ search: '?tab=sistema' }} className="underline hover:text-txt-primary">
+          {text}
+        </Link>
+      ) : (
+        text
+      )}
+    </p>
+  )
+}

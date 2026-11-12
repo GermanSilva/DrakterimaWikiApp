@@ -74,6 +74,17 @@ export function economyProjection(sheet: Node | null | undefined): Node {
   }
 }
 
+/**
+ * `economyProjection` without order: the instances and the discarded entries sorted by key. For the remount key of the Sistema form, which
+ * must not drop an unsaved draft because the builder moved a table (placement and order belong to the builder).
+ */
+export function economyIdentity(sheet: Node | null | undefined): Node {
+  const { instances, discarded } = economyProjection(sheet) as { instances: Node[]; discarded: Node[] }
+  const byKey = (a: Node, b: Node) => text(a.key).localeCompare(text(b.key))
+  const discardedKey = (e: Node) => text((e.item as Node | undefined)?.key)
+  return { instances: [...instances].sort(byKey), discarded: [...discarded].sort((a, b) => discardedKey(a).localeCompare(discardedKey(b))) }
+}
+
 /** The sheet without the economy tables, their discarded entries and what refers to them: what the builder owns. For the builder's remount key. */
 export function placementProjection(sheet: Node | null | undefined): Node | null {
   if (!sheet) return null
@@ -115,6 +126,11 @@ export interface MergeInput {
   base: Node | null
   /** The freshest stored sheet: the only authority for the reward destination. */
   latest: Node | null
+  /**
+   * The placement owner is not an economy owner (the builder): an economy table that only `placement` has, and `economy` and `base` do not,
+   * is not kept (it would resurrect a discarded or deleted instance, bypassing Sistema); its references go with it.
+   */
+  strict?: boolean
 }
 
 export interface MergeResult {
@@ -129,7 +145,7 @@ export interface MergeResult {
  * is dropped together with the blocks, card pins and roles that referred to it; the rest of the economy tables are replaced in
  * place, so their position stays the placement owner's.
  */
-export function mergeEconomy({ placement, economy, base, latest }: MergeInput): MergeResult {
+export function mergeEconomy({ placement, economy, base, latest, strict = false }: MergeInput): MergeResult {
   const source = new Map(economyItems(economy).map((e) => [text(e.item.key), e]))
   const baseKeys = new Set(economyItems(base).map((e) => text(e.item.key)))
   const destination = rewardKey(latest)
@@ -152,6 +168,10 @@ export function mergeEconomy({ placement, economy, base, latest }: MergeInput): 
         if (baseKeys.has(key)) {
           gone.add(key)
           if (key === destination) blocked = `«${text(item.label) || key}» pasó a ser el destino de recompensa mientras editabas. Elegí otro en Juegos antes de eliminarla.`
+          return []
+        }
+        if (strict) {
+          gone.add(key)
           return []
         }
         placed.add(key)

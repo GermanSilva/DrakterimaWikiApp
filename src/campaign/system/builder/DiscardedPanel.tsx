@@ -25,6 +25,10 @@ interface Props {
   error: string | null
   /** The clock of the deletion warnings (tests fix it). */
   now?: Date
+  /** Heading and region name (default 'Campos descartados'). */
+  title?: string
+  /** Why a not yet saved entry cannot be deleted (default: save the template). */
+  unsavedHint?: string
   onRestore: (key: string) => void
   onDelete: (key: string) => void
 }
@@ -36,11 +40,11 @@ const KIND_LABEL = (item: DiscardedItem & Record<string, unknown>): string =>
   item.kind === 'row' ? (item.type === 'capacidades' ? 'Fila de capacidades' : 'Fila de stats') : itemKindLabel(item)
 
 /** "Campos descartados": what the DM removed from the template while characters hold data for it. Review, restore or delete. */
-export function DiscardedPanel({ entries, sectionLabels, characters, canDelete, savedKeys, dirty, error, now, onRestore, onDelete }: Props) {
+export function DiscardedPanel({ entries, sectionLabels, characters, canDelete, savedKeys, dirty, error, now, title = 'Campos descartados', unsavedHint = 'Guardá la plantilla antes de eliminar.', onRestore, onDelete }: Props) {
   const today = now ?? new Date()
   return (
-    <section aria-label="Campos descartados" className="border border-border-base px-4 py-3 flex flex-col gap-3">
-      <h3 className="font-exo text-[11px] font-semibold tracking-[0.15em] uppercase text-txt-primary">Campos descartados</h3>
+    <section aria-label={title} className="border border-border-base px-4 py-3 flex flex-col gap-3">
+      <h3 className="font-exo text-[11px] font-semibold tracking-[0.15em] uppercase text-txt-primary">{title}</h3>
       <p className="text-[12px] text-txt-muted">
         Lo que quitaste de la plantilla sigue guardado en los personajes, oculto. Revisá los datos de cada personaje y restauralo al final de su sección o eliminalo para siempre.
       </p>
@@ -95,11 +99,21 @@ export function DiscardedPanel({ entries, sectionLabels, characters, canDelete, 
                   Eliminar definitivamente
                 </button>
               )}
-              {canDelete && !deletable && <span className="text-[12px] text-txt-muted">Guardá la plantilla antes de eliminar.</span>}
+              {canDelete && !deletable && <span className="text-[12px] text-txt-muted">{unsavedHint}</span>}
             </div>
           </div>
         )
       })}
     </section>
   )
+}
+
+/** What deleting the discarded entry `key` for good does, for the confirmation. */
+export function deletionMessage(entries: readonly DiscardedNode[], characters: readonly ReviewCharacter[], key: string): string {
+  const entry = entries.find((e) => String(e.item.key) === key)
+  const item = (entry?.item ?? {}) as unknown as DiscardedItem
+  const label = typeof (item as { label?: unknown }).label === 'string' ? (item as { label: string }).label : key
+  const holders = characters.filter((c) => heldKeys(item, c.values).length > 0).length
+  const who = holders === 0 ? 'ningún personaje tiene datos guardados' : holders === 1 ? 'se borran los datos de 1 personaje' : `se borran los datos de ${holders} personajes`
+  return `Eliminar «${label}» para siempre: ${who}. Esta acción no se puede deshacer.`
 }

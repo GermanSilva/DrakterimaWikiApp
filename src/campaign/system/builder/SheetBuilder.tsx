@@ -2,15 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ConfirmDialog } from '../../sections/ajustes/ConfirmDialog'
 import { BlockSaveCancelled, BlockSaveError } from '../../sections/ajustes/tabSave/tabSaveContext'
 import { useTabSaveBlock } from '../../sections/ajustes/tabSave/useTabSaveBlock'
-import { validateSheet, type DiscardedItem, type Sheet, type SheetError } from '../sheet/sheetModel'
+import { validateSheet, type Sheet, type SheetError } from '../sheet/sheetModel'
 import { BuilderContext, type BuilderApi } from './builderContext'
 import { BuilderOutline } from './BuilderOutline'
 import { BuilderPreview } from './BuilderPreview'
 import { CategoryTabs } from './CategoryTabs'
 import { changes } from './changeCount'
 import { discardedEntries, planRestore, type RestorePlan } from './discard'
-import { DiscardedPanel, type ReviewCharacter } from './DiscardedPanel'
-import { heldKeys } from './discardedValues'
+import { deletionMessage, DiscardedPanel, type ReviewCharacter } from './DiscardedPanel'
+import { EconomyDiscardedNote } from './EconomyNote'
 import type { TestCharacter } from './formula/testCharacters'
 import { getAt, isNode, parsePath, setAt, type Node, type Path } from './draft'
 import { holdsEconomy, isEconomyItem, economyProjection, mergeEconomy, rewardKey } from './economy'
@@ -43,8 +43,11 @@ export interface ReviewHost {
   characters: ReviewCharacter[]
   /** Deletes the discarded item with that key and its data from every character. */
   onPurge: (key: string) => Promise<void>
-  /** Saves `sheet` (the template with the item restored under new keys) and moves the data from the old keys to `renames`. */
-  onRestoreRenamed: (key: string, renames: Record<string, string>, sheet: Record<string, unknown>, warning: string) => Promise<void>
+  /**
+   * Saves `sheet` (the template with the item restored under new keys) and moves the data from the old keys to `renames`. The economy parts
+   * of what is written always come from Sistema's side: from the stored sheet when `sheet` is a builder draft, from `sheet` when `economyOwner`.
+   */
+  onRestoreRenamed: (key: string, renames: Record<string, string>, sheet: Record<string, unknown>, warning: string, economyOwner?: boolean) => Promise<void>
 }
 
 interface Props {
@@ -140,6 +143,9 @@ export function SheetBuilder({ initial, onChange, onSave, review, economy, testC
   const unsaved = useMemo(() => changes(start, draft), [start, draft])
   const dirty = !validation.ok || saved.json === null || JSON.stringify(validation.sheet) !== saved.json
   const entries = discardedEntries(draft)
+  // S8: discarded economy instances are reviewed in Sistema › Economía; the builder lists the rest
+  const listed = entries.filter((e) => !isEconomyItem(e.item))
+  const economyHeld = entries.length - listed.length
 
   // Inside Ajustes the bottom bar of the Ficha tab saves and discards this draft; its first template has no changes to count yet.
   const hosted = useTabSaveBlock(
@@ -178,6 +184,8 @@ export function SheetBuilder({ initial, onChange, onSave, review, economy, testC
 
   function restore(itemKey: string) {
     setRestoreError(null)
+    const held = entries.find((e) => String(e.item.key) === itemKey)
+    if (held && isEconomyItem(held.item)) return setRestoreError('Las instancias de economía se restauran en Sistema › Economía.')
     const plan = planRestore(draft, itemKey)
     if (!plan.ok) return setRestoreError(plan.message)
     const renamed = Object.keys(plan.renames).length > 0
@@ -294,9 +302,9 @@ export function SheetBuilder({ initial, onChange, onSave, review, economy, testC
                 {removalError}
               </p>
             )}
-            {entries.length > 0 && (
+            {listed.length > 0 && (
               <DiscardedPanel
-                entries={entries}
+                entries={listed}
                 sectionLabels={sectionLabels}
                 characters={review?.characters ?? null}
                 canDelete={review !== undefined}
@@ -307,6 +315,7 @@ export function SheetBuilder({ initial, onChange, onSave, review, economy, testC
                 onDelete={setDeleting}
               />
             )}
+            {economyHeld > 0 && <EconomyDiscardedNote count={economyHeld} />}
             {errors.length > 0 ? (
               <div role="alert" aria-label="Errores de la plantilla" className="text-[13px] text-red-400 flex flex-col gap-1">
                 <p>{errors.length === 1 ? 'La plantilla tiene 1 error. Corregilo para poder guardar.' : `La plantilla tiene ${errors.length} errores. Corregilos para poder guardar.`}</p>
@@ -372,13 +381,4 @@ export function SheetBuilder({ initial, onChange, onSave, review, economy, testC
       )}
     </BuilderContext.Provider>
   )
-}
-
-function deletionMessage(entries: ReturnType<typeof discardedEntries>, characters: ReviewCharacter[], key: string): string {
-  const entry = entries.find((e) => String(e.item.key) === key)
-  const item = (entry?.item ?? {}) as unknown as DiscardedItem
-  const label = typeof (item as { label?: unknown }).label === 'string' ? (item as { label: string }).label : key
-  const holders = characters.filter((c) => heldKeys(item, c.values).length > 0).length
-  const who = holders === 0 ? 'ningún personaje tiene datos guardados' : holders === 1 ? 'se borran los datos de 1 personaje' : `se borran los datos de ${holders} personajes`
-  return `Eliminar «${label}» para siempre: ${who}. Esta acción no se puede deshacer.`
 }

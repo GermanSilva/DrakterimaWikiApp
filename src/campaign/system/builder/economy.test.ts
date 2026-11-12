@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { validateSheet } from '../sheet/sheetModel'
 import type { Node } from './draft'
-import { economyErrors, economyItems, economyProjection, holdsEconomy, mergeEconomy, placementProjection, rewardKey, setRewardByKey } from './economy'
+import { economyErrors, economyIdentity, economyItems, economyProjection, holdsEconomy, mergeEconomy, placementProjection, rewardKey, setRewardByKey } from './economy'
 
 const coins = (extra: Node = {}): Node => ({
   kind: 'table',
@@ -134,6 +134,29 @@ describe('mergeEconomy', () => {
     const s = sheet([coins({ rewardDestination: true }), bank()])
     const { sheet: out } = mergeEconomy({ placement: s, economy: s, base: s, latest: s })
     expect(JSON.stringify(out)).toBe(JSON.stringify(s))
+  })
+})
+
+describe('strict merge and identity', () => {
+  const entry = { item: bank(), section: 'equipo', at: '2026-11-11T00:00:00.000Z' }
+
+  it('strict: a table only the placement has (a restored discarded instance) is not kept, and its discarded entry stays', () => {
+    const stored = sheet([coins()], { discarded: [entry] })
+    const draft = sheet([coins(), bank()])
+    const loose = mergeEconomy({ placement: draft, economy: stored, base: stored, latest: stored })
+    expect(equipoItems(loose.sheet).map((i) => i.key)).toEqual(['bolsa', 'banco'])
+    const strict = mergeEconomy({ placement: draft, economy: stored, base: stored, latest: stored, strict: true })
+    expect(equipoItems(strict.sheet).map((i) => i.key)).toEqual(['bolsa'])
+    expect(((strict.sheet.categories as Node[])[0].sections as Node[])[1].blocks).toEqual([{ key: 'dinero', title: 'Dinero', mode: 'plano', items: ['bolsa'] }])
+    expect((strict.sheet.discarded as Node[]).map((e) => (e.item as Node).key)).toEqual(['banco'])
+  })
+
+  it('identity ignores the order of the tables, projection does not', () => {
+    const a = sheet([coins(), bank()])
+    const b = sheet([bank(), coins()])
+    expect(JSON.stringify(economyProjection(a))).not.toBe(JSON.stringify(economyProjection(b)))
+    expect(JSON.stringify(economyIdentity(a))).toBe(JSON.stringify(economyIdentity(b)))
+    expect(JSON.stringify(economyIdentity(a))).not.toBe(JSON.stringify(economyIdentity(sheet([coins(), bank({ label: 'Caja' })]))))
   })
 })
 
