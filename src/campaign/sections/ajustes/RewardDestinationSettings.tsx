@@ -19,12 +19,14 @@ interface Option {
 function DestinationForm({ initial, options, onSave }: { initial: string; options: Option[]; onSave: (choice: string) => Promise<void> }) {
   const id = useId()
   const [choice, setChoice] = useState(initial)
+  // The instance list may change under an unsaved choice (Sistema saved): keep the choice unless its instance is gone.
+  const value = choice === '' || options.some((o) => o.id === choice) ? choice : initial
   useTabSaveBlock({
     key: 'destino',
     label: 'Destino de recompensa',
     order: 5,
-    dirtyCount: countChanges(initial, choice),
-    save: () => onSave(choice),
+    dirtyCount: countChanges(initial, value),
+    save: () => onSave(value),
     discard: () => setChoice(initial),
   })
   return (
@@ -32,7 +34,7 @@ function DestinationForm({ initial, options, onSave }: { initial: string; option
       <label htmlFor={id} className={labelCls}>
         Destino de recompensa
       </label>
-      <select id={id} aria-describedby={`${id}-hint`} className={inputCls} value={choice} onChange={(e) => setChoice(e.target.value)}>
+      <select id={id} aria-describedby={`${id}-hint`} className={inputCls} value={value} onChange={(e) => setChoice(e.target.value)}>
         {options.map((o) => (
           <option key={o.id} value={o.id}>
             {o.label}
@@ -73,7 +75,7 @@ export function RewardDestinationSettings() {
 
   return (
     <div className="flex flex-col gap-2">
-      <DestinationForm key={`${saves}:${stored}:${options.map((o) => o.id).join(',')}`} initial={stored} options={options} onSave={onSave} />
+      <DestinationForm key={`${saves}:${stored}`} initial={stored} options={options} onSave={onSave} />
       {notice && (
         <p role={notice.kind === 'error' ? 'alert' : 'status'} className={notice.kind === 'error' ? 'text-[13px] text-red-400' : 'text-[13px] text-accent-bright'}>
           {notice.text}
