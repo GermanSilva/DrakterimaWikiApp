@@ -23,7 +23,7 @@ const LOTERIA = { loteria: { value: { commonMinRoll: 15, commonPrize: { oro: 2, 
 
 const setup = (campaign?: ReturnType<typeof withSheet>, config: Record<string, unknown> = LOTERIA) => {
   const made = createFakeLayer({ entities: { pjs: [] }, pot: null, config: config as never })
-  renderSection('/c/demo/ajustes', { layer: made.layer, isDM: true, ...(campaign ? { campaign } : {}) })
+  renderSection('/c/demo/ajustes?tab=juegos', { layer: made.layer, isDM: true, ...(campaign ? { campaign } : {}) })
   return made
 }
 // the first render of a file loads the lazy Ajustes chunk: under a loaded machine that alone can exceed the 5 s default, so wait up to

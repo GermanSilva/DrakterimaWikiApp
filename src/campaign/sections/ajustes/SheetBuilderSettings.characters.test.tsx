@@ -17,7 +17,7 @@ function setup(failing = false) {
   const stored = { name: 'Drakterima', system_profile: system }
   const made = createFakeLayer({ campaign: stored as never, entities: { pjs: PJS as never[] } })
   if (failing) made.spies.entityList.mockRejectedValue(new Error('boom'))
-  renderSection('/c/demo/ajustes', { layer: made.layer, isDM: true, campaign: stored as never })
+  renderSection('/c/demo/ajustes?tab=ficha', { layer: made.layer, isDM: true, campaign: stored as never })
   return made
 }
 const preview = async () => within(await screen.findByRole('region', { name: 'Vista previa' }))

@@ -15,7 +15,7 @@ function setup(discarded: unknown[]) {
   const system = { ...clone(DND5E_PROFILE), sheet: { ...clone(STORED_SHEET), discarded }, distance: { main: 'ft', units: [{ key: 'ft', label: 'Pies', value: 1, decimals: 0 }] } }
   const stored = { name: 'Drakterima', system_profile: system }
   const made = createFakeLayer({ campaign: stored as never, entities: { pjs: [] } })
-  renderSection('/c/demo/ajustes', { layer: made.layer, isDM: true, campaign: stored as never })
+  renderSection('/c/demo/ajustes?tab=ficha', { layer: made.layer, isDM: true, campaign: stored as never })
 }
 
 beforeEach(() => {

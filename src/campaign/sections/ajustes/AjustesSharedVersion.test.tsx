@@ -19,6 +19,7 @@ const region = (name: string) => screen.findByRole('region', { name })
 const type = (el: HTMLElement, value: string) => fireEvent.change(el, { target: { value } })
 const rename = async (section: string, item: string, field: string, value: string) =>
   type(within(await within(await region(section)).findByRole('listitem', { name: item })).getByLabelText(field), value)
+const openTab = (name: string) => fireEvent.click(screen.getByRole('tab', { name }))
 const press = async (section: string, name: string) => fireEvent.click(within(await region(section)).getByRole('button', { name }))
 
 describe('Ajustes: shared campaign version across sections', () => {
@@ -32,6 +33,7 @@ describe('Ajustes: shared campaign version across sections', () => {
     await press('Regiones', 'Guardar regiones')
     expect(await within(await region('Regiones')).findByText('Regiones guardadas.')).toBeInTheDocument()
 
+    openTab('Ficha')
     await rename('Campos de personaje', 'Lema', 'Nombre del campo', 'Lema 2')
     await press('Campos de personaje', 'Guardar campos')
     expect(await within(await region('Campos de personaje')).findByText('Campos guardados.')).toBeInTheDocument()
@@ -47,6 +49,7 @@ describe('Ajustes: shared campaign version across sections', () => {
     await layer.campaigns.updateCampaign('c1', { name: 'Otro DM' })
     spies.updateCampaign.mockClear()
 
+    openTab('Ficha')
     await rename('Campos de personaje', 'Lema', 'Nombre del campo', 'Lema 2')
     await press('Campos de personaje', 'Guardar campos')
     expect(await within(await region('Campos de personaje')).findByText(/cambió mientras la editabas/)).toBeInTheDocument()

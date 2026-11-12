@@ -15,11 +15,12 @@ const MEMBERS = [member(ME, 'Ana', 'dm'), member('u-bob', 'Bob'), member('u-cleo
 const PJS = [entity(10, { nombre: 'Eldric', owner_id: 'u-bob' }), entity(11, { nombre: 'Mara', owner_id: null })]
 const LAST_DM = new DataError('validation', 'cannot remove, demote or delete the account of the only DM of a campaign', { code: '23514' }, 'last_dm')
 
-function setup({ isDM = true, members = MEMBERS } = {}) {
+function setupAt({ isDM = true, members = MEMBERS, tab = 'jugadores' } = {}) {
   const made = createFakeLayer({ entities: { pjs: PJS }, members })
-  const view = renderSection('/c/demo/ajustes', { layer: made.layer, isDM })
+  const view = renderSection(`/c/demo/ajustes?tab=${tab}`, { layer: made.layer, isDM })
   return { ...made, ...view }
 }
+const setup = setupAt
 const players = () => screen.findByRole('region', { name: 'Jugadores' })
 const rowOf = async (name: string) => within(await players()).findByRole('row', { name: new RegExp(name) })
 const dialog = () => screen.findByRole('dialog')
@@ -182,6 +183,7 @@ describe('Ajustes > Jugadores: character owners', () => {
 })
 
 describe('Ajustes > Zona de peligro: delete the campaign', () => {
+  const setup = (options: Parameters<typeof setupAt>[0] = {}) => setupAt({ tab: 'datos', ...options })
   const open = async () => {
     const zone = await screen.findByRole('region', { name: 'Zona de peligro' })
     fireEvent.click(within(zone).getByRole('button', { name: /Borrar campaña/ }))

@@ -31,7 +31,7 @@ const trigger = (reason: DataErrorReason) => new DataError('validation', reason,
 
 function setup({ invites = [] as Invite[], isDM = true } = {}) {
   const made = createFakeLayer({ entities: { pjs: PJS }, invites })
-  const view = renderSection('/c/demo/ajustes', { layer: made.layer, isDM })
+  const view = renderSection('/c/demo/ajustes?tab=jugadores', { layer: made.layer, isDM })
   return { ...made, ...view }
 }
 const section = () => screen.findByRole('region', { name: 'Invitaciones' })

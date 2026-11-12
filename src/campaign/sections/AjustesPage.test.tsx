@@ -38,16 +38,18 @@ const member = (user_id: string, name: string | null, role: 'dm' | 'player' = 'p
 const reason = (r: DataErrorReason) => new DataError(r === 'dm_only' ? 'permission' : 'business', r, undefined, r)
 
 type Made = ReturnType<typeof createFakeLayer>
-type Options = NonNullable<Parameters<typeof createFakeLayer>[0]> & { isDM?: boolean; before?: (made: Made) => void }
-function setup({ isDM = true, before, ...layerOptions }: Options = {}) {
+type Options = NonNullable<Parameters<typeof createFakeLayer>[0]> & { isDM?: boolean; before?: (made: Made) => void; tab?: string; query?: string }
+function setupAjustes({ isDM = true, before, tab, query, ...layerOptions }: Options = {}) {
   const made = createFakeLayer({ entities: { pjs: PJS }, pot: POT, config: LOTERIA as never, ...layerOptions })
   const games = made.layer.games as unknown as { assignPotToCharacter: ReturnType<typeof vi.fn>; removeLog: ReturnType<typeof vi.fn> }
   before?.(made)
-  const view = renderSection('/c/demo/ajustes', { layer: made.layer, isDM })
+  const view = renderSection(`/c/demo/ajustes${query ?? (tab ? `?tab=${tab}` : '')}`, { layer: made.layer, isDM })
   return { ...made, games, ...view }
 }
 const sectionOf = (name: string) => screen.findByRole('region', { name })
 const type = (el: HTMLElement, value: string) => fireEvent.change(el, { target: { value } })
+
+const setup = setupAjustes
 
 describe('Ajustes: access', () => {
   it('is a 404 for a player and requests none of the DM data', async () => {
@@ -61,23 +63,110 @@ describe('Ajustes: access', () => {
     expect(games.removeLog).not.toHaveBeenCalled()
   })
 
-  it('shows the DM the stacked sections', async () => {
+  it('shows the DM the heading and no session-screen block anywhere', async () => {
     setup()
     expect(await screen.findByRole('heading', { level: 1, name: 'Ajustes' })).toBeInTheDocument()
-    for (const title of ['Campaña', 'Pantalla de sesión', 'Juegos: configuración de la lotería', 'Juegos: pozo acumulado', 'Juegos: registro de tiradas', 'Jugadores', 'Invitaciones', 'Exportar']) {
-      expect(await sectionOf(title)).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('Pantalla de sesión')
+    expect(screen.queryByRole('button', { name: 'Abrir' })).not.toBeInTheDocument()
+  })
+})
+
+describe('Ajustes: tabs', () => {
+  const IDS = ['campana', 'sistema', 'ficha', 'juegos', 'jugadores', 'datos']
+  const tabs = async () => within(await screen.findByRole('tablist', { name: 'Secciones de ajustes' })).getAllByRole('tab')
+  const selected = async () => (await tabs()).filter((t) => t.getAttribute('aria-selected') === 'true').map((t) => t.textContent)
+
+  it('lists the six tabs in order, Campaña selected by default', async () => {
+    const { router } = setup()
+    expect((await tabs()).map((t) => t.textContent)).toEqual(['Campaña', 'Sistema', 'Ficha', 'Juegos', 'Jugadores', 'Datos'])
+    expect(await selected()).toEqual(['Campaña'])
+    expect(here(router)).toBe('/c/demo/ajustes')
+  })
+
+  it('wires every tab to its panel (aria-controls, aria-labelledby) with one visible panel', async () => {
+    setup({ tab: 'ficha' })
+    const list = await tabs()
+    list.forEach((tab, i) => {
+      const panel = document.getElementById(tab.getAttribute('aria-controls') ?? '')
+      expect(panel).toHaveAttribute('role', 'tabpanel')
+      expect(panel).toHaveAttribute('aria-labelledby', tab.id)
+      expect(panel?.hidden).toBe(IDS[i] !== 'ficha')
+      expect(tab).toHaveAttribute('tabindex', IDS[i] === 'ficha' ? '0' : '-1')
+    })
+  })
+
+  it('opens the tab named in ?tab=', async () => {
+    setup({ tab: 'ficha' })
+    expect(await selected()).toEqual(['Ficha'])
+    expect(await screen.findByRole('region', { name: 'Plantilla de ficha' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Campos de personaje' })).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Regiones' })).not.toBeInTheDocument() // lives in a hidden panel
+  })
+
+  it.each(['nope', '', 'FICHA'])('falls back to Campaña for the unknown tab %j', async (value) => {
+    setup({ query: `?tab=${value}` })
+    expect(await selected()).toEqual(['Campaña'])
+    expect(await screen.findByRole('region', { name: 'Regiones' })).toBeInTheDocument()
+  })
+
+  it('groups the blocks of each tab', async () => {
+    setup()
+    const expected: Record<string, string[]> = {
+      Campaña: ['Campaña', 'Regiones'],
+      Sistema: ['Sistema', 'Homebrew'],
+      Ficha: ['Plantilla de ficha', 'Campos de personaje'],
+      Juegos: ['Juegos: configuración de la lotería', 'Juegos: pozo acumulado', 'Juegos: registro de tiradas'],
+      Jugadores: ['Jugadores', 'Invitaciones'],
+      Datos: ['Exportar', 'Zona de peligro'],
+    }
+    for (const tab of await tabs()) {
+      fireEvent.click(tab)
+      for (const title of expected[tab.textContent ?? '']) expect(await screen.findByRole('region', { name: title })).toBeInTheDocument()
     }
   })
 
-  it('links to the session screen', async () => {
-    const { router } = setup({ config: { ...LOTERIA, session_screen: { value: { cards: [{ id: 1, tipo: 'notes', text: '' }] }, visibility: 'dm' } } as never })
-    const session = await sectionOf('Pantalla de sesión')
-    fireEvent.click(within(session).getByRole('button', { name: 'Abrir' }))
-    await waitFor(() => expect(here(router)).toBe('/c/demo/sesion-en-vivo'))
+  it('switches on click, with replace (no history entry) and keeping the other query params', async () => {
+    const { router } = setup({ query: '?foo=1' })
+    const before = window.history.length
+    fireEvent.click((await tabs())[3])
+    await waitFor(() => expect(here(router)).toBe('/c/demo/ajustes?foo=1&tab=juegos'))
+    expect(window.history.length).toBe(before)
+    expect(await selected()).toEqual(['Juegos'])
+  })
+
+  it('moves with ArrowRight/ArrowLeft (wrapping), Home and End, focusing the new tab', async () => {
+    setup()
+    const list = await tabs()
+    list[0].focus()
+    fireEvent.keyDown(list[0], { key: 'ArrowLeft' })
+    expect(await selected()).toEqual(['Datos'])
+    expect(list[5]).toHaveFocus()
+    fireEvent.keyDown(list[5], { key: 'ArrowRight' })
+    expect(await selected()).toEqual(['Campaña'])
+    fireEvent.keyDown(list[0], { key: 'End' })
+    expect(await selected()).toEqual(['Datos'])
+    fireEvent.keyDown(list[5], { key: 'Home' })
+    expect(await selected()).toEqual(['Campaña'])
+    fireEvent.keyDown(list[0], { key: 'ArrowRight' })
+    expect(await selected()).toEqual(['Sistema'])
+    expect(list[1]).toHaveFocus()
+  })
+
+  it('keeps an unsaved draft when switching tabs and back', async () => {
+    setup()
+    const name = (await screen.findByLabelText('Nombre', { selector: '#campaign-name' })) as HTMLInputElement
+    type(name, 'Otro nombre')
+    const list = await tabs()
+    fireEvent.click(list[1])
+    expect(name).not.toBeVisible()
+    fireEvent.click(list[0])
+    expect(name).toBeVisible()
+    expect(name).toHaveValue('Otro nombre')
   })
 })
 
 describe('Ajustes: lottery configuration', () => {
+  const setup = (options: Options = {}) => setupAjustes({ tab: 'juegos', ...options })
   const form = async () => within(await screen.findByRole('form', { name: 'Configuración de la lotería' }))
   const save = (f: Awaited<ReturnType<typeof form>>) => fireEvent.click(f.getByRole('button', { name: 'Guardar configuración' }))
 
@@ -173,6 +262,7 @@ describe('Ajustes: lottery configuration', () => {
 })
 
 describe('Ajustes: pot and transfer', () => {
+  const setup = (options: Options = {}) => setupAjustes({ tab: 'juegos', ...options })
   const form = async () => within(await screen.findByRole('form', { name: 'Transferir del pozo a un personaje' }))
   const give = (f: Awaited<ReturnType<typeof form>>, coin: string, amount: string) => type(f.getByLabelText(coin), amount)
 
@@ -254,6 +344,7 @@ describe('Ajustes: pot and transfer', () => {
 })
 
 describe('Ajustes: game log', () => {
+  const setup = (options: Options = {}) => setupAjustes({ tab: 'juegos', ...options })
   const LOGS = [
     log(3, { actor_type: 'dm', character_id: null, roll: 20, prize: { gp: 5 }, prize_target: 'pot' }),
     log(2, { character_id: 11, roll: 17, prize: { cp: 3 } }),
@@ -367,6 +458,7 @@ describe('Ajustes: game log', () => {
 })
 
 describe('Ajustes: players and last connection', () => {
+  const setup = (options: Options = {}) => setupAjustes({ tab: 'jugadores', ...options })
   const MEMBERS = [member('u-bob', 'Bob'), member('u-dm', 'Ana DM', 'dm'), member('u-ana', 'Ana'), member('u-x', null)]
   const PRESENCE = [
     { campaign_id: 'c1', user_id: 'u-ana', last_seen_at: '2026-10-09T11:55:00Z' },
@@ -424,6 +516,7 @@ describe('Ajustes: players and last connection', () => {
 })
 
 describe('Ajustes: export', () => {
+  const setup = (options: Options = {}) => setupAjustes({ tab: 'datos', ...options })
   const exportButton = async () => within(await sectionOf('Exportar')).getByRole('button', { name: 'Exportar' })
   const exported = () => vi.mocked(downloadJson).mock.calls[0] as [string, Record<string, unknown>]
 

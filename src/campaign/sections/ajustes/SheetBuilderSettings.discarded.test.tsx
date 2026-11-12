@@ -23,7 +23,7 @@ function setup({ isDM = true, discarded = [entry(MAGRALITA)] }: { isDM?: boolean
   const system = { ...clone(DND5E_PROFILE), sheet: { ...clone(STORED_SHEET), discarded }, distance: { main: 'ft', units: [{ key: 'ft', label: 'Pies', value: 1, decimals: 0 }] } }
   const stored = { name: 'Drakterima', system_profile: system }
   const made = createFakeLayer({ campaign: stored as never, entities: { pjs: PJS as never[] } })
-  const view = renderSection('/c/demo/ajustes', { layer: made.layer, isDM, campaign: stored as never })
+  const view = renderSection('/c/demo/ajustes?tab=ficha', { layer: made.layer, isDM, campaign: stored as never })
   return { ...made, ...view, system }
 }
 const region = () => screen.findByRole('region', { name: 'Plantilla de ficha' })

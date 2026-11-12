@@ -23,7 +23,7 @@ const origin = (over: Partial<SystemSummary> = {}) => system({ id: 'o1', name: '
 
 function setup({ isDM = true, systems = [] as SystemSummary[] } = {}) {
   const made = createFakeLayer({ systems })
-  const view = renderSection('/c/demo/ajustes', { layer: made.layer, isDM })
+  const view = renderSection('/c/demo/ajustes?tab=sistema', { layer: made.layer, isDM })
   return { ...made, ...view }
 }
 const section = () => screen.findByRole('region', { name: 'Homebrew' })

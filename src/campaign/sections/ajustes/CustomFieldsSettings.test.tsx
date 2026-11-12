@@ -15,7 +15,7 @@ const FIELDS = [
 
 function setup({ isDM = true, fields = FIELDS }: { isDM?: boolean; fields?: unknown[] } = {}) {
   const made = createFakeLayer({ campaign: { character_custom_fields: fields } as never })
-  const view = renderSection('/c/demo/ajustes', { layer: made.layer, isDM, customFields: fields })
+  const view = renderSection('/c/demo/ajustes?tab=ficha', { layer: made.layer, isDM, customFields: fields })
   return { ...made, ...view }
 }
 const section = () => screen.findByRole('region', { name: 'Campos de personaje' })

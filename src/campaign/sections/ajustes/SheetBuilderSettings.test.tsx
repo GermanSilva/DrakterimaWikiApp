@@ -14,7 +14,7 @@ const profile = (extra: Record<string, unknown> = {}) => ({ ...JSON.parse(JSON.s
 function setup({ isDM = true, system = profile({ sheet: STORED_SHEET }) }: { isDM?: boolean; system?: Record<string, unknown> } = {}) {
   const stored = { name: 'Drakterima', system_profile: system }
   const made = createFakeLayer({ campaign: stored as never })
-  const view = renderSection('/c/demo/ajustes', { layer: made.layer, isDM, campaign: stored as never })
+  const view = renderSection('/c/demo/ajustes?tab=ficha', { layer: made.layer, isDM, campaign: stored as never })
   return { ...made, ...view, system }
 }
 const region = () => screen.findByRole('region', { name: 'Plantilla de ficha' })
@@ -115,11 +115,13 @@ describe('Ajustes: Plantilla de ficha', () => {
   it('a save of the Sistema section keeps the sheet, and does not throw away what is being edited here', async () => {
     const { spies } = setup()
     await addEdad()
+    fireEvent.click(screen.getByRole('tab', { name: 'Sistema' })) // the Ficha draft stays mounted, hidden
     const sistema = await screen.findByRole('region', { name: 'Sistema' })
     fireEvent.click(within(sistema).getByRole('button', { name: 'Guardar sistema' }))
     await waitFor(() => expect(spies.setSystemProfile).toHaveBeenCalledTimes(1))
     expect((spies.setSystemProfile.mock.calls[0][1] as { sheet: unknown }).sheet).toEqual(STORED_SHEET)
     expect(await within(sistema).findByText('Sistema guardado.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Ficha' }))
     expect(within(await region()).getByRole('group', { name: 'Ítem Altura' })).toBeInTheDocument()
   })
 })

@@ -13,7 +13,7 @@ const STORED = { name: 'Drakterima', system_profile: JSON.parse(JSON.stringify(D
 
 function setup({ isDM = true }: { isDM?: boolean } = {}) {
   const made = createFakeLayer({ campaign: STORED as never })
-  const view = renderSection('/c/demo/ajustes', { layer: made.layer, isDM, campaign: STORED as never })
+  const view = renderSection('/c/demo/ajustes?tab=sistema', { layer: made.layer, isDM, campaign: STORED as never })
   return { ...made, ...view }
 }
 const section = () => screen.findByRole('region', { name: 'Sistema' })
@@ -98,7 +98,7 @@ describe('Ajustes: Sistema section', () => {
 
   it('builds from the campaign document, and a stored document without sections shows every block on', async () => {
     const made = createFakeLayer({ campaign: { name: 'X', system_profile: { version: 1, character: { sections: { hechizos: false } } } } as never })
-    renderSection('/c/demo/ajustes', { layer: made.layer, isDM: true, campaign: makeCampaign({ system_profile: { version: 1, character: { sections: { hechizos: false } } } as never }) })
+    renderSection('/c/demo/ajustes?tab=sistema', { layer: made.layer, isDM: true, campaign: makeCampaign({ system_profile: { version: 1, character: { sections: { hechizos: false } } } as never }) })
     const blocks = within(await screen.findByRole('group', { name: 'Bloques de la ficha' }))
     expect(blocks.getByLabelText('Hechizos')).not.toBeChecked()
     expect(blocks.getByLabelText('Estadísticas')).toBeChecked()
@@ -118,7 +118,7 @@ describe('Ajustes: Sistema section, Distancias', () => {
   function setupWith(extra: Record<string, unknown> = {}) {
     const campaign = { name: 'Drakterima', system_profile: { ...JSON.parse(JSON.stringify(DND5E_PROFILE)), ...extra } }
     const made = createFakeLayer({ campaign: campaign as never })
-    const view = renderSection('/c/demo/ajustes', { layer: made.layer, isDM: true, campaign: campaign as never })
+    const view = renderSection('/c/demo/ajustes?tab=sistema', { layer: made.layer, isDM: true, campaign: campaign as never })
     return { ...made, ...view }
   }
   const distancias = async () => within(await group('Distancias'))
