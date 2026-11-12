@@ -103,6 +103,17 @@ describe('no lost update across Sistema, Juegos and Ficha saves', () => {
     expect(keys(sectionItems(h.sheet(), 'equipo'))).toEqual(['bolsa', 'banco', 'caja'])
   })
 
+  it('S8/F1: a Ficha reorder save leaves a clean Sistema clean', async () => {
+    const h = renderEconomy(SHEET())
+    await tab(/Ficha/)
+    fireEvent.click(within(await screen.findByRole('group', { name: 'Ítem Banco' })).getByRole('button', { name: 'Subir ítem' }))
+    await save(/Ficha/, 'Guardar plantilla')
+    await waitFor(() => expect(h.spies.setSystemProfile).toHaveBeenCalledTimes(1))
+    await tab(/Sistema/)
+    await screen.findByRole('region', { name: 'Economía' })
+    expect(screen.getByRole('tab', { name: /Sistema/ })).not.toHaveAccessibleName(/cambios sin guardar/)
+  })
+
   it('S8/F1: reordering economy tables in Ficha keeps an unsaved Sistema draft', async () => {
     const h = renderEconomy(SHEET())
     await renameCoin('Corona')

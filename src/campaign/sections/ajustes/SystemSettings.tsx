@@ -7,7 +7,7 @@ import { AdminSection } from '../../../components/AdminSection'
 import type { Node } from '../../system/builder/draft'
 import { changes } from '../../system/builder/changeCount'
 import { discardedEntries } from '../../system/builder/discard'
-import { economyErrors, economyIdentity, economyProjection, isEconomyItem, mergeEconomy } from '../../system/builder/economy'
+import { economyErrors, economyIdentity, isEconomyItem, mergeEconomy } from '../../system/builder/economy'
 import type { ReviewHost } from '../../system/builder/SheetBuilder'
 import { describeSheetError, displayLine } from '../../system/builder/errorsEs'
 import { validateSheet } from '../../system/sheet/sheetModel'
@@ -318,7 +318,7 @@ function SystemForm({
   const rangeId = useId()
 
   // Economía shares this block (and so the single system_profile write of the tab): its draft is the sheet, validated as it would be written
-  const economyChanges = initialSheet && sheet ? changes(economyProjection(initialSheet), economyProjection(sheet)) : 0
+  const economyChanges = initialSheet && sheet ? changes(economyIdentity(initialSheet), economyIdentity(sheet)) : 0
   const economyLines = useMemo(() => {
     if (economyChanges === 0 || !sheet || !latestSheet) return []
     const merged = mergeEconomy({ placement: latestSheet, economy: sheet, base: initialSheet, latest: latestSheet })
